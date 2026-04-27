@@ -1,7 +1,7 @@
 name: structured_log
 description: Structured logging for Dart, inspired by Python's structlog. Log JSON with context binding.
 version: 0.1.0
-repository: https://github.com/example/structlog_dart
+repository: https://github.com/pese-git/structured_log.git
 
 environment:
   sdk: ^3.0.0
