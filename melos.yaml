@@ -1,0 +1,46 @@
+name: structured_log
+
+packages:
+  - .
+
+command:
+  bootstrap:
+    runPubGetInParallel: false
+
+scripts:
+  analyze:
+    run: dart analyze
+    description: Analyze Dart code
+
+  format:
+    run: dart format .
+    description: Format Dart code
+
+  format:check:
+    run: dart format --set-exit-if-changed .
+    description: Check code formatting
+
+  test:
+    run: dart test
+    description: Run tests
+
+  test:coverage:
+    run: dart test --coverage=coverage
+    description: Run tests with coverage
+
+  lint:
+    run: melos run analyze && melos run format:check
+    description: Run all linting checks
+
+  build:
+    run: dart pub get && melos run analyze
+    description: Build and analyze
+
+  clean:
+    run: dart pub cache clean
+    description: Clean pub cache
+
+  example:
+    run: dart run example/main.dart
+    description: Run example
+sdkPath: .fvm/flutter_sdk

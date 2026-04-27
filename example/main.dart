@@ -41,5 +41,6 @@ void main() {
 
   print('Rotating logs:');
   print('logs/rotating.log exists: ${File('logs/rotating.log').existsSync()}');
-  print('logs/rotating.log.0 exists: ${File('logs/rotating.log.0').existsSync()}');
+  print(
+      'logs/rotating.log.0 exists: ${File('logs/rotating.log.0').existsSync()}');
 }

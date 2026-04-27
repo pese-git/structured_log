@@ -71,8 +71,11 @@ OutputFunction rotatingFileOutput(
 /// Console colored output
 void coloredConsoleOutput(Map<String, dynamic> entry, LogLevel level) {
   final event = entry['event'] ?? '';
-  final context = Map<String, dynamic>.from(entry)..remove('event')..remove('level')..remove('timestamp');
-  
+  final context = Map<String, dynamic>.from(entry)
+    ..remove('event')
+    ..remove('level')
+    ..remove('timestamp');
+
   String colorCode;
   switch (level) {
     case LogLevel.debug:
@@ -91,10 +94,11 @@ void coloredConsoleOutput(Map<String, dynamic> entry, LogLevel level) {
       colorCode = '\x1B[35m'; // magenta
       break;
   }
-  
+
   const reset = '\x1B[0m';
   final timestamp = entry['timestamp'] ?? '';
   final contextStr = context.isNotEmpty ? ' ${jsonEncode(context)}' : '';
-  
-  print('$colorCode[$timestamp] ${level.name.toUpperCase()}: $event$reset$contextStr');
+
+  print(
+      '$colorCode[$timestamp] ${level.name.toUpperCase()}: $event$reset$contextStr');
 }

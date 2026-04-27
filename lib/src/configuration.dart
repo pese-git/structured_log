@@ -1,4 +1,3 @@
-import 'logger.dart';
 import 'processors.dart';
 import 'formatters.dart';
 

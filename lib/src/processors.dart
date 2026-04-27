@@ -6,7 +6,8 @@ import 'logger.dart';
 typedef Processor = Map<String, dynamic>? Function(Map<String, dynamic> entry);
 
 /// Type definition for output function
-typedef OutputFunction = void Function(Map<String, dynamic> entry, LogLevel level);
+typedef OutputFunction = void Function(
+    Map<String, dynamic> entry, LogLevel level);
 
 /// Add timestamp to log entry
 Map<String, dynamic>? addTimestamp(Map<String, dynamic> entry) {
