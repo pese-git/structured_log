@@ -16,6 +16,30 @@ Log JSON with context binding, processors, and flexible output destinations.
 - **Configurable** — global configuration with `StructlogConfiguration.configure()`
 - **Zero dependencies** — only Dart SDK
 
+## How It Works
+
+Every log call flows through the same pipeline: your bound context and
+correlation fields are merged into the entry, the entry passes through the
+configured processors (which can enrich, mask, or drop it), and what
+survives is delivered to every sink whose level/category filters accept it:
+
+```mermaid
+flowchart LR
+    A["log.info('event', context: {...})"] --> B["merge: bound context<br/>+ inline context<br/>+ correlation"]
+    B --> C["processors pipeline<br/>(dropNullValues, ...)"]
+    C -->|"dropped (returned null)"| X[discarded]
+    C -->|entry| D{"for each sink"}
+    D -->|"level/category match"| E["sink.output(entry, level)"]
+    D -->|"filtered out"| F[skipped]
+```
+
+A single `output:` in `StructlogConfiguration.configure()` is shorthand for
+one sink — most apps never need more than that. See
+[Multi-Sink Routing](#multi-sink-routing) below for delivering to several
+destinations at once, and [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) for the
+full internal design (with sequence diagrams) if you're extending the
+package.
+
 ## Installation
 
 Add to your `pubspec.yaml`:
