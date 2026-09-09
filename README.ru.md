@@ -1,5 +1,7 @@
 # structured_log
 
+*Read this in [English](README.md).*
+
 Структурированное логирование для Dart, вдохновлённое [Python structlog](https://www.structlog.org/).
 
 Логируйте JSON с привязкой контекста, процессорами и гибкой настройкой вывода.
@@ -37,9 +39,9 @@ flowchart LR
 Однопараметровый `output:` в `StructlogConfiguration.configure()` — это
 сокращение для одного sink; большинству приложений больше и не нужно. Раздел
 [Multi-sink маршрутизация](#multi-sink-маршрутизация) ниже — про доставку в
-несколько destinations сразу, а [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md)
-(на английском) — про полную внутреннюю архитектуру с диаграммами
-последовательностей, если вы дорабатываете сам пакет.
+несколько destinations сразу, а [doc/ARCHITECTURE.ru.md](doc/ARCHITECTURE.ru.md)
+— про полную внутреннюю архитектуру с диаграммами последовательностей,
+если вы дорабатываете сам пакет.
 
 ## Установка
 

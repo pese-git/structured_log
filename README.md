@@ -1,5 +1,7 @@
 # structured_log
 
+*Читать на [русском](README.ru.md).*
+
 Structured logging for Dart, inspired by [Python's structlog](https://www.structlog.org/).
 
 Log JSON with context binding, processors, and flexible output destinations.

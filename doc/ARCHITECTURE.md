@@ -1,5 +1,7 @@
 # Architecture
 
+*Читать на [русском](ARCHITECTURE.ru.md).*
+
 This document describes the internal design of `structured_log` for
 contributors extending or maintaining the package. For usage as a
 consumer, see [README.md](../README.md) (or [README.ru.md](../README.ru.md)).

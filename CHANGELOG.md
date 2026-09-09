@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `doc/ARCHITECTURE.md` — internal design docs for contributors, with
   Mermaid class/sequence/flow diagrams of the log call lifecycle and
   multi-sink routing
+- `doc/ARCHITECTURE.ru.md` — Russian translation of the architecture doc
 - "How It Works" section in `README.md`/`README.ru.md` with a Mermaid
   flowchart of the logging pipeline for consumers
+- Cross-links between the English/Russian README and architecture docs
 
 ## [0.2.0-dev.1] - 2026-09-09
 
