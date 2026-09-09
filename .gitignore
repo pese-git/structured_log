@@ -24,3 +24,9 @@ logs/
 
 # FVM Version Cache
 .fvm/
+
+# AI agent tooling
+.claude/
+.codegraph/
+.codex/
+.opencode/
