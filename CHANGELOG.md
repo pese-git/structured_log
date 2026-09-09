@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields (`sessionId`, `requestId`, `connectionGeneration`, `toolCallId`,
   `messageId`, `operationId`), serialized under fixed snake_case keys and
   inherited/overridable through child loggers
+- `LogSink` and `StructlogConfiguration(sinks: ...)` for multi-output
+  routing: one log entry can be delivered to multiple destinations with
+  independent `minLevel`/`categories` filtering, runtime enable/disable via
+  `StructlogConfiguration.setSinkEnabled()`, and per-sink error isolation
 
 ### Changed
 - Updated repository URL to `https://github.com/pese-git/structured_log.git`

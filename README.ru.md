@@ -11,6 +11,7 @@
 - **Типизированные correlation-поля** — `withCorrelation()` для session/request/connection/tool-call/message/operation id
 - **Процессоры** — трансформация записей перед выводом (фильтрация, обогащение, форматирование)
 - **Несколько выводов** — stdout, файл, ротируемый файл или кастомный
+- **Multi-sink маршрутизация** — доставка одной записи в несколько destinations с независимой фильтрацией по уровню/категории и переключением в рантайме
 - **Цветная консоль** — читаемый вывод для разработки
 - **Конфигурация** — глобальная настройка через `StructlogConfiguration.configure()`
 - **Без зависимостей** — только Dart SDK
@@ -153,11 +154,12 @@ StructlogConfiguration.configure(
 );
 ```
 
-| Параметр         | Тип                   | По умолчанию      | Описание                          |
-|------------------|-----------------------|-------------------|-----------------------------------|
-| `processors`     | `List<Processor>`     | `[dropNullValues]`| Цепочка трансформации записей     |
-| `output`         | `OutputFunction`      | `defaultOutput`   | Куда отправлять логи              |
-| `initialContext` | `Map<String, dynamic>`| `{}`              | Контекст для всех логгеров        |
+| Параметр         | Тип                   | По умолчанию      | Описание                                          |
+|------------------|-----------------------|-------------------|-----------------------------------------------------|
+| `processors`     | `List<Processor>`     | `[dropNullValues]`| Цепочка трансформации записей                     |
+| `output`         | `OutputFunction`      | `defaultOutput`   | Сокращение для одного sink с именем `'default'`   |
+| `sinks`          | `List<LogSink>`       | один sink из `output` | Несколько destinations с независимой фильтрацией |
+| `initialContext` | `Map<String, dynamic>`| `{}`              | Контекст для всех логгеров                        |
 
 Сброс к настройкам по умолчанию:
 
@@ -226,6 +228,50 @@ void myOutput(Map<String, dynamic> entry, LogLevel level) {
 
 StructlogConfiguration.configure(output: myOutput);
 ```
+
+### Multi-sink маршрутизация
+
+Доставка одной записи лога сразу в несколько destinations — например,
+человекочитаемый вывод в консоль для разработчика и параллельно JSON-файл
+для последующего анализа — каждый со своей фильтрацией по уровню и
+категории:
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(
+    name: 'console',
+    output: coloredConsoleOutput,
+  ),
+  LogSink(
+    name: 'protocol',
+    output: rotatingFileOutput('protocol.log', maxSizeBytes: 10 * 1024 * 1024),
+    minLevel: LogLevel.debug,
+    categories: {'protocol'}, // только записи с этой категорией
+    enabled: false,           // по умолчанию выключен, можно включить в рантайме
+  ),
+]);
+
+final log = getLogger();
+log.info('request_started');                              // → только в консоль
+log.debug('raw_frame', context: {'category': 'protocol'}); // → в protocol sink, если включён
+```
+
+Категория — это обычное значение в контексте под ключом `'category'`:
+привязывается один раз на логгер (`bind({'category': 'protocol'})`) либо
+передаётся инлайн. Sink с `categories: null` (по умолчанию) принимает
+любую категорию.
+
+Переключение sink в рантайме без пересборки конфигурации и логгеров:
+
+```dart
+StructlogConfiguration.setSinkEnabled('protocol', enabled: true);
+```
+
+Однопараметровый `output:` (как выше) продолжает полностью работать — это
+сокращение для одного sink с именем `'default'`. Если `output` какого-то
+sink бросает исключение, оно перехватывается и выводится в `stderr`; это
+никогда не останавливает доставку в остальные sinks и не роняет вызывающий
+код.
 
 ## Процессоры
 
@@ -338,6 +384,7 @@ Future<void> asyncTask() async {
 | Консоль              | Да               | Да (цветная)   |
 | Файловый вывод       | Через stdlib     | Встроенный     |
 | Ротация файлов       | Через handlers   | Встроенная     |
+| Маршрутизация в несколько destinations | Через handlers stdlib logging | Встроенная (`LogSink`) |
 | Async поддержка      | Да               | Синхронный I/O |
 | Wrapper-классы       | Да               | Нет (простой)  |
 

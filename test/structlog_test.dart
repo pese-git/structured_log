@@ -123,4 +123,108 @@ void main() {
       expect(captured!['session_id'], 'typed');
     });
   });
+
+  group('Sinks', () {
+    tearDown(() {
+      StructlogConfiguration.reset();
+    });
+
+    test('one entry passing multiple sinks is delivered to all of them', () {
+      final a = <Map<String, dynamic>>[];
+      final b = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(sinks: [
+        LogSink(name: 'a', output: (entry, level) => a.add(entry)),
+        LogSink(name: 'b', output: (entry, level) => b.add(entry)),
+      ]);
+
+      getLogger().info('event');
+
+      expect(a, hasLength(1));
+      expect(b, hasLength(1));
+    });
+
+    test('minLevel filters out lower-level entries per sink', () {
+      final debugSink = <Map<String, dynamic>>[];
+      final errorSink = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(sinks: [
+        LogSink(name: 'debug', output: (e, l) => debugSink.add(e)),
+        LogSink(
+          name: 'error',
+          output: (e, l) => errorSink.add(e),
+          minLevel: LogLevel.error,
+        ),
+      ]);
+
+      final log = getLogger();
+      log.info('low');
+      log.error('high');
+
+      expect(debugSink, hasLength(2));
+      expect(errorSink, hasLength(1));
+      expect(errorSink.single['event'], 'high');
+    });
+
+    test('categories filter routes entries by the category context key', () {
+      final protocolSink = <Map<String, dynamic>>[];
+      final appSink = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(sinks: [
+        LogSink(
+          name: 'protocol',
+          output: (e, l) => protocolSink.add(e),
+          categories: {'protocol'},
+        ),
+        LogSink(name: 'app', output: (e, l) => appSink.add(e)),
+      ]);
+
+      final log = getLogger();
+      log.info('app_event');
+      log.info('protocol_event', context: {'category': 'protocol'});
+
+      expect(appSink, hasLength(2));
+      expect(protocolSink, hasLength(1));
+      expect(protocolSink.single['event'], 'protocol_event');
+    });
+
+    test('setSinkEnabled toggles a sink in the running configuration', () {
+      final captured = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(sinks: [
+        LogSink(name: 'toggle', output: (e, l) => captured.add(e)),
+      ]);
+
+      final log = getLogger();
+      StructlogConfiguration.setSinkEnabled('toggle', enabled: false);
+      log.info('while_disabled');
+      expect(captured, isEmpty);
+
+      StructlogConfiguration.setSinkEnabled('toggle', enabled: true);
+      log.info('while_enabled');
+      expect(captured, hasLength(1));
+    });
+
+    test('a throwing sink does not block delivery to other sinks', () {
+      final good = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(sinks: [
+        LogSink(
+          name: 'bad',
+          output: (e, l) => throw StateError('boom'),
+        ),
+        LogSink(name: 'good', output: (e, l) => good.add(e)),
+      ]);
+
+      expect(() => getLogger().info('event'), returnsNormally);
+      expect(good, hasLength(1));
+    });
+
+    test('legacy single-output configure() still works as one default sink',
+        () {
+      final captured = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(
+        output: (entry, level) => captured.add(entry),
+      );
+
+      getLogger().info('event');
+
+      expect(captured, hasLength(1));
+    });
+  });
 }

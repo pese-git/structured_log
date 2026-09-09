@@ -3,3 +3,4 @@ export 'src/formatters.dart';
 export 'src/processors.dart';
 export 'src/configuration.dart';
 export 'src/correlation.dart';
+export 'src/sink.dart';

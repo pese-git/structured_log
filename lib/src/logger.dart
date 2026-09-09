@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'configuration.dart';
 import 'correlation.dart';
 
@@ -79,7 +81,17 @@ class BoundLogger {
 
     final entry = _processEntry(mergedContext, level);
     if (entry != null) {
-      _config.output(entry, level);
+      final category = entry['category'] as String?;
+      for (final sink in _config.sinks) {
+        if (!sink.accepts(level, category)) continue;
+        try {
+          sink.output(entry, level);
+        } catch (error, stackTrace) {
+          stderr.writeln(
+            'structured_log: sink "${sink.name}" threw: $error\n$stackTrace',
+          );
+        }
+      }
     }
   }
 

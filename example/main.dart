@@ -56,4 +56,25 @@ void main() {
   // Child scope: inherits sessionId/requestId, adds toolCallId
   final toolLog = correlatedLog.withCorrelation(toolCallId: 'tc-3');
   toolLog.info('tool_invoked');
+
+  // Multi-sink routing: console gets everything, a dedicated file only
+  // gets entries tagged with the 'protocol' category.
+  StructlogConfiguration.configure(sinks: [
+    LogSink(name: 'console', output: coloredConsoleOutput),
+    LogSink(
+      name: 'protocol',
+      output: fileOutput('logs/protocol.log'),
+      categories: {'protocol'},
+    ),
+  ]);
+
+  final routedLog = getLogger();
+  routedLog.info('app_event'); // console only
+  routedLog.debug('raw_frame',
+      context: {'category': 'protocol'}); // console + protocol.log
+
+  // Toggle the protocol sink off at runtime without rebuilding the logger.
+  StructlogConfiguration.setSinkEnabled('protocol', enabled: false);
+  routedLog
+      .debug('raw_frame_2', context: {'category': 'protocol'}); // console only
 }

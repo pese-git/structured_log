@@ -11,6 +11,7 @@ Log JSON with context binding, processors, and flexible output destinations.
 - **Typed correlation fields** — `withCorrelation()` for session/request/connection/tool-call/message/operation ids
 - **Processors** — transform log entries before output (filter, enrich, format)
 - **Multiple outputs** — stdout, file, rotating file, or custom
+- **Multi-sink routing** — deliver one entry to several destinations with independent level/category filtering and runtime toggling
 - **Colored console** — human-readable development output
 - **Configurable** — global configuration with `StructlogConfiguration.configure()`
 - **Zero dependencies** — only Dart SDK
@@ -151,11 +152,12 @@ StructlogConfiguration.configure(
 );
 ```
 
-| Parameter        | Type                  | Default           | Description                     |
-|------------------|-----------------------|-------------------|---------------------------------|
-| `processors`     | `List<Processor>`     | `[dropNullValues]`| Pipeline to transform entries   |
-| `output`         | `OutputFunction`      | `defaultOutput`   | Where to send log entries       |
-| `initialContext` | `Map<String, dynamic>`| `{}`              | Context added to all loggers    |
+| Parameter        | Type                  | Default           | Description                                       |
+|------------------|-----------------------|-------------------|----------------------------------------------------|
+| `processors`     | `List<Processor>`     | `[dropNullValues]`| Pipeline to transform entries                     |
+| `output`         | `OutputFunction`      | `defaultOutput`   | Shorthand for a single sink named `'default'`     |
+| `sinks`          | `List<LogSink>`       | one `output` sink | Multiple destinations with independent filtering  |
+| `initialContext` | `Map<String, dynamic>`| `{}`              | Context added to all loggers                      |
 
 Reset to defaults:
 
@@ -224,6 +226,47 @@ void myOutput(Map<String, dynamic> entry, LogLevel level) {
 
 StructlogConfiguration.configure(output: myOutput);
 ```
+
+### Multi-Sink Routing
+
+Deliver one log entry to several destinations at once — e.g. human-readable
+console output for developers plus a JSON file for later analysis — each
+with its own level and category filtering:
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(
+    name: 'console',
+    output: coloredConsoleOutput,
+  ),
+  LogSink(
+    name: 'protocol',
+    output: rotatingFileOutput('protocol.log', maxSizeBytes: 10 * 1024 * 1024),
+    minLevel: LogLevel.debug,
+    categories: {'protocol'}, // only entries tagged with this category
+    enabled: false,           // off by default, can be flipped at runtime
+  ),
+]);
+
+final log = getLogger();
+log.info('request_started');                              // → console only
+log.debug('raw_frame', context: {'category': 'protocol'}); // → protocol sink, if enabled
+```
+
+A category is just a regular context value under the `'category'` key —
+either bound once per logger (`bind({'category': 'protocol'})`) or passed
+inline. A sink with `categories: null` (the default) accepts every category.
+
+Toggle a sink at runtime without rebuilding the configuration or existing loggers:
+
+```dart
+StructlogConfiguration.setSinkEnabled('protocol', enabled: true);
+```
+
+A single `output:` (as shown above) remains fully supported — it's
+shorthand for a single sink named `'default'`. If a sink's `output` throws,
+the error is caught and reported to `stderr`; it never stops delivery to
+the other sinks or crashes the caller.
 
 ## Processors
 
@@ -336,6 +379,7 @@ Future<void> asyncTask() async {
 | Console output       | Yes              | Yes (colored)  |
 | File output          | Via stdlib       | Built-in       |
 | Rotating file        | Via handlers     | Built-in       |
+| Multi-destination routing | Via stdlib logging handlers | Built-in (`LogSink`) |
 | Async support        | Yes              | Sync I/O       |
 | Wrapper classes      | Yes              | No (simple)    |
 
