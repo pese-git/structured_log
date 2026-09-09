@@ -42,6 +42,22 @@ dart run example/main.dart
 - Никаких сторонних runtime-зависимостей — сохранять это, если явно не попросили иначе.
 - Форматирование должно строго соответствовать существующему (`dart format .` перед завершением любого изменения).
 
+## Коммиты и версионирование
+
+- Сообщения коммитов пишутся в формате [Conventional Commits](https://www.conventionalcommits.org/)
+  (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `revert:`;
+  ломающее изменение — `!` после типа или футер `BREAKING CHANGE:`). Это нужно, чтобы
+  `melos version` мог автоматически определять нужный semver-бамп по истории коммитов.
+- `melos version` ищет точку отсчёта по git-тегу вида `<package>-v<version>`
+  (например, `structured_log-v0.2.0-dev.1`) и версионирует только коммиты после него —
+  без такого тега или без Conventional Commits в истории он не находит, что версионировать.
+- `melos version -V <package>:<major|patch|minor|build|exactVersion>` — ручной бамп версии.
+  **Важно:** флаги `--no-git-commit-version`/`--no-git-tag-version` НЕ делают команду
+  dry-run — файлы (`pubspec.yaml`, `CHANGELOG.md`) переписываются на диске в любом случае,
+  причём `CHANGELOG.md` перезаписывается в собственном формате melos (conventional-changelog),
+  а не в принятом здесь Keep a Changelog. Поэтому версию и `CHANGELOG.md` в этом репозитории
+  правим вручную, сохраняя существующий формат, а не через `melos version`.
+
 ## Перед завершением изменения
 
 1. `dart analyze` — не должно быть замечаний.

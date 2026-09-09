@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-dev.1] - 2026-09-09
+
 ### Added
 - `LogCorrelation` and `BoundLogger.withCorrelation()` for typed correlation
   fields (`sessionId`, `requestId`, `connectionGeneration`, `toolCallId`,
@@ -38,5 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Example usage in `example/main.dart`
 - Basic test suite
 
-[Unreleased]: https://github.com/pese-git/structured_log.git/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/pese-git/structured_log.git/compare/v0.2.0-dev.1...HEAD
+[0.2.0-dev.1]: https://github.com/pese-git/structured_log.git/compare/v0.1.0...v0.2.0-dev.1
 [0.1.0]: https://github.com/pese-git/structured_log.git/releases/tag/v0.1.0
