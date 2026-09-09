@@ -8,6 +8,7 @@
 
 - **Структурированный JSON** — логи машиночитаемы по умолчанию
 - **Привязка контекста** — иммутабельные `bind()` / `unbind()` для добавления метаданных
+- **Типизированные correlation-поля** — `withCorrelation()` для session/request/connection/tool-call/message/operation id
 - **Процессоры** — трансформация записей перед выводом (фильтрация, обогащение, форматирование)
 - **Несколько выводов** — stdout, файл, ротируемый файл или кастомный
 - **Цветная консоль** — читаемый вывод для разработки
@@ -99,6 +100,36 @@ userLog.info('purchase');
 ```dart
 final cleanLog = userLog.unbind(['user_id']);
 ```
+
+### Типизированные correlation-поля
+
+Для устойчивого набора идентификаторов, нужного почти любому нетривиальному
+клиенту — сессии, запросы, реконнекты, async-операции — `withCorrelation()`
+привязывает фиксированный типизированный набор полей вместо самодельных
+ключей в map:
+
+```dart
+final log = getLogger().withCorrelation(
+  sessionId: 's-14',
+  requestId: 'r-42',
+  connectionGeneration: 8,
+);
+
+// Дочерний scope наследует поля родителя и может добавить/переопределить свои,
+// не затрагивая родителя:
+final toolLog = log.withCorrelation(toolCallId: 'tc-3');
+
+toolLog.info('tool_invoked');
+// → {"session_id": "s-14", "request_id": "r-42", "connection_generation": 8,
+//    "tool_call_id": "tc-3", "event": "tool_invoked", ...}
+```
+
+Все шесть полей опциональны — привязывайте любое подмножество. Они
+сериализуются под фиксированными snake_case-ключами: `session_id`,
+`request_id`, `connection_generation`, `tool_call_id`, `message_id`,
+`operation_id`. Если типизированное поле и одноимённый ключ из
+`bind()`/инлайн `context` заданы одновременно — **побеждает типизированное
+поле**.
 
 ### Инлайн-контекст
 
@@ -301,6 +332,7 @@ Future<void> asyncTask() async {
 | Функция              | Python structlog | Dart structured_log |
 |----------------------|------------------|----------------|
 | Привязка контекста   | `bind()`         | `bind()`       |
+| Типизированные correlation id | Нет (вручную) | `withCorrelation()` |
 | Процессоры           | Да               | Да             |
 | JSON вывод           | Да               | Да             |
 | Консоль              | Да               | Да (цветная)   |

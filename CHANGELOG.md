@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `LogCorrelation` and `BoundLogger.withCorrelation()` for typed correlation
+  fields (`sessionId`, `requestId`, `connectionGeneration`, `toolCallId`,
+  `messageId`, `operationId`), serialized under fixed snake_case keys and
+  inherited/overridable through child loggers
+
 ### Changed
 - Updated repository URL to `https://github.com/pese-git/structured_log.git`
 - Added FVM (Flutter Version Management) configuration

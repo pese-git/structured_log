@@ -8,6 +8,7 @@ Log JSON with context binding, processors, and flexible output destinations.
 
 - **Structured JSON output** — logs are machine-readable by default
 - **Context binding** — immutable `bind()` / `unbind()` for attaching metadata to loggers
+- **Typed correlation fields** — `withCorrelation()` for session/request/connection/tool-call/message/operation ids
 - **Processors** — transform log entries before output (filter, enrich, format)
 - **Multiple outputs** — stdout, file, rotating file, or custom
 - **Colored console** — human-readable development output
@@ -99,6 +100,34 @@ userLog.info('purchase');
 ```dart
 final cleanLog = userLog.unbind(['user_id']);
 ```
+
+### Typed Correlation Fields
+
+For the recurring identifiers most non-trivial clients need — sessions, requests,
+reconnects, async operations — `withCorrelation()` binds a fixed, typed set of
+fields instead of ad-hoc map keys:
+
+```dart
+final log = getLogger().withCorrelation(
+  sessionId: 's-14',
+  requestId: 'r-42',
+  connectionGeneration: 8,
+);
+
+// Child scope inherits the parent's fields and can add/override its own,
+// without mutating the parent:
+final toolLog = log.withCorrelation(toolCallId: 'tc-3');
+
+toolLog.info('tool_invoked');
+// → {"session_id": "s-14", "request_id": "r-42", "connection_generation": 8,
+//    "tool_call_id": "tc-3", "event": "tool_invoked", ...}
+```
+
+All six fields are optional — bind any subset. They serialize under fixed
+snake_case keys: `session_id`, `request_id`, `connection_generation`,
+`tool_call_id`, `message_id`, `operation_id`. If a typed field and a
+same-named key from `bind()`/inline `context` are both set, the **typed
+field wins**.
 
 ### Inline Context
 
@@ -301,6 +330,7 @@ Future<void> asyncTask() async {
 | Feature              | Python structlog | Dart structured_log |
 |----------------------|------------------|----------------|
 | Context binding      | `bind()`         | `bind()`       |
+| Typed correlation ids| No (manual)      | `withCorrelation()` |
 | Processors           | Yes              | Yes            |
 | JSON output          | Yes              | Yes            |
 | Console output       | Yes              | Yes (colored)  |

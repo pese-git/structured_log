@@ -43,4 +43,17 @@ void main() {
   print('logs/rotating.log exists: ${File('logs/rotating.log').existsSync()}');
   print(
       'logs/rotating.log.0 exists: ${File('logs/rotating.log.0').existsSync()}');
+
+  // Typed correlation fields
+  StructlogConfiguration.reset();
+  final correlatedLog = getLogger().withCorrelation(
+    sessionId: 's-14',
+    requestId: 'r-42',
+    connectionGeneration: 8,
+  );
+  correlatedLog.info('processing_request');
+
+  // Child scope: inherits sessionId/requestId, adds toolCallId
+  final toolLog = correlatedLog.withCorrelation(toolCallId: 'tc-3');
+  toolLog.info('tool_invoked');
 }

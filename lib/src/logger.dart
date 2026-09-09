@@ -1,4 +1,5 @@
 import 'configuration.dart';
+import 'correlation.dart';
 
 /// Log levels
 enum LogLevel { debug, info, warning, error, critical }
@@ -6,15 +7,20 @@ enum LogLevel { debug, info, warning, error, critical }
 /// A structured logger that binds context to log entries.
 class BoundLogger {
   final Map<String, dynamic> _context;
+  final LogCorrelation? _correlation;
   final StructlogConfiguration _config;
 
-  BoundLogger(this._config, [Map<String, dynamic>? context])
-      : _context = Map<String, dynamic>.from(context ?? {});
+  BoundLogger(
+    this._config, [
+    Map<String, dynamic>? context,
+    LogCorrelation? correlation,
+  ])  : _context = Map<String, dynamic>.from(context ?? {}),
+        _correlation = correlation;
 
   /// Bind new context and return a new BoundLogger instance
   BoundLogger bind(Map<String, dynamic> context) {
     final newContext = Map<String, dynamic>.from(_context)..addAll(context);
-    return BoundLogger(_config, newContext);
+    return BoundLogger(_config, newContext, _correlation);
   }
 
   /// Unbind (remove) keys from context
@@ -23,7 +29,33 @@ class BoundLogger {
     for (final key in keys) {
       newContext.remove(key);
     }
-    return BoundLogger(_config, newContext);
+    return BoundLogger(_config, newContext, _correlation);
+  }
+
+  /// Bind typed correlation identifiers (session, request, connection,
+  /// tool-call, message, operation) and return a new BoundLogger instance.
+  ///
+  /// Only the passed (non-null) fields are changed; unset fields are
+  /// inherited from this logger's existing correlation, if any. The parent
+  /// logger is left untouched.
+  BoundLogger withCorrelation({
+    String? sessionId,
+    String? requestId,
+    int? connectionGeneration,
+    String? toolCallId,
+    String? messageId,
+    String? operationId,
+  }) {
+    final addition = LogCorrelation(
+      sessionId: sessionId,
+      requestId: requestId,
+      connectionGeneration: connectionGeneration,
+      toolCallId: toolCallId,
+      messageId: messageId,
+      operationId: operationId,
+    );
+    final merged = (_correlation ?? const LogCorrelation()).merge(addition);
+    return BoundLogger(_config, _context, merged);
   }
 
   /// Try to log a message
@@ -35,6 +67,11 @@ class BoundLogger {
     final mergedContext = Map<String, dynamic>.from(_context);
     if (context != null) {
       mergedContext.addAll(context);
+    }
+    if (_correlation != null) {
+      // Typed correlation fields take priority over same-named keys coming
+      // from the arbitrary Map-based context.
+      mergedContext.addAll(_correlation!.toContext());
     }
     if (event != null) {
       mergedContext['event'] = event;
