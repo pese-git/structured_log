@@ -280,11 +280,24 @@ flowchart LR
 
 ## Подход к тестированию
 
-[test/structlog_test.dart](../test/structlog_test.dart) предпочитает
-захватывать записи через кастомное замыкание `OutputFunction`/`LogSink`,
-добавляющее их в локальный `List`/переменную, а не проверять stdout или
-файловую систему — это позволяет делать assert прямо на итоговом
-`Map<String, dynamic>`, который выдал конвейер. Тесты, вызывающие
-`StructlogConfiguration.configure()`, всегда делают
-`tearDown(StructlogConfiguration.reset)`, чтобы не протаскивать глобальное
-состояние в другие тесты.
+[test/structlog_test.dart](../test/structlog_test.dart) покрывает каждый
+компонент изолированно, предпочитая захватывать записи через кастомное
+замыкание `OutputFunction`/`LogSink`, добавляющее их в локальный
+`List`/переменную, а не проверять stdout или файловую систему — это
+позволяет делать assert прямо на итоговом `Map<String, dynamic>`, который
+выдал конвейер.
+
+[test/integration_test.dart](../test/integration_test.dart) вместо этого
+проверяет пакет как целостную систему: correlation + bound context +
+процессоры + multi-sink маршрутизация вместе, так как их реально
+использовал бы consumer, реальные файлы на реальной файловой системе
+(через `Directory.systemTemp`, удаляются в `tearDown`), смешанная
+sync+async multi-sink конфигурация, полная история лога, восстановленная
+по номерованным бэкапам ротируемого output'а, и реальный печатаемый формат
+`coloredConsoleOutput`, захваченный через переопределение `print` в
+`Zone` — прогнанный через настоящий вызов `BoundLogger`, а не вызванный
+напрямую.
+
+Тесты в обоих файлах, вызывающие `StructlogConfiguration.configure()`,
+всегда делают `tearDown(StructlogConfiguration.reset)`, чтобы не
+протаскивать глобальное состояние в другие тесты.

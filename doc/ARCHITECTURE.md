@@ -270,10 +270,22 @@ implement:
 
 ## Testing approach
 
-[test/structlog_test.dart](../test/structlog_test.dart) favors capturing
-entries via a custom `OutputFunction`/`LogSink` closure that appends to a
-local `List`/variable, rather than asserting on stdout or the filesystem —
-this keeps assertions on the exact `Map<String, dynamic>` produced by the
-pipeline. Tests that call `StructlogConfiguration.configure()` always
+[test/structlog_test.dart](../test/structlog_test.dart) covers each
+component in isolation, favoring a custom `OutputFunction`/`LogSink`
+closure that appends to a local `List`/variable rather than asserting on
+stdout or the filesystem — this keeps assertions on the exact
+`Map<String, dynamic>` produced by the pipeline.
+
+[test/integration_test.dart](../test/integration_test.dart) instead
+exercises the package as a whole system: correlation + bound context +
+processors + multi-sink routing combined the way a real consumer would use
+them, real files on a real filesystem (via `Directory.systemTemp`, deleted
+in `tearDown`), a mixed sync+async multi-sink configuration, full rotation
+history reconstructed across a rotating output's numbered backups, and
+`coloredConsoleOutput`'s actual printed format captured by overriding
+`print` through a `Zone` — driven through a real `BoundLogger` call rather
+than invoked directly.
+
+Tests in both files that call `StructlogConfiguration.configure()` always
 `tearDown(StructlogConfiguration.reset)` to avoid bleeding global state
 into other tests.

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `test/integration_test.dart` — integration tests exercising the package
+  as a whole system on real files (correlation + processors + multi-sink
+  routing combined, mixed sync/async sinks, full rotation history across
+  numbered backups, `coloredConsoleOutput`'s real printed format), as a
+  complement to the existing component-level unit tests
 - `AsyncFileOutput` and `AsyncRotatingFileOutput` — non-blocking
   counterparts of `fileOutput`/`rotatingFileOutput` that use async
   `dart:io` File APIs instead of `writeAsStringSync`, so logging doesn't
