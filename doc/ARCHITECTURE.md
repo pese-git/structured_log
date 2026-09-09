@@ -17,9 +17,13 @@ consumer, see [README.md](../README.md) (or [README.ru.md](../README.ru.md)).
 - **Everything in the pipeline is a plain function.** Processors
   (`Map<String, dynamic>? Function(Map<String, dynamic>)`) and outputs
   (`void Function(Map<String, dynamic>, LogLevel)`) are typedef'd function
-  types, not classes to subclass — custom behavior is just a closure.
-- **Additive evolution.** Correlation and multi-sink routing were added
-  without changing any existing method signature (see [CHANGELOG.md](../CHANGELOG.md)).
+  types, not classes to subclass — custom behavior is just a closure. The
+  async outputs (see [Async outputs](#async-outputs)) are the one exception:
+  they're callable classes, because they need to carry state (a completion
+  future) beyond the function itself.
+- **Additive evolution.** Correlation, multi-sink routing, and the async
+  outputs were all added without changing any existing method signature
+  (see [CHANGELOG.md](../CHANGELOG.md)).
 
 ## Components
 
@@ -31,6 +35,7 @@ consumer, see [README.md](../README.md) (or [README.ru.md](../README.ru.md)).
 | [lib/src/sink.dart](../lib/src/sink.dart) | `LogSink` — one output destination with level/category filtering and a runtime enable switch |
 | [lib/src/processors.dart](../lib/src/processors.dart) | `Processor` typedef + built-ins (`dropNullValues`, `addTimestamp`, `addLogLevel`, `jsonRenderer`, `logfmtRenderer`) |
 | [lib/src/formatters.dart](../lib/src/formatters.dart) | `OutputFunction` typedef + built-in outputs (console, colored console, file, rotating file) |
+| [lib/src/async_file_output.dart](../lib/src/async_file_output.dart) | `AsyncFileOutput`, `AsyncRotatingFileOutput` — non-blocking counterparts of the sync file outputs |
 
 ### Component relationships
 
@@ -191,6 +196,62 @@ call *replaces* the list wholesale, any `BoundLogger` still holding the old
 mirrors the pre-existing behavior of `processors`/`initialContext`
 (loggers capture a `StructlogConfiguration` reference at creation time, not
 a live pointer to `StructlogConfiguration.current`).
+
+## Async outputs
+
+`fileOutput`/`rotatingFileOutput` use `File.writeAsStringSync`, which
+blocks whichever isolate calls the logger — fine for occasional logging,
+but a real cost if an app logs heavily from its UI/main isolate.
+`AsyncFileOutput`/`AsyncRotatingFileOutput`
+([lib/src/async_file_output.dart](../lib/src/async_file_output.dart)) use
+the non-blocking `dart:io` File API instead, but `OutputFunction` is a
+synchronous `void Function(...)` — there's no `Future` for a caller to
+await inline. That constraint drives the whole implementation:
+
+- Each `call()` enqueues its write onto a single chained `Future`
+  (`_queue = _queue.then((_) => _write(...))`) instead of firing writes
+  independently — otherwise two overlapping async `writeAsString(mode:
+  FileMode.append)` calls to the same file could interleave or lose data.
+- **Every step in the chain catches its own error** with `.catchError(...)`,
+  not just once at the end. This is the detail that's easy to get wrong:
+  `Future.then` without a matching `onError` *skips its callback and
+  forwards the error* to whatever comes next. Without a per-step
+  `catchError`, one failing write would silently cancel every write queued
+  after it — the queue would look "stuck" with no exception ever visible
+  to the caller.
+- `flushed` exposes the tail of the chain so callers (tests, or shutdown
+  code) can `await` "everything enqueued so far has completed" without the
+  logging call sites themselves needing to be `async`.
+
+```mermaid
+flowchart LR
+    subgraph S1["call() #1"]
+        A1["_queue.then(write #1)"] --> A2{"threw?"}
+        A2 -->|yes| A3["catchError: report to stderr"]
+        A2 -->|no| A4["resolved"]
+    end
+    subgraph S2["call() #2 (queued after #1)"]
+        B1["_queue.then(write #2)"] --> B2{"threw?"}
+        B2 -->|yes| B3["catchError: report to stderr"]
+        B2 -->|no| B4["resolved"]
+    end
+    A3 --> B1
+    A4 --> B1
+```
+
+Regardless of whether write #1 succeeds or fails, the chain always reaches
+a *resolved* state before write #2 runs — that's what the `catchError` on
+every step buys you. `AsyncRotatingFileOutput`'s size check + rotation +
+write are all inside the same `_write()` step, so they're serialized
+against themselves the same way; no separate locking is needed.
+
+Being classes rather than closures is why they're the one exception to
+"everything in the pipeline is a plain function" (see
+[Design goals](#design-goals)) — `flushed` needs somewhere to live. Both
+still satisfy the `OutputFunction` typedef structurally via Dart's
+callable-class `call()` method, so they drop into `configure(output: ...)`
+or a `LogSink` exactly like any other output, with no changes needed
+anywhere else in the pipeline.
 
 ## Extension points
 

@@ -241,6 +241,35 @@ StructlogConfiguration.configure(
 
 Rotated files: `app.log`, `app.log.0`, `app.log.1`, ... `app.log.4`
 
+#### Async File / Async Rotating File
+
+`fileOutput`/`rotatingFileOutput` write with `File.writeAsStringSync` —
+simple and safe, but it blocks whichever isolate makes the log call (e.g.
+the UI isolate in a Flutter app, if you log frequently there). `AsyncFileOutput`
+and `AsyncRotatingFileOutput` use non-blocking file I/O instead, same
+options as their sync counterparts:
+
+```dart
+final asyncOutput = AsyncFileOutput('logs/app.log');
+// or: AsyncRotatingFileOutput('logs/app.log', maxSizeBytes: 10 * 1024 * 1024);
+StructlogConfiguration.configure(output: asyncOutput);
+
+getLogger().info('request completed');
+
+// Await this before process exit (or in tests) to know every write so far
+// has actually landed on disk:
+await asyncOutput.flushed;
+```
+
+Unlike the other outputs, these are **classes**, not plain functions —
+keep a reference so you can await `.flushed`. Writes are still delivered
+in order and a failing write is caught and reported to `stderr` without
+affecting the writes queued after it — the same isolation guarantee
+[Multi-Sink Routing](#multi-sink-routing) provides for sinks, just
+implemented for the async case. See
+[doc/ARCHITECTURE.md](doc/ARCHITECTURE.md#async-outputs) for why the
+write queue works the way it does.
+
 #### Custom Output
 
 Implement your own:

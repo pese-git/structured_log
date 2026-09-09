@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:structured_log/structured_log.dart';
 import 'package:test/test.dart';
 
@@ -225,6 +228,67 @@ void main() {
       getLogger().info('event');
 
       expect(captured, hasLength(1));
+    });
+  });
+
+  group('Async outputs', () {
+    tearDown(() {
+      StructlogConfiguration.reset();
+    });
+
+    test('writes entries in order and flushed completes once all are written',
+        () async {
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/app.log';
+      final asyncOutput = AsyncFileOutput(path);
+      StructlogConfiguration.configure(output: asyncOutput);
+
+      final log = getLogger();
+      for (var i = 0; i < 5; i++) {
+        log.info('event', context: {'i': i});
+      }
+      await asyncOutput.flushed;
+
+      final lines = File(path).readAsLinesSync();
+      expect(lines, hasLength(5));
+      for (var i = 0; i < 5; i++) {
+        expect(jsonDecode(lines[i])['i'], i);
+      }
+    });
+
+    test('a failing write does not throw and the queue still resolves',
+        () async {
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      // A path that is itself an existing directory can never be opened as
+      // a file, so every write to it is guaranteed to fail.
+      final badPath = '${dir.path}/not_a_file';
+      Directory(badPath).createSync();
+      final asyncOutput = AsyncFileOutput(badPath);
+      StructlogConfiguration.configure(output: asyncOutput);
+
+      final log = getLogger();
+      log.info('one');
+      log.info('two');
+
+      await expectLater(asyncOutput.flushed, completes);
+    });
+
+    test('rotates when exceeding maxSizeBytes', () async {
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/rotating.log';
+      final asyncOutput = AsyncRotatingFileOutput(path, maxSizeBytes: 100);
+      StructlogConfiguration.configure(output: asyncOutput);
+
+      final log = getLogger();
+      for (var i = 0; i < 50; i++) {
+        log.info('iteration', context: {'i': i});
+      }
+      await asyncOutput.flushed;
+
+      expect(File('$path.0').existsSync(), isTrue);
     });
   });
 }

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `AsyncFileOutput` and `AsyncRotatingFileOutput` — non-blocking
+  counterparts of `fileOutput`/`rotatingFileOutput` that use async
+  `dart:io` File APIs instead of `writeAsStringSync`, so logging doesn't
+  block the calling isolate. Writes are serialized and delivered in order;
+  a failing write is caught and reported to `stderr` without stopping the
+  writes queued after it. Exposes a `flushed` future to await pending
+  writes (e.g. in tests or before process exit)
 - `doc/ARCHITECTURE.md` — internal design docs for contributors, with
   Mermaid class/sequence/flow diagrams of the log call lifecycle and
   multi-sink routing

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:structured_log/structured_log.dart';
 
-void main() {
+Future<void> main() async {
   // Basic usage
   final log = getLogger();
   log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
@@ -77,4 +77,17 @@ void main() {
   StructlogConfiguration.setSinkEnabled('protocol', enabled: false);
   routedLog
       .debug('raw_frame_2', context: {'category': 'protocol'}); // console only
+
+  // Async file output: does not block the calling isolate. Keep a
+  // reference to the instance so you can await flushed before exit.
+  final asyncOutput = AsyncFileOutput('logs/async.log');
+  StructlogConfiguration.configure(output: asyncOutput);
+
+  final asyncLog = getLogger();
+  asyncLog.info('async_event_1');
+  asyncLog.info('async_event_2');
+  await asyncOutput.flushed;
+
+  print('logs/async.log after flush:');
+  print(File('logs/async.log').readAsStringSync());
 }
