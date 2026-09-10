@@ -2,7 +2,7 @@ name: structured_log_material
 description: >-
   A Material 3 in-app log viewer for structured_log — live list, expanded
   entry detail, and empty states, built on structured_log_flutter.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 repository: https://github.com/pese-git/structured_log.git
 
 environment:

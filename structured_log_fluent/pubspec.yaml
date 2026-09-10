@@ -2,7 +2,7 @@ name: structured_log_fluent
 description: >-
   A Fluent UI (WinUI-style) in-app log viewer for structured_log, built on
   structured_log_flutter.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 repository: https://github.com/pese-git/structured_log.git
 
 environment:
