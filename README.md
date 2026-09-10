@@ -1,5 +1,7 @@
 # structured_log
 
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
 *Читать на [русском](README.ru.md).*
 
 Structured logging for Dart, inspired by [Python's structlog](https://www.structlog.org/).

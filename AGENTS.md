@@ -58,14 +58,28 @@ dart run example/main.dart
   без такого тега или без Conventional Commits в истории он не находит, что версионировать.
 - `melos version -V <package>:<major|patch|minor|build|exactVersion>` — ручной бамп версии.
   **Важно:** флаги `--no-git-commit-version`/`--no-git-tag-version` НЕ делают команду
-  dry-run — файлы (`pubspec.yaml`, `CHANGELOG.md`) переписываются на диске в любом случае,
-  причём `CHANGELOG.md` перезаписывается в собственном формате melos (conventional-changelog),
-  а не в принятом здесь Keep a Changelog. Поэтому версию и `CHANGELOG.md` в этом репозитории
-  правим вручную, сохраняя существующий формат, а не через `melos version`.
+  dry-run — файлы (`pubspec.yaml`, `CHANGELOG.md`) переписываются на диске в любом случае.
+- **`CHANGELOG.md` вручную не редактировать никогда** — ни для добавления записей о
+  новой фиче/фиксе, ни для «уборки» после `melos version` (даже если он переписал файл
+  в своём собственном формате поверх предыдущего содержимого). Версию и changelog меняет
+  только `melos version` — это осознанное решение мейнтейнера, не пробел в процессе.
+
+## CI
+
+[.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
+в `master`/`develop` и на `workflow_dispatch`: `dart format --set-exit-if-changed`,
+`dart analyze`, `dart test` и `dart run example/main.dart` — на
+`ubuntu-latest`/`macos-latest`/`windows-latest` (важно именно на всех трёх,
+т.к. `async_file_output.dart` и ротация делают реальные
+rename/delete/exists на файловой системе, а её поведение отличается между
+POSIX и Windows). Использует `dart-lang/setup-dart` (канал `stable`), а не
+FVM/Flutter — пакет не зависит от Flutter, полноценный SDK через FVM в CI
+не нужен.
 
 ## Перед завершением изменения
 
 1. `dart analyze` — не должно быть замечаний.
 2. `dart test` — все тесты должны проходить.
 3. `dart format --set-exit-if-changed .` — код должен быть отформатирован.
-4. При изменении публичного поведения обновлять [README.md](README.md) / [README.ru.md](README.ru.md) и [CHANGELOG.md](CHANGELOG.md).
+4. При изменении публичного поведения обновлять [README.md](README.md) / [README.ru.md](README.ru.md) (но не `CHANGELOG.md` — см. «Коммиты и версионирование»).
+5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех трёх ОС.
