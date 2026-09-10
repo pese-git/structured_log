@@ -265,4 +265,46 @@ void main() {
       expect(_inList('a'), findsOneWidget);
     });
   });
+
+  group('navigation', () {
+    testWidgets('no back button when the page is the navigator root',
+        (tester) async {
+      await _pump(tester, controller);
+
+      expect(find.byIcon(FluentIcons.back), findsNothing);
+    });
+
+    testWidgets('a back button pops the page when it was pushed',
+        (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        FluentApp(
+          home: Builder(
+            builder: (context) => Button(
+              onPressed: () => Navigator.of(context).push(
+                FluentPageRoute<void>(
+                  builder: (_) => FluentLogViewerPage(controller: controller),
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FluentLogViewerPage), findsOneWidget);
+      expect(find.byIcon(FluentIcons.back), findsOneWidget);
+
+      await tester.tap(find.byIcon(FluentIcons.back));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FluentLogViewerPage), findsNothing);
+    });
+  });
 }

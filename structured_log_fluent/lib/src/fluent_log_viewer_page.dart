@@ -17,7 +17,9 @@ import 'log_viewer_empty_state.dart';
 /// rather than `structured_log_material`'s mobile-style bottom sheet.
 /// Colors and typography come from the ambient `FluentTheme` (light and
 /// dark both supported) except for each entry's level indicator, whose
-/// palette is fixed — see `logLevelColor`.
+/// palette is fixed — see `logLevelColor`. When pushed via `Navigator`
+/// (e.g. with `FluentPageRoute`, as below) the header shows a back button
+/// automatically; it's omitted when this widget is the navigator root.
 ///
 /// Wire it up by giving the same [LogViewerController] to both this widget
 /// and a [LogSink] that feeds it:
@@ -90,6 +92,13 @@ class _FluentLogViewerPageState extends State<FluentLogViewerPage> {
           animation: controller,
           builder: (context, _) => Row(
             children: [
+              if (Navigator.canPop(context)) ...[
+                IconButton(
+                  icon: const Icon(FluentIcons.back),
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(width: 8),
+              ],
               Text('Logs', style: theme.typography.title),
               const SizedBox(width: 24),
               SizedBox(
@@ -110,6 +119,11 @@ class _FluentLogViewerPageState extends State<FluentLogViewerPage> {
                 child: ComboBox<LogLevel?>(
                   value: controller.levelFilter,
                   isExpanded: true,
+                  // ComboBox treats a null value as "nothing selected" and
+                  // falls back to this placeholder rather than matching it
+                  // against the "All levels" item (whose value is also
+                  // null) — set explicitly so "no filter" isn't blank.
+                  placeholder: const Text('All levels'),
                   items: [
                     for (final option in _levelOptions.entries)
                       ComboBoxItem(
