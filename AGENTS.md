@@ -13,10 +13,15 @@
 - [lib/structured_log.dart](lib/structured_log.dart) — публичный barrel-файл экспорта.
 - [lib/src/logger.dart](lib/src/logger.dart) — `BoundLogger`, `LogLevel`, `getLogger()`.
 - [lib/src/configuration.dart](lib/src/configuration.dart) — глобальный синглтон `StructlogConfiguration`.
+- [lib/src/sink.dart](lib/src/sink.dart) — `LogSink`, мультивывод с независимой фильтрацией по уровню/категории и runtime-переключением.
+- [lib/src/correlation.dart](lib/src/correlation.dart) — `LogCorrelation`, типизированные id (session/request/connection/tool-call/message/operation) для `BoundLogger.withCorrelation()`.
 - [lib/src/processors.dart](lib/src/processors.dart) — процессоры, трансформирующие запись лога.
-- [lib/src/formatters.dart](lib/src/formatters.dart) — функции вывода (консоль, файл, ротация файлов).
-- [test/structlog_test.dart](test/structlog_test.dart) — набор тестов.
+- [lib/src/formatters.dart](lib/src/formatters.dart) — функции вывода (консоль, файл, ротация файлов) — синхронные.
+- [lib/src/async_file_output.dart](lib/src/async_file_output.dart) — `AsyncFileOutput`/`AsyncRotatingFileOutput`, неблокирующие аналоги файлового вывода с сериализованной очередью записи.
+- [test/structlog_test.dart](test/structlog_test.dart) — модульные тесты по компонентам.
+- [test/integration_test.dart](test/integration_test.dart) — интеграционные тесты, проверяющие пакет как целую систему на реальных файлах.
 - [example/main.dart](example/main.dart) — рабочий пример использования.
+- [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) / [doc/ARCHITECTURE.ru.md](doc/ARCHITECTURE.ru.md) — внутренний дизайн для контрибьюторов с mermaid-диаграммами (жизненный цикл лог-вызова, мульти-синк роутинг).
 
 ## Команды
 
