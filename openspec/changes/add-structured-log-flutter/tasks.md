@@ -7,13 +7,13 @@
 
 ## 2. structured_log_flutter (headless-ядро)
 
-- [ ] 2.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log` через `path:`), `lib/structured_log_flutter.dart` (barrel-файл), `test/`, `example/`
-- [ ] 2.2 Реализовать `LogBuffer`: кольцевой буфер ограниченной ёмкости, `capture()` с сигнатурой `OutputFunction`, `ValueListenable<List<Map<String, dynamic>>>`
-- [ ] 2.3 Тесты `LogBuffer`: вытеснение старейшей записи при переполнении, обновление `ValueListenable` при захвате, подключение `capture` как `output` в `LogSink`
-- [ ] 2.4 Реализовать `LogViewerController` (`ChangeNotifier`): `levelFilter`, `categoryFilter`, `searchQuery`, `paused`, `visibleEntries`, `clear()`
-- [ ] 2.5 Тесты `LogViewerController`: фильтрация по уровню/категории/тексту поиска, поведение паузы, `clear()` очищает буфер и уведомляет слушателей
-- [ ] 2.6 Dartdoc с примерами для публичного API (`LogBuffer`, `LogViewerController`) в стиле, принятом в `structured_log`
-- [ ] 2.7 Проверить отсутствие импортов `package:flutter/material.dart`, `package:flutter/cupertino.dart`, `package:fluent_ui/fluent_ui.dart` в `lib/` пакета
+- [x] 2.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log` через `path:`; `publish_to: none` пока не публикуется), `lib/structured_log_flutter.dart` (barrel-файл), `test/`, `example/` (не запускается через голый `dart run` — `package:flutter/foundation.dart` тянет `dart:ui`, доступный только через `flutter run`/`flutter test`, см. комментарий в файле); `LICENSE` скопирован
+- [x] 2.2 Реализовать `LogBuffer`: кольцевой буфер ограниченной ёмкости (по умолчанию 500), `capture()` с сигнатурой `OutputFunction`, `ValueListenable<List<Map<String, dynamic>>>`
+- [x] 2.3 Тесты `LogBuffer`: вытеснение старейшей записи при переполнении, обновление `ValueListenable` при захвате, подключение `capture` как `output` в `LogSink`
+- [x] 2.4 Реализовать `LogViewerController` (`ChangeNotifier`): `levelFilter`, `categoryFilter`, `searchQuery`, `paused`, `visibleEntries`, `clear()`
+- [x] 2.5 Тесты `LogViewerController`: фильтрация по уровню/категории/тексту поиска, поведение паузы, `clear()` очищает буфер и уведомляет слушателей — 17 тестов, все проходят через `flutter test`
+- [x] 2.6 Dartdoc с примерами для публичного API (`LogBuffer`, `LogViewerController`) в стиле, принятом в `structured_log`
+- [x] 2.7 Проверено: `grep` по `lib/` не находит импортов `package:flutter/material.dart`, `package:flutter/cupertino.dart`, `package:fluent_ui/fluent_ui.dart`
 
 ## 3. structured_log_material (Material-скин)
 

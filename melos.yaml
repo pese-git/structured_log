@@ -2,6 +2,7 @@ name: structured_log_workspace
 
 packages:
   - structured_log
+  - structured_log_flutter
 
 command:
   bootstrap:
@@ -25,12 +26,28 @@ scripts:
     description: Check code formatting for each package
 
   test:
+    steps:
+      - test:dart
+      - test:flutter
+    description: Run tests for all packages
+
+  test:dart:
     exec: dart test
-    description: Run tests for each package
+    packageFilters:
+      scope: ["structured_log"]
+    description: Run tests for Dart-only packages
+
+  test:flutter:
+    exec: flutter test
+    packageFilters:
+      scope: ["structured_log_flutter"]
+    description: Run tests for Flutter packages
 
   test:coverage:
     exec: dart test --coverage=coverage
-    description: Run tests with coverage for each package
+    packageFilters:
+      scope: ["structured_log"]
+    description: Run tests with coverage (Dart-only packages)
 
   lint:
     steps:
