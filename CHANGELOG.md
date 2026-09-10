@@ -1,34 +1,3 @@
-# Change Log
-
-All notable changes to this project will be documented in this file.
-See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
-
-## 2026-09-10
-
-### Changes
-
----
-
-Packages with breaking changes:
-
- - There are no breaking changes in this release.
-
-Packages with other changes:
-
- - [`structured_log` - `v0.2.0-dev.3`](#structured_log---v020-dev3)
-
----
-
-#### `structured_log` - `v0.2.0-dev.3`
-
- - **FEAT**: add LogLevel.trace below debug.
- - **DOCS**: clean up CHANGELOG.md after melos version's auto-generated entry.
-
-## 0.2.0-dev.3
-
- - **FEAT**: add LogLevel.trace below debug.
- - **DOCS**: clean up CHANGELOG.md after melos version's auto-generated entry.
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -37,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.2.0-dev.3] - 2026-09-10
 
 ### Added
 - `LogLevel.trace` — a new level below `debug`, plus `BoundLogger.trace()`.
@@ -101,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Example usage in `example/main.dart`
 - Basic test suite
 
-[Unreleased]: https://github.com/pese-git/structured_log.git/compare/v0.2.0-dev.2...HEAD
+[Unreleased]: https://github.com/pese-git/structured_log.git/compare/v0.2.0-dev.3...HEAD
+[0.2.0-dev.3]: https://github.com/pese-git/structured_log.git/compare/v0.2.0-dev.2...v0.2.0-dev.3
 [0.2.0-dev.2]: https://github.com/pese-git/structured_log.git/compare/v0.2.0-dev.1...v0.2.0-dev.2
 [0.2.0-dev.1]: https://github.com/pese-git/structured_log.git/compare/v0.1.0...v0.2.0-dev.1
 [0.1.0]: https://github.com/pese-git/structured_log.git/releases/tag/v0.1.0
