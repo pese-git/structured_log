@@ -50,8 +50,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  structured_log:
-    # or pub.dev when published
+  structured_log: ^0.2.0
 ```
 
 ## Quick Start

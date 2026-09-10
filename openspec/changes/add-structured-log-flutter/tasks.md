@@ -34,6 +34,6 @@
 
 ## 5. Документация и финализация
 
-- [ ] 5.1 `README.md`/`README.ru.md` для `structured_log_flutter` и `structured_log_material` (установка, быстрый старт, пример подключения `LogBuffer` к `LogSink`)
-- [ ] 5.2 `CHANGELOG.md` для обоих новых пакетов (`Unreleased` / `0.1.0-dev.1`) в формате Keep a Changelog
+- [x] 5.1 `README.md`/`README.ru.md` для `structured_log_flutter` и `structured_log_material` (установка, быстрый старт, справочник API, пример подключения `LogBuffer` к `LogSink`); заодно поправлена устаревшая пометка «не опубликован» в `structured_log/README.md`/`README.ru.md` (пакет уже на pub.dev, `^0.2.0`) и структура/статус пакетов в [AGENTS.md](../../AGENTS.md)
+- [x] 5.2 ~~`CHANGELOG.md` для обоих новых пакетов вручную~~ — отменено: действующее правило в [AGENTS.md](../../AGENTS.md) («Коммиты и версионирование») требует не редактировать `CHANGELOG.md` вручную никогда, только через `melos version`; `structured_log/CHANGELOG.md` уже в собственном (не Keep a Changelog) формате `melos version`. `CHANGELOG.md` для `structured_log_flutter`/`structured_log_material` появятся автоматически при первом `melos version` для каждого пакета
 - [ ] 5.3 Прогнать `openspec-verify-change` перед архивацией этого change

@@ -51,8 +51,7 @@ flowchart LR
 
 ```yaml
 dependencies:
-  structured_log:
-    # или pub.dev после публикации
+  structured_log: ^0.2.0
 ```
 
 ## Быстрый старт
