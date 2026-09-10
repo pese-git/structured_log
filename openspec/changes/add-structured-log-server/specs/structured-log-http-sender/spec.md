@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: HttpLogOutput совместим с контрактом OutputFunction
-`structured_log_http` SHALL предоставлять `HttpLogOutput`, чей вызываемый интерфейс совпадает с `OutputFunction` из `structured_log`, чтобы его можно было подключить напрямую как `output` в `LogSink`, без изменений в core-пакете.
+`structured_log_http` SHALL предоставлять `HttpLogOutput`, чей вызываемый интерфейс совпадает с `OutputFunction` из `structured_log`, чтобы его можно было подключить напрямую как `output` в `LogSink`, без изменений в core-пакете. Конструктор `HttpLogOutput` SHALL принимать URL сервера и секретный ключ проекта (полученный из `structured_log_server` при создании проекта), который отправляется в заголовке `Authorization: Bearer <project-secret-key>` каждого запроса.
 
 #### Scenario: HttpLogOutput подключается как обычный синк
-- **WHEN** экземпляр `HttpLogOutput` передан как `output` в `LogSink` внутри `StructlogConfiguration.configure(sinks: [...])`
-- **THEN** каждая запись, доставленная этому синку через `BoundLogger`, ставится в очередь на отправку на сконфигурированный сервер
+- **WHEN** экземпляр `HttpLogOutput`, сконфигурированный секретным ключом проекта, передан как `output` в `LogSink` внутри `StructlogConfiguration.configure(sinks: [...])`
+- **THEN** каждая запись, доставленная этому синку через `BoundLogger`, ставится в очередь на отправку на сконфигурированный сервер с этим ключом в заголовке `Authorization`
 
 ### Requirement: Асинхронная неблокирующая доставка
 `HttpLogOutput` SHALL ставить записи в сериализованную очередь и отправлять их асинхронно, не блокируя вызывающий поток исполнения на время сетевого запроса, по образцу `_SerializedAsyncOutput` из `async_file_output.dart`.
@@ -35,8 +35,8 @@
 ### Requirement: Ответ 4xx не повторяется
 При ответе сервера с кодом 4xx (кроме случаев, отдельно помеченных как временные) `HttpLogOutput` SHALL прекратить попытки доставки данного батча и сообщить об ошибке через тот же канал диагностики, что использует `_SerializedAsyncOutput` (вывод в `stderr`), не повторяя отправку бесконечно.
 
-#### Scenario: Неверный API-ключ не вызывает бесконечный retry
-- **WHEN** сервер отвечает 401 на батч из-за неверного API-ключа
+#### Scenario: Неверный секретный ключ проекта не вызывает бесконечный retry
+- **WHEN** сервер отвечает 401 на батч из-за неверного или отозванного секретного ключа проекта
 - **THEN** `HttpLogOutput` не повторяет отправку этого батча и сообщает об ошибке через `stderr`, не блокируя обработку последующих записей
 
 ### Requirement: Верхний предел буфера в памяти
