@@ -53,5 +53,5 @@
 
 ## Open Questions
 
-- Точная версия `fluent_ui` для пиннинга — зафиксировать последнюю стабильную на pub.dev на момент реализации.
+- ~~Точная версия `fluent_ui`~~ — решено: `4.15.1`, точно (не диапазоном). Последняя опубликованная на момент реализации (`4.16.1`) не компилируется с используемым Flutter SDK (апстрим-рассинхрон API самого `fluent_ui` с недавним Flutter framework — `RawTooltip.ignorePointer`, `ReorderableListView.builder.onReorderItem`, тип `ScrollCacheExtent` не найден); `flutter analyze` этого не ловит, только `flutter test`/`flutter build`. `4.15.1` компилируется и проходит все тесты. Бампать `fluent_ui` осознанно, когда апстрим это починит.
 - Нужна ли реальная платформа `windows` в `example/` (не только `web`) — пока решено ограничиться `web` (Decision 4), можно пересмотреть по запросу.

@@ -1,0 +1,34 @@
+name: structured_log_fluent
+description: >-
+  A Fluent UI (WinUI-style) in-app log viewer for structured_log, built on
+  structured_log_flutter.
+version: 0.1.0-dev.1
+repository: https://github.com/pese-git/structured_log.git
+# structured_log_flutter isn't published yet, so it can only be resolved as
+# a path dependency for now — not a hosted version constraint.
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+  flutter: ">=3.0.0"
+
+dependencies:
+  # Pinned exactly (not a caret range): fluent_ui's latest published
+  # version, 4.16.1, fails to compile against this project's Flutter SDK
+  # (an upstream fluent_ui/Flutter framework API mismatch, unrelated to
+  # this package) — a caret range would silently re-resolve to it. Bump
+  # deliberately once a fluent_ui release fixes that.
+  fluent_ui: 4.15.1
+  flutter:
+    sdk: flutter
+  structured_log: ^0.2.0
+  structured_log_flutter:
+    path: ../structured_log_flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
