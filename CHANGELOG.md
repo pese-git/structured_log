@@ -15,6 +15,33 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`structured_log` - `v0.2.0`](#structured_log---v020)
+
+Packages graduated to a stable release (see pre-releases prior to the stable version for changelog entries):
+
+ - `structured_log` - `v0.2.0`
+
+---
+
+#### `structured_log` - `v0.2.0`
+
+## 0.2.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
+
+## 2026-09-10
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`structured_log` - `v0.2.0-dev.5`](#structured_log---v020-dev5)
 
 ---
