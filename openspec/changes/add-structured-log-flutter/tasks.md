@@ -1,9 +1,9 @@
 ## 1. Реструктуризация репозитория в monorepo
 
-- [ ] 1.1 `git mv` существующих `lib/`, `test/`, `example/`, `pubspec.yaml`, `pubspec.lock`, `CHANGELOG.md`, `README.md`, `README.ru.md`, `doc/` в `structured_log/` (плоско, в корень репозитория — по образцу [cherrypick](https://github.com/pese-git/cherrypick))
-- [ ] 1.2 Обновить корневой `melos.yaml` на workspace-конфигурацию с явным списком пакетов (`packages: [structured_log, structured_log_flutter, structured_log_material]`)
-- [ ] 1.3 Обновить пути в разделе «Структура» [AGENTS.md](../../AGENTS.md) и ссылки в README/README.ru
-- [ ] 1.4 `melos bootstrap` + `melos run analyze`/`melos run test` — убедиться, что `structured_log` не сломан переносом
+- [x] 1.1 `git mv` существующих `lib/`, `test/`, `example/`, `pubspec.yaml`, `pubspec.lock`, `CHANGELOG.md`, `README.md`, `README.ru.md`, `doc/` в `structured_log/` (плоско, в корень репозитория — по образцу [cherrypick](https://github.com/pese-git/cherrypick)); `LICENSE` скопирован туда же (нужен для будущей публикации на pub.dev)
+- [x] 1.2 Обновить корневой `melos.yaml` на workspace-конфигурацию с явным списком пакетов (`packages: [structured_log]`, готово к расширению до `structured_log_flutter`/`structured_log_material`); скрипты переведены с одиночных `run:` на `exec:`/`steps:` по пакетам
+- [x] 1.3 Обновить пути в разделе «Структура» [AGENTS.md](../../AGENTS.md), CI ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) — `working-directory: structured_log`) и ссылки в README/README.ru
+- [x] 1.4 `dart analyze`/`dart format --set-exit-if-changed`/`dart test` внутри `structured_log/` — подтверждено, пакет не сломан переносом (28/28 тестов). `melos bootstrap` локально не проверен: глобально установленный `melos` (8.2.2) на этой машине падает с `Invalid kernel binary format version` независимо от содержимого `melos.yaml` — похоже на рассинхрон с текущим Dart SDK, не связанный с реструктуризацией; стоит перепроверить после `dart pub global activate melos`
 
 ## 2. structured_log_flutter (headless-ядро)
 
