@@ -171,18 +171,17 @@ packages:
   structured_log:
     dependency: "direct main"
     description:
-      name: structured_log
-      sha256: f05e62814bd92d12f5320e6d3652bd096f76a1230d1eceb5c62b11820e1db6d0
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.0"
+      path: "../../structured_log"
+      relative: true
+    source: path
+    version: "0.2.0-dev.0+1"
   structured_log_flutter:
     dependency: "direct main"
     description:
       path: "../../structured_log_flutter"
       relative: true
     source: path
-    version: "0.1.0-dev.1"
+    version: "0.1.0-dev.2"
   structured_log_material:
     dependency: "direct main"
     description:

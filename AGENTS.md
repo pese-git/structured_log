@@ -15,14 +15,17 @@
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
 - [structured_log_flutter/](structured_log_flutter/) — headless-ядро для in-app просмотра логов
   во Flutter (`LogBuffer`, `LogViewerController`); не зависит ни от какой конкретной дизайн-системы.
+  Опубликован на pub.dev.
 - [structured_log_material/](structured_log_material/) — Material 3 виджет просмотрщика логов
   поверх `structured_log_flutter`.
 - [structured_log_fluent/](structured_log_fluent/) — Fluent UI (WinUI-style) виджет просмотрщика
   логов поверх `structured_log_flutter` (master-detail вместо bottom sheet).
 
-Все три Flutter-пакета пока не опубликованы (`0.1.0-dev.1`, `publish_to: none` у
-`structured_log_material`/`structured_log_fluent` из-за path-зависимости на неопубликованный
-`structured_log_flutter`). История и обоснование решений —
+`structured_log_material`/`structured_log_fluent` (и их `example/`) пока не опубликованы
+(`publish_to: none`) — это отдельное решение мейнтейнера, не техническое ограничение:
+зависимость на `structured_log_flutter` в их `pubspec.yaml` — обычный hosted-констрейнт
+(`^0.1.0-dev.2`), путь к нему при локальной разработке подставляет `melos bootstrap` через
+`pubspec_overrides.yaml` (генерируется, не коммитится — см. `.gitignore`). История и обоснование решений —
 в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/) и
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
 (`proposal.md`/`design.md`/`specs/`/`tasks.md` — по `tasks.md` можно свериться, что уже сделано).

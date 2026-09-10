@@ -4,8 +4,6 @@ description: >-
   entry detail, and empty states, built on structured_log_flutter.
 version: 0.1.0-dev.1
 repository: https://github.com/pese-git/structured_log.git
-# structured_log_flutter isn't published yet, so it can only be resolved as
-# a path dependency for now — not a hosted version constraint.
 publish_to: none
 
 environment:
@@ -16,8 +14,7 @@ dependencies:
   flutter:
     sdk: flutter
   structured_log: ^0.2.0-dev.0+1
-  structured_log_flutter:
-    path: ../structured_log_flutter
+  structured_log_flutter: ^0.1.0-dev.2
 
 dev_dependencies:
   flutter_test:

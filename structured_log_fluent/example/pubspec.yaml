@@ -12,8 +12,7 @@ dependencies:
     sdk: flutter
   fluent_ui: 4.15.1
   structured_log: ^0.2.0-dev.0+1
-  structured_log_flutter:
-    path: ../../structured_log_flutter
+  structured_log_flutter: ^0.1.0-dev.2
   structured_log_fluent:
     path: ../
 
