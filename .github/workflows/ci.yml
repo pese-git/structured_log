@@ -72,6 +72,8 @@ jobs:
           - structured_log_flutter
           - structured_log_material
           - structured_log_material/example
+          - structured_log_fluent
+          - structured_log_fluent/example
 
     steps:
       - uses: actions/checkout@v4
