@@ -91,13 +91,21 @@ final log = getLogger('auth');
 
 | Method     | Level    | Color (console) |
 |------------|----------|-----------------|
+| `trace()`  | trace    | grey            |
 | `debug()`  | debug    | cyan            |
 | `info()`   | info     | green           |
 | `warning()`| warning  | yellow          |
 | `error()`  | error    | red             |
 | `critical()`| critical| magenta         |
 
+Levels are ordered from least to most severe: `trace` < `debug` < `info` <
+`warning` < `error` < `critical`. A sink's default `minLevel` is `debug`,
+so `trace()` calls are filtered out everywhere unless a sink explicitly
+sets `minLevel: LogLevel.trace` — handy for high-volume detail (e.g. raw
+protocol frames) that should stay off by default.
+
 ```dart
+log.trace('raw_frame', context: {'bytes': 128});
 log.debug('cache miss', context: {'key': 'session:42'});
 log.info('request completed', context: {'duration_ms': 150});
 log.warning('slow query', context: {'sql': 'SELECT ...', 'ms': 2000});

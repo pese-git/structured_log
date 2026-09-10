@@ -19,6 +19,7 @@ void main() {
 
     test('log levels work correctly', () {
       final log = getLogger();
+      log.trace('test');
       log.debug('test');
       log.info('test');
       log.warning('test');
@@ -165,6 +166,29 @@ void main() {
       expect(debugSink, hasLength(2));
       expect(errorSink, hasLength(1));
       expect(errorSink.single['event'], 'high');
+    });
+
+    test(
+        "trace is below a sink's default minLevel (debug) and is filtered "
+        'out unless a sink explicitly opts in', () {
+      final defaultSink = <Map<String, dynamic>>[];
+      final traceSink = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(sinks: [
+        LogSink(name: 'default', output: (e, l) => defaultSink.add(e)),
+        LogSink(
+          name: 'trace',
+          output: (e, l) => traceSink.add(e),
+          minLevel: LogLevel.trace,
+        ),
+      ]);
+
+      final log = getLogger();
+      log.trace('raw_frame');
+      log.debug('normal');
+
+      expect(defaultSink, hasLength(1));
+      expect(defaultSink.single['event'], 'normal');
+      expect(traceSink, hasLength(2));
     });
 
     test('categories filter routes entries by the category context key', () {

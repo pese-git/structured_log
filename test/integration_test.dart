@@ -99,6 +99,36 @@ void main() {
   });
 
   test(
+      'trace-level protocol tracing stays out of the general sink by level '
+      'alone, with no category tagging needed, and lands on a dedicated '
+      'async trace sink', () async {
+    final generalPath = '${tempDir.path}/general.log';
+    final tracePath = '${tempDir.path}/trace.log';
+    final traceOutput = AsyncFileOutput(tracePath);
+
+    // The general sink uses the default minLevel (debug), so it never sees
+    // trace-level entries -- no categories: filter required.
+    StructlogConfiguration.configure(sinks: [
+      LogSink(name: 'general', output: fileOutput(generalPath)),
+      LogSink(name: 'trace', output: traceOutput, minLevel: LogLevel.trace),
+    ]);
+
+    final log = getLogger();
+    log.info('request_started');
+    log.trace('raw_frame', context: {'bytes': 128});
+    log.info('request_completed');
+    await traceOutput.flushed;
+
+    final generalEvents =
+        File(generalPath).readAsLinesSync().map((l) => jsonDecode(l)['event']);
+    final traceEvents =
+        File(tracePath).readAsLinesSync().map((l) => jsonDecode(l)['event']);
+
+    expect(generalEvents, ['request_started', 'request_completed']);
+    expect(traceEvents, ['request_started', 'raw_frame', 'request_completed']);
+  });
+
+  test(
       'a sync file sink and an async file sink both receive the same '
       'entries, in order, from one multi-sink configuration', () async {
     final syncPath = '${tempDir.path}/sync.log';

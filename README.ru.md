@@ -92,13 +92,22 @@ final log = getLogger('auth');
 
 | Метод       | Уровень   | Цвет (консоль) |
 |-------------|-----------|----------------|
+| `trace()`   | trace     | серый          |
 | `debug()`   | debug     | голубой        |
 | `info()`    | info      | зелёный        |
 | `warning()` | warning   | жёлтый         |
 | `error()`   | error     | красный        |
 | `critical()`| critical  | фиолетовый     |
 
+Уровни упорядочены от наименее к наиболее серьёзному: `trace` < `debug` <
+`info` < `warning` < `error` < `critical`. У sink по умолчанию `minLevel`
+— `debug`, поэтому вызовы `trace()` везде отфильтровываются, если только
+sink явно не задаст `minLevel: LogLevel.trace` — удобно для
+высокообъёмных деталей (например, сырых protocol-фреймов), которые по
+умолчанию должны быть выключены.
+
 ```dart
+log.trace('raw_frame', context: {'bytes': 128});
 log.debug('cache miss', context: {'key': 'session:42'});
 log.info('request completed', context: {'duration_ms': 150});
 log.warning('slow query', context: {'sql': 'SELECT ...', 'ms': 2000});

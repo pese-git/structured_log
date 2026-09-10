@@ -78,6 +78,9 @@ void coloredConsoleOutput(Map<String, dynamic> entry, LogLevel level) {
 
   String colorCode;
   switch (level) {
+    case LogLevel.trace:
+      colorCode = '\x1B[90m'; // grey
+      break;
     case LogLevel.debug:
       colorCode = '\x1B[36m'; // cyan
       break;

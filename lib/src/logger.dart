@@ -3,8 +3,11 @@ import 'dart:io';
 import 'configuration.dart';
 import 'correlation.dart';
 
-/// Log levels
-enum LogLevel { debug, info, warning, error, critical }
+/// Log levels, from least to most severe. `trace` sits below `debug` and is
+/// filtered out by a sink's default `minLevel` (`LogLevel.debug`) unless a
+/// sink explicitly lowers it — useful for high-volume detail (e.g. raw
+/// protocol frames) that should stay off unless deliberately enabled.
+enum LogLevel { trace, debug, info, warning, error, critical }
 
 /// A structured logger that binds context to log entries.
 class BoundLogger {
@@ -112,6 +115,9 @@ class BoundLogger {
 
     return entry;
   }
+
+  void trace(String? event, {Map<String, dynamic>? context}) =>
+      tryLog(LogLevel.trace, event, context: context);
 
   void debug(String? event, {Map<String, dynamic>? context}) =>
       tryLog(LogLevel.debug, event, context: context);

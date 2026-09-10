@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `LogLevel.trace` — a new level below `debug`, plus `BoundLogger.trace()`.
+  Filtered out by a sink's default `minLevel` (`debug`) unless a sink
+  explicitly sets `minLevel: LogLevel.trace`, so high-volume detail (e.g.
+  raw protocol frames) can be gated purely by level, with no `category`
+  tagging needed. `coloredConsoleOutput` renders it in grey.
+
 ## [0.2.0-dev.2] - 2026-09-10
 
 ### Added

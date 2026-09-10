@@ -78,6 +78,21 @@ Future<void> main() async {
   routedLog
       .debug('raw_frame_2', context: {'category': 'protocol'}); // console only
 
+  // trace() sits below the default minLevel (debug), so a sink needs to
+  // opt in explicitly to receive it -- no category tagging required.
+  StructlogConfiguration.configure(sinks: [
+    LogSink(name: 'console', output: coloredConsoleOutput),
+    LogSink(
+      name: 'trace',
+      output: fileOutput('logs/trace.log'),
+      minLevel: LogLevel.trace,
+    ),
+  ]);
+
+  final traceLog = getLogger();
+  traceLog.info('handled_request'); // console + trace.log
+  traceLog.trace('raw_frame', context: {'bytes': 128}); // trace.log only
+
   // Async file output: does not block the calling isolate. Keep a
   // reference to the instance so you can await flushed before exit.
   final asyncOutput = AsyncFileOutput('logs/async.log');
