@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `StructlogConfiguration.initialContext` is now actually applied —
+  `getLogger()` previously stored it but never read it, so it had no
+  effect on any log entry despite being documented as merged in before
+  `bind()`/inline `context`. `bind()`/inline `context` still override an
+  initialContext key of the same name, matching the documented merge
+  order.
+
 ## [0.2.0-dev.3] - 2026-09-10
 
 ### Added

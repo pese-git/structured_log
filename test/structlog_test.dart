@@ -47,6 +47,36 @@ void main() {
       StructlogConfiguration.reset();
       expect(StructlogConfiguration.current.initialContext, isEmpty);
     });
+
+    test('initialContext is applied to every logger entry', () {
+      Map<String, dynamic>? captured;
+      StructlogConfiguration.configure(
+        initialContext: {'app': 'my_app', 'version': '1.0.0'},
+        output: (entry, level) => captured = entry,
+      );
+
+      getLogger().info('event');
+
+      expect(captured!['app'], 'my_app');
+      expect(captured!['version'], '1.0.0');
+    });
+
+    test(
+        'bind() and inline context override an initialContext key with the '
+        'same name', () {
+      Map<String, dynamic>? captured;
+      StructlogConfiguration.configure(
+        initialContext: {'app': 'my_app'},
+        output: (entry, level) => captured = entry,
+      );
+
+      getLogger().bind({'app': 'from_bind'}).info(
+        'event',
+        context: {'app': 'from_inline'},
+      );
+
+      expect(captured!['app'], 'from_inline');
+    });
   });
 
   group('Processors', () {

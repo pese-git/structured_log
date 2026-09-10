@@ -30,10 +30,13 @@ void main() {
   });
 
   test(
-      'correlation, bound context, and processors round-trip through a real '
-      'file on disk', () {
+      'initialContext, correlation, bound context, and processors round-trip '
+      'through a real file on disk', () {
     final path = '${tempDir.path}/app.log';
     StructlogConfiguration.configure(
+      // e.g. diagnostic-bundle fields a consumer wants on every entry
+      // without passing them at every call site.
+      initialContext: {'app_version': '1.2.3', 'platform': 'macos'},
       processors: [dropNullValues],
       output: fileOutput(path),
     );
@@ -49,6 +52,9 @@ void main() {
 
     expect(entry['event'], 'purchase');
     expect(entry['logger'], 'checkout');
+    // initialContext fields land on the entry alongside everything else.
+    expect(entry['app_version'], '1.2.3');
+    expect(entry['platform'], 'macos');
     // Typed correlation field wins over the same-named bound context key.
     expect(entry['request_id'], 'r-typed');
     expect(entry['session_id'], 's-1');

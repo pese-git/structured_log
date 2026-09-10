@@ -138,7 +138,7 @@ class BoundLogger {
 /// Get a logger instance
 BoundLogger getLogger([String? name]) {
   final config = StructlogConfiguration.current;
-  final context = <String, dynamic>{};
+  final context = Map<String, dynamic>.from(config.initialContext);
   if (name != null) {
     context['logger'] = name;
   }
