@@ -1,17 +1,17 @@
 ## ADDED Requirements
 
-### Requirement: Репозиторий организован как multi-package workspace на Melos
-Корневой `melos.yaml` SHALL объявлять `packages: [packages/**]`, и каждый пакет репозитория (`structured_log`, `structured_log_flutter`, `structured_log_material`) SHALL располагаться в собственной директории под `packages/` со своим `pubspec.yaml`.
+### Requirement: Репозиторий организован как multi-package workspace на Melos с плоской раскладкой
+Корневой `melos.yaml` SHALL объявлять пакеты явным списком по имени (`packages: [structured_log, structured_log_flutter, structured_log_material]`, по образцу [cherrypick](https://github.com/pese-git/cherrypick)), и каждый пакет репозитория SHALL располагаться в собственной директории прямо в корне репозитория (не вложенной под `packages/`), со своим `pubspec.yaml`.
 
 #### Scenario: Melos видит все пакеты репозитория
 - **WHEN** выполняется `melos bootstrap` из корня репозитория
-- **THEN** Melos обнаруживает и линкует `packages/structured_log`, `packages/structured_log_flutter` и `packages/structured_log_material`
+- **THEN** Melos обнаруживает и линкует `structured_log`, `structured_log_flutter` и `structured_log_material`
 
 ### Requirement: Перенос structured_log не меняет его поведение и версию
-Перенос существующего пакета в `packages/structured_log/` SHALL не изменять его публичный API, текущую версию в `pubspec.yaml` или содержимое `CHANGELOG.md`.
+Перенос существующего пакета в `structured_log/` (плоско, в корень репозитория) SHALL не изменять его публичный API, текущую версию в `pubspec.yaml` или содержимое `CHANGELOG.md`.
 
 #### Scenario: Тесты structured_log проходят без изменений после переноса
-- **WHEN** выполняется `dart test` внутри `packages/structured_log/` после переноса
+- **WHEN** выполняется `dart test` внутри `structured_log/` после переноса
 - **THEN** все тесты, ранее проходившие в плоской структуре репозитория, проходят без изменений в самих тестах
 
 ### Requirement: Каждый пакет версионируется независимо

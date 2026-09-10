@@ -20,8 +20,10 @@ UI-направление для Material-скина уже проработан
 
 ## Decisions
 
-1. **Monorepo на Melos, а не отдельный репозиторий для Flutter-пакетов.**
-   Альтернатива — вынести `structured_log_flutter`/`structured_log_material` в отдельный репозиторий. Отклонено: усложняет синхронизацию с изменениями API `structured_log`, требует дублирования части CI/тулинга; `melos.yaml` уже есть, расширение его области — минимальное изменение.
+1. **Monorepo на Melos с плоской раскладкой пакетов в корне репозитория** (`structured_log/`, `structured_log_flutter/`, `structured_log_material/`), пакеты перечислены явным списком по имени в `melos.yaml` — по образцу уже существующего у того же автора [cherrypick](https://github.com/pese-git/cherrypick), где используется тот же стек (Melos + FVM + OpenSpec).
+   Альтернативы:
+   - Отдельный репозиторий для `structured_log_flutter`/`structured_log_material`. Отклонено: усложняет синхронизацию с изменениями API `structured_log`, требует дублирования части CI/тулинга.
+   - Вложенная раскладка `packages/<name>/` с glob-манифестом (`packages: [packages/**]`) — изначально рассматривалась как вариант, поскольку это распространённый паттерн в экосистеме Dart/Flutter (например, `flutter/packages`). Отклонена в пользу плоской раскладки ради единообразия с `cherrypick`: у автора уже есть рабочая, проверенная конвенция на том же тулинге, и переключение контекста между проектами дешевле, чем формальное преимущество вложенности (визуальное отделение пакетов от `doc/`/`.github/`/`openspec/`) — а эту неоднозначность `cherrypick` и так решает явным списком пакетов в `melos.yaml`.
 
 2. **Headless/skin-разделение: `structured_log_flutter` не импортирует Material/Cupertino/Fluent.** `LogViewerController` — конкретный `ChangeNotifier`, а не абстрактный интерфейс/DI-контракт.
    Альтернатива — абстрактный `LogViewerRenderer`, который каждый скин имплементирует. Отклонено: неидиоматично для Flutter (виджеты и так композируемы), лишняя индирекция без практической пользы при одном первом скине.
@@ -51,11 +53,11 @@ UI-направление для Material-скина уже проработан
 
 ## Migration Plan
 
-1. `git mv` существующих файлов пакета в `packages/structured_log/` одним коммитом — поведение, версия и CHANGELOG не меняются.
-2. Обновить `melos.yaml` (workspace `packages: [packages/**]`), пути в `AGENTS.md`/`CLAUDE.md`, ссылки в README.
+1. `git mv` существующих файлов пакета в `structured_log/` (плоско, в корень репозитория) одним коммитом — поведение, версия и CHANGELOG не меняются.
+2. Обновить `melos.yaml` (workspace с явным списком `packages: [structured_log, structured_log_flutter, structured_log_material]`, по образцу `cherrypick`), пути в `AGENTS.md`/`CLAUDE.md`, ссылки в README.
 3. `melos bootstrap` + `melos run analyze`/`test` — убедиться, что `structured_log` не сломан переносом.
-4. Скаффолдинг `packages/structured_log_flutter/`: pubspec, barrel-файл, `LogBuffer`, `LogViewerController`, юнит-тесты.
-5. Скаффолдинг `packages/structured_log_material/`: pubspec с зависимостью `structured_log_flutter` (path в monorepo), виджеты по макетам из Claude Design canvas, виджет-тесты, `example/`.
+4. Скаффолдинг `structured_log_flutter/`: pubspec, barrel-файл, `LogBuffer`, `LogViewerController`, юнит-тесты.
+5. Скаффолдинг `structured_log_material/`: pubspec с зависимостью `structured_log_flutter` (path в monorepo), виджеты по макетам из Claude Design canvas, виджет-тесты, `example/`.
 6. Добавить Flutter-ветку в CI workflow.
 7. Откат: поскольку `structured_log` не переиздаётся на pub.dev в рамках этой change, откат — это `git revert` соответствующих коммитов; риска для существующих потребителей `structured_log` нет.
 

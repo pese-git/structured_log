@@ -1,7 +1,7 @@
 ## 1. Реструктуризация репозитория в monorepo
 
-- [ ] 1.1 `git mv` существующих `lib/`, `test/`, `example/`, `pubspec.yaml`, `pubspec.lock`, `CHANGELOG.md`, `README.md`, `README.ru.md`, `doc/` в `packages/structured_log/`
-- [ ] 1.2 Обновить корневой `melos.yaml` на workspace-конфигурацию (`packages: [packages/**]`)
+- [ ] 1.1 `git mv` существующих `lib/`, `test/`, `example/`, `pubspec.yaml`, `pubspec.lock`, `CHANGELOG.md`, `README.md`, `README.ru.md`, `doc/` в `structured_log/` (плоско, в корень репозитория — по образцу [cherrypick](https://github.com/pese-git/cherrypick))
+- [ ] 1.2 Обновить корневой `melos.yaml` на workspace-конфигурацию с явным списком пакетов (`packages: [structured_log, structured_log_flutter, structured_log_material]`)
 - [ ] 1.3 Обновить пути в разделе «Структура» [AGENTS.md](../../AGENTS.md) и ссылки в README/README.ru
 - [ ] 1.4 `melos bootstrap` + `melos run analyze`/`melos run test` — убедиться, что `structured_log` не сломан переносом
 
