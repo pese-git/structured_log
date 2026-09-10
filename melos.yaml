@@ -4,6 +4,7 @@ packages:
   - structured_log
   - structured_log_flutter
   - structured_log_material
+  - structured_log_material/example
 
 command:
   bootstrap:
@@ -41,7 +42,11 @@ scripts:
   test:flutter:
     exec: flutter test
     packageFilters:
-      scope: ["structured_log_flutter", "structured_log_material"]
+      scope: [
+        "structured_log_flutter",
+        "structured_log_material",
+        "structured_log_material_example",
+      ]
     description: Run tests for Flutter packages
 
   test:coverage:

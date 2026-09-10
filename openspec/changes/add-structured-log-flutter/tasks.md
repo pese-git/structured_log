@@ -25,7 +25,7 @@
 - [x] 3.6 Empty-state (`LogViewerEmptyState`) с двумя вариантами: «No logs yet» (без действия сброса) и «No logs match the current filter» (с кнопкой «Clear filters»)
 - [x] 3.7 Цвета — из `Theme.of(context)`, кроме индикаторов уровня: единая функция `logLevelColor(LogLevel, Brightness)` в `log_level_colors.dart`, больше нигде не дублируется
 - [x] 3.8 Виджет-тесты на каждый сценарий из `specs/flutter-log-viewer-material/spec.md` — 13 тестов (`flutter test`), все проходят
-- [x] 3.9 `example/` — демо Flutter-приложение (`MaterialApp`/`runApp`), подключающее `LogBuffer` к `LogSink` и встраивающее `MaterialLogViewerPage`
+- [x] 3.9 `example/` — полноценное Flutter-приложение (собственный `pubspec.yaml`, `lib/main.dart`, web-платформа через `flutter create --platforms=web`, зарегистрировано в `melos.yaml` как `structured_log_material_example`), подключающее `LogBuffer` к `LogSink` и встраивающее `MaterialLogViewerPage`; `flutter build web` и `flutter test` проходят
 
 ## 4. CI
 

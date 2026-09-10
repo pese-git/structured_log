@@ -15,11 +15,11 @@ void main() {
     LogSink(name: 'viewer', output: buffer.capture),
   ]);
 
-  runApp(_ExampleApp(controller: controller));
+  runApp(ExampleApp(controller: controller));
 }
 
-class _ExampleApp extends StatelessWidget {
-  const _ExampleApp({required this.controller});
+class ExampleApp extends StatelessWidget {
+  const ExampleApp({required this.controller, super.key});
 
   final LogViewerController controller;
 
@@ -33,13 +33,13 @@ class _ExampleApp extends StatelessWidget {
         colorSchemeSeed: Colors.deepPurple,
         brightness: Brightness.dark,
       ),
-      home: _DemoHome(controller: controller),
+      home: DemoHome(controller: controller),
     );
   }
 }
 
-class _DemoHome extends StatelessWidget {
-  const _DemoHome({required this.controller});
+class DemoHome extends StatelessWidget {
+  const DemoHome({required this.controller, super.key});
 
   final LogViewerController controller;
 
