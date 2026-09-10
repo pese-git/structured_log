@@ -9,7 +9,7 @@
 в [melos.yaml](melos.yaml); без вложенности вроде `packages/<name>/`) — по образцу
 [cherrypick](https://github.com/pese-git/cherrypick) того же автора.
 
-Три пакета:
+Четыре пакета:
 
 - [structured_log/](structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -17,10 +17,14 @@
   во Flutter (`LogBuffer`, `LogViewerController`); не зависит ни от какой конкретной дизайн-системы.
 - [structured_log_material/](structured_log_material/) — Material 3 виджет просмотрщика логов
   поверх `structured_log_flutter`.
+- [structured_log_fluent/](structured_log_fluent/) — Fluent UI (WinUI-style) виджет просмотрщика
+  логов поверх `structured_log_flutter` (master-detail вместо bottom sheet).
 
-Оба Flutter-пакета пока не опубликованы (`0.1.0-dev.1`, `publish_to: none` у `structured_log_material`
-из-за path-зависимости на неопубликованный `structured_log_flutter`). История и обоснование решений —
-в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/)
+Все три Flutter-пакета пока не опубликованы (`0.1.0-dev.1`, `publish_to: none` у
+`structured_log_material`/`structured_log_fluent` из-за path-зависимости на неопубликованный
+`structured_log_flutter`). История и обоснование решений —
+в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/) и
+[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
 (`proposal.md`/`design.md`/`specs/`/`tasks.md` — по `tasks.md` можно свериться, что уже сделано).
 
 ## Структура
@@ -31,6 +35,7 @@
 - [structured_log/](structured_log/) — пакет структурированного логирования (см. ниже).
 - [structured_log_flutter/](structured_log_flutter/) — headless-ядро просмотрщика логов (см. ниже).
 - [structured_log_material/](structured_log_material/) — Material-скин просмотрщика логов (см. ниже).
+- [structured_log_fluent/](structured_log_fluent/) — Fluent-скин просмотрщика логов (см. ниже).
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
   только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
@@ -74,6 +79,18 @@
 - [structured_log_material/test/](structured_log_material/test/) — виджет-тесты (`flutter test`).
 - [structured_log_material/example/](structured_log_material/example/) — полноценное Flutter-приложение (`structured_log_material_example` в `melos.yaml`), запускается через `flutter run -d chrome` (или `-d web-server`) из этой директории; поддерживает web.
 
+Внутри [structured_log_fluent/](structured_log_fluent/):
+
+- [structured_log_fluent/lib/structured_log_fluent.dart](structured_log_fluent/lib/structured_log_fluent.dart) — barrel-файл экспорта.
+- [structured_log_fluent/lib/src/fluent_log_viewer_page.dart](structured_log_fluent/lib/src/fluent_log_viewer_page.dart) — `FluentLogViewerPage`: master-detail split view (список слева, панель деталей справа), заголовок с поиском/`ComboBox`-фильтром/паузой/очисткой. Заголовок — обычный `Row`, не виджет `CommandBar`: его `primaryItems` не рассчитаны на широкие произвольные виджеты вроде `TextBox`/`ComboBox` (ломается логика overflow).
+- [structured_log_fluent/lib/src/log_entry_tile.dart](structured_log_fluent/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (бейдж уровня/время/event/category), hover- и accent-подсветка выбора через `HoverButton`.
+- [structured_log_fluent/lib/src/log_entry_detail_pane.dart](structured_log_fluent/lib/src/log_entry_detail_pane.dart) — `LogEntryDetailPane`: панель деталей (не модальная) с полным контекстом записи и копированием.
+- [structured_log_fluent/lib/src/log_viewer_empty_state.dart](structured_log_fluent/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No results found».
+- [structured_log_fluent/lib/src/log_level_colors.dart](structured_log_fluent/lib/src/log_level_colors.dart) — `logLevelColor()`/`logLevelAbbreviation()`; та же палитра, что в `structured_log_material`, дублирована осознанно (см. `design.md` соответствующей change).
+- [structured_log_fluent/test/](structured_log_fluent/test/) — виджет-тесты (`flutter test`); используют расширенный тестовый вьюпорт (1200×800 — дефолтный 800×600 слишком узкий для заголовка) и скоуп-хелперы `_inList`/`_inDetailPane` (список и панель деталей видны одновременно, `find.text(event)` иначе находит дубликаты).
+- [structured_log_fluent/example/](structured_log_fluent/example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web.
+- `fluent_ui` зафиксирован в `pubspec.yaml` точной версией `4.15.1` (не диапазоном) — последняя опубликованная (`4.16.1`) не компилируется с используемым Flutter SDK; `flutter analyze` этого не ловит, только `flutter test`/`flutter build`.
+
 ## Команды
 
 Запускаются через `melos run <script>` из корня репозитория (см. [melos.yaml](melos.yaml)) —
@@ -111,7 +128,7 @@ dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Flutter-пакеты (`structured_log_flutter`/`structured_log_material`), когда появятся, этому ограничению не подчиняются, но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`) этому ограничению не подчиняются, но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`dart format .` перед завершением любого изменения).
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
@@ -138,15 +155,19 @@ dart run example/main.dart
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
-в `master`/`develop` и на `workflow_dispatch`: `dart format --set-exit-if-changed`,
-`dart analyze`, `dart test` и `dart run example/main.dart` — на
-`ubuntu-latest`/`macos-latest`/`windows-latest` (важно именно на всех трёх,
-т.к. `async_file_output.dart` и ротация делают реальные
-rename/delete/exists на файловой системе, а её поведение отличается между
-POSIX и Windows), с `working-directory: structured_log`. Использует
-`dart-lang/setup-dart` (канал `stable`), а не FVM/Flutter — `structured_log`
-не зависит от Flutter, полноценный SDK через FVM в CI не нужен. Когда появятся
-Flutter-пакеты, для них потребуется отдельная джоба/ветка с Flutter SDK.
+в `master`/`develop` и на `workflow_dispatch`, две джобы:
+
+- `test` — для `structured_log`: `dart format --set-exit-if-changed`, `dart analyze`,
+  `dart test`, `dart run example/main.dart` — на `ubuntu-latest`/`macos-latest`/`windows-latest`
+  (важно именно на всех трёх, т.к. `async_file_output.dart` и ротация делают реальные
+  rename/delete/exists на файловой системе, а её поведение отличается между POSIX и Windows).
+  Использует `dart-lang/setup-dart` (канал `stable`), а не FVM/Flutter — `structured_log`
+  не зависит от Flutter.
+- `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
+  (+`example/`), `structured_log_fluent` (+`example/`)), по одному матричному прогону на пакет:
+  `flutter pub get`, `dart format --set-exit-if-changed`, `flutter analyze`, `flutter test`.
+  Только `ubuntu-latest` — этим пакетам не нужна ОС-чувствительная проверка ротации файлов.
+  Использует `subosito/flutter-action`, канал `stable`.
 
 ## Перед завершением изменения
 
@@ -155,6 +176,6 @@ Flutter-пакеты, для них потребуется отдельная д
 3. `dart format --set-exit-if-changed .` — код должен быть отформатирован.
 4. При изменении публичного поведения пакета обновлять его `README.md`/`README.ru.md`
    ([structured_log/](structured_log/README.md), [structured_log_flutter/](structured_log_flutter/README.md),
-   [structured_log_material/](structured_log_material/README.md)) — но не `CHANGELOG.md`
-   (см. «Коммиты и версионирование»).
-5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех трёх ОС.
+   [structured_log_material/](structured_log_material/README.md), [structured_log_fluent/](structured_log_fluent/README.md))
+   — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
+5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

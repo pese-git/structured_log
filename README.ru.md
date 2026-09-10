@@ -30,6 +30,13 @@ Monorepo на Melos + FVM для структурированного логир
   Включает запускаемое пример-приложение (`structured_log_material/example/`,
   умеет в web). *Пока не опубликован.*
 
+- **[`structured_log_fluent`](structured_log_fluent/)** — готовый к
+  использованию in-app просмотрщик логов на Fluent UI (WinUI-style) поверх
+  `structured_log_flutter`: master-detail split view, поиск и фильтр по
+  уровню, панель деталей с копированием, empty-состояния. Включает
+  запускаемое пример-приложение (`structured_log_fluent/example/`, умеет в
+  web). *Пока не опубликован.*
+
 ## Структура репозитория
 
 Каждый пакет — отдельная директория в корне (без вложенности вроде
@@ -39,6 +46,8 @@ Monorepo на Melos + FVM для структурированного логир
 
 История дизайна и планирования Flutter-пакетов просмотра логов — в
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/)
+и
+[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
 (почему, технические решения, требования, прогресс по задачам).
 
 ## Быстрый старт

@@ -28,6 +28,13 @@ viewer ecosystem for Flutter built on top of it.
   example app (`structured_log_material/example/`, web-capable). *Not yet
   published.*
 
+- **[`structured_log_fluent`](structured_log_fluent/)** — a ready-to-use
+  Fluent UI (WinUI-style) in-app log viewer built on
+  `structured_log_flutter`: master-detail split view, search and level
+  filtering, a detail pane with copy, and empty states. Includes a
+  runnable example app (`structured_log_fluent/example/`, web-capable).
+  *Not yet published.*
+
 ## Repository Layout
 
 Each package lives in its own top-level directory (no `packages/`
@@ -37,6 +44,8 @@ conventions, versioning, CI) if you're contributing.
 
 Design and planning history for the Flutter log-viewer packages lives in
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/)
+and
+[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
 (why, technical decisions, requirements, task-by-task progress).
 
 ## Quick Start

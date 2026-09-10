@@ -12,10 +12,10 @@
 
 ## 2. CI
 
-- [ ] 2.1 Расширить матрицу существующей джобы `flutter` в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) пакетами `structured_log_fluent` и `structured_log_fluent/example`
-- [ ] 2.2 Убедиться, что CI зелёный на всех джобах (старых и новых)
+- [x] 2.1 Расширена матрица джобы `flutter` в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) пакетами `structured_log_fluent` и `structured_log_fluent/example`
+- [x] 2.2 Проверено на GitHub Actions ([прогон 34497599086](https://github.com/pese-git/structured_log/actions/runs/34497599086)): все 8 джоб зелёные (3 старых `Analyze & test` + 5 `Analyze & test Flutter`, включая оба новых пакета)
 
 ## 3. Документация и финализация
 
-- [ ] 3.1 `README.md`/`README.ru.md` для `structured_log_fluent` (установка, быстрый старт, справочник API, ссылка на `structured_log_material` и `structured_log_flutter`); добавить пакет в корневой [README.md](../../README.md)/[README.ru.md](../../README.ru.md) и в [AGENTS.md](../../AGENTS.md)
+- [x] 3.1 `README.md`/`README.ru.md` для `structured_log_fluent` (установка, быстрый старт, справочник API); пакет добавлен в корневой [README.md](../../README.md)/[README.ru.md](../../README.ru.md) и в [AGENTS.md](../../AGENTS.md) (Проект/Структура/Соглашения/CI/Перед завершением изменения)
 - [ ] 3.2 Прогнать `openspec-verify-change` перед архивацией этого change
