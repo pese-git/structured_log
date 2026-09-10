@@ -30,7 +30,7 @@
 ## 4. CI
 
 - [x] 4.1 Добавлена джоба `flutter` в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`subosito/flutter-action`, канал `stable`, только `ubuntu-latest` — по design.md: этим пакетам не нужна ОС-чувствительная проверка ротации файлов, как у `structured_log`) с матрицей по трём пакетам (`structured_log_flutter`, `structured_log_material`, `structured_log_material/example`): `flutter pub get` → `dart format --set-exit-if-changed .` → `flutter analyze` → `flutter test`. Существующая Dart-only джоба для `structured_log` не тронута
-- [ ] 4.2 Убедиться, что CI зелёный и на существующей, и на новой ветке
+- [x] 4.2 Проверено на GitHub Actions ([прогон 34487537912](https://github.com/pese-git/structured_log/actions/runs/34487537912)): все 6 джоб зелёные — `Analyze & test` на ubuntu/macos/windows (`structured_log`) и `Analyze & test Flutter` на всех трёх Flutter-пакетах
 
 ## 5. Документация и финализация
 
