@@ -1,0 +1,39 @@
+## 1. Реструктуризация репозитория в monorepo
+
+- [ ] 1.1 `git mv` существующих `lib/`, `test/`, `example/`, `pubspec.yaml`, `pubspec.lock`, `CHANGELOG.md`, `README.md`, `README.ru.md`, `doc/` в `packages/structured_log/`
+- [ ] 1.2 Обновить корневой `melos.yaml` на workspace-конфигурацию (`packages: [packages/**]`)
+- [ ] 1.3 Обновить пути в разделе «Структура» [AGENTS.md](../../AGENTS.md) и ссылки в README/README.ru
+- [ ] 1.4 `melos bootstrap` + `melos run analyze`/`melos run test` — убедиться, что `structured_log` не сломан переносом
+
+## 2. structured_log_flutter (headless-ядро)
+
+- [ ] 2.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log` через `path:`), `lib/structured_log_flutter.dart` (barrel-файл), `test/`, `example/`
+- [ ] 2.2 Реализовать `LogBuffer`: кольцевой буфер ограниченной ёмкости, `capture()` с сигнатурой `OutputFunction`, `ValueListenable<List<Map<String, dynamic>>>`
+- [ ] 2.3 Тесты `LogBuffer`: вытеснение старейшей записи при переполнении, обновление `ValueListenable` при захвате, подключение `capture` как `output` в `LogSink`
+- [ ] 2.4 Реализовать `LogViewerController` (`ChangeNotifier`): `levelFilter`, `categoryFilter`, `searchQuery`, `paused`, `visibleEntries`, `clear()`
+- [ ] 2.5 Тесты `LogViewerController`: фильтрация по уровню/категории/тексту поиска, поведение паузы, `clear()` очищает буфер и уведомляет слушателей
+- [ ] 2.6 Dartdoc с примерами для публичного API (`LogBuffer`, `LogViewerController`) в стиле, принятом в `structured_log`
+- [ ] 2.7 Проверить отсутствие импортов `package:flutter/material.dart`, `package:flutter/cupertino.dart`, `package:fluent_ui/fluent_ui.dart` в `lib/` пакета
+
+## 3. structured_log_material (Material-скин)
+
+- [ ] 3.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log_flutter` через `path:`), `lib/`, `test/`, `example/`
+- [ ] 3.2 Виджет списка записей: сортировка «новые сверху», живое обновление от `LogViewerController`
+- [ ] 3.3 Строка записи: цветовой индикатор уровня, временная метка, `event`, тег `category` (если задан)
+- [ ] 3.4 Верхняя панель: заголовок «Logs», поле поиска, чипы фильтра по уровню, переключатель паузы/возобновления, действие очистки — по макетам из [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
+- [ ] 3.5 Bottom sheet детального вида: полный контекст записи как пары ключ-значение + действие копирования
+- [ ] 3.6 Empty-state с двумя вариантами: «логов ещё нет» и «нет записей по текущему фильтру» (с действием сброса)
+- [ ] 3.7 Поддержка `Theme.of(context)` (светлая/тёмная); canonical-таблица цветов уровня лога — в одном месте, без дублирования
+- [ ] 3.8 Виджет-тесты на каждый сценарий из `specs/flutter-log-viewer-material/spec.md`
+- [ ] 3.9 `example/` — демо Flutter-приложение, подключающее `LogBuffer` к `LogSink` и встраивающее виджет списка
+
+## 4. CI
+
+- [ ] 4.1 Добавить Flutter-джобу/ветку в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`flutter analyze`/`flutter test` для `structured_log_flutter` и `structured_log_material`), не сломав существующую Dart-only ветку для `structured_log`
+- [ ] 4.2 Убедиться, что CI зелёный и на существующей, и на новой ветке
+
+## 5. Документация и финализация
+
+- [ ] 5.1 `README.md`/`README.ru.md` для `structured_log_flutter` и `structured_log_material` (установка, быстрый старт, пример подключения `LogBuffer` к `LogSink`)
+- [ ] 5.2 `CHANGELOG.md` для обоих новых пакетов (`Unreleased` / `0.1.0-dev.1`) в формате Keep a Changelog
+- [ ] 5.3 Прогнать `openspec-verify-change` перед архивацией этого change
