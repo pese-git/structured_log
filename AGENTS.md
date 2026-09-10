@@ -27,6 +27,7 @@
 
 Верхний уровень репозитория:
 
+- [README.md](README.md) / [README.ru.md](README.ru.md) — обзор workspace целиком, для внешних читателей.
 - [structured_log/](structured_log/) — пакет структурированного логирования (см. ниже).
 - [structured_log_flutter/](structured_log_flutter/) — headless-ядро просмотрщика логов (см. ниже).
 - [structured_log_material/](structured_log_material/) — Material-скин просмотрщика логов (см. ниже).
