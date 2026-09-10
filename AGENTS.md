@@ -21,6 +21,9 @@
 
 - [structured_log/](structured_log/) — пакет структурированного логирования (см. ниже).
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
+- [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
+  только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
+  не является пакетом workspace и не перечислен в `packages:` в `melos.yaml`.
 - [openspec/](openspec/) — артефакты OpenSpec (proposal/design/specs/tasks) для change-заявок.
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) — CI.
 - [LICENSE](LICENSE) — лицензия репозитория; копия лежит также внутри `structured_log/`
@@ -46,7 +49,18 @@
 
 Запускаются через `melos run <script>` из корня репозитория (см. [melos.yaml](melos.yaml)) —
 скрипты, кроме `clean`, определены через `exec:`/`steps:` и выполняются в директории каждого
-пакета workspace. Для прямых вызовов `dart` нужно сначала зайти в директорию пакета:
+пакета workspace. Если глобально активированный `melos` недоступен/сломан (например, конфликт
+версии Dart SDK со снапшотом бинаря), используйте `dart run melos <cmd>` — корневой
+[pubspec.yaml](pubspec.yaml) как раз для этого держит `melos` в dev-зависимостях:
+
+```bash
+dart run melos bootstrap
+dart run melos run analyze
+dart run melos run test
+dart run melos run lint
+```
+
+Для прямых вызовов `dart` нужно сначала зайти в директорию пакета:
 
 ```bash
 cd structured_log
