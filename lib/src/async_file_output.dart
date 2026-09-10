@@ -38,6 +38,24 @@ abstract class _SerializedAsyncOutput {
 /// the calling isolate. Writes are serialized and delivered in order; a
 /// failing write is caught and reported to stderr without affecting later
 /// writes. Directories are created eagerly (synchronously) at construction.
+///
+/// Prefer this over [fileOutput] for high-throughput logging, where
+/// blocking on disk I/O for every call would be wasteful. Keep a reference
+/// to the instance (rather than only passing it as `output:`) so you can
+/// `await` [flushed] — e.g. in tests, or right before your process exits,
+/// to make sure every queued write has actually landed on disk.
+///
+/// ```dart
+/// final asyncOutput = AsyncFileOutput('logs/async.log');
+/// StructlogConfiguration.configure(output: asyncOutput);
+///
+/// final log = getLogger();
+/// log.info('async_event_1');
+/// log.info('async_event_2');
+///
+/// // Without this, the process could exit before the writes land.
+/// await asyncOutput.flushed;
+/// ```
 class AsyncFileOutput extends _SerializedAsyncOutput {
   final String filePath;
   final File _file;
@@ -65,6 +83,24 @@ class AsyncFileOutput extends _SerializedAsyncOutput {
 /// rotates to `.0`, `.1`, ... `.{maxBackups - 1}` once the file exceeds
 /// [maxSizeBytes]. The size check, rotation, and write are all serialized
 /// through the same write queue, so they never race with themselves.
+///
+/// The non-blocking counterpart of [rotatingFileOutput]; see
+/// [AsyncFileOutput] for why and how to use [flushed].
+///
+/// ```dart
+/// final asyncRotating = AsyncRotatingFileOutput(
+///   'logs/app.log',
+///   maxSizeBytes: 1024 * 1024, // 1 MB per file
+///   maxBackups: 5,
+/// );
+/// StructlogConfiguration.configure(output: asyncRotating);
+///
+/// final log = getLogger();
+/// for (var i = 0; i < 100000; i++) {
+///   log.info('iteration', context: {'i': i});
+/// }
+/// await asyncRotating.flushed;
+/// ```
 class AsyncRotatingFileOutput extends _SerializedAsyncOutput {
   final String filePath;
   final int maxSizeBytes;
