@@ -2,7 +2,7 @@ name: structured_log_flutter
 description: >-
   Headless log-viewer core for structured_log — LogBuffer and
   LogViewerController, decoupled from any specific Flutter design system.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 repository: https://github.com/pese-git/structured_log.git
 
 environment:
@@ -12,7 +12,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  structured_log: ^0.2.0
+  structured_log: ^0.2.0-dev.0+1
 
 dev_dependencies:
   flutter_test:

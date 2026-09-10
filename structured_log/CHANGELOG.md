@@ -1,3 +1,7 @@
+## 0.2.0-dev.0+1
+
+ - **DOCS**: add README.md/README.ru.md for the new Flutter packages.
+
 # Change Log
 
 All notable changes to this project will be documented in this file.
