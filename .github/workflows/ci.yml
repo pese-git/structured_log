@@ -55,3 +55,48 @@ jobs:
 
       - name: Run example
         run: dart run example/main.dart
+
+  flutter:
+    name: Analyze & test Flutter (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    # A single OS is enough for these packages, unlike the Dart-only job
+    # above: they don't do the OS-sensitive file rotation that requires
+    # covering ubuntu/macos/windows. Revisit if that changes.
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - structured_log_flutter
+          - structured_log_material
+          - structured_log_material/example
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles(format('{0}/pubspec.lock', matrix.package)) }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test

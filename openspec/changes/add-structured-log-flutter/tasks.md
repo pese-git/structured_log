@@ -29,7 +29,7 @@
 
 ## 4. CI
 
-- [ ] 4.1 Добавить Flutter-джобу/ветку в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`flutter analyze`/`flutter test` для `structured_log_flutter` и `structured_log_material`), не сломав существующую Dart-only ветку для `structured_log`
+- [x] 4.1 Добавлена джоба `flutter` в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`subosito/flutter-action`, канал `stable`, только `ubuntu-latest` — по design.md: этим пакетам не нужна ОС-чувствительная проверка ротации файлов, как у `structured_log`) с матрицей по трём пакетам (`structured_log_flutter`, `structured_log_material`, `structured_log_material/example`): `flutter pub get` → `dart format --set-exit-if-changed .` → `flutter analyze` → `flutter test`. Существующая Dart-only джоба для `structured_log` не тронута
 - [ ] 4.2 Убедиться, что CI зелёный и на существующей, и на новой ветке
 
 ## 5. Документация и финализация
