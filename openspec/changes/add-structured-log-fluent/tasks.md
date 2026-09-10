@@ -18,4 +18,4 @@
 ## 3. Документация и финализация
 
 - [x] 3.1 `README.md`/`README.ru.md` для `structured_log_fluent` (установка, быстрый старт, справочник API); пакет добавлен в корневой [README.md](../../README.md)/[README.ru.md](../../README.ru.md) и в [AGENTS.md](../../AGENTS.md) (Проект/Структура/Соглашения/CI/Перед завершением изменения)
-- [ ] 3.2 Прогнать `openspec-verify-change` перед архивацией этого change
+- [x] 3.2 `openspec-verify-change` прогнан: 7/7 требований покрыто кодом и тестами, все 9 сценариев есть в тестах, все decisions из `design.md` соблюдены, критических проблем и warning'ов нет
