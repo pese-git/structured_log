@@ -1,3 +1,36 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## 2026-09-10
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.2.0-dev.2`](#structured_log---v020-dev2)
+
+---
+
+#### `structured_log` - `v0.2.0-dev.2`
+
+ - **FEAT**: add non-blocking AsyncFileOutput and AsyncRotatingFileOutput.
+ - **DOCS**: add Russian translation of the architecture doc.
+ - **DOCS**: add architecture doc and end-user pipeline diagram.
+
+## 0.2.0-dev.2
+
+ - **FEAT**: add non-blocking AsyncFileOutput and AsyncRotatingFileOutput.
+ - **DOCS**: add Russian translation of the architecture doc.
+ - **DOCS**: add architecture doc and end-user pipeline diagram.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
