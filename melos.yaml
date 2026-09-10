@@ -6,6 +6,7 @@ packages:
   - structured_log_material
   - structured_log_material/example
   - structured_log_fluent
+  - structured_log_fluent/example
 
 command:
   bootstrap:
@@ -48,6 +49,7 @@ scripts:
         "structured_log_material",
         "structured_log_material_example",
         "structured_log_fluent",
+        "structured_log_fluent_example",
       ]
     description: Run tests for Flutter packages
 

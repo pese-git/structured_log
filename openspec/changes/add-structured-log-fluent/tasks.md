@@ -8,7 +8,7 @@
 - [x] 1.6 Empty-state (`LogViewerEmptyState`) с двумя вариантами: «No logs yet» (без действия сброса) и «No results found» (с кнопкой «Clear filters»)
 - [x] 1.7 Тема — из `FluentTheme.of(context)`/`theme.resources` (светлая/тёмная); canonical-таблица цветов уровня лога в `log_level_colors.dart` (те же значения, что в `structured_log_material` — см. `design.md` Decision 3: дублируется осознанно, не выносится в `structured_log_flutter`)
 - [x] 1.8 Виджет-тесты на каждый сценарий из `specs/flutter-log-viewer-fluent/spec.md` — 16 тестов (`flutter test`), все проходят. При написании тестов вскрылись две проблемы окружения/дизайна, обе исправлены: (а) дефолтный тестовый вьюпорт 800×600 слишком узкий для шапки — расширен до 1200×800 в тестах; (б) в master-detail список и панель видны одновременно, поэтому `find.text(event)` может найти два совпадения — введены скоуп-хелперы `_inList`/`_inDetailPane`
-- [ ] 1.9 `example/`: `flutter create --platforms=web`, демо-приложение (аналогично `structured_log_material/example`), подключающее `LogBuffer` к `LogSink` и встраивающее `FluentLogViewerPage`
+- [x] 1.9 `example/`: `flutter create --platforms=web`, демо-приложение (`ExampleApp`/`DemoHome`, зарегистрировано в `melos.yaml` как `structured_log_fluent_example`), подключающее `LogBuffer` к `LogSink` и встраивающее `FluentLogViewerPage`; `flutter test` (2 теста) и `flutter build web` проходят
 
 ## 2. CI
 
