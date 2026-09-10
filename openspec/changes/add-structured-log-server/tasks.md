@@ -1,17 +1,18 @@
 ## 1. Скаффолдинг пакетов
 
-- [ ] 1.1 Создать `structured_log_server/`: `pubspec.yaml` (зависимости `shelf`, `shelf_router`, `sqlite3`, `structured_log`), `lib/structured_log_server.dart` (barrel), `bin/`, `test/`, `example/`; `LICENSE` скопирован
+- [ ] 1.1 Создать `structured_log_server/`: `pubspec.yaml` (зависимости `shelf`, `shelf_router`, `drift`, `sqlite3`, `structured_log`; dev-зависимости `drift_dev`, `build_runner`), `lib/structured_log_server.dart` (barrel), `bin/`, `test/`, `example/`; `LICENSE` скопирован; `*.g.dart` добавлен в `.gitignore` пакета
 - [ ] 1.2 Создать `structured_log_http/`: `pubspec.yaml` (единственная зависимость — `structured_log`), `lib/structured_log_http.dart` (barrel), `test/`, `example/`; `LICENSE` скопирован
-- [ ] 1.3 Добавить оба пакета в `packages:` корневого [melos.yaml](../../melos.yaml); включить их в scope скриптов `analyze`/`format`/`format:check`/`test:dart` (оба чистый Dart, не Flutter)
-- [ ] 1.4 `melos bootstrap`/`dart analyze` на пустых пакетах — убедиться, что скаффолдинг корректен и не ломает остальной воркспейс
+- [ ] 1.3 Добавить оба пакета в `packages:` корневого [melos.yaml](../../melos.yaml); включить их в scope скриптов `analyze`/`format`/`format:check`/`test:dart` (оба чистый Dart, не Flutter); добавить/задокументировать шаг `dart run build_runner build --delete-conflicting-outputs` для `structured_log_server`
+- [ ] 1.4 `melos bootstrap`/`dart run build_runner build`/`dart analyze` на пустых пакетах — убедиться, что скаффолдинг корректен и не ломает остальной воркспейс
 
 ## 2. structured_log_server — storage-слой
 
 - [ ] 2.1 Определить интерфейс `LogStore` (`insertBatch`, `query`) в `lib/src/storage/log_store.dart`
-- [ ] 2.2 Реализовать `SqliteLogStore` (`lib/src/storage/sqlite_log_store.dart`): схема `log_entries` (id/received_at/timestamp/level/event/category/logger/поля корреляции/context_json), индексы на level/timestamp/category/session_id/request_id и составной (level, timestamp), `PRAGMA journal_mode=WAL`
-- [ ] 2.3 Миграция схемы при старте (идемпотентная, не теряющая существующие данные при повторном запуске) — `specs/log-server-storage`: Requirement "Миграция схемы при старте сервера"
-- [ ] 2.4 Реализовать построение SQL-фильтра (`lib/src/storage/query.dart`): level/category/logger/from-to/correlation ids/полнотекстовый `LIKE` по event и context_json/`context.<key>` через `json_extract`, keyset-пагинация по `id`
-- [ ] 2.5 Юнит-тесты storage-слоя на каждый сценарий из `specs/log-server-storage/spec.md`: round-trip произвольного поля context, использование индекса при фильтрации по level, независимость received_at от timestamp, фильтрация по незаранее известному ключу context, сохранность данных после рестарта, отсутствие блокировки чтения при конкурентной записи (WAL)
+- [ ] 2.2 Определить drift `Table`-класс `LogEntries` и `@DriftDatabase`-аннотированный класс БД (`lib/src/storage/database.dart`): схема log_entries (id/received_at/timestamp/level/event/category/logger/поля корреляции/context_json), индексы на level/timestamp/category/session_id/request_id и составной (level, timestamp), `PRAGMA journal_mode=WAL` через `NativeDatabase`/`setup`; сгенерировать `database.g.dart` (`build_runner`)
+- [ ] 2.3 Реализовать `DriftLogStore` (`lib/src/storage/drift_log_store.dart`), имплементирующий `LogStore` поверх сгенерированного класса БД
+- [ ] 2.4 Миграция схемы при старте (`MigrationStrategy`/`onUpgrade`, идемпотентная, не теряющая существующие данные при повторном запуске) — `specs/log-server-storage`: Requirement "Миграция схемы при старте сервера"
+- [ ] 2.5 Реализовать построение фильтра запроса (`lib/src/storage/query.dart`): level/category/logger/from-to/correlation ids через типизированный query-builder drift, полнотекстовый `LIKE` по event/context_json и `context.<key>` через `json_extract` — через `customSelect`/`customStatement`, keyset-пагинация по `id`
+- [ ] 2.6 Юнит-тесты storage-слоя на каждый сценарий из `specs/log-server-storage/spec.md`: round-trip произвольного поля context, использование индекса при фильтрации по level, независимость received_at от timestamp, фильтрация по незаранее известному ключу context, сохранность данных после рестарта (реальная миграция на существующей БД), отсутствие блокировки чтения при конкурентной записи (WAL)
 
 ## 3. structured_log_server — HTTP API
 
@@ -43,7 +44,7 @@
 
 ## 7. CI
 
-- [ ] 7.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `structured_log_server`/`structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest` — риск sqlite3 на Windows, см. `design.md`): `pub get` → `format --set-exit-if-changed` → `analyze` → `test`; существующие `test`/`flutter` job'ы не трогать
+- [ ] 7.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `structured_log_server`/`structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest` — риск sqlite3/drift на Windows, см. `design.md`): `pub get` → (для `structured_log_server`: `dart run build_runner build --delete-conflicting-outputs`) → `format --set-exit-if-changed` → `analyze` → `test`; существующие `test`/`flutter` job'ы не трогать
 - [ ] 7.2 Прогнать на GitHub Actions, убедиться, что все job'ы зелёные
 
 ## 8. Документация и финализация
