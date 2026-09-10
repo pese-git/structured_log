@@ -1,46 +1,56 @@
-name: structured_log
+name: structured_log_workspace
 
 packages:
-  - .
+  - structured_log
 
 command:
   bootstrap:
     runPubGetInParallel: false
 
 scripts:
+  pubget:
+    exec: dart pub get
+    description: Get dependencies for each package
+
   analyze:
-    run: dart analyze
-    description: Analyze Dart code
+    exec: dart analyze
+    description: Analyze Dart code for each package
 
   format:
-    run: dart format .
-    description: Format Dart code
+    exec: dart format .
+    description: Format Dart code for each package
 
   format:check:
-    run: dart format --set-exit-if-changed .
-    description: Check code formatting
+    exec: dart format --set-exit-if-changed .
+    description: Check code formatting for each package
 
   test:
-    run: dart test
-    description: Run tests
+    exec: dart test
+    description: Run tests for each package
 
   test:coverage:
-    run: dart test --coverage=coverage
-    description: Run tests with coverage
+    exec: dart test --coverage=coverage
+    description: Run tests with coverage for each package
 
   lint:
-    run: melos run analyze && melos run format:check
+    steps:
+      - analyze
+      - format:check
     description: Run all linting checks
 
   build:
-    run: dart pub get && melos run analyze
-    description: Build and analyze
+    steps:
+      - pubget
+      - analyze
+    description: Get dependencies and analyze
 
   clean:
     run: dart pub cache clean
     description: Clean pub cache
 
   example:
-    run: dart run example/main.dart
-    description: Run example
+    exec: dart run example/main.dart
+    packageFilters:
+      scope: ["structured_log"]
+    description: Run the structured_log example
 sdkPath: .fvm/flutter_sdk

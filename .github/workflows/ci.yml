@@ -11,6 +11,9 @@ jobs:
   test:
     name: Analyze & test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: structured_log
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +37,7 @@ jobs:
           path: |
             ~/.pub-cache
             %LOCALAPPDATA%\Pub\Cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('structured_log/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
