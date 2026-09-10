@@ -1,3 +1,34 @@
+# Change Log
+
+All notable changes to this project will be documented in this file.
+See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
+## 2026-09-10
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.2.0-dev.4`](#structured_log---v020-dev4)
+
+---
+
+#### `structured_log` - `v0.2.0-dev.4`
+
+ - **FIX**: apply StructlogConfiguration.initialContext in getLogger().
+ - **DOCS**: clean up CHANGELOG.md after melos version's auto-generated entry.
+
+## 0.2.0-dev.4
+
+ - **FIX**: apply StructlogConfiguration.initialContext in getLogger().
+ - **DOCS**: clean up CHANGELOG.md after melos version's auto-generated entry.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
