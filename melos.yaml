@@ -3,6 +3,7 @@ name: structured_log_workspace
 packages:
   - structured_log
   - structured_log_flutter
+  - structured_log_material
 
 command:
   bootstrap:
@@ -40,7 +41,7 @@ scripts:
   test:flutter:
     exec: flutter test
     packageFilters:
-      scope: ["structured_log_flutter"]
+      scope: ["structured_log_flutter", "structured_log_material"]
     description: Run tests for Flutter packages
 
   test:coverage:

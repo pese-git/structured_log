@@ -6,6 +6,24 @@ import 'log_buffer.dart';
 const _levelKey = 'level';
 const _timestampKey = 'timestamp';
 
+/// Returns the [LogLevel] a log [entry] was recorded at, by matching its
+/// `level` context key (set by every entry via `structured_log`'s
+/// `BoundLogger`) against [LogLevel.values]' names — or `null` if the key
+/// is missing, not a string, or doesn't match a known level name.
+///
+/// Exposed as a standalone function (rather than kept private to
+/// [LogViewerController]) so UI packages built on this one can render a
+/// level-specific indicator (e.g. a colored dot) without re-implementing
+/// this parsing themselves.
+LogLevel? logLevelOf(Map<String, dynamic> entry) {
+  final name = entry[_levelKey];
+  if (name is! String) return null;
+  for (final level in LogLevel.values) {
+    if (level.name == name) return level;
+  }
+  return null;
+}
+
 /// Headless state for a log viewer UI: search, level and category filters,
 /// pause/resume, and clearing, all applied on top of a [LogBuffer].
 ///
@@ -105,7 +123,7 @@ class LogViewerController extends ChangeNotifier {
 
   bool _matches(Map<String, dynamic> entry) {
     if (_levelFilter != null) {
-      final level = _levelOf(entry);
+      final level = logLevelOf(entry);
       if (level == null || level.index < _levelFilter!.index) return false;
     }
     if (_categoryFilter != null && entry['category'] != _categoryFilter) {
@@ -127,15 +145,6 @@ class LogViewerController extends ChangeNotifier {
       }
     }
     return false;
-  }
-
-  LogLevel? _levelOf(Map<String, dynamic> entry) {
-    final name = entry[_levelKey];
-    if (name is! String) return null;
-    for (final level in LogLevel.values) {
-      if (level.name == name) return level;
-    }
-    return null;
   }
 
   /// Clears [buffer] and any frozen (paused) snapshot, and notifies

@@ -3,6 +3,17 @@ import 'package:structured_log/structured_log.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
 void main() {
+  group('logLevelOf', () {
+    test('parses a known level name', () {
+      expect(logLevelOf({'level': 'warning'}), LogLevel.warning);
+    });
+
+    test('returns null for a missing or unrecognized level', () {
+      expect(logLevelOf({'event': 'a'}), isNull);
+      expect(logLevelOf({'level': 'not_a_level'}), isNull);
+    });
+  });
+
   group('LogViewerController', () {
     late LogBuffer buffer;
     late LogViewerController controller;

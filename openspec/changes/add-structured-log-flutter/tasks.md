@@ -17,15 +17,15 @@
 
 ## 3. structured_log_material (Material-скин)
 
-- [ ] 3.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log_flutter` через `path:`), `lib/`, `test/`, `example/`
-- [ ] 3.2 Виджет списка записей: сортировка «новые сверху», живое обновление от `LogViewerController`
-- [ ] 3.3 Строка записи: цветовой индикатор уровня, временная метка, `event`, тег `category` (если задан)
-- [ ] 3.4 Верхняя панель: заголовок «Logs», поле поиска, чипы фильтра по уровню, переключатель паузы/возобновления, действие очистки — по макетам из [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
-- [ ] 3.5 Bottom sheet детального вида: полный контекст записи как пары ключ-значение + действие копирования
-- [ ] 3.6 Empty-state с двумя вариантами: «логов ещё нет» и «нет записей по текущему фильтру» (с действием сброса)
-- [ ] 3.7 Поддержка `Theme.of(context)` (светлая/тёмная); canonical-таблица цветов уровня лога — в одном месте, без дублирования
-- [ ] 3.8 Виджет-тесты на каждый сценарий из `specs/flutter-log-viewer-material/spec.md`
-- [ ] 3.9 `example/` — демо Flutter-приложение, подключающее `LogBuffer` к `LogSink` и встраивающее виджет списка
+- [x] 3.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log` ^0.2.0, `structured_log_flutter` через `path:` — не опубликован, `publish_to: none`), `lib/`, `test/`, `example/`; `LICENSE` скопирован
+- [x] 3.2 Виджет списка записей (`MaterialLogViewerPage`): сортировка «новые сверху» (`visibleEntries.reversed`), живое обновление через `AnimatedBuilder` на `LogViewerController`
+- [x] 3.3 Строка записи (`LogEntryTile`): цветовой индикатор уровня, временная метка (`HH:mm:ss` из ISO-таймстампа), `event`, тег `category` (если задан)
+- [x] 3.4 Верхняя панель: заголовок «Logs», поле поиска (`TextField` → `searchQuery`), чипы фильтра по уровню (`ChoiceChip` → `levelFilter`), переключатель паузы/возобновления, действие очистки — по макетам из [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
+- [x] 3.5 Bottom sheet детального вида (`LogEntryDetailSheet`): все ключи контекста кроме `event`/`level`/`timestamp` как пары ключ-значение + копирование в буфер обмена
+- [x] 3.6 Empty-state (`LogViewerEmptyState`) с двумя вариантами: «No logs yet» (без действия сброса) и «No logs match the current filter» (с кнопкой «Clear filters»)
+- [x] 3.7 Цвета — из `Theme.of(context)`, кроме индикаторов уровня: единая функция `logLevelColor(LogLevel, Brightness)` в `log_level_colors.dart`, больше нигде не дублируется
+- [x] 3.8 Виджет-тесты на каждый сценарий из `specs/flutter-log-viewer-material/spec.md` — 13 тестов (`flutter test`), все проходят
+- [x] 3.9 `example/` — демо Flutter-приложение (`MaterialApp`/`runApp`), подключающее `LogBuffer` к `LogSink` и встраивающее `MaterialLogViewerPage`
 
 ## 4. CI
 
