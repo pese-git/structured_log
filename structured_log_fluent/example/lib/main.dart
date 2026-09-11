@@ -127,10 +127,13 @@ class EmbeddedDemoPage extends StatelessWidget {
             ),
           ),
           const Divider(direction: Axis.vertical),
-          // The toolbar (search + category + level dropdowns + pause/clear)
-          // needs roughly this much width to lay out without overflowing.
-          SizedBox(
-            width: 900,
+          // A fixed-width SizedBox here would overflow once the window
+          // narrows past it instead of shrinking — Expanded lets this
+          // panel's width track the window, which is what actually
+          // exercises FluentLogViewer's own responsive toolbar/master-detail
+          // breakpoints as you resize.
+          Expanded(
+            flex: 2,
             child: FluentLogViewer(controller: controller),
           ),
         ],
