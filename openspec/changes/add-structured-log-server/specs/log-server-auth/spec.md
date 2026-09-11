@@ -27,7 +27,7 @@
 - **THEN** значение, сохранённое в колонке `password_hash`, не совпадает с исходным паролем и не может быть тривиально обращено без подбора
 
 ### Requirement: Единый OAuth2-совместимый token-эндпоинт (RFC 6749)
-Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` — этот формат применяется только к `/v1/auth/token` и `/v1/auth/logout`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`).
+Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` — этот формат применяется к `POST /v1/auth/token` и `DELETE /v1/auth/token`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`).
 
 #### Scenario: grant_type=password с верными кредами выдаёт пару токенов
 - **WHEN** отправлен `POST /v1/auth/token` (form-encoded) с `grant_type=password`, `username` и `password`, совпадающими с активным (`is_active = true`) пользователем
@@ -57,15 +57,23 @@ Refresh-токен SHALL храниться на сервере как хэш с
 - **THEN** сервер отвечает телом `{"error": "invalid_grant", ...}` и не выдаёт новую пару токенов
 
 #### Scenario: Повторное использование отозванного refresh-токена отзывает все токены пользователя
-- **WHEN** refresh-токен `A` пользователя был отозван (ротацией или logout'ом), и затем `A` повторно предъявлен с `grant_type=refresh_token`
+- **WHEN** refresh-токен `A` пользователя был отозван (ротацией или через `DELETE /v1/auth/token`), и затем `A` повторно предъявлен с `grant_type=refresh_token`
 - **THEN** сервер отвечает ошибкой `invalid_grant`, и все остальные ещё не отозванные refresh-токены этого пользователя также становятся отозванными
 
-### Requirement: Logout отзывает refresh-токен (form-encoded, по образцу Keycloak)
-Сервер SHALL предоставлять `POST /v1/auth/logout`, принимающий тело `application/x-www-form-urlencoded` с полем `refresh_token`, немедленно помечающий его отозванным; уже выданный вместе с ним access-токен SHALL оставаться технически валидным до истечения своего короткого срока действия.
+### Requirement: Отзыв refresh-токена через DELETE /v1/auth/token (RFC 7009)
+Сервер SHALL предоставлять `DELETE /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с полем `refresh_token` (тот же путь, что создаёт токен через `POST`, но с методом, выражающим удаление ресурса — по образцу того, как Keycloak трактует отзыв токена как revocation, а не как отдельную стороннюю операцию), немедленно помечающий предъявленный refresh-токен отозванным; уже выданный вместе с ним access-токен SHALL оставаться технически валидным до истечения своего короткого срока действия. Вслед за RFC 7009 §2.2 сервер SHALL отвечать успехом (200, пустое тело) независимо от того, был ли предъявленный токен валиден, уже отозван или не существовал — чтобы не давать вызывающему возможность через код ответа проверять валидность чужого токена; единственная причина ответить ошибкой (400, формат RFC 6749 §5.2) — отсутствие поля `refresh_token` в запросе.
 
-#### Scenario: После logout refresh-токен больше не работает
-- **WHEN** выполнен `POST /v1/auth/logout` с действующим `refresh_token` в form-encoded теле, а затем этот же токен предъявлен с `grant_type=refresh_token` на `/v1/auth/token`
+#### Scenario: Отозванный токен больше не работает
+- **WHEN** выполнен `DELETE /v1/auth/token` с действующим `refresh_token` в form-encoded теле, а затем этот же токен предъявлен с `grant_type=refresh_token` на `POST /v1/auth/token`
 - **THEN** сервер отвечает ошибкой `invalid_grant` на повторное использование
+
+#### Scenario: Отзыв всегда отвечает успехом, не раскрывая валидность токена
+- **WHEN** выполнен `DELETE /v1/auth/token` с `refresh_token`, который уже отозван, истёк или никогда не существовал
+- **THEN** сервер отвечает 200 с пустым телом — так же, как при отзыве действительного токена, без различимой по ответу разницы
+
+#### Scenario: Отсутствие refresh_token в теле отклоняется
+- **WHEN** выполнен `DELETE /v1/auth/token` без поля `refresh_token` в form-encoded теле
+- **THEN** сервер отвечает 400 с телом `{"error": "invalid_request", ...}`
 
 ### Requirement: Аутентификация management/query API по access-токену с пересчётом прав из БД
 Каждый запрос к management-эндпоинтам и `GET /v1/logs` SHALL требовать заголовок `Authorization: Bearer <access-token>` с действительным, не истёкшим access-токеном; сервер SHALL на каждом запросе заново резолвить текущие `RoleAssignment` пользователя из хранилища (`log-server-rbac`), не полагаясь на состояние ролей на момент выдачи токена.

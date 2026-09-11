@@ -55,7 +55,7 @@
 Хранилище SHALL предоставлять таблицу `refresh_tokens` (id, user_id, token_hash, created_at, expires_at, revoked_at — nullable) для отзываемых refresh-токенов пользователей (`log-server-auth`); `token_hash` SHALL быть хэшем токена, не самим токеном в открытом виде.
 
 #### Scenario: Отозванный refresh-токен помечен, а не удалён
-- **WHEN** refresh-токен отозван через logout или через ротацию при обновлении
+- **WHEN** refresh-токен отозван через `DELETE /v1/auth/token` или через ротацию при `grant_type=refresh_token`
 - **THEN** соответствующая запись `refresh_tokens` остаётся в хранилище с непустым `revoked_at`, а не удаляется — это позволяет отличить «токен не существовал» от «токен существовал, но уже отозван» при обнаружении повторного использования
 
 ### Requirement: Учёт использования хранилища на проект
