@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log/structured_log.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
+import 'log_category_combo_box.dart';
 import 'log_entry_detail_pane.dart';
 import 'log_entry_tile.dart';
 import 'log_viewer_empty_state.dart';
@@ -11,8 +12,10 @@ import 'log_viewer_empty_state.dart';
 ///
 /// Shows a live, newest-first list of the controller's
 /// [LogViewerController.visibleEntries] on the left, with a header bar
-/// (title, search, minimum-level filter, pause/resume, clear) above it,
-/// and the selected entry's full context in a detail pane on the right —
+/// (title, search, category filter — see [LogCategoryComboBox], only shown
+/// once the buffer has two or more distinct categories — minimum-level
+/// filter, pause/resume, clear) above it, and the selected entry's full
+/// context in a detail pane on the right —
 /// a master-detail split view, matching WinUI conventions (Mail, Settings)
 /// rather than `structured_log_material`'s mobile-style bottom sheet.
 /// Colors and typography come from the ambient `FluentTheme` (light and
@@ -112,6 +115,11 @@ class _FluentLogViewerPageState extends State<FluentLogViewerPage> {
                   ),
                   onChanged: (value) => controller.searchQuery = value,
                 ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 190,
+                child: LogCategoryComboBox(controller: controller),
               ),
               const SizedBox(width: 10),
               SizedBox(

@@ -53,14 +53,27 @@ class DemoHome extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Button(
-              onPressed: () => log.info('user_login', context: {'user_id': 42}),
+              onPressed: () => log.info(
+                'user_login',
+                context: {'category': 'application', 'user_id': 42},
+              ),
               child: const Text('Log an info event'),
             ),
             const SizedBox(height: 12),
             Button(
-              onPressed: () =>
-                  log.error('payment_failed', context: {'error': 'timeout'}),
+              onPressed: () => log.error(
+                'payment_failed',
+                context: {'category': 'application', 'error': 'timeout'},
+              ),
               child: const Text('Log an error event'),
+            ),
+            const SizedBox(height: 12),
+            Button(
+              onPressed: () => log.info(
+                'acp_request_sent',
+                context: {'category': 'protocol', 'method': 'tools/call'},
+              ),
+              child: const Text('Log a protocol event'),
             ),
             const SizedBox(height: 24),
             FilledButton(

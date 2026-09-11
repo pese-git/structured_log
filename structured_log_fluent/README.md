@@ -23,8 +23,11 @@ dark.
 ## Features
 
 - **`FluentLogViewerPage`** — a full screen: header (title, search box,
-  level dropdown, pause/resume, clear-all), a live newest-first master
-  list, and a detail pane for the selected entry
+  category dropdown, level dropdown, pause/resume, clear-all), a live
+  newest-first master list, and a detail pane for the selected entry
+- **`LogCategoryComboBox`** — a `category`-filter dropdown whose options are
+  derived from the distinct `category` values currently in the buffer;
+  hidden automatically when fewer than two are present
 - **`LogEntryTile`** — one row: a colored level badge, `event`, formatted
   time, and a category tag if the entry has one; hover and accent-colored
   selection highlighting
@@ -81,6 +84,7 @@ with `flutter run -d chrome` from that directory.
 | Widget | Description |
 |---|---|
 | `FluentLogViewerPage({required LogViewerController controller})` | The full screen |
+| `LogCategoryComboBox({required LogViewerController controller, String allLabel = 'All types'})` | The category-filter dropdown |
 | `LogEntryTile({required entry, required selected, required onTap})` | One list row |
 | `LogEntryDetailPane({required entry})` | The detail-pane content |
 | `LogViewerEmptyState({required hasLogs, required onClearFilters})` | The two-variant empty state |

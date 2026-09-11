@@ -129,6 +129,42 @@ void main() {
     });
   });
 
+  group('category filter', () {
+    testWidgets('is absent from the header with fewer than two categories',
+        (tester) async {
+      buffer.capture(_entry(event: 'a'), LogLevel.info);
+      await _pump(tester, controller);
+
+      expect(find.byType(LogCategoryComboBox), findsOneWidget);
+      expect(find.byType(ComboBox<String?>), findsNothing);
+    });
+
+    testWidgets(
+        'appears in the header and filters the list once two or more '
+        'categories are present', (tester) async {
+      buffer.capture(
+        _entry(event: 'app_event', category: 'application'),
+        LogLevel.info,
+      );
+      buffer.capture(
+        _entry(event: 'proto_event', category: 'protocol'),
+        LogLevel.info,
+      );
+      await _pump(tester, controller);
+
+      expect(find.byType(ComboBox<String?>), findsOneWidget);
+
+      await tester.tap(find.byType(ComboBox<String?>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('protocol').last);
+      await tester.pumpAndSettle();
+
+      expect(controller.categoryFilter, 'protocol');
+      expect(_inList('proto_event'), findsOneWidget);
+      expect(find.text('app_event'), findsNothing);
+    });
+  });
+
   group('search', () {
     testWidgets('typing in the search box updates the controller and list',
         (tester) async {

@@ -23,8 +23,11 @@ bottom sheet), поле поиска и выпадающий список фил
 ## Возможности
 
 - **`FluentLogViewerPage`** — полный экран: шапка (заголовок, поле поиска,
-  выпадающий список уровня, пауза/возобновление, очистка), живой список
-  (новые сверху) и панель деталей выбранной записи
+  выпадающий список категорий, выпадающий список уровня, пауза/возобновление,
+  очистка), живой список (новые сверху) и панель деталей выбранной записи
+- **`LogCategoryComboBox`** — выпадающий список фильтра по `category`,
+  варианты которого берутся из уникальных значений `category`, реально
+  присутствующих в буфере; скрывается автоматически, если их меньше двух
 - **`LogEntryTile`** — одна строка: цветной бейдж уровня, `event`,
   отформатированное время и тег категории, если он задан; hover- и
   accent-подсветка выбранной строки
@@ -81,6 +84,7 @@ void main() {
 | Виджет | Описание |
 |---|---|
 | `FluentLogViewerPage({required LogViewerController controller})` | Полный экран |
+| `LogCategoryComboBox({required LogViewerController controller, String allLabel = 'All types'})` | Выпадающий список фильтра по категории |
 | `LogEntryTile({required entry, required selected, required onTap})` | Одна строка списка |
 | `LogEntryDetailPane({required entry})` | Содержимое панели деталей |
 | `LogViewerEmptyState({required hasLogs, required onClearFilters})` | Empty-состояние с двумя вариантами |
