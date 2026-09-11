@@ -1,9 +1,12 @@
-## 1. Скаффолдинг пакетов
+## 1. Реструктуризация репозитория и скаффолдинг пакетов
 
-- [ ] 1.1 Создать `structured_log_server/`: `pubspec.yaml` (зависимости `shelf`, `shelf_router`, `drift`, `sqlite3`, `dart_jsonwebtoken`, `bcrypt`, `structured_log`; dev-зависимости `drift_dev`, `build_runner`), `lib/structured_log_server.dart` (barrel), `bin/`, `test/`, `example/`; `LICENSE` скопирован; `*.g.dart` добавлен в `.gitignore` пакета
-- [ ] 1.2 Создать `structured_log_http/`: `pubspec.yaml` (единственная зависимость — `structured_log`), `lib/structured_log_http.dart` (barrel), `test/`, `example/`; `LICENSE` скопирован
-- [ ] 1.3 Добавить оба пакета в `packages:` корневого [melos.yaml](../../melos.yaml); включить их в scope скриптов `analyze`/`format`/`format:check`/`test:dart`; задокументировать шаг `dart run build_runner build --delete-conflicting-outputs` для `structured_log_server`
-- [ ] 1.4 `melos bootstrap`/`dart run build_runner build`/`dart analyze` на пустых пакетах
+- [ ] 1.1 `git mv` четырёх существующих пакетов в `emb/`: `structured_log/` → `emb/structured_log/`, `structured_log_flutter/` → `emb/structured_log_flutter/`, `structured_log_material/` (+ `example/`) → `emb/structured_log_material/`, `structured_log_fluent/` (+ `example/`) → `emb/structured_log_fluent/`; создать пустые `backend/`, `frontend/`, `packages/` (последняя без записи в `melos.yaml`, пока пуста)
+- [ ] 1.2 Обновить пути в корневом [melos.yaml](../../melos.yaml) (`packages:` на новые пути `emb/...`), [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`working-directory`/матрица `flutter`-job'а, ключи кэша `hashFiles`), [AGENTS.md](../../AGENTS.md) (раздел «Структура» — переписан под категории `emb`/`backend`/`frontend`/`packages`), корневых README
+- [ ] 1.3 `dart run melos bootstrap`/`melos run analyze`/`melos run test`/`melos run lint` — подтвердить, что перенос не сломал существующие пакеты (по аналогии с задачей 1.4 в `openspec/changes/add-structured-log-flutter/tasks.md` при первом переходе на монорепо)
+- [ ] 1.4 Создать `backend/structured_log_server/`: `pubspec.yaml` (зависимости `shelf`, `shelf_router`, `drift`, `sqlite3`, `dart_jsonwebtoken`, `bcrypt`, `structured_log`; dev-зависимости `drift_dev`, `build_runner`), `lib/structured_log_server.dart` (barrel), `bin/`, `test/`, `example/`; `LICENSE` скопирован; `*.g.dart` добавлен в `.gitignore` пакета
+- [ ] 1.5 Создать `emb/structured_log_http/`: `pubspec.yaml` (единственная зависимость — `structured_log`), `lib/structured_log_http.dart` (barrel), `test/`, `example/`; `LICENSE` скопирован
+- [ ] 1.6 Добавить оба новых пакета в `packages:` корневого [melos.yaml](../../melos.yaml); включить их в scope скриптов `analyze`/`format`/`format:check`/`test:dart`; задокументировать шаг `dart run build_runner build --delete-conflicting-outputs` для `structured_log_server`
+- [ ] 1.7 `melos bootstrap`/`dart run build_runner build`/`dart analyze` на пустых новых пакетах
 
 ## 2. structured_log_server — мультитенантная схема хранения
 
@@ -85,7 +88,7 @@
 
 ## 11. structured_log_admin_client — скаффолдинг и API-клиент
 
-- [ ] 11.1 Создать `structured_log_admin_client/`: `pubspec.yaml` (зависимости `flutter` sdk, `dio`, `flutter_secure_storage`; без зависимости на `structured_log`/`structured_log_server`/`structured_log_http` — decision 19 `design.md`), `lib/main.dart`, `test/`; веб-платформа через `flutter create --platforms=web` (по аналогии с `structured_log_material_example`/`structured_log_fluent_example`); `LICENSE` скопирован
+- [ ] 11.1 Создать `frontend/structured_log_admin_client/`: `pubspec.yaml` (зависимости `flutter` sdk, `dio`, `flutter_secure_storage`; без зависимости на `structured_log`/`structured_log_server`/`structured_log_http` — decision 19 `design.md`), `lib/main.dart`, `test/`; веб-платформа через `flutter create --platforms=web` (по аналогии с `structured_log_material_example`/`structured_log_fluent_example`); `LICENSE` скопирован
 - [ ] 11.2 Добавить пакет в `packages:` корневого [melos.yaml](../../melos.yaml) и в матрицу существующего `flutter`-job'а CI (не новый job)
 - [ ] 11.3 `ApiClient` на `dio` (`lib/src/api/api_client.dart`): base URL сервера из конфигурации приложения, interceptor подстановки `Authorization: Bearer <access-token>`, interceptor перехвата 401 → `grant_type=refresh_token` → повтор исходного запроса ровно один раз (`specs/admin-client-auth`)
 - [ ] 11.4 Хранилище токенов (`lib/src/auth/token_storage.dart`) на `flutter_secure_storage`; тестовый мок-реализация для юнит/виджет-тестов (без реального secure storage в CI — decision 20/Risks `design.md`)
@@ -117,8 +120,8 @@
 
 ## 15. CI
 
-- [ ] 15.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `structured_log_server`/`structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest`): `pub get` → (для `structured_log_server`: `dart run build_runner build --delete-conflicting-outputs`) → `format --set-exit-if-changed` → `analyze` → `test`
-- [ ] 15.2 Прогнать на GitHub Actions, убедиться, что все job'ы зелёные (включая `structured_log_admin_client` в существующей матрице `flutter`-job'а)
+- [ ] 15.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `backend/structured_log_server`/`emb/structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest`): `pub get` → (для `structured_log_server`: `dart run build_runner build --delete-conflicting-outputs`) → `format --set-exit-if-changed` → `analyze` → `test`
+- [ ] 15.2 Прогнать на GitHub Actions, убедиться, что все job'ы зелёные — включая существующий `test`-job (путь `emb/structured_log`) и `flutter`-job (пути `emb/...` для существующих трёх пакетов + `frontend/structured_log_admin_client`), не сломанные реструктуризацией из раздела 1
 
 ## 16. Документация и финализация
 
