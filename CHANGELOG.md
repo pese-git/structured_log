@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`structured_log_fluent` - `v0.1.0-dev.4`](#structured_log_fluent---v010-dev4)
+
+---
+
+#### `structured_log_fluent` - `v0.1.0-dev.4`
+
+ - **DOCS**(structured_log_fluent): record that fluent_ui 4.16.1 is still incompatible.
+
+
+## 2026-09-11
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`structured_log_cupertino` - `v0.1.0-dev.2`](#structured_log_cupertino---v010-dev2)
  - [`structured_log_fluent` - `v0.1.0-dev.3`](#structured_log_fluent---v010-dev3)
  - [`structured_log_flutter` - `v0.1.0-dev.3`](#structured_log_flutter---v010-dev3)

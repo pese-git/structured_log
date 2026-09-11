@@ -1,3 +1,7 @@
+## 0.1.0-dev.4
+
+ - **DOCS**(structured_log_fluent): record that fluent_ui 4.16.1 is still incompatible.
+
 ## 0.1.0-dev.3
 
  - **REFACTOR**(structured_log_flutter): extract shared logLevelColor from material/fluent.
