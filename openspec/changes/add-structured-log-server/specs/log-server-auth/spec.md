@@ -27,7 +27,7 @@
 - **THEN** значение, сохранённое в колонке `password_hash`, не совпадает с исходным паролем и не может быть тривиально обращено без подбора
 
 ### Requirement: Единый OAuth2-совместимый token-эндпоинт (RFC 6749)
-Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` — этот формат применяется к `POST /v1/auth/token` и `DELETE /v1/auth/token`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`).
+Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` — этот формат применяется к `POST /v1/auth/token` и `DELETE /v1/auth/token`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`). Оба сценария (`password` и `refresh_token`) SHALL заново резолвить эффективные роли пользователя и текущее значение `token_version` при каждой выдаче — не копировать их из ранее выданного токена (см. следующее требование).
 
 #### Scenario: grant_type=password с верными кредами выдаёт пару токенов
 - **WHEN** отправлен `POST /v1/auth/token` (form-encoded) с `grant_type=password`, `username` и `password`, совпадающими с активным (`is_active = true`) пользователем
@@ -75,16 +75,35 @@ Refresh-токен SHALL храниться на сервере как хэш с
 - **WHEN** выполнен `DELETE /v1/auth/token` без поля `refresh_token` в form-encoded теле
 - **THEN** сервер отвечает 400 с телом `{"error": "invalid_request", ...}`
 
-### Requirement: Аутентификация management/query API по access-токену с пересчётом прав из БД
-Каждый запрос к management-эндпоинтам и `GET /v1/logs` SHALL требовать заголовок `Authorization: Bearer <access-token>` с действительным, не истёкшим access-токеном; сервер SHALL на каждом запросе заново резолвить текущие `RoleAssignment` пользователя из хранилища (`log-server-rbac`), не полагаясь на состояние ролей на момент выдачи токена.
+### Requirement: Эффективные роли пользователя встроены в access-токен
+Access-токен SHALL содержать claim `roles` — плоский снапшот эффективных прав пользователя на момент выдачи (прямых `RoleAssignment` и унаследованных через членство в командах), в форме массива объектов `{role, scope_type, scope_id}`, а также claim `tv`, равный значению `User.token_version` на момент выдачи. Middleware авторизации на management-эндпоинтах и `GET /v1/logs` SHALL проверять доступ по содержимому `roles`, не выполняя запрос к `role_assignments`/`team_members`/`teams` для этой проверки.
+
+#### Scenario: roles содержит и прямые, и унаследованные через команду права
+- **WHEN** пользователь имеет прямой `RoleAssignment(role: user, scope: project:P1)` и состоит в команде с `RoleAssignment(role: owner, scope: group:G2)`, и для него создаётся access-токен
+- **THEN** claim `roles` этого токена содержит оба эффективных права — `{role: user, scope_type: project, scope_id: P1}` и `{role: owner, scope_type: group, scope_id: G2}`
+
+#### Scenario: Middleware авторизации не обращается к таблицам ролей на каждый запрос
+- **WHEN** обрабатывается запрос к `GET /v1/logs` с валидным access-токеном
+- **THEN** решение о доступе принимается на основе claim `roles` из токена (после проверки `token_version` — см. следующее требование), без отдельного запроса к `role_assignments`/`team_members`/`teams`
+
+### Requirement: token_version обеспечивает немедленный отзыв прав, несмотря на снапшот в токене
+`User` SHALL иметь поле `token_version` (целое число, по умолчанию 0). Сервер SHALL атомарно увеличивать `token_version` пользователя при: создании/отзыве `RoleAssignment`, где subject — сам пользователь; изменении его членства в команде; создании/отзыве `RoleAssignment`, где subject — команда (каскадно для всех текущих участников этой команды); деактивации пользователя (`is_active = false`); смене пароля. Каждый запрос к management-эндпоинтам и `GET /v1/logs` SHALL требовать заголовок `Authorization: Bearer <access-token>` с действительным, не истёкшим access-токеном, чей claim `tv` SHALL совпадать с текущим `token_version` пользователя в хранилище — несовпадение SHALL приводить к 401, независимо от того, что записано в `roles` токена.
 
 #### Scenario: Запрос без токена или с истёкшим access-токеном отклоняется
 - **WHEN** запрос к management-эндпоинту или `GET /v1/logs` отправлен без заголовка `Authorization`, с неподписанным сервером токеном или с токеном, чей `exp` уже наступил
 - **THEN** сервер отвечает 401 и не выполняет запрошенную операцию
 
 #### Scenario: Отозванный после выдачи токена доступ действует немедленно
-- **WHEN** пользователь получил валидный access-токен, затем администратор/владелец отозвал все его `RoleAssignment`, после чего пользователь повторно обращается к `GET /v1/logs` с тем же (ещё не истёкшим) access-токеном
-- **THEN** сервер отвечает 403, поскольку текущее состояние прав в БД не даёт доступа, несмотря на формально валидный токен
+- **WHEN** пользователь получил валидный access-токен, затем администратор/владелец отозвал все его `RoleAssignment` (это увеличивает `token_version` пользователя), после чего пользователь повторно обращается к `GET /v1/logs` с тем же (ещё не истёкшим по `exp`) access-токеном
+- **THEN** сервер отвечает 401, поскольку claim `tv` этого токена больше не совпадает с текущим `token_version`, независимо от того, что записано в `roles`
+
+#### Scenario: Отзыв прав команде немедленно затрагивает всех её участников
+- **WHEN** команда `T` с несколькими участниками имеет `RoleAssignment(role: user, scope: project:P)`, и этот `RoleAssignment` отзывается
+- **THEN** `token_version` увеличивается у каждого текущего участника `T` одной операцией, и уже выданные им access-токены перестают приниматься
+
+#### Scenario: После инвалидации токена клиент получает актуальные права через refresh
+- **WHEN** access-токен отклонён с 401 из-за несовпадения `tv`, и клиент выполняет `POST /v1/auth/token` с `grant_type=refresh_token` и своим (ещё не отозванным) refresh-токеном
+- **THEN** сервер выдаёт новый access-токен с текущим `token_version` в `tv` и заново резолвленным `roles`, отражающим актуальные права
 
 ### Requirement: Аутентификация приёма логов по секретному ключу проекта
 Секретные ключи проектов SHALL храниться как криптографический хэш случайно сгенерированного токена (не пароль пользователя, не JWT); при аутентификации `POST /v1/logs` (см. `log-server-api`) сервер SHALL находить соответствующий `project_id` по хэшу присланного ключа, отклоняя запрос, если совпадение не найдено или найденный ключ отозван (`revoked_at` не `null`).
