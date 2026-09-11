@@ -7,19 +7,22 @@
 
 ## 2. structured_log_server — мультитенантная схема хранения
 
-- [ ] 2.1 Определить drift `Table`-классы (`lib/src/storage/database.dart`): `Users`, `Groups`, `Teams`, `TeamMembers`, `Projects`, `ProjectSecretKeys`, `RoleAssignments`, `ProjectUsage`, `LogEntries` (с `project_id`, `size_bytes`) — согласно `specs/log-server-storage/spec.md`; `@DriftDatabase`-аннотированный класс БД, `PRAGMA journal_mode=WAL`; сгенерировать `database.g.dart`
-- [ ] 2.2 Индексы: `log_entries` — `project_id`/`timestamp`/`level`/`category`/`session_id`/`request_id` и составной `(project_id, level, timestamp)`; уникальный индекс на `users.email`
+- [ ] 2.1 Определить drift `Table`-классы (`lib/src/storage/database.dart`): `Users`, `Groups`, `Teams`, `TeamMembers`, `Projects`, `ProjectSecretKeys`, `RoleAssignments`, `RefreshTokens`, `ProjectUsage`, `LogEntries` (с `project_id`, `size_bytes`) — согласно `specs/log-server-storage/spec.md`; `@DriftDatabase`-аннотированный класс БД, `PRAGMA journal_mode=WAL`; сгенерировать `database.g.dart`
+- [ ] 2.2 Индексы: `log_entries` — `project_id`/`timestamp`/`level`/`category`/`session_id`/`request_id` и составной `(project_id, level, timestamp)`; уникальный индекс на `users.username`; индекс на `refresh_tokens.user_id`
 - [ ] 2.3 Миграция схемы при старте (`MigrationStrategy`/`onUpgrade`, идемпотентная)
 - [ ] 2.4 Реализовать `LogStore`/`DriftLogStore` (`insertBatch` с привязкой к `project_id`, `query` с фильтрами из `specs/log-server-api`) и построение фильтра (`lib/src/storage/query.dart`): типизированные поля через query-builder drift, `LIKE`/`json_extract` через `customSelect`, keyset-пагинация по `id`
 - [ ] 2.5 Юнит-тесты storage-слоя на сценарии из `specs/log-server-storage/spec.md`: привязка записи к проекту, использование составного индекса, round-trip произвольного context-поля, независимость received_at от timestamp, согласованность scope_id в role_assignments, сохранность данных после рестарта, отсутствие блокировки чтения при конкурентной записи (WAL)
 
 ## 3. structured_log_server — аутентификация (log-server-auth)
 
-- [ ] 3.1 Хэширование паролей (`bcrypt`) и секретных ключей проектов (SHA-256 случайного токена, генерируемого `Random.secure()`) — `lib/src/auth/hashing.dart`
-- [ ] 3.2 `POST /v1/auth/login`: проверка email/пароля, выдача JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`) с `sub`/`exp`, без списка ролей в claims
-- [ ] 3.3 JWT-auth middleware для management-эндпоинтов и `GET /v1/logs`: проверка подписи/срока действия, извлечение `sub`, 401 при отсутствии/невалидном/истёкшем токене
-- [ ] 3.4 Auth middleware приёма логов: резолвинг секретного ключа проекта из `Authorization: Bearer`, 401 при отсутствии совпадения или `revoked_at != null`
-- [ ] 3.5 Юнит-тесты на сценарии из `specs/log-server-auth/spec.md`: успешный/неверный/неактивный логин, отсутствие plaintext-пароля в БД, немедленное действие отзыва прав несмотря на валидный токен, секретный ключ виден только один раз, несколько активных ключей одновременно
+- [ ] 3.1 Хэширование паролей (`bcrypt`), секретных ключей проектов и refresh-токенов (SHA-256 случайного токена, генерируемого `Random.secure()`) — `lib/src/auth/hashing.dart`
+- [ ] 3.2 `POST /v1/auth/register`: создание пользователя по `username`/паролю без `RoleAssignment`, доступен только при `ServerConfig.registrationEnabled == true` (403 иначе), 409 при занятом `username`
+- [ ] 3.3 `POST /v1/auth/tokens`: проверка `username`/пароля, выдача access-JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`, короткий срок жизни) с `sub`/`exp` (без списка ролей в claims) + refresh-токена (хранится хэшем в `refresh_tokens`)
+- [ ] 3.4 `POST /v1/auth/tokens/refresh`: проверка хэша/срока/`revoked_at` refresh-токена, ротация (отзыв предъявленного + выдача новой пары), отзыв всех refresh-токенов пользователя при повторном использовании уже отозванного
+- [ ] 3.5 `POST /v1/auth/logout`: немедленный отзыв предъявленного refresh-токена
+- [ ] 3.6 Access-JWT-auth middleware для management-эндпоинтов и `GET /v1/logs`: проверка подписи/срока действия, извлечение `sub`, 401 при отсутствии/невалидном/истёкшем токене
+- [ ] 3.7 Auth middleware приёма логов: резолвинг секретного ключа проекта из `Authorization: Bearer`, 401 при отсутствии совпадения или `revoked_at != null`
+- [ ] 3.8 Юнит-тесты на сценарии из `specs/log-server-auth/spec.md`: регистрация вкл/выкл, занятый username, успешное/неверное/неактивное создание токена, ротация refresh-токена, отзыв всей цепочки при реюзе отозванного refresh-токена, logout, отсутствие plaintext-пароля в БД, немедленное действие отзыва прав несмотря на валидный access-токен, секретный ключ виден только один раз, несколько активных ключей одновременно
 
 ## 4. structured_log_server — RBAC (log-server-rbac)
 
@@ -55,9 +58,9 @@
 
 ## 8. structured_log_server — CLI entrypoint
 
-- [ ] 8.1 `ServerConfig`: host/port/путь к БД/JWT-signing-секрет/лимиты батча/интервал purge job — из аргументов/переменных окружения
+- [ ] 8.1 `ServerConfig`: host/port/путь к БД/JWT-signing-секрет/лимиты батча/интервал purge job/`registrationEnabled` (CLI-флаг и переменная окружения, по умолчанию `false`) — из аргументов/переменных окружения
 - [ ] 8.2 `bin/server.dart`: обычный запуск сервера, graceful shutdown по SIGINT/SIGTERM
-- [ ] 8.3 Команда `create-admin` (bootstrap первого администратора, отказывает, если admin уже существует — decision 12 `design.md`)
+- [ ] 8.3 Команда `create-admin --username ... --password ...` (bootstrap первого администратора, отказывает, если admin уже существует — decision 12 `design.md`)
 
 ## 9. structured_log_http — клиентский sender
 
@@ -69,8 +72,9 @@
 
 ## 10. Интеграционное тестирование
 
-- [ ] 10.1 `structured_log_server/test/integration_test.dart`: реальный `HttpServer` на порту 0, сквозной сценарий — `create-admin` → логин admin → создание группы/проекта (с квотой)/секретного ключа → приём логов по ключу → создание пользователя с ролью `user` на проект → логин этого пользователя → `GET /v1/logs` (доступ разрешён на «свой» проект, 403 на чужой) → превышение квоты отклоняет запись
-- [ ] 10.2 Ручной smoke test (`dart run bin/server.dart`/`create-admin`, `HttpLogOutput`, `curl` с JWT и с секретным ключом) — зафиксировать результат в этой задаче
+- [ ] 10.1 `structured_log_server/test/integration_test.dart`: реальный `HttpServer` на порту 0, сквозной сценарий — `create-admin` → создание токена admin'ом → создание группы/проекта (с квотой)/секретного ключа → приём логов по ключу → самостоятельная регистрация пользователя (сервер запущен с `registrationEnabled=true`) → выдача роли `user` на проект → создание токена этим пользователем → `GET /v1/logs` (доступ разрешён на «свой» проект, 403 на чужой) → превышение квоты отклоняет запись → `refresh` выдаёт новую пару и инвалидирует старую → `logout` → повторное использование отозванного refresh-токена отклоняется и отзывает остальные
+- [ ] 10.2 Отдельный тест: сервер запущен с `registrationEnabled=false` (или по умолчанию) — `POST /v1/auth/register` отвечает 403
+- [ ] 10.3 Ручной smoke test (`dart run bin/server.dart`/`create-admin`, `HttpLogOutput`, `curl` с access-токеном и с секретным ключом) — зафиксировать результат в этой задаче
 
 ## 11. CI
 

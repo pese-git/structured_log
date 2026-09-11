@@ -33,7 +33,11 @@
 - **THEN** запрос с фильтром на конкретное значение `order_id` возвращает только записи с этим значением
 
 ### Requirement: Мультитенантные сущности управления доступом
-Хранилище SHALL предоставлять таблицы `users` (id, email уникален, password_hash, display_name, created_at, is_active), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
+Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, created_at, is_active), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
+
+#### Scenario: username уникален по всей системе
+- **WHEN** отправлен запрос на создание пользователя (регистрация или через admin) с `username`, уже занятым другим пользователем
+- **THEN** сервер отклоняет запрос и не создаёт вторую запись с тем же `username`
 
 #### Scenario: Проект всегда принадлежит ровно одной группе
 - **WHEN** создан проект через management API
@@ -46,6 +50,13 @@
 #### Scenario: RoleAssignment хранит область видимости согласованно с её типом
 - **WHEN** сохранён `role_assignments` со `scope_type: global`
 - **THEN** `scope_id` этой записи — `null`; для `scope_type: group` или `scope_type: project` `scope_id` — непустая ссылка на существующую `groups`/`projects` соответственно
+
+### Requirement: Хранение refresh-токенов
+Хранилище SHALL предоставлять таблицу `refresh_tokens` (id, user_id, token_hash, created_at, expires_at, revoked_at — nullable) для отзываемых refresh-токенов пользователей (`log-server-auth`); `token_hash` SHALL быть хэшем токена, не самим токеном в открытом виде.
+
+#### Scenario: Отозванный refresh-токен помечен, а не удалён
+- **WHEN** refresh-токен отозван через logout или через ротацию при обновлении
+- **THEN** соответствующая запись `refresh_tokens` остаётся в хранилище с непустым `revoked_at`, а не удаляется — это позволяет отличить «токен не существовал» от «токен существовал, но уже отозван» при обнаружении повторного использования
 
 ### Requirement: Учёт использования хранилища на проект
 Хранилище SHALL поддерживать таблицу `project_usage` (project_id — PK, entry_count, total_bytes), обновляемую атомарно в той же транзакции, что вставка батча записей лога и что периодическая очистка по retention (`log-server-quotas`), чтобы проверка текущего использования была дешёвым point-lookup, а не агрегирующим запросом по `log_entries`.
