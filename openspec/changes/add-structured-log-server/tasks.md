@@ -17,12 +17,14 @@
 
 - [ ] 3.1 Хэширование паролей (`bcrypt`), секретных ключей проектов и refresh-токенов (SHA-256 случайного токена, генерируемого `Random.secure()`) — `lib/src/auth/hashing.dart`
 - [ ] 3.2 `POST /v1/auth/register`: создание пользователя по `username`/паролю без `RoleAssignment`, доступен только при `ServerConfig.registrationEnabled == true` (403 иначе), 409 при занятом `username`
-- [ ] 3.3 `POST /v1/auth/tokens`: проверка `username`/пароля, выдача access-JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`, короткий срок жизни) с `sub`/`exp` (без списка ролей в claims) + refresh-токена (хранится хэшем в `refresh_tokens`)
-- [ ] 3.4 `POST /v1/auth/tokens/refresh`: проверка хэша/срока/`revoked_at` refresh-токена, ротация (отзыв предъявленного + выдача новой пары), отзыв всех refresh-токенов пользователя при повторном использовании уже отозванного
-- [ ] 3.5 `POST /v1/auth/logout`: немедленный отзыв предъявленного refresh-токена
-- [ ] 3.6 Access-JWT-auth middleware для management-эндпоинтов и `GET /v1/logs`: проверка подписи/срока действия, извлечение `sub`, 401 при отсутствии/невалидном/истёкшем токене
-- [ ] 3.7 Auth middleware приёма логов: резолвинг секретного ключа проекта из `Authorization: Bearer`, 401 при отсутствии совпадения или `revoked_at != null`
-- [ ] 3.8 Юнит-тесты на сценарии из `specs/log-server-auth/spec.md`: регистрация вкл/выкл, занятый username, успешное/неверное/неактивное создание токена, ротация refresh-токена, отзыв всей цепочки при реюзе отозванного refresh-токена, logout, отсутствие plaintext-пароля в БД, немедленное действие отзыва прав несмотря на валидный access-токен, секретный ключ виден только один раз, несколько активных ключей одновременно
+- [ ] 3.3 `POST /v1/auth/token` (form-encoded, `application/x-www-form-urlencoded`), диспетчеризация по `grant_type`:
+  - `grant_type=password` — проверка `username`/`password`, выдача access-JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`, короткий срок жизни) с claims `iss`/`sub`/`iat`/`exp`/`jti`/`preferred_username` (без списка ролей) + refresh-токена (хранится хэшем в `refresh_tokens`)
+  - `grant_type=refresh_token` — проверка хэша/срока/`revoked_at` refresh-токена, ротация (отзыв предъявленного + выдача новой пары), отзыв всех refresh-токенов пользователя при повторном использовании уже отозванного
+  - Тело ответа — RFC 6749 §5.1 (`access_token`/`token_type`/`expires_in`/`refresh_token`/`refresh_expires_in`); ошибки — RFC 6749 §5.2 (`error`/`error_description`), отдельно от общего JSON-конверта ошибок остального API
+- [ ] 3.4 `POST /v1/auth/logout` (form-encoded, поле `refresh_token`): немедленный отзыв предъявленного refresh-токена
+- [ ] 3.5 Access-JWT-auth middleware для management-эндпоинтов и `GET /v1/logs`: проверка подписи/срока действия, извлечение `sub`, 401 при отсутствии/невалидном/истёкшем токене
+- [ ] 3.6 Auth middleware приёма логов: резолвинг секретного ключа проекта из `Authorization: Bearer`, 401 при отсутствии совпадения или `revoked_at != null`
+- [ ] 3.7 Юнит-тесты на сценарии из `specs/log-server-auth/spec.md`: регистрация вкл/выкл, занятый username, `grant_type=password`/`refresh_token` (успех/ошибка в формате RFC 6749), ротация refresh-токена, отзыв всей цепочки при реюзе отозванного refresh-токена, logout, отсутствие plaintext-пароля в БД, немедленное действие отзыва прав несмотря на валидный access-токен, секретный ключ виден только один раз, несколько активных ключей одновременно
 
 ## 4. structured_log_server — RBAC (log-server-rbac)
 
