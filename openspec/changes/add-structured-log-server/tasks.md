@@ -7,7 +7,7 @@
 
 ## 2. structured_log_server — мультитенантная схема хранения
 
-- [ ] 2.1 Определить drift `Table`-классы (`lib/src/storage/database.dart`): `Users`, `Groups`, `Teams`, `TeamMembers`, `Projects`, `ProjectSecretKeys`, `RoleAssignments`, `RefreshTokens`, `ProjectUsage`, `LogEntries` (с `project_id`, `size_bytes`) — согласно `specs/log-server-storage/spec.md`; `@DriftDatabase`-аннотированный класс БД, `PRAGMA journal_mode=WAL`; сгенерировать `database.g.dart`
+- [ ] 2.1 Определить drift `Table`-классы (`lib/src/storage/database.dart`): `Users` (с `token_version`, по умолчанию 0), `Groups`, `Teams`, `TeamMembers`, `Projects`, `ProjectSecretKeys`, `RoleAssignments`, `RefreshTokens`, `ProjectUsage`, `LogEntries` (с `project_id`, `size_bytes`) — согласно `specs/log-server-storage/spec.md`; `@DriftDatabase`-аннотированный класс БД, `PRAGMA journal_mode=WAL`; сгенерировать `database.g.dart`
 - [ ] 2.2 Индексы: `log_entries` — `project_id`/`timestamp`/`level`/`category`/`session_id`/`request_id` и составной `(project_id, level, timestamp)`; уникальный индекс на `users.username`; индекс на `refresh_tokens.user_id`
 - [ ] 2.3 Миграция схемы при старте (`MigrationStrategy`/`onUpgrade`, идемпотентная)
 - [ ] 2.4 Реализовать `LogStore`/`DriftLogStore` (`insertBatch` с привязкой к `project_id`, `query` с фильтрами из `specs/log-server-api`) и построение фильтра (`lib/src/storage/query.dart`): типизированные поля через query-builder drift, `LIKE`/`json_extract` через `customSelect`, keyset-пагинация по `id`
@@ -17,30 +17,32 @@
 
 - [ ] 3.1 Хэширование паролей (`bcrypt`), секретных ключей проектов и refresh-токенов (SHA-256 случайного токена, генерируемого `Random.secure()`) — `lib/src/auth/hashing.dart`
 - [ ] 3.2 `POST /v1/auth/register`: создание пользователя по `username`/паролю без `RoleAssignment`, доступен только при `ServerConfig.registrationEnabled == true` (403 иначе), 409 при занятом `username`
-- [ ] 3.3 `POST /v1/auth/token` (form-encoded, `application/x-www-form-urlencoded`), диспетчеризация по `grant_type`:
-  - `grant_type=password` — проверка `username`/`password`, выдача access-JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`, короткий срок жизни) с claims `iss`/`sub`/`iat`/`exp`/`jti`/`preferred_username` (без списка ролей) + refresh-токена (хранится хэшем в `refresh_tokens`)
-  - `grant_type=refresh_token` — проверка хэша/срока/`revoked_at` refresh-токена, ротация (отзыв предъявленного + выдача новой пары), отзыв всех refresh-токенов пользователя при повторном использовании уже отозванного
+- [ ] 3.3 Резолвинг claims `roles`/`tv` (`lib/src/auth/claims.dart`): по `user_id` собрать плоский снапшот эффективных прав (прямые `role_assignments` + через `team_members`) и прочитать текущий `token_version` — общая функция, используемая и `grant_type=password`, и `grant_type=refresh_token` (каждый раз заново, не переносится из старого токена)
+- [ ] 3.4 `POST /v1/auth/token` (form-encoded, `application/x-www-form-urlencoded`), диспетчеризация по `grant_type`:
+  - `grant_type=password` — проверка `username`/`password`, выдача access-JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`, короткий срок жизни) с claims `iss`/`sub`/`iat`/`exp`/`jti`/`preferred_username`/`tv`/`roles` (из 3.3) + refresh-токена (хранится хэшем в `refresh_tokens`)
+  - `grant_type=refresh_token` — проверка хэша/срока/`revoked_at` refresh-токена, ротация (отзыв предъявленного + выдача новой пары с заново резолвленными `roles`/`tv` из 3.3), отзыв всех refresh-токенов пользователя при повторном использовании уже отозванного
   - Тело ответа — RFC 6749 §5.1 (`access_token`/`token_type`/`expires_in`/`refresh_token`/`refresh_expires_in`); ошибки — RFC 6749 §5.2 (`error`/`error_description`), отдельно от общего JSON-конверта ошибок остального API
-- [ ] 3.4 `DELETE /v1/auth/token` (form-encoded, поле `refresh_token`, RFC 7009): немедленный отзыв предъявленного refresh-токена; 200 с пустым телом независимо от валидности/существования токена, 400 (`invalid_request`) только при отсутствии поля `refresh_token`
-- [ ] 3.5 Access-JWT-auth middleware для management-эндпоинтов и `GET /v1/logs`: проверка подписи/срока действия, извлечение `sub`, 401 при отсутствии/невалидном/истёкшем токене
-- [ ] 3.6 Auth middleware приёма логов: резолвинг секретного ключа проекта из `Authorization: Bearer`, 401 при отсутствии совпадения или `revoked_at != null`
-- [ ] 3.7 Юнит-тесты на сценарии из `specs/log-server-auth/spec.md`: регистрация вкл/выкл, занятый username, `grant_type=password`/`refresh_token` (успех/ошибка в формате RFC 6749), ротация refresh-токена, отзыв всей цепочки при реюзе отозванного refresh-токена, `DELETE /v1/auth/token` (включая одинаковый 200-ответ на валидный/невалидный/несуществующий токен), отсутствие plaintext-пароля в БД, немедленное действие отзыва прав несмотря на валидный access-токен, секретный ключ виден только один раз, несколько активных ключей одновременно
+- [ ] 3.5 `DELETE /v1/auth/token` (form-encoded, поле `refresh_token`, RFC 7009): немедленный отзыв предъявленного refresh-токена; 200 с пустым телом независимо от валидности/существования токена, 400 (`invalid_request`) только при отсутствии поля `refresh_token`
+- [ ] 3.6 Access-JWT-auth middleware для management-эндпоинтов и `GET /v1/logs`: проверка подписи/срока действия, извлечение `sub`, `tv`, `roles`; point-lookup `token_version` пользователя по `sub` и сравнение с `tv` — 401 при несовпадении (инвалидированный токен) или при отсутствии/невалидном/истёкшем токене; при совпадении — авторизация читает `roles` прямо из claims, без обращения к `role_assignments`/`team_members`
+- [ ] 3.7 Auth middleware приёма логов: резолвинг секретного ключа проекта из `Authorization: Bearer`, 401 при отсутствии совпадения или `revoked_at != null`
+- [ ] 3.8 Юнит-тесты на сценарии из `specs/log-server-auth/spec.md`: регистрация вкл/выкл, занятый username, `grant_type=password`/`refresh_token` (успех/ошибка в формате RFC 6749), ротация refresh-токена, отзыв всей цепочки при реюзе отозванного refresh-токена, `DELETE /v1/auth/token` (включая одинаковый 200-ответ на валидный/невалидный/несуществующий токен), отсутствие plaintext-пароля в БД, состав `roles` (прямые + через команду), 401 при несовпадении `token_version`, актуальные `roles`/`tv` после `refresh`, секретный ключ виден только один раз, несколько активных ключей одновременно
 
 ## 4. structured_log_server — RBAC (log-server-rbac)
 
-- [ ] 4.1 Резолвинг эффективных прав пользователя (`lib/src/rbac/authorizer.dart`): прямые `role_assignments` пользователя + через членство в командах, с учётом иерархии областей (global ⊇ group ⊇ project)
-- [ ] 4.2 Правила выдачи/отзыва ролей (`POST`/`DELETE /v1/role-assignments`): admin — без ограничений; owner группы `G` — только role ∈ {owner, user} на scope ∈ {group:G, project ∈ G}; user — запрещено полностью
-- [ ] 4.3 Authorization middleware для management-эндпоинтов (`teams`/`projects`/`project_secret_keys`/`users`/`groups`): владелец/admin — запись, user — только чтение в рамках своей области
-- [ ] 4.4 Юнит-тесты на сценарии из `specs/log-server-rbac/spec.md`: наследование прав по иерархии областей (в т.ч. на новый проект, созданный после гранта на группу), немедленное действие членства/выхода из команды, запрет owner выдавать admin или права вне своей группы, запрет user на любую выдачу ролей, ограничение создания users/groups ролью admin
+- [ ] 4.1 Резолвинг эффективных прав пользователя (`lib/src/rbac/authorizer.dart`, используется `claims.dart` из 3.3): прямые `role_assignments` пользователя + через членство в командах, с учётом иерархии областей (global ⊇ group ⊇ project) — авторизация на `GET /v1/logs`/management-эндпоинтах поверх уже прочитанных из токена `roles`, а не поверх этого резолвера напрямую (резолвер вызывается при выдаче токена, не на каждый запрос)
+- [ ] 4.2 Каскадное обновление `token_version` (`lib/src/rbac/token_version.dart`): bulk-`UPDATE users SET token_version = token_version + 1` для всех текущих участников команды при изменении team-scoped `RoleAssignment` или членства в ней; одиночный инкремент при изменении прямого `RoleAssignment` пользователя, деактивации (`is_active = false`) или смене пароля — вызывается из соответствующих management-эндпоинтов (5.x, 3.2)
+- [ ] 4.3 Правила выдачи/отзыва ролей (`POST`/`DELETE /v1/role-assignments`): admin — без ограничений; owner группы `G` — только role ∈ {owner, user} на scope ∈ {group:G, project ∈ G}; user — запрещено полностью; создание/удаление вызывает 4.2
+- [ ] 4.4 Authorization middleware для management-эндпоинтов (`teams`/`projects`/`project_secret_keys`/`users`/`groups`): владелец/admin — запись, user — только чтение в рамках своей области (проверка по `roles` из claims access-токена, см. 3.6)
+- [ ] 4.5 Юнит-тесты на сценарии из `specs/log-server-rbac/spec.md`: наследование прав по иерархии областей (в т.ч. на новый проект, созданный после гранта на группу), появление прав нового участника команды в его следующем токене, каскадный инкремент `token_version` всех участников при изменении team-scoped роли/членства, запрет owner выдавать admin или права вне своей группы, запрет user на любую выдачу ролей, ограничение создания users/groups ролью admin
 
 ## 5. structured_log_server — management API
 
-- [ ] 5.1 `POST /v1/users`, `GET /v1/users` (admin only)
+- [ ] 5.1 `POST /v1/users`, `GET /v1/users`, `PATCH /v1/users/:id` (деактивация `is_active = false` — вызывает инкремент `token_version`, 4.2) (admin only)
 - [ ] 5.2 `POST /v1/groups`, `GET /v1/groups` (создание — admin only; список — по видимым вызывающему группам)
-- [ ] 5.3 `POST /v1/groups/:groupId/teams`, `POST /v1/teams/:teamId/members`, `DELETE /v1/teams/:teamId/members/:userId` (owner группы/admin)
+- [ ] 5.3 `POST /v1/groups/:groupId/teams`, `POST /v1/teams/:teamId/members`, `DELETE /v1/teams/:teamId/members/:userId` (owner группы/admin; оба последних вызывают каскадный инкремент `token_version` участников, 4.2)
 - [ ] 5.4 `POST /v1/groups/:groupId/projects` (создание с обязательным `retention_days`, опциональными `max_entries`/`max_bytes` — `specs/log-server-quotas`), `PATCH /v1/projects/:id` (изменение квоты), `GET /v1/projects/:id` (owner группы/user с доступом/admin)
 - [ ] 5.5 `POST /v1/projects/:id/secret-keys` (создание/ротация — ключ в открытом виде только в ответе на создание), `GET /v1/projects/:id/secret-keys` (только метаданные), `DELETE /v1/projects/:id/secret-keys/:keyId` (отзыв)
-- [ ] 5.6 `POST /v1/role-assignments`, `DELETE /v1/role-assignments/:id` — вызывает authorization middleware из раздела 4
+- [ ] 5.6 `POST /v1/role-assignments`, `DELETE /v1/role-assignments/:id` — вызывает authorization middleware (4.4) и правила выдачи (4.3), сама операция вызывает инкремент `token_version` (4.2: одиночный для subject_type=user, каскадный для subject_type=team)
 - [ ] 5.7 Унифицировать формат ошибок (`lib/src/errors.dart`): доменные ошибки → структурированный JSON для 400/401/403/404/413/507/500
 
 ## 6. structured_log_server — приём и запрос логов (log-server-api)
@@ -74,9 +76,10 @@
 
 ## 10. Интеграционное тестирование
 
-- [ ] 10.1 `structured_log_server/test/integration_test.dart`: реальный `HttpServer` на порту 0, сквозной сценарий — `create-admin` → создание токена admin'ом → создание группы/проекта (с квотой)/секретного ключа → приём логов по ключу → самостоятельная регистрация пользователя (сервер запущен с `registrationEnabled=true`) → выдача роли `user` на проект → создание токена этим пользователем → `GET /v1/logs` (доступ разрешён на «свой» проект, 403 на чужой) → превышение квоты отклоняет запись → `refresh` выдаёт новую пару и инвалидирует старую → `DELETE /v1/auth/token` → повторное использование отозванного refresh-токена отклоняется и отзывает остальные
-- [ ] 10.2 Отдельный тест: сервер запущен с `registrationEnabled=false` (или по умолчанию) — `POST /v1/auth/register` отвечает 403
-- [ ] 10.3 Ручной smoke test (`dart run bin/server.dart`/`create-admin`, `HttpLogOutput`, `curl` с access-токеном и с секретным ключом) — зафиксировать результат в этой задаче
+- [ ] 10.1 `structured_log_server/test/integration_test.dart`: реальный `HttpServer` на порту 0, сквозной сценарий — `create-admin` → создание токена admin'ом → создание группы/проекта (с квотой)/секретного ключа → приём логов по ключу → самостоятельная регистрация пользователя (сервер запущен с `registrationEnabled=true`) → выдача роли `user` на проект → создание токена этим пользователем (проверить, что `roles` в claims содержит грант на этот проект) → `GET /v1/logs` (доступ разрешён на «свой» проект, 403 на чужой) → превышение квоты отклоняет запись → отзыв `RoleAssignment` пользователя → повторный `GET /v1/logs` с тем же access-токеном отвечает 401 (несовпадение `token_version`) → `refresh` выдаёт новую пару с актуальными (уже пустыми) `roles` → `DELETE /v1/auth/token` → повторное использование отозванного refresh-токена отклоняется и отзывает остальные
+- [ ] 10.2 Отдельный тест: команда с несколькими участниками получает `RoleAssignment` на проект → все текущие участники получают доступ в своём следующем токене; удаление одного участника из команды инвалидирует его уже выданный токен (401), не затрагивая токены остальных участников
+- [ ] 10.3 Отдельный тест: сервер запущен с `registrationEnabled=false` (или по умолчанию) — `POST /v1/auth/register` отвечает 403
+- [ ] 10.4 Ручной smoke test (`dart run bin/server.dart`/`create-admin`, `HttpLogOutput`, `curl` с access-токеном и с секретным ключом) — зафиксировать результат в этой задаче
 
 ## 11. CI
 

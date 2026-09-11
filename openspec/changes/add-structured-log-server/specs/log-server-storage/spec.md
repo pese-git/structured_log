@@ -33,7 +33,7 @@
 - **THEN** запрос с фильтром на конкретное значение `order_id` возвращает только записи с этим значением
 
 ### Requirement: Мультитенантные сущности управления доступом
-Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, created_at, is_active), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
+Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, created_at, is_active, token_version — целочисленный счётчик, по умолчанию 0), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
 
 #### Scenario: username уникален по всей системе
 - **WHEN** отправлен запрос на создание пользователя (регистрация или через admin) с `username`, уже занятым другим пользователем
