@@ -42,7 +42,7 @@
 - [ ] 5.1 `POST /v1/users`, `GET /v1/users`, `PATCH /v1/users/:id` (деактивация `is_active = false` — вызывает инкремент `token_version`, 4.2) (admin only)
 - [ ] 5.2 `POST /v1/groups`, `GET /v1/groups` (создание — admin only; список — по видимым вызывающему группам)
 - [ ] 5.3 `POST /v1/groups/:groupId/teams`, `POST /v1/teams/:teamId/members`, `DELETE /v1/teams/:teamId/members/:userId` (owner группы/admin; оба последних вызывают каскадный инкремент `token_version` участников, 4.2)
-- [ ] 5.4 `POST /v1/groups/:groupId/projects` (создание с обязательным `retention_days`, опциональными `max_entries`/`max_bytes` — `specs/log-server-quotas`), `PATCH /v1/projects/:id` (изменение квоты), `GET /v1/projects/:id` (owner группы/user с доступом/admin)
+- [ ] 5.4 `POST /v1/groups/:groupId/projects` (создание с обязательным `retention_days`, опциональными `max_entries`/`max_bytes` — `specs/log-server-quotas`), `PATCH /v1/projects/:id` (изменение квоты), `GET /v1/projects/:id` (owner группы/user с доступом/admin; ответ включает `entry_count`/`total_bytes` из `ProjectUsage` рядом с квотой — decision 22 `design.md`, нужно `structured_log_admin_client`)
 - [ ] 5.5 `POST /v1/projects/:id/secret-keys` (создание/ротация — ключ в открытом виде только в ответе на создание), `GET /v1/projects/:id/secret-keys` (только метаданные), `DELETE /v1/projects/:id/secret-keys/:keyId` (отзыв)
 - [ ] 5.6 `POST /v1/role-assignments`, `DELETE /v1/role-assignments/:id` — вызывает authorization middleware (4.4) и правила выдачи (4.3), сама операция вызывает инкремент `token_version` (4.2: одиночный для subject_type=user, каскадный для subject_type=team)
 - [ ] 5.7 Унифицировать формат ошибок (`lib/src/errors.dart`): доменные ошибки → структурированный JSON для 400/401/403/404/413/507/500
@@ -83,13 +83,45 @@
 - [ ] 10.3 Отдельный тест: сервер запущен с `registrationEnabled=false` (или по умолчанию) — `POST /v1/auth/register` отвечает 403
 - [ ] 10.4 Ручной smoke test (`dart run bin/server.dart`/`create-admin`, `HttpLogOutput`, `curl` с access-токеном и с секретным ключом) — зафиксировать результат в этой задаче
 
-## 11. CI
+## 11. structured_log_admin_client — скаффолдинг и API-клиент
 
-- [ ] 11.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `structured_log_server`/`structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest`): `pub get` → (для `structured_log_server`: `dart run build_runner build --delete-conflicting-outputs`) → `format --set-exit-if-changed` → `analyze` → `test`
-- [ ] 11.2 Прогнать на GitHub Actions, убедиться, что все job'ы зелёные
+- [ ] 11.1 Создать `structured_log_admin_client/`: `pubspec.yaml` (зависимости `flutter` sdk, `dio`, `flutter_secure_storage`; без зависимости на `structured_log`/`structured_log_server`/`structured_log_http` — decision 19 `design.md`), `lib/main.dart`, `test/`; веб-платформа через `flutter create --platforms=web` (по аналогии с `structured_log_material_example`/`structured_log_fluent_example`); `LICENSE` скопирован
+- [ ] 11.2 Добавить пакет в `packages:` корневого [melos.yaml](../../melos.yaml) и в матрицу существующего `flutter`-job'а CI (не новый job)
+- [ ] 11.3 `ApiClient` на `dio` (`lib/src/api/api_client.dart`): base URL сервера из конфигурации приложения, interceptor подстановки `Authorization: Bearer <access-token>`, interceptor перехвата 401 → `grant_type=refresh_token` → повтор исходного запроса ровно один раз (`specs/admin-client-auth`)
+- [ ] 11.4 Хранилище токенов (`lib/src/auth/token_storage.dart`) на `flutter_secure_storage`; тестовый мок-реализация для юнит/виджет-тестов (без реального secure storage в CI — decision 20/Risks `design.md`)
 
-## 12. Документация и финализация
+## 12. structured_log_admin_client — аутентификация (admin-client-auth)
 
-- [ ] 12.1 `README.md`/`README.ru.md` для `structured_log_server` (установка, bootstrap admin, создание группы/проекта/секретного ключа, management API, HTTP-контракт приёма/запроса) и `structured_log_http` (установка, быстрый старт с `HttpLogOutput`)
-- [ ] 12.2 Обновить корневые `README.md`/`README.ru.md` и разделы «Структура»/«CI» в [AGENTS.md](../../AGENTS.md)
-- [ ] 12.3 `openspec-verify-change`: сверить каждое требование из всех шести спек этой change с кодом и тестами, decisions из `design.md` соблюдены
+- [ ] 12.1 Экран логина (`username`/пароль → `grant_type=password`), сохранение полученной пары токенов, переход на основной экран
+- [ ] 12.2 Экран регистрации (`POST /v1/auth/register`), понятное сообщение при 403 (регистрация отключена на сервере), переход к логину при успехе
+- [ ] 12.3 Действие «выйти»: `DELETE /v1/auth/token` (не блокирует очистку локальных токенов при сетевой ошибке — см. `specs/admin-client-auth`), возврат на экран логина
+- [ ] 12.4 Автоматический переход на экран логина при неудачном `refresh` (истёкший/отозванный refresh-токен) — из interceptor'а 11.3
+- [ ] 12.5 Виджет/юнит-тесты на сценарии из `specs/admin-client-auth/spec.md`: успешный/неверный логин, регистрация вкл/выкл (403), токены не в открытом хранилище, прозрачный refresh при 401 без видимой пользователю ошибки, переход на логин при неудачном refresh, выход очищает токены даже при недоступном сервере
+
+## 13. structured_log_admin_client — управление ресурсами (admin-client-resource-management)
+
+- [ ] 13.1 Экраны пользователей (список/создание, admin only, скрыт из навигации для остальных)
+- [ ] 13.2 Экраны групп (список/создание, admin only) и команд с составом (список/создание/добавление-удаление участников, owner группы/admin)
+- [ ] 13.3 Экраны проектов (список/создание/редактирование квоты в рамках группы, owner/admin — редактирование; user с доступом — только просмотр), отображение `entry_count`/`max_entries`/`total_bytes`/`max_bytes` вместе (5.4)
+- [ ] 13.4 Управление секретными ключами проекта: список метаданных, создание с одноразовым диалогом показа значения (копирование в буфer обмена, предупреждение о единственном показе), отзыв
+- [ ] 13.5 UI выдачи/отзыва `RoleAssignment` (роль/область/получатель — пользователь или команда), форма ограничивает выбор ролей/областей согласно правам текущего пользователя (клиентская подсказка — сервер остаётся источником правды)
+- [ ] 13.6 Виджет/юнит-тесты на сценарии из `specs/admin-client-resource-management/spec.md`
+
+## 14. structured_log_admin_client — просмотр и поиск логов (admin-client-log-browser)
+
+- [ ] 14.1 Селектор области видимости (проект/группа) — ограничен ресурсами, доступными текущему пользователю; экран списка логов недоступен без выбора
+- [ ] 14.2 Элементы управления фильтрами, соответствующие параметрам `GET /v1/logs` (уровень/категория/logger/диапазон времени/correlation ids/`q`/`context.*`), комбинируемые в одном запросе
+- [ ] 14.3 Список результатов с постраничной подгрузкой по курсору (без дублирования записей между страницами; сброс пагинации при смене фильтров/области)
+- [ ] 14.4 Детальный просмотр записи (все стандартные поля + произвольный `context`)
+- [ ] 14.5 Виджет/юнит-тесты на сценарии из `specs/admin-client-log-browser/spec.md`
+
+## 15. CI
+
+- [ ] 15.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `structured_log_server`/`structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest`): `pub get` → (для `structured_log_server`: `dart run build_runner build --delete-conflicting-outputs`) → `format --set-exit-if-changed` → `analyze` → `test`
+- [ ] 15.2 Прогнать на GitHub Actions, убедиться, что все job'ы зелёные (включая `structured_log_admin_client` в существующей матрице `flutter`-job'а)
+
+## 16. Документация и финализация
+
+- [ ] 16.1 `README.md`/`README.ru.md` для `structured_log_server` (установка, bootstrap admin, создание группы/проекта/секретного ключа, management API, HTTP-контракт приёма/запроса), `structured_log_http` (установка, быстрый старт с `HttpLogOutput`) и `structured_log_admin_client` (установка, запуск, скриншоты основных экранов)
+- [ ] 16.2 Обновить корневые `README.md`/`README.ru.md` и разделы «Структура»/«CI» в [AGENTS.md](../../AGENTS.md)
+- [ ] 16.3 `openspec-verify-change`: сверить каждое требование из всех девяти спек этой change с кодом и тестами, decisions из `design.md` соблюдены
