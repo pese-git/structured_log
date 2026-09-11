@@ -8,8 +8,10 @@ A ready-to-use Fluent UI (WinUI-style) in-app log viewer for
 `LogViewerController`: a master-detail split view (list on the left, the
 selected entry's full context in a detail pane on the right — matching
 WinUI apps like Mail/Settings, not a mobile-style bottom sheet), a search
-box and a level-filter dropdown, all styled via `FluentTheme` for light and
-dark.
+box, category and level-filter dropdowns, all styled via `FluentTheme` for
+light and dark. Available both as a full screen (`FluentLogViewerPage`) and
+as a plain embeddable widget (`FluentLogViewer`) for dropping into existing
+page chrome — a `Flyout`, a side panel, a tab, ...
 
 > **Status:** not yet published to pub.dev (`0.1.0-dev.1`, `publish_to:
 > none` — depends on the also-unpublished `structured_log_flutter` as a
@@ -22,9 +24,14 @@ dark.
 
 ## Features
 
-- **`FluentLogViewerPage`** — a full screen: header (title, search box,
-  category dropdown, level dropdown, pause/resume, clear-all), a live
-  newest-first master list, and a detail pane for the selected entry
+- **`FluentLogViewer`** — the log viewer as a plain embeddable widget: a
+  toolbar (search box, category dropdown, level dropdown, pause/resume,
+  clear-all) above a live newest-first master list with a detail pane for
+  the selected entry — no page chrome of its own, so it can be dropped
+  anywhere in an existing layout
+- **`FluentLogViewerPage`** — a thin `ScaffoldPage` wrapper around
+  `FluentLogViewer` for the full-screen case: adds a title ("Logs") and,
+  when pushed via `Navigator`, a back button
 - **`LogCategoryComboBox`** — a `category`-filter dropdown whose options are
   derived from the distinct `category` values currently in the buffer;
   hidden automatically when fewer than two are present
@@ -79,10 +86,26 @@ void main() {
 See [`example/`](example/) for a full runnable app (including web) — run it
 with `flutter run -d chrome` from that directory.
 
+To embed the viewer inside existing page chrome instead of giving it the
+whole screen, use `FluentLogViewer` directly:
+
+```dart
+Row(
+  children: [
+    Expanded(child: MyAppContent()),
+    SizedBox(
+      width: 420,
+      child: FluentLogViewer(controller: controller),
+    ),
+  ],
+)
+```
+
 ## API Reference
 
 | Widget | Description |
 |---|---|
+| `FluentLogViewer({required LogViewerController controller})` | The log viewer as an embeddable widget (no page chrome) |
 | `FluentLogViewerPage({required LogViewerController controller})` | The full screen |
 | `LogCategoryComboBox({required LogViewerController controller, String allLabel = 'All types'})` | The category-filter dropdown |
 | `LogEntryTile({required entry, required selected, required onTap})` | One list row |

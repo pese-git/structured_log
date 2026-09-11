@@ -82,10 +82,58 @@ class DemoHome extends StatelessWidget {
                   builder: (_) => FluentLogViewerPage(controller: controller),
                 ),
               ),
-              child: const Text('Open log viewer'),
+              child: const Text('Open log viewer (full screen)'),
+            ),
+            const SizedBox(height: 12),
+            Button(
+              onPressed: () => Navigator.of(context).push(
+                FluentPageRoute<void>(
+                  builder: (_) => EmbeddedDemoPage(controller: controller),
+                ),
+              ),
+              child: const Text('Open embedded log viewer demo'),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shows [FluentLogViewer] docked in a side panel next to other app
+/// content — the "embeddable widget" use case, as opposed to
+/// [FluentLogViewerPage] owning the whole screen.
+class EmbeddedDemoPage extends StatelessWidget {
+  const EmbeddedDemoPage({required this.controller, super.key});
+
+  final LogViewerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaffoldPage(
+      header: PageHeader(
+        title: const Text('Embedded log viewer demo'),
+        commandBar: IconButton(
+          icon: const Icon(FluentIcons.back),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+      ),
+      content: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Expanded(
+            child: Center(
+              child: Text('The rest of the app goes here.'),
+            ),
+          ),
+          const Divider(direction: Axis.vertical),
+          // The toolbar (search + category + level dropdowns + pause/clear)
+          // needs roughly this much width to lay out without overflowing.
+          SizedBox(
+            width: 900,
+            child: FluentLogViewer(controller: controller),
+          ),
+        ],
       ),
     );
   }
