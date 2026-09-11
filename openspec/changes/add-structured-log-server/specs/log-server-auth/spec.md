@@ -26,42 +26,46 @@
 - **WHEN** создан пользователь с паролем (через регистрацию или management API)
 - **THEN** значение, сохранённое в колонке `password_hash`, не совпадает с исходным паролем и не может быть тривиально обращено без подбора
 
-### Requirement: Создание токена по username/паролю
-Сервер SHALL предоставлять `POST /v1/auth/tokens`, принимающий `username` и пароль; при совпадении с сохранённым `password_hash` активного пользователя (`is_active = true`) SHALL создавать и возвращать пару токенов: короткоживущий access-JWT (`sub` = идентификатор пользователя, `exp`, без списка ролей) и отзываемый refresh-токен.
+### Requirement: Единый OAuth2-совместимый token-эндпоинт (RFC 6749)
+Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` — этот формат применяется только к `/v1/auth/token` и `/v1/auth/logout`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`).
 
-#### Scenario: Успешное создание токена
-- **WHEN** отправлен `POST /v1/auth/tokens` с `username` и паролем, совпадающими с активным пользователем
-- **THEN** сервер отвечает 200 с access-токеном (валидная подпись, корректный `sub`) и refresh-токеном
+#### Scenario: grant_type=password с верными кредами выдаёт пару токенов
+- **WHEN** отправлен `POST /v1/auth/token` (form-encoded) с `grant_type=password`, `username` и `password`, совпадающими с активным (`is_active = true`) пользователем
+- **THEN** сервер отвечает 200 с телом, содержащим `access_token` (валидная подпись, корректный `sub`), `token_type: "Bearer"`, `expires_in`, `refresh_token`, `refresh_expires_in`
 
-#### Scenario: Неверный пароль отклоняется
-- **WHEN** отправлен `POST /v1/auth/tokens` с существующим `username`, но неверным паролем
-- **THEN** сервер отвечает 401 и не выдаёт токены
+#### Scenario: grant_type=password с неверным паролем отклоняется в формате RFC 6749
+- **WHEN** отправлен `POST /v1/auth/token` с `grant_type=password` и неверным паролем для существующего `username`
+- **THEN** сервер отвечает 400 (или 401) с телом `{"error": "invalid_grant", ...}` и не выдаёт токены
 
-#### Scenario: Неактивный пользователь не может получить токен
-- **WHEN** отправлен `POST /v1/auth/tokens` с корректными кредами пользователя, у которого `is_active = false`
-- **THEN** сервер отвечает 401 и не выдаёт токены
+#### Scenario: grant_type=password для неактивного пользователя отклоняется
+- **WHEN** отправлен `POST /v1/auth/token` с `grant_type=password` и корректными кредами пользователя, у которого `is_active = false`
+- **THEN** сервер отвечает с телом `{"error": "invalid_grant", ...}` и не выдаёт токены
 
-### Requirement: Refresh-токен хранится хэшированным и ротируется при использовании
-Refresh-токен SHALL храниться на сервере как хэш случайно сгенерированной строки (не как пароль пользователя, не как JWT). `POST /v1/auth/tokens/refresh`, принимающий refresh-токен, SHALL проверять его хэш, срок действия и отсутствие отзыва; при успехе SHALL отзывать предъявленный refresh-токен и выдавать новую пару (access + refresh). Предъявление уже отозванного refresh-токена SHALL приводить к отзыву всех refresh-токенов этого пользователя.
+#### Scenario: Неизвестный grant_type отклоняется
+- **WHEN** отправлен `POST /v1/auth/token` с `grant_type`, отличным от `password` и `refresh_token`
+- **THEN** сервер отвечает с телом `{"error": "unsupported_grant_type", ...}`
+
+### Requirement: grant_type=refresh_token хранится хэшированным и ротируется при использовании
+Refresh-токен SHALL храниться на сервере как хэш случайно сгенерированной строки (не как пароль пользователя, не как JWT). При `grant_type=refresh_token` сервер SHALL проверять хэш предъявленного `refresh_token`, срок действия и отсутствие отзыва; при успехе SHALL отзывать предъявленный refresh-токен и выдавать новую пару (ротация). Предъявление уже отозванного refresh-токена SHALL приводить к отзыву всех refresh-токенов этого пользователя.
 
 #### Scenario: Успешное обновление ротирует токен
-- **WHEN** отправлен `POST /v1/auth/tokens/refresh` с валидным, не отозванным и не истёкшим refresh-токеном
-- **THEN** сервер отвечает новой парой токенов, а предъявленный refresh-токен становится отозванным и больше не принимается ни в одном последующем запросе `refresh`
+- **WHEN** отправлен `POST /v1/auth/token` с `grant_type=refresh_token` и валидным, не отозванным, не истёкшим `refresh_token`
+- **THEN** сервер отвечает новой парой токенов, а предъявленный refresh-токен становится отозванным и больше не принимается ни в одном последующем запросе с `grant_type=refresh_token`
 
 #### Scenario: Истёкший или отозванный refresh-токен отклоняется
-- **WHEN** отправлен `POST /v1/auth/tokens/refresh` с refresh-токеном, чей `expires_at` уже наступил, либо `revoked_at` уже установлен
-- **THEN** сервер отвечает 401 и не выдаёт новую пару токенов
+- **WHEN** отправлен `POST /v1/auth/token` с `grant_type=refresh_token`, чей `expires_at` уже наступил, либо `revoked_at` уже установлен
+- **THEN** сервер отвечает телом `{"error": "invalid_grant", ...}` и не выдаёт новую пару токенов
 
 #### Scenario: Повторное использование отозванного refresh-токена отзывает все токены пользователя
-- **WHEN** refresh-токен `A` пользователя был отозван (ротацией или logout'ом), и затем `A` повторно предъявлен в `POST /v1/auth/tokens/refresh`
-- **THEN** сервер отвечает 401, и все остальные ещё не отозванные refresh-токены этого пользователя также становятся отозванными
+- **WHEN** refresh-токен `A` пользователя был отозван (ротацией или logout'ом), и затем `A` повторно предъявлен с `grant_type=refresh_token`
+- **THEN** сервер отвечает ошибкой `invalid_grant`, и все остальные ещё не отозванные refresh-токены этого пользователя также становятся отозванными
 
-### Requirement: Logout отзывает refresh-токен
-Сервер SHALL предоставлять `POST /v1/auth/logout`, принимающий refresh-токен, немедленно помечающий его отозванным; уже выданный вместе с ним access-токен SHALL оставаться технически валидным до истечения своего короткого срока действия.
+### Requirement: Logout отзывает refresh-токен (form-encoded, по образцу Keycloak)
+Сервер SHALL предоставлять `POST /v1/auth/logout`, принимающий тело `application/x-www-form-urlencoded` с полем `refresh_token`, немедленно помечающий его отозванным; уже выданный вместе с ним access-токен SHALL оставаться технически валидным до истечения своего короткого срока действия.
 
 #### Scenario: После logout refresh-токен больше не работает
-- **WHEN** выполнен `POST /v1/auth/logout` с действующим refresh-токеном, а затем этот же токен предъявлен в `POST /v1/auth/tokens/refresh`
-- **THEN** сервер отвечает 401 на повторное использование
+- **WHEN** выполнен `POST /v1/auth/logout` с действующим `refresh_token` в form-encoded теле, а затем этот же токен предъявлен с `grant_type=refresh_token` на `/v1/auth/token`
+- **THEN** сервер отвечает ошибкой `invalid_grant` на повторное использование
 
 ### Requirement: Аутентификация management/query API по access-токену с пересчётом прав из БД
 Каждый запрос к management-эндпоинтам и `GET /v1/logs` SHALL требовать заголовок `Authorization: Bearer <access-token>` с действительным, не истёкшим access-токеном; сервер SHALL на каждом запросе заново резолвить текущие `RoleAssignment` пользователя из хранилища (`log-server-rbac`), не полагаясь на состояние ролей на момент выдачи токена.
