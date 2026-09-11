@@ -12,9 +12,14 @@ environment:
 dependencies:
   # Pinned exactly (not a caret range): fluent_ui's latest published
   # version, 4.16.1, fails to compile against this project's Flutter SDK
-  # (an upstream fluent_ui/Flutter framework API mismatch, unrelated to
-  # this package) — a caret range would silently re-resolve to it. Bump
-  # deliberately once a fluent_ui release fixes that.
+  # (an upstream fluent_ui/Flutter framework API mismatch — TreeView's
+  # ScrollCacheExtent, RawTooltip.ignorePointer, ReorderableListView's
+  # onReorderItem — unrelated to this package) — a caret range would
+  # silently re-resolve to it. Re-checked against 4.16.1 on Flutter
+  # 3.41.7 (2026-09): still fails the same way, no newer fluent_ui
+  # release since. Bump deliberately once a fluent_ui release fixes
+  # this — pub.dev's "should allow more than one version" warning on
+  # this line is the known, accepted cost until then.
   fluent_ui: 4.15.1
   flutter:
     sdk: flutter

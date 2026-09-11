@@ -234,14 +234,14 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.1.0-dev.2"
+    version: "0.1.0-dev.3"
   structured_log_flutter:
     dependency: "direct main"
     description:
       path: "../../structured_log_flutter"
       relative: true
     source: path
-    version: "0.1.0-dev.2"
+    version: "0.1.0-dev.3"
   term_glyph:
     dependency: transitive
     description:
