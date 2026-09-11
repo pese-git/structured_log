@@ -8,9 +8,18 @@ import 'log_level_colors.dart';
 /// entry has a `category` context key — a category tag underneath.
 ///
 /// Tapping the tile calls [onTap]; [MaterialLogViewerPage] uses that to
-/// open a [LogEntryDetailSheet] for this [entry].
+/// open a [LogEntryDetailSheet] for this [entry] on narrow screens, or (on
+/// wide screens, where [MaterialLogViewer] shows a master-detail split
+/// instead) to select it as the one shown in a [LogEntryDetailPanel]
+/// alongside the list — in that case [selected] highlights this tile while
+/// its entry is the one currently shown.
 class LogEntryTile extends StatelessWidget {
-  const LogEntryTile({required this.entry, required this.onTap, super.key});
+  const LogEntryTile({
+    required this.entry,
+    required this.onTap,
+    this.selected = false,
+    super.key,
+  });
 
   /// The raw log entry this tile renders, in the `Map<String, dynamic>`
   /// shape structured_log produces (`event`, `level`, `timestamp`, and any
@@ -19,6 +28,13 @@ class LogEntryTile extends StatelessWidget {
 
   /// Called when the tile is tapped.
   final VoidCallback onTap;
+
+  /// Whether this entry is the one currently shown in an adjacent
+  /// [LogEntryDetailPanel] (the master-detail split on wide screens) —
+  /// tinted to indicate that. Not meaningful (left `false`) in the
+  /// narrow/bottom-sheet case, where nothing is showing alongside the list
+  /// for a highlight to refer to.
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -31,58 +47,66 @@ class LogEntryTile extends StatelessWidget {
     final time = formatEntryTime(entry['timestamp']);
     final category = entry['category'];
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: dotColor, shape: BoxShape.circle),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    event,
-                    style: theme.textTheme.bodyMedium,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+    return Container(
+      color: selected ? theme.colorScheme.secondaryContainer : null,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  time,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-            if (category is String) ...[
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.only(left: 18),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(6),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      event,
+                      style: theme.textTheme.bodyMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  child: Text(
-                    category,
-                    style: theme.textTheme.labelSmall
+                  const SizedBox(width: 8),
+                  Text(
+                    time,
+                    style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
-                ),
+                ],
               ),
+              if (category is String) ...[
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 18),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      category,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
