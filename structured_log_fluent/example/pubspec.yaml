@@ -5,12 +5,12 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.0.0
-  flutter: ">=3.0.0"
+  flutter: ">=3.44.0" # fluent_ui 4.16.0+ needs this — see ../pubspec.yaml
 
 dependencies:
   flutter:
     sdk: flutter
-  fluent_ui: 4.15.1
+  fluent_ui: ^4.16.1
   structured_log: ^0.2.0-dev.0+1
   structured_log_flutter: ^0.1.0-dev.3
   structured_log_fluent:

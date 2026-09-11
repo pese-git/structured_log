@@ -9,6 +9,17 @@
 в [melos.yaml](melos.yaml); без вложенности вроде `packages/<name>/`) — по образцу
 [cherrypick](https://github.com/pese-git/cherrypick) того же автора.
 
+`.fvm/fvm_config.json` пинит Flutter SDK для локальной разработки/`melos`-команд
+явной версией (`"flutterSdkVersion"`, сейчас `3.44.9`) — не строкой `"stable"`,
+чтобы версия не «уезжала» молча при `fvm install`/`fvm use stable` без явного
+решения контрибьютора. **CI на этот пин не смотрит**: `.github/workflows/ci.yml`
+использует `dart-lang/setup-dart`/`subosito/flutter-action` с каналом `stable`
+напрямую (без FVM), так что CI всегда гоняется на актуальном на момент запуска
+`stable`-релизе — если локальный пин отстанет от него надолго, локальная
+разработка и CI могут разойтись по версии SDK. Поднимать локальный пин —
+`fvm use <version>` из корня репозитория, затем `dart run melos bootstrap` и
+полный прогон `analyze`/`test` по всем пакетам.
+
 Пять пакетов:
 
 - [structured_log/](structured_log/) — структурированное логирование для Dart, вдохновлено
@@ -106,7 +117,7 @@
 - [structured_log_fluent/lib/src/log_level_colors.dart](structured_log_fluent/lib/src/log_level_colors.dart) — только `logLevelAbbreviation()` (короткий бейдж уровня); `logLevelColor()` теперь общий, приезжает из `structured_log_flutter`.
 - [structured_log_fluent/test/](structured_log_fluent/test/) — виджет-тесты (`flutter test`); поведенческие тесты (`fluent_log_viewer_test.dart`) пампят `FluentLogViewer` напрямую без `ScaffoldPage`/`Navigator` на широком вьюпорте (1200×800 — дефолтный 800×600 слишком узкий), `fluent_log_viewer_responsive_test.dart` — брейкпоинты на явно заданной ширине через `SizedBox`, `fluent_log_viewer_page_test.dart` — только специфика страницы (заголовок/back-кнопка); скоуп-хелперы `_inList`/`_inDetailPane` (список и панель деталей видны одновременно, `find.text(event)` иначе находит дубликаты).
 - [structured_log_fluent/example/](structured_log_fluent/example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `FluentLogViewerPage`, и встроенный `FluentLogViewer` в боковой панели (`Expanded`, не фиксированная ширина — иначе при сужении окна `Row` переполняется).
-- `fluent_ui` зафиксирован в `pubspec.yaml` точной версией `4.15.1` (не диапазоном) — последняя опубликованная (`4.16.1`) не компилируется с используемым Flutter SDK; `flutter analyze` этого не ловит, только `flutter test`/`flutter build`.
+- `fluent_ui: ^4.16.1` — обычный диапазон, не точный пин. До 2026-09 было зафиксировано точной версией `4.15.1`, т.к. `4.16.1` не компилировалась с Flutter SDK, который тогда был в проекте (`3.41.7`) — рассинхрон API `fluent_ui`/Flutter framework (`RawTooltip.ignorePointer`, `ReorderableListView.builder.onReorderItem`, тип `ScrollCacheExtent`; `flutter analyze` это не ловит, только `flutter test`/`flutter build`). Причина оказалась не в `fluent_ui`, а в устаревшем локальном `stable`-снепшоте FVM в этом репозитории: `fluent_ui 4.16.0` уже требовал Flutter `3.44.0+` («refactor: Flutter 3.44.0 support» в его CHANGELOG), но его собственный `environment.flutter` констрейнт (`>=3.32.0`) этого не отражал. После обновления `.fvm/fvm_config.json` на `3.44.9` (см. ниже) пакет компилируется и все тесты проходят — диапазон снят.
 
 Внутри [structured_log_cupertino/](structured_log_cupertino/):
 

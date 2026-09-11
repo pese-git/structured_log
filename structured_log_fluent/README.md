@@ -13,11 +13,11 @@ light and dark. Available both as a full screen (`FluentLogViewerPage`) and
 as a plain embeddable widget (`FluentLogViewer`) for dropping into existing
 page chrome — a `Flyout`, a side panel, a tab, ...
 
-> **Status:** not yet published to pub.dev (`0.1.0-dev.1`, `publish_to:
-> none` — depends on the also-unpublished `structured_log_flutter` as a
-> path dependency). `fluent_ui` is pinned to an exact version (see
-> [pubspec.yaml](pubspec.yaml)) rather than a range — the latest published
-> release doesn't compile against every Flutter SDK; bump deliberately.
+> **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_fluent)
+> as a dev prerelease. `fluent_ui` needs Flutter `3.44.0+` (see
+> [pubspec.yaml](pubspec.yaml)) — this package's own `environment.flutter`
+> constraint doesn't enforce that yet; if your Flutter SDK is older, `pub
+> get` will resolve fine but the build will fail deep inside `fluent_ui`.
 > Design reference: the
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
 > canvas (Fluent section).
@@ -60,7 +60,7 @@ Within this monorepo:
 
 ```yaml
 dependencies:
-  fluent_ui: 4.15.1
+  fluent_ui: ^4.16.1
   structured_log_flutter:
     path: ../structured_log_flutter
   structured_log_fluent:

@@ -14,11 +14,11 @@ bottom sheet), поле поиска, выпадающие списки филь
 встраиваемый виджет (`FluentLogViewer`) — чтобы вставить его в уже
 существующую хрому страницы: `Flyout`, боковую панель, вкладку и т.п.
 
-> **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`, `publish_to:
-> none` — зависит от тоже неопубликованного `structured_log_flutter` через
-> path). `fluent_ui` зафиксирован точной версией (см.
-> [pubspec.yaml](pubspec.yaml)), а не диапазоном — последний опубликованный
-> релиз компилируется не на каждом Flutter SDK; бампать осознанно.
+> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_fluent)
+> как dev-пререлиз. `fluent_ui` требует Flutter `3.44.0+` (см.
+> [pubspec.yaml](pubspec.yaml)) — собственный `environment.flutter`-констрейнт
+> `fluent_ui` этого пока не проверяет; на более старом Flutter SDK `pub get`
+> отработает без ошибок, а сборка упадёт уже глубоко внутри `fluent_ui`.
 > Дизайн-референс: canvas
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
 > (раздел Fluent).
@@ -62,7 +62,7 @@ bottom sheet), поле поиска, выпадающие списки филь
 
 ```yaml
 dependencies:
-  fluent_ui: 4.15.1
+  fluent_ui: ^4.16.1
   structured_log_flutter:
     path: ../structured_log_flutter
   structured_log_fluent:

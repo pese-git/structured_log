@@ -7,20 +7,19 @@ repository: https://github.com/pese-git/structured_log.git
 
 environment:
   sdk: ^3.0.0
-  flutter: ">=3.0.0"
+  # fluent_ui 4.16.0+ needs this (its own pubspec doesn't say so — see the
+  # dependency comment below); enforce it here instead of letting an older
+  # Flutter SDK resolve fine and then fail deep inside fluent_ui at build.
+  flutter: ">=3.44.0"
 
 dependencies:
-  # Pinned exactly (not a caret range): fluent_ui's latest published
-  # version, 4.16.1, fails to compile against this project's Flutter SDK
-  # (an upstream fluent_ui/Flutter framework API mismatch — TreeView's
-  # ScrollCacheExtent, RawTooltip.ignorePointer, ReorderableListView's
-  # onReorderItem — unrelated to this package) — a caret range would
-  # silently re-resolve to it. Re-checked against 4.16.1 on Flutter
-  # 3.41.7 (2026-09): still fails the same way, no newer fluent_ui
-  # release since. Bump deliberately once a fluent_ui release fixes
-  # this — pub.dev's "should allow more than one version" warning on
-  # this line is the known, accepted cost until then.
-  fluent_ui: 4.15.1
+  # fluent_ui 4.16.0+ requires Flutter 3.44.0+ (its own CHANGELOG: "refactor:
+  # Flutter 3.44.0 support") but its `environment.flutter` constraint still
+  # says >=3.32.0 — too loose to catch this at `pub get` time. Confirmed:
+  # 4.16.1 fails to compile on Flutter 3.41.7 (RawTooltip.ignorePointer,
+  # ReorderableListView.builder.onReorderItem, ScrollCacheExtent all
+  # missing) but compiles and passes all tests on Flutter 3.44.9.
+  fluent_ui: ^4.16.1
   flutter:
     sdk: flutter
   structured_log: ^0.2.0-dev.0+1
