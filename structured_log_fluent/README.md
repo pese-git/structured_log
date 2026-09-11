@@ -29,6 +29,12 @@ page chrome — a `Flyout`, a side panel, a tab, ...
   clear-all) above a live newest-first master list with a detail pane for
   the selected entry — no page chrome of its own, so it can be dropped
   anywhere in an existing layout
+- **Responsive** — both the toolbar and the master-detail split react to
+  the width *this widget* is actually given, not the window's: a narrow
+  toolbar wraps onto a second row instead of overflowing, and a narrow
+  master-detail collapses to a single pane (the list; tapping an entry
+  shows its detail in place, with a back button to return) — so it stays
+  usable docked in a narrow side panel, not just full-screen
 - **`FluentLogViewerPage`** — a thin `ScaffoldPage` wrapper around
   `FluentLogViewer` for the full-screen case: adds a title ("Logs") and,
   when pushed via `Navigator`, a back button
