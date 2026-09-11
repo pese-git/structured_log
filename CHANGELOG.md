@@ -3,6 +3,49 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-09-11
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log_cupertino` - `v0.1.0-dev.2`](#structured_log_cupertino---v010-dev2)
+ - [`structured_log_fluent` - `v0.1.0-dev.3`](#structured_log_fluent---v010-dev3)
+ - [`structured_log_flutter` - `v0.1.0-dev.3`](#structured_log_flutter---v010-dev3)
+ - [`structured_log_material` - `v0.1.0-dev.3`](#structured_log_material---v010-dev3)
+
+---
+
+#### `structured_log_cupertino` - `v0.1.0-dev.2`
+
+ - **FEAT**: add structured_log_cupertino Cupertino (iOS-style) log viewer.
+
+#### `structured_log_fluent` - `v0.1.0-dev.3`
+
+ - **REFACTOR**(structured_log_flutter): extract shared logLevelColor from material/fluent.
+ - **REFACTOR**(structured_log_fluent): extract FluentLogViewer as an embeddable widget.
+ - **FIX**(structured_log_fluent,structured_log_material): fix stale example app_test.dart assertions.
+ - **FIX**(structured_log_fluent): give the example's embedded panel a flexible width.
+ - **FEAT**(structured_log_fluent): make FluentLogViewer's layout responsive.
+ - **FEAT**(structured_log_fluent): add category filter selector.
+
+#### `structured_log_flutter` - `v0.1.0-dev.3`
+
+ - **REFACTOR**(structured_log_flutter): extract shared logLevelColor from material/fluent.
+
+#### `structured_log_material` - `v0.1.0-dev.3`
+
+ - **REFACTOR**(structured_log_flutter): extract shared logLevelColor from material/fluent.
+ - **FIX**(structured_log_fluent,structured_log_material): fix stale example app_test.dart assertions.
+ - **FEAT**(structured_log_material): category filter, embeddable widget, and adaptive master-detail.
+
+
 ## 2026-09-10
 
 ### Changes
