@@ -16,8 +16,10 @@ existing page chrome — a tab, a side panel, a dialog, ...
 > none` — depends on the also-unpublished `structured_log_flutter` as a
 > path dependency). Design reference: the
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
-> canvas (Material section — Cupertino/Fluent there are mockups only, not
-> implemented).
+> canvas (Material section — [`structured_log_fluent`](../structured_log_fluent)
+> and [`structured_log_cupertino`](../structured_log_cupertino) are
+> implemented too now, from the Fluent/Cupertino sections of the same
+> canvas).
 
 ## Features
 
@@ -129,7 +131,7 @@ Row(
 | `LogEntryDetailSheet({required entry})` | The expanded-entry bottom sheet content (narrow screens) |
 | `LogEntryDetailPanel({required entry})` | The expanded-entry non-modal panel content (wide screens) |
 | `LogViewerEmptyState({required hasLogs, required onClearFilters})` | The two-variant empty state |
-| `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color — the single place this palette is defined |
+| `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color — defined once in `structured_log_flutter`, shared by every skin |
 
 `entry` throughout is the `Map<String, dynamic>` shape `structured_log`
 produces directly — no separate typed model.

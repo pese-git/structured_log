@@ -119,7 +119,7 @@ Row(
 | `LogEntryTile({required entry, required selected, required onTap})` | Одна строка списка |
 | `LogEntryDetailPane({required entry})` | Содержимое панели деталей |
 | `LogViewerEmptyState({required hasLogs, required onClearFilters})` | Empty-состояние с двумя вариантами |
-| `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня |
+| `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня — определён один раз в `structured_log_flutter`, общий для всех скинов |
 | `logLevelAbbreviation(LogLevel level)` | Короткая аббревиатура заглавными (`INF`, `WRN`, ...) для бейджа уровня |
 
 `entry` везде — это `Map<String, dynamic>` в том же виде, в котором его

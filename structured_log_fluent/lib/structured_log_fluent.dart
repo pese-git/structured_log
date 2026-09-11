@@ -1,3 +1,6 @@
+export 'package:structured_log_flutter/structured_log_flutter.dart'
+    show logLevelColor;
+
 export 'src/fluent_log_viewer.dart';
 export 'src/fluent_log_viewer_page.dart';
 export 'src/log_category_combo_box.dart';

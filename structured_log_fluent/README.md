@@ -117,7 +117,7 @@ Row(
 | `LogEntryTile({required entry, required selected, required onTap})` | One list row |
 | `LogEntryDetailPane({required entry})` | The detail-pane content |
 | `LogViewerEmptyState({required hasLogs, required onClearFilters})` | The two-variant empty state |
-| `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color |
+| `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color — defined once in `structured_log_flutter`, shared by every skin |
 | `logLevelAbbreviation(LogLevel level)` | A short uppercase label (`INF`, `WRN`, ...) for the level badge |
 
 `entry` throughout is the `Map<String, dynamic>` shape `structured_log`

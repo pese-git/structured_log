@@ -6,8 +6,10 @@ Headless-ядро просмотрщика логов для [`structured_log`](
 буфер ограниченного размера и фильтрующий контроллер для построения живого
 in-app просмотрщика логов во Flutter. Никакой зависимости от Material,
 Cupertino или любой другой дизайн-системы: пакет сам ничего не рисует, так что
-поверх него можно построить любой UI-скин. [`structured_log_material`](../structured_log_material)
-— первый такой скин.
+поверх него можно построить любой UI-скин — на нём построены
+[`structured_log_material`](../structured_log_material),
+[`structured_log_fluent`](../structured_log_fluent) и
+[`structured_log_cupertino`](../structured_log_cupertino).
 
 > **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`). Подключайте как
 > path-зависимость внутри этого monorepo.
@@ -20,8 +22,11 @@ Cupertino или любой другой дизайн-системы: пакет
   перерисовываться на каждую новую запись без опроса
 - **`LogViewerController`** — `ChangeNotifier` с фильтрацией по уровню/категории/
   тексту поиска, паузой/возобновлением и очисткой поверх `LogBuffer`
-- **Ноль зависимостей от дизайн-системы** — только `package:flutter/foundation.dart`
-  и `structured_log`
+- **`logLevelColor(LogLevel level, Brightness brightness)`** — канонический
+  цвет индикатора `LogLevel`, общий для всех скинов, построенных на этом
+  пакете, чтобы палитра не расходилась между ними
+- **Ноль зависимостей от дизайн-системы** — только `dart:ui`,
+  `package:flutter/foundation.dart` и `structured_log`
 
 ## Установка
 
@@ -86,14 +91,24 @@ print(controller.visibleEntries);
 отдельную функцию, чтобы UI-скин (как `structured_log_material`) не дублировал
 этот разбор.
 
+### `logLevelColor(LogLevel level, Brightness brightness)`
+
+Единственный источник цветов индикатора `LogLevel`, используется строкой
+списка, видом деталей и бейджами каждого скина. Живёт здесь (а не в
+каком-то одном скине), потому что `Color`/`Brightness` не привязаны ни к
+Material, ни к Cupertino, ни к Fluent — эта таблица действительно
+design-system-нейтральна, в отличие от виджетов, построенных поверх неё.
+
 ## Построение UI-скина
 
 `structured_log_flutter` намеренно ничего не рисует — подключайте
 `LogViewerController` к любым виджетам, слушая его как обычный `ChangeNotifier`
 (`AnimatedBuilder`, `ListenableBuilder` и т.п.) и читая `visibleEntries` для
-отображения. Полную референс-реализацию (список, детальный вид записи,
-empty-состояния) на Material 3 смотрите в
-[`structured_log_material`](../structured_log_material).
+отображения. Полные референс-реализации (список, детальный вид записи,
+empty-состояния) на Material 3, Fluent UI и Cupertino смотрите в
+[`structured_log_material`](../structured_log_material),
+[`structured_log_fluent`](../structured_log_fluent) и
+[`structured_log_cupertino`](../structured_log_cupertino) соответственно.
 
 ## Лицензия
 

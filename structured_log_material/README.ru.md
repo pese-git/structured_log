@@ -16,7 +16,9 @@
 > — зависит от тоже неопубликованного `structured_log_flutter` через path).
 > Дизайн-референс: canvas
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
-> (раздел Material — Cupertino/Fluent там только макеты, без реализации).
+> (раздел Material — [`structured_log_fluent`](../structured_log_fluent) и
+> [`structured_log_cupertino`](../structured_log_cupertino) теперь тоже
+> реализованы, из разделов Fluent/Cupertino того же canvas).
 
 ## Возможности
 
@@ -129,7 +131,7 @@ Row(
 | `LogEntryDetailSheet({required entry})` | Содержимое bottom sheet развёрнутой записи (узкие экраны) |
 | `LogEntryDetailPanel({required entry})` | Содержимое немодальной панели развёрнутой записи (широкие экраны) |
 | `LogViewerEmptyState({required hasLogs, required onClearFilters})` | Empty-состояние с двумя вариантами |
-| `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня — единственное место, где определена эта палитра |
+| `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня — определён один раз в `structured_log_flutter`, общий для всех скинов |
 
 `entry` везде — это `Map<String, dynamic>` в том же виде, в котором его
 отдаёт `structured_log` напрямую, без отдельной типизированной модели.

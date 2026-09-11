@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'dart:ui' show Brightness;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log/structured_log.dart';
-import 'package:structured_log_material/structured_log_material.dart';
+import 'package:structured_log_flutter/structured_log_flutter.dart';
 
 void main() {
   group('logLevelColor', () {

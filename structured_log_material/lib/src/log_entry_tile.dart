@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
-import 'log_level_colors.dart';
-
 /// A single row in [MaterialLogViewerPage]'s list: a colored dot for the
 /// entry's level, its `event` text, a formatted timestamp, and — if the
 /// entry has a `category` context key — a category tag underneath.

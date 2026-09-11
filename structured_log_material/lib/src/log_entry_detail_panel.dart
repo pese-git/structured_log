@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
 import 'log_entry_tile.dart';
-import 'log_level_colors.dart';
 
 /// Keys that identify a log entry's own bookkeeping fields rather than
 /// caller-supplied context — excluded from [LogEntryDetailPanel]'s context

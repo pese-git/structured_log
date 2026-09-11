@@ -6,8 +6,9 @@ Headless log-viewer core for [`structured_log`](../structured_log) — a bounded
 in-memory buffer and a filterable controller for building a live, in-app log
 viewer in Flutter. No Material, Cupertino, or any other design-system
 dependency: this package renders nothing itself, so any UI skin can be built
-on top of it. [`structured_log_material`](../structured_log_material) is the
-first such skin.
+on top of it — [`structured_log_material`](../structured_log_material),
+[`structured_log_fluent`](../structured_log_fluent), and
+[`structured_log_cupertino`](../structured_log_cupertino) all build on it.
 
 > **Status:** not yet published to pub.dev (`0.1.0-dev.1`). Depend on it as a
 > path dependency within this monorepo for now.
@@ -20,8 +21,11 @@ first such skin.
   can rebuild on every new entry without polling
 - **`LogViewerController`** — a `ChangeNotifier` with level/category/search
   filtering, pause/resume, and clearing, all applied on top of a `LogBuffer`
-- **Zero design-system dependency** — only `package:flutter/foundation.dart`
-  and `structured_log`
+- **`logLevelColor(LogLevel level, Brightness brightness)`** — the
+  canonical `LogLevel` indicator color, shared by every skin built on this
+  package so the palette can't drift between them
+- **Zero design-system dependency** — only `dart:ui`,
+  `package:flutter/foundation.dart`, and `structured_log`
 
 ## Installation
 
@@ -86,15 +90,25 @@ name — returns `null` if missing or unrecognized. Exposed as a standalone
 function so a UI skin (like `structured_log_material`) doesn't need to
 reimplement this parsing.
 
+### `logLevelColor(LogLevel level, Brightness brightness)`
+
+The single source of truth for `LogLevel` indicator colors, used by every
+skin's list row, detail view, and badges. Lives here (not in any one skin)
+because `Color`/`Brightness` aren't tied to Material, Cupertino, or Fluent
+— this table is genuinely design-system-neutral, unlike the widgets built
+on top of it.
+
 ## Building a UI Skin
 
 `structured_log_flutter` intentionally renders nothing — wire a
 `LogViewerController` up to whatever widgets you like, listening to it as
 any other `ChangeNotifier` (`AnimatedBuilder`, `ListenableBuilder`, etc.) and
 reading `visibleEntries` for what to display. See
-[`structured_log_material`](../structured_log_material) for a complete
-reference implementation (list, expanded-entry detail, empty states) on
-Material 3.
+[`structured_log_material`](../structured_log_material),
+[`structured_log_fluent`](../structured_log_fluent), and
+[`structured_log_cupertino`](../structured_log_cupertino) for complete
+reference implementations (list, expanded-entry detail, empty states) on
+Material 3, Fluent UI, and Cupertino respectively.
 
 ## License
 
