@@ -23,17 +23,15 @@
   публикация на pub.dev (`publish_to: none` снят).
 - [structured_log_cupertino/](structured_log_cupertino/) — Cupertino (iOS-style) виджет
   просмотрщика логов поверх `structured_log_flutter` (pushed-экран деталей на узких экранах,
-  master-detail split на широких/iPad). `publish_to: none` — пока не опубликован, пакет новый.
+  master-detail split на широких/iPad). Разрешена публикация на pub.dev (`publish_to: none` снят).
 
-`structured_log_material`/`structured_log_fluent` фактически ещё не опубликованы (нет
-`CHANGELOG.md` — публикация требует прогнать `melos version` первым, см. «Коммиты и
-версионирование» ниже), но больше не заблокированы технически: зависимость на
+`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino` фактически ещё не
+опубликованы (нет `CHANGELOG.md` — публикация требует прогнать `melos version` первым, см.
+«Коммиты и версионирование» ниже), но больше не заблокированы технически: зависимость на
 `structured_log_flutter` в их `pubspec.yaml` — обычный hosted-констрейнт (`^0.1.0-dev.2`),
 путь к нему при локальной разработке подставляет `melos bootstrap` через
 `pubspec_overrides.yaml` (генерируется, не коммитится — см. `.gitignore`). Их `example/`
-остаются `publish_to: none` — демо-приложения не публикуются. `structured_log_cupertino` пока
-технически заблокирован тем же `publish_to: none` осознанно (тот же путь, что материал/fluent
-уже прошли) — снимать его отдельным коммитом, когда пакет провалидирован. История и обоснование
+остаются `publish_to: none` — демо-приложения не публикуются. История и обоснование
 решений — в
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/) и

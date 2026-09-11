@@ -21,10 +21,11 @@ iOS-паттерн «переход в детали» (как в Почте/На
 выше него список и немодальная панель деталей показываются рядом — как те
 же приложения ведут себя на iPad.
 
-> **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`, `publish_to:
-> none` — новый пакет, ещё не провалидирован так, как были
-> `structured_log_material`/`structured_log_fluent` перед тем, как с них
-> сняли `publish_to: none`). История дизайна и решений:
+> **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`), но больше не
+> заблокирован технически — `publish_to: none` снят, пакет провалидирован
+> (`dart pub publish --dry-run` проходит; `CHANGELOG.md` появится, когда
+> прогонят `melos version`, см. [AGENTS.md](../AGENTS.md)). История дизайна
+> и решений:
 > [openspec/changes/add-structured-log-cupertino/](../openspec/changes/add-structured-log-cupertino/).
 
 ## Возможности

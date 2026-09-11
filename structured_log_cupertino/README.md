@@ -21,10 +21,11 @@ detail" pattern (Mail, Settings on iPhone); at or above it, the list and a
 non-modal detail panel show side by side instead, matching how those same
 apps behave on iPad.
 
-> **Status:** not yet published to pub.dev (`0.1.0-dev.1`, `publish_to:
-> none` — new package, not yet validated the way `structured_log_material`/
-> `structured_log_fluent` were before their `publish_to: none` was
-> dropped). Design/decision history:
+> **Status:** not yet published to pub.dev (`0.1.0-dev.1`), but no longer
+> blocked from it — `publish_to: none` has been dropped now that the
+> package is validated (`dart pub publish --dry-run` passes; `CHANGELOG.md`
+> will appear once `melos version` runs, see [AGENTS.md](../AGENTS.md)).
+> Design/decision history:
 > [openspec/changes/add-structured-log-cupertino/](../openspec/changes/add-structured-log-cupertino/).
 
 ## Features
