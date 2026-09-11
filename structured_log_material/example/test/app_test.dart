@@ -33,11 +33,22 @@ void main() {
     expect(buffer.entries.value.single['event'], 'user_login');
   });
 
-  testWidgets('"Open log viewer" pushes MaterialLogViewerPage', (tester) async {
+  testWidgets('"Open log viewer (full screen)" pushes MaterialLogViewerPage',
+      (tester) async {
     await tester.pumpWidget(ExampleApp(controller: controller));
-    await tester.tap(find.text('Open log viewer'));
+    await tester.tap(find.text('Open log viewer (full screen)'));
     await tester.pumpAndSettle();
 
     expect(find.byType(MaterialLogViewerPage), findsOneWidget);
+  });
+
+  testWidgets('"Open embedded log viewer demo" pushes MaterialLogViewer',
+      (tester) async {
+    await tester.pumpWidget(ExampleApp(controller: controller));
+    await tester.tap(find.text('Open embedded log viewer demo'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MaterialLogViewer), findsOneWidget);
+    expect(find.byType(MaterialLogViewerPage), findsNothing);
   });
 }

@@ -34,16 +34,32 @@ void main() {
     expect(buffer.entries.value.single['event'], 'user_login');
   });
 
-  testWidgets('"Open log viewer" pushes FluentLogViewerPage', (tester) async {
+  testWidgets('"Open log viewer (full screen)" pushes FluentLogViewerPage',
+      (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(ExampleApp(controller: controller));
-    await tester.tap(find.text('Open log viewer'));
+    await tester.tap(find.text('Open log viewer (full screen)'));
     await tester.pumpAndSettle();
 
     expect(find.byType(FluentLogViewerPage), findsOneWidget);
+  });
+
+  testWidgets('"Open embedded log viewer demo" pushes FluentLogViewer',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(ExampleApp(controller: controller));
+    await tester.tap(find.text('Open embedded log viewer demo'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FluentLogViewer), findsOneWidget);
+    expect(find.byType(FluentLogViewerPage), findsNothing);
   });
 }
