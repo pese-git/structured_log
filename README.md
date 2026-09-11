@@ -35,6 +35,14 @@ viewer ecosystem for Flutter built on top of it.
   runnable example app (`structured_log_fluent/example/`, web-capable).
   *Not yet published.*
 
+- **[`structured_log_cupertino`](structured_log_cupertino/)** — a
+  ready-to-use Cupertino (iOS-style) in-app log viewer built on
+  `structured_log_flutter`: search, category and level filtering, a
+  pushed detail screen on narrow screens (list + master-detail split on
+  wide/iPad-size ones instead), and empty states. Includes a runnable
+  example app (`structured_log_cupertino/example/`, web-capable). *Not yet
+  published.*
+
 ## Repository Layout
 
 Each package lives in its own top-level directory (no `packages/`
@@ -43,9 +51,10 @@ nesting), listed by name in [melos.yaml](melos.yaml) — see
 conventions, versioning, CI) if you're contributing.
 
 Design and planning history for the Flutter log-viewer packages lives in
-[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/)
+[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
+[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/),
 and
-[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
+[openspec/changes/add-structured-log-cupertino/](openspec/changes/add-structured-log-cupertino/)
 (why, technical decisions, requirements, task-by-task progress).
 
 ## Quick Start

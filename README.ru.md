@@ -37,6 +37,15 @@ Monorepo на Melos + FVM для структурированного логир
   запускаемое пример-приложение (`structured_log_fluent/example/`, умеет в
   web). *Пока не опубликован.*
 
+- **[`structured_log_cupertino`](structured_log_cupertino/)** — готовый к
+  использованию in-app просмотрщик логов на Cupertino (iOS-style) поверх
+  `structured_log_flutter`: поиск, фильтры по категории и уровню, на узких
+  экранах детали записи открываются отдельным экраном (пушится через
+  навигацию), на широких/iPad-размерах — список и master-detail split
+  рядом, empty-состояния. Включает запускаемое пример-приложение
+  (`structured_log_cupertino/example/`, умеет в web). *Пока не
+  опубликован.*
+
 ## Структура репозитория
 
 Каждый пакет — отдельная директория в корне (без вложенности вроде
@@ -45,9 +54,10 @@ Monorepo на Melos + FVM для структурированного логир
 контрибьюторов в [AGENTS.md](AGENTS.md).
 
 История дизайна и планирования Flutter-пакетов просмотра логов — в
-[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/)
-и
+[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
+и
+[openspec/changes/add-structured-log-cupertino/](openspec/changes/add-structured-log-cupertino/)
 (почему, технические решения, требования, прогресс по задачам).
 
 ## Быстрый старт
