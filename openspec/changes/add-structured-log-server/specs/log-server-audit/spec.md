@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Аудит фиксирует закрытый список административных действий
-Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
+Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
 
 #### Scenario: Выдача роли создаёт аудит-запись
 - **WHEN** `admin` или `owner` успешно выполняет `POST /v1/role-assignments`
@@ -18,6 +18,10 @@
 #### Scenario: Блокировка пользователя и проекта фиксируется в аудите
 - **WHEN** `admin` выполняет `POST /v1/users/:id/block` или `POST /v1/projects/:id/block`
 - **THEN** создаётся аудит-запись с соответствующим `action` (`user.blocked` или `project.blocked`), `actor_user_id` — вызывающий `admin`, `target_id` — заблокированный ресурс
+
+#### Scenario: Самоудаление аккаунта фиксируется с самим пользователем как инициатором и целью
+- **WHEN** пользователь успешно удаляет свой аккаунт через `DELETE /v1/users/me`
+- **THEN** создаётся аудит-запись `action: user.deleted` с `actor_user_id` и `target_id`, равными этому пользователю
 
 ### Requirement: Приём и запрос логов не попадают в аудит
 Аудит-лог SHALL не содержать записей о выполнении `POST /v1/logs` или `GET /v1/logs` — это бизнес-данные пользовательского приложения, а не административное действие над ресурсами сервиса.
