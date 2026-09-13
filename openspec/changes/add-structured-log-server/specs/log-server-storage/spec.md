@@ -33,11 +33,15 @@
 - **THEN** запрос с фильтром на конкретное значение `order_id` возвращает только записи с этим значением
 
 ### Requirement: Мультитенантные сущности управления доступом
-Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, created_at, is_active, token_version — целочисленный счётчик, по умолчанию 0), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
+Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, email — nullable, уникален если задан, created_at, is_active, token_version — целочисленный счётчик, по умолчанию 0), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
 
 #### Scenario: username уникален по всей системе
 - **WHEN** отправлен запрос на создание пользователя (регистрация или через admin) с `username`, уже занятым другим пользователем
 - **THEN** сервер отклоняет запрос и не создаёт вторую запись с тем же `username`
+
+#### Scenario: email уникален на уровне схемы, если задан
+- **WHEN** отправлен запрос на создание пользователя с `email`, уже сохранённым у другого пользователя
+- **THEN** сервер отклоняет запрос и не создаёт вторую запись с тем же `email`; сама колонка `email` в схеме — `nullable` (обязательность конкретно на `POST /v1/auth/register` — требование `log-server-auth`, не ограничение схемы хранения)
 
 #### Scenario: Проект всегда принадлежит ровно одной группе
 - **WHEN** создан проект через management API
@@ -57,6 +61,13 @@
 #### Scenario: Отозванный refresh-токен помечен, а не удалён
 - **WHEN** refresh-токен отозван через `DELETE /v1/auth/token` или через ротацию при `grant_type=refresh_token`
 - **THEN** соответствующая запись `refresh_tokens` остаётся в хранилище с непустым `revoked_at`, а не удаляется — это позволяет отличить «токен не существовал» от «токен существовал, но уже отозван» при обнаружении повторного использования
+
+### Requirement: Хранение токенов восстановления пароля
+Хранилище SHALL предоставлять таблицу `password_reset_tokens` (id, user_id, token_hash, created_at, expires_at, used_at — nullable) для одноразовых токенов восстановления пароля (`log-server-password-reset`); `token_hash` SHALL быть хэшем токена, не самим токеном в открытом виде.
+
+#### Scenario: Использованный токен восстановления помечен, а не удалён
+- **WHEN** токен восстановления пароля успешно применён через `POST /v1/auth/password-reset/confirm`
+- **THEN** соответствующая запись `password_reset_tokens` остаётся в хранилище с непустым `used_at`, а не удаляется
 
 ### Requirement: Учёт использования хранилища на проект
 Хранилище SHALL поддерживать таблицу `project_usage` (project_id — PK, entry_count, total_bytes), обновляемую атомарно в той же транзакции, что вставка батча записей лога и что периодическая очистка по retention (`log-server-quotas`), чтобы проверка текущего использования была дешёвым point-lookup, а не агрегирующим запросом по `log_entries`.
