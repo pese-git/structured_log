@@ -3,15 +3,15 @@
 - [ ] 1.1 `git mv` четырёх существующих пакетов в `emb/`: `structured_log/` → `emb/structured_log/`, `structured_log_flutter/` → `emb/structured_log_flutter/`, `structured_log_material/` (+ `example/`) → `emb/structured_log_material/`, `structured_log_fluent/` (+ `example/`) → `emb/structured_log_fluent/`; создать пустые `backend/`, `frontend/`, `packages/` (последняя без записи в `melos.yaml`, пока пуста)
 - [ ] 1.2 Обновить пути в корневом [melos.yaml](../../melos.yaml) (`packages:` на новые пути `emb/...`), [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`working-directory`/матрица `flutter`-job'а, ключи кэша `hashFiles`), [AGENTS.md](../../AGENTS.md) (раздел «Структура» — переписан под категории `emb`/`backend`/`frontend`/`packages`), корневых README
 - [ ] 1.3 `dart run melos bootstrap`/`melos run analyze`/`melos run test`/`melos run lint` — подтвердить, что перенос не сломал существующие пакеты (по аналогии с задачей 1.4 в `openspec/changes/add-structured-log-flutter/tasks.md` при первом переходе на монорепо)
-- [ ] 1.4 Создать `backend/structured_log_server/`: `pubspec.yaml` (зависимости `shelf`, `shelf_router`, `drift`, `sqlite3`, `dart_jsonwebtoken`, `bcrypt`, `structured_log`; dev-зависимости `drift_dev`, `build_runner`), `lib/structured_log_server.dart` (barrel), `bin/`, `test/`, `example/`; `LICENSE` скопирован; `*.g.dart` добавлен в `.gitignore` пакета
+- [ ] 1.4 Создать `backend/structured_log_server/`: `pubspec.yaml` (зависимости `shelf`, `shelf_router`, `drift`, `sqlite3`, `dart_jsonwebtoken`, `bcrypt`, `mailer`, `structured_log`; dev-зависимости `drift_dev`, `build_runner`), `lib/structured_log_server.dart` (barrel), `bin/`, `test/`, `example/`; `LICENSE` скопирован; `*.g.dart` добавлен в `.gitignore` пакета
 - [ ] 1.5 Создать `emb/structured_log_http/`: `pubspec.yaml` (единственная зависимость — `structured_log`), `lib/structured_log_http.dart` (barrel), `test/`, `example/`; `LICENSE` скопирован
 - [ ] 1.6 Добавить оба новых пакета в `packages:` корневого [melos.yaml](../../melos.yaml); включить их в scope скриптов `analyze`/`format`/`format:check`/`test:dart`; задокументировать шаг `dart run build_runner build --delete-conflicting-outputs` для `structured_log_server`
 - [ ] 1.7 `melos bootstrap`/`dart run build_runner build`/`dart analyze` на пустых новых пакетах
 
 ## 2. structured_log_server — мультитенантная схема хранения
 
-- [ ] 2.1 Определить drift `Table`-классы (`lib/src/storage/database.dart`): `Users` (с `token_version`, по умолчанию 0), `Groups`, `Teams`, `TeamMembers`, `Projects`, `ProjectSecretKeys`, `RoleAssignments`, `RefreshTokens`, `ProjectUsage`, `LogEntries` (с `project_id`, `size_bytes`) — согласно `specs/log-server-storage/spec.md`; `@DriftDatabase`-аннотированный класс БД, `PRAGMA journal_mode=WAL`; сгенерировать `database.g.dart`
-- [ ] 2.2 Индексы: `log_entries` — `project_id`/`timestamp`/`level`/`category`/`session_id`/`request_id` и составной `(project_id, level, timestamp)`; уникальный индекс на `users.username`; индекс на `refresh_tokens.user_id`
+- [ ] 2.1 Определить drift `Table`-классы (`lib/src/storage/database.dart`): `Users` (с `token_version` и `email` — `nullable` в схеме, по умолчанию 0/`null`, обязателен только на уровне валидации `POST /v1/auth/register`), `Groups`, `Teams`, `TeamMembers`, `Projects`, `ProjectSecretKeys`, `RoleAssignments`, `RefreshTokens`, `PasswordResetTokens` (`id`, `user_id`, `token_hash`, `created_at`, `expires_at`, `used_at`), `ProjectUsage`, `LogEntries` (с `project_id`, `size_bytes`) — согласно `specs/log-server-storage/spec.md`; `@DriftDatabase`-аннотированный класс БД, `PRAGMA journal_mode=WAL`; сгенерировать `database.g.dart`
+- [ ] 2.2 Индексы: `log_entries` — `project_id`/`timestamp`/`level`/`category`/`session_id`/`request_id` и составной `(project_id, level, timestamp)`; уникальный индекс на `users.username`; уникальный частичный индекс на `users.email` (`WHERE email IS NOT NULL`); индекс на `refresh_tokens.user_id`; индекс на `password_reset_tokens.user_id`
 - [ ] 2.3 Миграция схемы при старте (`MigrationStrategy`/`onUpgrade`, идемпотентная)
 - [ ] 2.4 Реализовать `LogStore`/`DriftLogStore` (`insertBatch` с привязкой к `project_id`, `query` с фильтрами из `specs/log-server-api`) и построение фильтра (`lib/src/storage/query.dart`): типизированные поля через query-builder drift, `LIKE`/`json_extract` через `customSelect`, keyset-пагинация по `id`
 - [ ] 2.5 Юнит-тесты storage-слоя на сценарии из `specs/log-server-storage/spec.md`: привязка записи к проекту, использование составного индекса, round-trip произвольного context-поля, независимость received_at от timestamp, согласованность scope_id в role_assignments, сохранность данных после рестарта, отсутствие блокировки чтения при конкурентной записи (WAL)
@@ -20,7 +20,7 @@
 
 - [ ] 3.1 Определить публичный интерфейс `IdentityProvider`/`VerifiedIdentity`/`EffectiveRole` (`lib/src/auth/identity_provider.dart`, экспортирован из barrel-файла пакета) — контракт `verifyAccessToken(String bearerToken) -> Future<VerifiedIdentity?>`, `VerifiedIdentity.roles` опционален
 - [ ] 3.2 Хэширование паролей (`bcrypt`), секретных ключей проектов и refresh-токенов (SHA-256 случайного токена, генерируемого `Random.secure()`) — `lib/src/auth/hashing.dart`
-- [ ] 3.3 `POST /v1/auth/register`: создание пользователя по `username`/паролю без `RoleAssignment`, доступен только при `ServerConfig.registrationEnabled == true` (403 иначе), 409 при занятом `username`
+- [ ] 3.3 `POST /v1/auth/register`: создание пользователя по `username`/паролю/обязательному `email` (опционально `display_name`) без `RoleAssignment`, доступен только при `ServerConfig.registrationEnabled == true` (403 иначе), 400 при отсутствии `email`, 409 при занятом `username` или `email`
 - [ ] 3.4 Резолвинг claims `roles`/`tv` (`lib/src/auth/claims.dart`): по `user_id` собрать плоский снапшот эффективных прав (прямые `role_assignments` + через `team_members`) и прочитать текущий `token_version` — общая функция, используемая и `grant_type=password`, и `grant_type=refresh_token` (каждый раз заново, не переносится из старого токена)
 - [ ] 3.5 `POST /v1/auth/token` (form-encoded, `application/x-www-form-urlencoded`), диспетчеризация по `grant_type`:
   - `grant_type=password` — проверка `username`/`password`, выдача access-JWT (`dart_jsonwebtoken`, HS256, подписывающий секрет из `ServerConfig`, короткий срок жизни) с claims `iss`/`sub`/`iat`/`exp`/`jti`/`preferred_username`/`tv`/`roles` (из 3.4) + refresh-токена (хранится хэшем в `refresh_tokens`)
@@ -67,7 +67,7 @@
 
 ## 8. structured_log_server — CLI entrypoint
 
-- [ ] 8.1 `ServerConfig`: host/port/путь к БД/JWT-signing-секрет/лимиты батча/интервал purge job/`registrationEnabled` (CLI-флаг и переменная окружения, по умолчанию `false`) — из аргументов/переменных окружения
+- [ ] 8.1 `ServerConfig`: host/port/путь к БД/JWT-signing-секрет/лимиты батча/интервал purge job/`registrationEnabled` (CLI-флаг и переменная окружения, по умолчанию `false`)/SMTP host-port-username-password-from-адрес/`passwordResetBaseUrl`/срок действия токена восстановления пароля (`log-server-password-reset`) — из аргументов/переменных окружения
 - [ ] 8.2 `bin/server.dart`: обычный запуск сервера, graceful shutdown по SIGINT/SIGTERM
 - [ ] 8.3 Команда `create-admin --username ... --password ...` (bootstrap первого администратора, отказывает, если admin уже существует — decision 12 `design.md`)
 
@@ -127,4 +127,22 @@
 
 - [ ] 16.1 `README.md`/`README.ru.md` для `structured_log_server` (установка, bootstrap admin, создание группы/проекта/секретного ключа, management API, HTTP-контракт приёма/запроса), `structured_log_http` (установка, быстрый старт с `HttpLogOutput`) и `structured_log_admin_client` (установка, запуск, скриншоты основных экранов)
 - [ ] 16.2 Обновить корневые `README.md`/`README.ru.md` и разделы «Структура»/«CI» в [AGENTS.md](../../AGENTS.md)
-- [ ] 16.3 `openspec-verify-change`: сверить каждое требование из всех девяти спек этой change с кодом и тестами, decisions из `design.md` соблюдены
+- [ ] 16.3 `openspec-verify-change`: сверить каждое требование из всех десяти спек этой change с кодом и тестами, decisions из `design.md` соблюдены
+
+## 17. structured_log_server — восстановление пароля по email (log-server-password-reset)
+
+- [ ] 17.1 Добавить `email` (`nullable`/уникальное если задано на уровне таблицы) в `Users` (drift-таблица, миграция схемы); обязательная валидация на `POST /v1/auth/register` (400 при отсутствии), опциональное поле в `POST /v1/users`/`PATCH /v1/users/:id`
+- [ ] 17.2 `PasswordResetTokens` (drift-таблица, `lib/src/storage/database.dart`): `id`, `user_id`, `token_hash`, `created_at`, `expires_at`, `used_at`
+- [ ] 17.3 Интерфейс `EmailSender` (`lib/src/email/email_sender.dart`, экспортирован из barrel-файла пакета — по аналогии с `IdentityProvider`): `Future<void> send({required String to, required String subject, required String body})`
+- [ ] 17.4 `SmtpEmailSender implements EmailSender` (`lib/src/email/smtp_email_sender.dart`) поверх `package:mailer`; SMTP-настройки — из `ServerConfig` (8.1)
+- [ ] 17.5 `POST /v1/auth/password-reset` (JSON `{"email": "..."}"`): при существующем активном пользователе с таким `email` — инвалидировать его прежние неиспользованные токены восстановления, создать новый (высокоэнтропийная строка `Random.secure()`, хэш SHA-256, `expires_at` из конфигурации), отправить письмо через `EmailSender` (текст токена + опциональная ссылка `<passwordResetBaseUrl>?token=...`); всегда отвечать 202 с одинаковым телом, независимо от результата поиска пользователя
+- [ ] 17.6 `POST /v1/auth/password-reset/confirm` (JSON `{"token": "...", "new_password": "..."}"`): найти токен по хэшу, проверить `expires_at`/`used_at IS NULL` (400 `invalid_token` иначе), обновить хэш пароля, пометить токен использованным, инвалидировать остальные неиспользованные токены пользователя, инкрементировать `token_version` (4.2)
+- [ ] 17.7 Юнит-тесты на сценарии из `specs/log-server-password-reset/spec.md`: одинаковый ответ на существующий/несуществующий email, истёкший/использованный/несуществующий токен отклоняются, повторный запрос инвалидирует более ранний токен, успешный confirm инвалидирует текущие access-токены (несовпадение `token_version`) и сразу позволяет войти новым паролем, вход по `username`/паролю не зависит от наличия `email`
+- [ ] 17.8 Интеграционный тест (расширение `10.1` или отдельный сценарий): `POST /v1/auth/password-reset` → письмо перехвачено тестовым `EmailSender`-мок-реализацией → `POST /v1/auth/password-reset/confirm` с токеном из письма → ранее выданный access-токен отклонён (401) → вход новым паролем успешен
+
+## 18. structured_log_admin_client — восстановление пароля (admin-client-auth)
+
+- [ ] 18.1 Действие «Забыли пароль?» на экране логина (12.1) → экран запроса восстановления (поле `email`, `POST /v1/auth/password-reset`, одинаковое подтверждающее сообщение независимо от ответа сервера)
+- [ ] 18.2 Экран установки нового пароля (поле токена — предзаполняется из query-параметра `token` в web-сборке, иначе вводится вручную; поля нового пароля/подтверждения; `POST /v1/auth/password-reset/confirm`); понятная ошибка при 400 (`invalid_token`), предложение запросить восстановление заново
+- [ ] 18.3 Обязательное поле `email` на экране регистрации (12.2, с клиентской валидацией «поле обязательно» до отправки) и, при наличии соответствующего экрана управления пользователем, отображение `email` рядом с `username`/ролями (`admin-client-resource-management`)
+- [ ] 18.4 Виджет/юнит-тесты на сценарии из `specs/admin-client-auth/spec.md` (экраны «Забыли пароль?»/установки нового пароля): одинаковое сообщение независимо от существования email, успешная установка пароля предлагает войти, невалидный/истёкший токен показывает понятную ошибку
