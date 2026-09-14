@@ -41,6 +41,17 @@
 | `freezed` + `json_serializable` для моделей/DTO/состояний Bloc | Написанные вручную value-классы | Естественно сочетается с `Either<Failure, T>` из `fpdart` — обе стороны обычно `freezed`-классы. (decision 34) |
 | `cherrypick` для dependency injection | `get_it`/`provider`/ручная передача через конструкторы | Собственная DI-библиотека того же автора — уже давшая название конвенции раскладки `emb/` этого воркспейса (`AGENTS.md`), теперь впервые используется напрямую как зависимость. (decision 35) |
 
+## `structured_log_admin_ui`
+
+| Выбор | Отклонённая альтернатива | Почему |
+|---|---|---|
+| Отдельный пакет, только `flutter` sdk + `fluent_ui` | Папка `lib/shared/widgets/` внутри `structured_log_admin_client` | Папка — соглашение, которое импорт `Bloc` может случайно нарушить; отдельный пакет без зависимости на `fpdart`/`freezed`/`cherrypick`/`flutter_bloc`/`dio`/`retrofit`/`structured_log_admin_client` превращает это в ошибку компиляции. (decision 39) |
+| Только `atoms`/`molecules`/`organisms` (три уровня) | Классический пятиуровневый Atomic Design (+ `templates`/`pages`) | `templates`/`pages` собирают organisms с реальными данными — по определению завязаны на бизнес-логику конкретной фичи, то есть ровно то, чего в этом пакете быть не должно. Остаются в собственном `presentation`-слое `structured_log_admin_client`. (decision 39) |
+| `LogLevelBadge` владеет собственным мэппингом цвета | Импорт `logLevelColor()` из `structured_log_material`/`fluent` | Decision 21 уже исключает деление кода с viewer-пакетами; следует тому же прецеденту дублирования, что уже установлен между этими двумя пакетами. |
+
+Границы уровней и иллюстрированное дерево компонентов — см.
+[admin-client.md](admin-client.ru.md#библиотека-компонентов-structured_log_admin_ui).
+
 ## Паттерн архитектуры
 
 Оба новых пакета организованы **feature-first** (`auth`, `users`,

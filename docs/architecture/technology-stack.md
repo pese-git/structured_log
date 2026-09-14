@@ -41,6 +41,17 @@ row traces to a `design.md` decision — read there for the full argument.
 | `freezed` + `json_serializable` for models/DTOs/Bloc states | Hand-written value classes | Pairs naturally with `fpdart`'s `Either<Failure, T>` — both sides are typically `freezed` classes. (decision 34) |
 | `cherrypick` for dependency injection | `get_it`/`provider`/manual constructor wiring | Same author's own DI library — already the namesake for this workspace's `emb/` layout convention (`AGENTS.md`), now used directly as a dependency for the first time. (decision 35) |
 
+## `structured_log_admin_ui`
+
+| Choice | Rejected alternative | Why |
+|---|---|---|
+| Separate package, `flutter` sdk + `fluent_ui` only | A `lib/shared/widgets/` folder inside `structured_log_admin_client` | A folder is a convention a `Bloc` import can violate by accident; a separate package with no dependency on `fpdart`/`freezed`/`cherrypick`/`flutter_bloc`/`dio`/`retrofit`/`structured_log_admin_client` makes that a compile error instead. (decision 39) |
+| Only `atoms`/`molecules`/`organisms` (three tiers) | The classic five-tier Atomic Design (+ `templates`/`pages`) | `templates`/`pages` assemble organisms with real data — by definition tied to one feature's business logic, which is exactly what this package must not contain. They stay in `structured_log_admin_client`'s own `presentation` layer instead. (decision 39) |
+| `LogLevelBadge` owns its own color mapping | Import `logLevelColor()` from `structured_log_material`/`fluent` | Decision 21 already rules out sharing code with the viewer packages; this follows the same duplication precedent those two packages already set between each other. |
+
+See [admin-client.md](admin-client.md#the-component-library-structured_log_admin_ui)
+for the tier boundaries and an illustrated component tree.
+
 ## Architecture pattern
 
 Both new packages are organized **feature-first** (`auth`, `users`,

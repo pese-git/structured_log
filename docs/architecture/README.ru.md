@@ -2,7 +2,7 @@
 
 *Read in [English](README.md).*
 
-Этот документ представляет три пакета, спроектированных в
+Этот документ представляет четыре пакета, спроектированных в
 [add-structured-log-server](../../openspec/changes/add-structured-log-server/),
 то, как они соотносятся друг с другом, и принципы, повторяющиеся во всём
 их дизайне. Обоснование конкретного решения — в
@@ -28,6 +28,8 @@ flowchart LR
 
     subgraph Admin["structured_log_admin_client\n(Flutter)"]
         UI["Auth / управление ресурсами /\nпросмотр логов / аудит"]
+        KIT["structured_log_admin_ui\natoms / molecules / organisms"]
+        UI --> KIT
     end
 
     HTTP -- "POST /v1/logs\n(секретный ключ проекта)" --> API
@@ -53,12 +55,19 @@ flowchart LR
   сервера: аутентификация, управление ресурсами
   (пользователи/группы/команды/проекты/ключи/роли), просмотрщик логов с
   живой доставкой и аудит-лог. См. [admin-client.md](admin-client.md).
+- **`structured_log_admin_ui`** (`frontend/`) — компонентная библиотека
+  presentation-виджетов `structured_log_admin_client`, структурированная
+  по Atomic Design (atoms/molecules/organisms).
+  `structured_log_admin_client` зависит от неё, никогда наоборот — она
+  вообще не знает ни о `Bloc`-ах, ни о репозиториях, ни о HTTP-контракте.
+  См. [admin-client.md](admin-client.ru.md#библиотека-компонентов-structured_log_admin_ui).
 
-Ни один из трёх пакетов не делит Dart-код с другими, кроме самого
-`structured_log` — `structured_log_server` и `structured_log_admin_client`
-общаются только по задокументированному HTTP/JSON-контракту (decision
-19), а `structured_log_http` знает только wire-формат `POST /v1/logs`, не
-внутренности сервера.
+Ни один из четырёх пакетов не делит Dart-код с другими, кроме самого
+`structured_log`, за исключением `structured_log_admin_client` →
+`structured_log_admin_ui` (односторонне) — `structured_log_server` и
+`structured_log_admin_client` общаются только по задокументированному
+HTTP/JSON-контракту (decision 19), а `structured_log_http` знает только
+wire-формат `POST /v1/logs`, не внутренности сервера.
 
 ## Зачем вообще сервер
 
@@ -167,12 +176,24 @@ sequenceDiagram
   отказы RBAC, лимиты квоты, `invalid_grant` — не как повсеместная
   замена исключений, которые по-прежнему сигнализируют о настоящих
   багах (decision 33).
+- **Presentation-виджеты изолированы от бизнес-логики компилятором, не
+  только соглашением.** `structured_log_admin_ui` (decision 39) не может
+  импортировать `Bloc`-ы или код репозиториев даже по ошибке — граница
+  проходит отдельным пакетом с односторонней зависимостью, а не
+  директорией `lib/shared/widgets/`, которую технически ничто не
+  мешает дотянуться до состояния приложения.
 
 ## Где живёт каждый пакет
 
 Воркспейс реструктурируется в `emb/` (встраиваемые библиотеки),
-`backend/`, `frontend/` и `packages/` (зарезервировано, сейчас пусто) —
-см. decision 23. На момент написания эта реструктуризация, как и сами
-три пакета, существуют только как OpenSpec change; ни один из путей выше
-ещё не создан на диске. Раздел 1 `tasks.md` покрывает `git mv` и
-скаффолдинг.
+`backend/`, `frontend/` (теперь два пакета — `structured_log_admin_ui` и
+`structured_log_admin_client`, не только последний) и `packages/`
+(зарезервировано, сейчас пусто) — см. decision 23.
+`structured_log_admin_ui` живёт в `frontend/`, не в `emb/`, хотя формой
+и является «библиотекой»: `emb/` — конкретно для библиотек,
+встраиваемых в *любое* стороннее приложение, тогда как эта — набор
+компонентов конкретно под внешний вид и предметный словарь
+`structured_log_admin_client` (decision 39). На момент написания эта
+реструктуризация, как и все четыре пакета, существуют только как
+OpenSpec change; ни один из путей выше ещё не создан на диске. Раздел 1
+`tasks.md` покрывает `git mv` и скаффолдинг.

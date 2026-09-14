@@ -79,6 +79,66 @@ the shared singletons (`ApiClient`, token storage) and each feature's
 `infrastructure`/`application` bindings, so no `Bloc` or widget
 constructs an `infrastructure` dependency directly.
 
+## The component library: `structured_log_admin_ui`
+
+`presentation` in the diagram above doesn't build every widget from
+scratch — it composes pre-built, presentation-only widgets from a
+**separate package**, `structured_log_admin_ui` (decision 39), by
+direct user requirement.
+
+```mermaid
+flowchart LR
+    subgraph Kit["structured_log_admin_ui\n(flutter sdk + fluent_ui only)"]
+        AT["atoms\nLogLevelBadge, styled buttons/text,\nloading/empty states"]
+        MO["molecules\nsearch field, filter chip,\nkey/value row, labeled toggle"]
+        OR["organisms\nresource list row, filter bar,\nconfirm-dialog shell, nav shell"]
+        AT --> MO --> OR
+    end
+    OR --> PG["structured_log_admin_client\nfeature pages\n(presentation layer, Bloc-wired)"]
+```
+
+- **Why a separate package, not a `lib/shared/widgets/` folder inside
+  `structured_log_admin_client` itself:** a folder is a convention —
+  nothing stops a "dumb" widget file from importing a `Bloc` or a
+  repository by accident, or over time as a screen gets copy-pasted from.
+  A separate package makes that a compile error instead: `structured_log_admin_ui`
+  depends on **only** `flutter` sdk and `fluent_ui` — not `fpdart`,
+  `freezed`, `cherrypick`, `flutter_bloc`, `dio`, or `retrofit`, and it
+  cannot import anything from `structured_log_admin_client` (the
+  dependency points one way only).
+- **Three tiers, not the classic five.** Atomic Design (Brad Frost) also
+  has `templates` and `pages`, but those assemble organisms into a real
+  screen with real data — which is, by definition, tied to a specific
+  feature's business logic. That's exactly what this package must not
+  contain, so `templates`/`pages` stay where the data and the `Bloc` are:
+  each feature's own `presentation` layer inside `structured_log_admin_client`.
+  Only `atoms`/`molecules`/`organisms` live in `structured_log_admin_ui`,
+  and every one of them takes only primitive/enum parameters and
+  callbacks (`onTap`, `onChanged`, ...) — never a domain model or a
+  `Bloc` state directly. Purely presentational local state (hover,
+  focus, expanded/collapsed) is fine via a plain `StatefulWidget`/
+  `ValueNotifier` — not `flutter_bloc`.
+- **Duplicated, not shared, log-level colors.** A `LogLevelBadge` atom
+  owns its own small level→color mapping rather than importing
+  `structured_log_material`'s or `structured_log_fluent`'s — decision 21
+  already rules out sharing code with the viewer packages (different
+  data source), and this follows the same precedent already set between
+  `structured_log_material` and `structured_log_fluent` themselves,
+  which deliberately duplicate that same palette between each other.
+- **`example/` is a component gallery** — every atom/molecule/organism
+  rendered on one screen, the same pattern as
+  `structured_log_material_example`/`structured_log_fluent_example`.
+  Doubles as a quick way to check the implementation against the
+  external Claude Design mockups (decision 38).
+- **Isn't this "abstracting before a second consumer"** (the principle
+  behind decisions 18/21 elsewhere in this system)? No — that principle
+  is about premature generalization for a hypothetical *second*
+  consumer/backend/UI kit. Here the motivation is different and not
+  speculative: separating presentation widgets from business logic
+  *inside the same single app*, by direct user requirement.
+  `structured_log_admin_ui`'s one and only consumer was, and remains,
+  `structured_log_admin_client`.
+
 ## HTTP layer: `dio` + `retrofit`, not `package:http`
 
 ```mermaid

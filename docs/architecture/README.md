@@ -2,7 +2,7 @@
 
 *Читать на [русском](README.ru.md).*
 
-This document introduces the three packages proposed by
+This document introduces the four packages proposed by
 [add-structured-log-server](../../openspec/changes/add-structured-log-server/),
 how they relate to each other, and the principles that recur throughout
 their design. For the reasoning behind any specific decision, see
@@ -28,6 +28,8 @@ flowchart LR
 
     subgraph Admin["structured_log_admin_client\n(Flutter)"]
         UI["Auth / resource mgmt /\nlog browser / audit UI"]
+        KIT["structured_log_admin_ui\natoms / molecules / organisms"]
+        UI --> KIT
     end
 
     HTTP -- "POST /v1/logs\n(project secret key)" --> API
@@ -52,9 +54,16 @@ flowchart LR
   authentication, resource management (users/groups/teams/projects/keys/
   roles), the live-tailing log browser, and the audit log. See
   [admin-client.md](admin-client.md).
+- **`structured_log_admin_ui`** (`frontend/`) — a component library for
+  `structured_log_admin_client`'s presentation-only widgets, structured
+  by Atomic Design (atoms/molecules/organisms). `structured_log_admin_client`
+  depends on it, never the reverse — it has no knowledge of `Bloc`s,
+  repositories, or the HTTP contract at all. See
+  [admin-client.md](admin-client.md#the-component-library-structured_log_admin_ui).
 
-None of the three share Dart code with each other beyond `structured_log`
-itself — `structured_log_server` and `structured_log_admin_client`
+None of the four share Dart code with each other beyond `structured_log`
+itself, except `structured_log_admin_client` → `structured_log_admin_ui`
+(one-way) — `structured_log_server` and `structured_log_admin_client`
 communicate only over the documented HTTP/JSON contract (decision 19),
 and `structured_log_http` only knows the wire format of `POST /v1/logs`,
 not the server's internals.
@@ -159,12 +168,24 @@ These aren't specific to one capability — they show up repeatedly in
   part of the contract — validation errors, RBAC denials, quota limits,
   `invalid_grant` — not as a blanket replacement for exceptions, which
   still signal genuine bugs (decision 33).
+- **Presentation widgets are compiler-isolated from business logic, not
+  just conventionally separated.** `structured_log_admin_ui` (decision
+  39) can't import `Bloc`s or repository code even by mistake — the
+  boundary is a separate package with a one-way dependency, not a
+  `lib/shared/widgets/` folder that nothing technically stops from
+  reaching into app state.
 
 ## Where each package lives
 
 The workspace is being restructured into `emb/` (embeddable libraries),
-`backend/`, `frontend/`, and `packages/` (reserved, currently empty) —
-see decision 23. As of this writing that restructuring, and the three
-packages themselves, exist only as the OpenSpec change; none of the
+`backend/`, `frontend/` (now two packages — `structured_log_admin_ui`
+and `structured_log_admin_client`, not just the latter), and `packages/`
+(reserved, currently empty) — see decision 23.
+`structured_log_admin_ui` sits in `frontend/`, not `emb/`, despite being
+a "library" in form: `emb/` is specifically for libraries embeddable in
+*any* third-party application, whereas this one is a component set
+specific to `structured_log_admin_client`'s own look and domain
+vocabulary (decision 39). As of this writing that restructuring, and all
+four packages themselves, exist only as the OpenSpec change; none of the
 paths above are on disk yet. `tasks.md` section 1 covers the `git mv`
 and scaffolding.
