@@ -64,6 +64,13 @@
   только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
   не является пакетом workspace и не перечислен в `packages:` в `melos.yaml`.
 - [openspec/](openspec/) — артефакты OpenSpec (proposal/design/specs/tasks) для change-заявок.
+- [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
+  `structured_log_server`/`structured_log_http`/`structured_log_admin_client`, спроектированную в
+  [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
+  читаемое по темам изложение поверх `design.md`/`specs/*.md`, а не замена им (при расхождении
+  приоритет у OpenSpec-артефактов). Билингвальные пары файлов (`*.md`/`*.ru.md`), по той же
+  конвенции, что `README.md`/`README.ru.md` и `structured_log/doc/ARCHITECTURE.md`/`.ru.md`. См.
+  [docs/README.md](docs/README.md) для оглавления.
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) — CI.
 - [LICENSE](LICENSE) — лицензия репозитория; копия лежит также внутри `structured_log/`
   (и будет копироваться в каждый новый пакет), так как `dart pub publish` пакует только
