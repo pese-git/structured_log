@@ -120,7 +120,7 @@ them was a real design trap this schema avoids:
 |---|---|---|---|
 | `is_active` | Can this account authenticate right now? | `block`/`unblock` (decision 25), also flipped by delete | Yes, via `unblock` — except see below |
 | `deleted_at` | Was this account ever deleted (self or admin)? | `DELETE /v1/users/me` / `DELETE /v1/users/:id` (decision 27) | No — `unblock` explicitly refuses accounts with `deleted_at` set |
-| `is_primary_admin` | Is this the one account bootstrap created first? | Only `create-admin`'s first-ever successful run (decision 28) | N/A — no API path sets or clears it |
+| `is_primary_admin` | Is this the one account bootstrap created first? | The first bootstrap only — auto-creation on an empty database (decision 49) or `create-admin` (decision 28) | N/A — no API path sets or clears it |
 
 Deletion sets `is_active = false` *and* `deleted_at = now()` — it reuses
 blocking's revocation mechanics (refresh-token revocation, `token_version`
@@ -141,8 +141,8 @@ state machine and who can trigger which transition.
   non-exclusion of deleted rows.
 - `users.is_primary_admin`: unique partial index (`WHERE
   is_primary_admin = true`) — a schema-level guarantee that a second row
-  can never carry the flag, even if the `create-admin` code path had a
-  bug (decision 28).
+  can never carry the flag, even if either bootstrap path had a bug
+  (decisions 28/49).
 
 ## Storage engine
 

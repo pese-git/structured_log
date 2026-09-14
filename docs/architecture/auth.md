@@ -185,9 +185,15 @@ By direct, explicit user requirement (decision 40): any account with an
 `email` set — whether through self-registration (where it's mandatory)
 or an admin setting one via `POST /v1/users` (where it's optional) —
 must verify that address before `grant_type=password` will issue it
-tokens. Accounts with no `email` at all (including the bootstrap
-`create-admin` account, which never collects one) are simply exempt —
-there's nothing to verify.
+tokens. Accounts with no `email` at all are simply exempt — there's nothing to
+verify. That covers both bootstrap paths (decision 49): the account
+`create-admin` creates, and the one the server creates by itself on a
+first start against an empty database
+([rbac-and-lifecycle.md](rbac-and-lifecycle.md#bootstrap-two-paths-to-the-first-admin))
+— neither collects an address, which is exactly what keeps the very
+first login from depending on SMTP being configured. The trade-off is
+named rather than hidden: until an admin sets an email on that account,
+password recovery isn't available to it either.
 
 ```mermaid
 sequenceDiagram

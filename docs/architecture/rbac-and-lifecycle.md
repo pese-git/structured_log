@@ -126,14 +126,43 @@ separate:
   `design.md`'s Risks section for why this is accepted as out of scope
   for now.
 
-## Bootstrap: `create-admin`
+## Bootstrap: two paths to the first admin
 
-The first `admin` is created by an explicit CLI command
-(`create-admin --username ... --password ...`), run by the server
-operator separately from the normal `dart run bin/server.dart` — never
-automatically on first boot from environment variables (decision 12).
-The command refuses to run if an active, non-deleted `admin` already
-exists — but that check is independent of whether `is_primary_admin` has
+The first `admin` arrives one of two ways (decision 49 revised
+decision 12, which originally allowed only the second):
+
+**Automatically, on a first start against an empty database.** If the
+`users` table holds no rows at all and auto-bootstrap isn't switched
+off, the server creates an admin before it opens the port: username from
+`STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME` (default `admin`), password
+from `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` (or its `_FILE` variant),
+or — when none is given — a freshly generated random one, printed once
+to the startup log and marked temporary. The account gets
+`is_primary_admin = true` and `must_change_password = true`, so until
+that password is changed it can do nothing except change it
+([auth.md](auth.md#patch-v1usersid-and-the-mandatory-temporary-password)).
+No `email` is collected, which is precisely why mandatory verification
+doesn't lock it out.
+
+The condition is *no users at all*, not *no active admin*: a running
+system whose admins were deleted or blocked must never sprout an account
+named `admin` on the next restart. An empty table happens once in a
+database's life.
+
+Decision 12 rejected auto-creation because of "default credentials left
+behind by accident". That objection is answered rather than ignored:
+there is no predictable password in any mode, the password is temporary,
+and the whole behaviour switches off with
+`--bootstrap-admin-enabled=false`.
+
+**Explicitly, with `create-admin`.** The CLI command
+(`create-admin --username ... --password ...`) still exists, and it's
+the only path on a non-empty database — re-bootstrapping after the sole
+active admin blocked themselves, or setting up a deployment with
+auto-bootstrap disabled. Unlike auto-creation it does *not* set
+`must_change_password`: the operator typed that password themselves,
+which makes it the same situation as self-registration. The command
+refuses to run if an active, non-deleted `admin` already exists — but that check is independent of whether `is_primary_admin` has
 ever been set, so a legitimate re-bootstrap after the sole active admin
 blocked themselves doesn't create a second primary administrator
 (decision 28's guard: the flag is set only if *no* user in the table's

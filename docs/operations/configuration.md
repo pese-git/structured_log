@@ -41,6 +41,10 @@ STRUCTURED_LOG_JWT_SECRET=...            # direct
 STRUCTURED_LOG_JWT_SECRET_FILE=/run/secrets/jwt   # from a mounted file
 ```
 
+The same applies to `STRUCTURED_LOG_SMTP_PASSWORD` and to
+`STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` — the first admin's password on
+an empty database.
+
 Process arguments are visible in `ps` to every user on the machine, land
 in shell history, and get logged by supervisors — so the flag doesn't
 exist rather than existing with a warning attached. Setting both forms
@@ -101,7 +105,9 @@ uses, so it cannot drift from the real set of options.
 
 ## Which settings a command needs
 
-Requirements are evaluated per command. `create-admin`
+Bootstrap settings are read only by a normal server start, never by
+`create-admin`, and none of them is required: an unset password means
+"generate one", not "fail". Requirements are evaluated per command. `create-admin`
 ([auth.md](../architecture/auth.md)) needs only the database path —
 demanding a JWT secret and SMTP settings from a command that writes one
 row would block first-time setup on mail configuration that isn't
@@ -145,8 +151,19 @@ Questions).
 | Own-log format | `--log-format` | `console` | `console` or `json` for machine collection |
 | Own-log file | `--log-file` | unset | Unset = console. When set, writing is asynchronous with rotation so it never blocks the single isolate |
 | Own-log rotation | `--log-file-max-bytes`, `--log-file-max-files` | TBD | Only meaningful together with `--log-file` |
+| Auto-bootstrap admin | `--bootstrap-admin-enabled` / `--no-bootstrap-admin-enabled` | `true` | Creates the first admin when the `users` table is empty ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md#bootstrap-two-paths-to-the-first-admin)) |
+| Bootstrap admin username | `--bootstrap-admin-username` | `admin` | Only used when the table is empty |
+| Bootstrap admin password | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | generated | Secret: no flag. Unset = a random one is generated and printed once, marked temporary |
 
 ## Examples
+
+```bash
+# First boot: a database path and a JWT secret are all it takes — the
+# first admin is created automatically, with a generated temporary
+# password printed once to the startup log
+STRUCTURED_LOG_JWT_SECRET=$(openssl rand -hex 32) \
+  dart run bin/server.dart --db-path /data/logs.db
+```
 
 ```bash
 # Development: everything from flags, secret from the environment
@@ -172,7 +189,8 @@ dart run bin/server.dart --http-port 9090
 ```
 
 ```bash
-# First-time setup: no JWT secret or SMTP needed for this command
+# Re-bootstrap on a non-empty database (auto-creation never fires there);
+# no JWT secret or SMTP needed for this command
 dart run bin/server.dart create-admin --db-path /data/logs.db \
   --username admin --password "$(read -rsp 'password: ' p; echo "$p")"
 ```

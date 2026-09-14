@@ -31,10 +31,10 @@
 | `display_name` | string \| null | |
 | `email` | string \| null | Только контакт для восстановления, не идентификатор для входа |
 | `email_verified_at` | string \| null | ISO 8601; `null` блокирует `grant_type=password` для этого аккаунта, если `email` задан ([auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-перед-входом-не-опционально)); всегда `null`, если `email` — `null` |
-| `must_change_password` | boolean | `true`, если пароль этого аккаунта задал администратор (создание или `PATCH`); блокирует любой JWT-эндпоинт, кроме небольшого списка исключений, пока не снят через `POST /v1/auth/change-password` ([auth.md](../architecture/auth.ru.md#patch-v1usersid-и-обязательный-временный-пароль)); всегда `false` для самостоятельно зарегистрированных аккаунтов |
+| `must_change_password` | boolean | `true`, если пароль этого аккаунта задал не его владелец — администратор (создание или `PATCH`) либо сам сервер при автосоздании первого администратора (decision 49); блокирует любой JWT-эндпоинт, кроме небольшого списка исключений, пока не снят через `POST /v1/auth/change-password` ([auth.md](../architecture/auth.ru.md#patch-v1usersid-и-обязательный-временный-пароль)); всегда `false` для самостоятельно зарегистрированных аккаунтов |
 | `is_active` | boolean | `false` при блокировке ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | `deleted_at` | string \| null | ISO 8601; устанавливается один раз, никогда не снимается |
-| `is_primary_admin` | boolean | `true` не более чем у одного пользователя за всю историю |
+| `is_primary_admin` | boolean | `true` не более чем у одного пользователя за всю историю — у того, кого создал первый сработавший bootstrap (автосоздание на пустой базе или `create-admin`) |
 | `created_at` | string | ISO 8601 |
 
 ```json
