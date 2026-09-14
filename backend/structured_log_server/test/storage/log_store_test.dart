@@ -60,14 +60,16 @@ void main() {
   tearDown(() => db.close());
 
   group('insertBatch', () {
-    test('ties every entry to the given project and returns their ids',
+    test('ties every entry to the given project and returns the stored rows',
         () async {
-      final ids = await store.insertBatch(projectA, [
+      final inserted = await store.insertBatch(projectA, [
         entry(event: 'e1'),
         entry(event: 'e2'),
       ]);
 
-      expect(ids, hasLength(2));
+      expect(inserted.map((r) => r.event), ['e1', 'e2']);
+      expect(inserted.every((r) => r.id > 0), isTrue);
+      expect(inserted.every((r) => r.projectId == projectA), isTrue);
       final rows = await db.select(db.logEntries).get();
       expect(rows.every((r) => r.projectId == projectA), isTrue);
       expect(rows.map((r) => r.event), containsAll(['e1', 'e2']));
@@ -124,7 +126,10 @@ void main() {
       ]);
 
       final page = await store.query(
-        LogQuery(projectIds: [projectA], minLevel: 'warning'),
+        LogQuery(
+          projectIds: [projectA],
+          filter: const LogFilter(minLevel: 'warning'),
+        ),
       );
       expect(
         page.entries.map((e) => e.event),
@@ -139,7 +144,10 @@ void main() {
       ]);
 
       final page = await store.query(
-        LogQuery(projectIds: [projectA], category: 'payments'),
+        LogQuery(
+          projectIds: [projectA],
+          filter: const LogFilter(category: 'payments'),
+        ),
       );
       expect(page.entries.map((e) => e.event), ['e1']);
     });
@@ -168,7 +176,10 @@ void main() {
       ]);
 
       final page = await store.query(
-        LogQuery(projectIds: [projectA], sessionId: 's-1'),
+        LogQuery(
+          projectIds: [projectA],
+          filter: const LogFilter(sessionId: 's-1'),
+        ),
       );
       expect(page.entries.map((e) => e.event), ['mine']);
     });
@@ -181,7 +192,10 @@ void main() {
       ]);
 
       final page = await store.query(
-        LogQuery(projectIds: [projectA], q: 'checkout'),
+        LogQuery(
+          projectIds: [projectA],
+          filter: const LogFilter(q: 'checkout'),
+        ),
       );
       expect(
         page.entries.map((e) => e.event),
@@ -196,7 +210,10 @@ void main() {
       ]);
 
       final page = await store.query(
-        LogQuery(projectIds: [projectA], q: 'has_underscore'),
+        LogQuery(
+          projectIds: [projectA],
+          filter: const LogFilter(q: 'has_underscore'),
+        ),
       );
       expect(page.entries.map((e) => e.event), ['has_underscore']);
     });
@@ -211,7 +228,10 @@ void main() {
       ]);
 
       final page = await store.query(
-        LogQuery(projectIds: [projectA], contextEquals: {'order_id': '42'}),
+        LogQuery(
+          projectIds: [projectA],
+          filter: const LogFilter(contextEquals: {'order_id': '42'}),
+        ),
       );
       expect(
         page.entries.map((e) => e.event),

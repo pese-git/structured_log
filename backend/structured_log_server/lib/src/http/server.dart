@@ -6,12 +6,14 @@ import '../auth/local_identity_provider.dart';
 import '../auth/token_service.dart';
 import '../errors.dart';
 import '../rbac/authorizer.dart';
+import '../live/log_broadcast.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
 import 'principal_middleware.dart';
 import 'routes/auth_route.dart';
 import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
+import 'routes/log_stream_route.dart';
 import 'routes/logs_route.dart';
 import 'routes/projects_route.dart';
 import 'routes/secret_keys_route.dart';
@@ -45,6 +47,8 @@ Handler buildHandler(
   StructuredLogDatabase db, {
   required String signingSecret,
   required String issuer,
+  LogBroadcast? broadcast,
+  Duration sseHeartbeatInterval = defaultSseHeartbeat,
 }) {
   final authorizer = Authorizer(db);
   final claimsResolver = ClaimsResolver(db, authorizer);
@@ -60,11 +64,22 @@ Handler buildHandler(
     issuer: issuer,
   );
   final logStore = DriftLogStore(db);
+  // Owned by the caller when it needs to close it (the CLI entrypoint);
+  // otherwise one per handler, which is what tests want.
+  final logBroadcast = broadcast ?? LogBroadcast();
 
   final featureRouters = <Router>[
     AuthRoutes(tokenService).router,
     ChangePasswordRoutes(db).router,
-    LogRoutes(db, authorizer, logStore).router,
+    LogRoutes(db, authorizer, logStore, logBroadcast).router,
+    LogStreamRoutes(
+      db,
+      authorizer,
+      logStore,
+      logBroadcast,
+      identityProvider,
+      heartbeatInterval: sseHeartbeatInterval,
+    ).router,
     GroupRoutes(db, authorizer).router,
     ProjectRoutes(db, authorizer).router,
     SecretKeyRoutes(db, authorizer).router,

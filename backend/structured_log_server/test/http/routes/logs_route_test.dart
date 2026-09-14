@@ -7,6 +7,7 @@ import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/logs_route.dart';
 import 'package:structured_log_server/src/rbac/authorizer.dart';
+import 'package:structured_log_server/src/live/log_broadcast.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 import 'package:structured_log_server/src/storage/log_store.dart';
 import 'package:test/test.dart';
@@ -45,7 +46,7 @@ void main() {
     db = openInMemory();
     authorizer = Authorizer(db);
     logStore = DriftLogStore(db);
-    routes = LogRoutes(db, authorizer, logStore);
+    routes = LogRoutes(db, authorizer, logStore, LogBroadcast());
     groupId =
         await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
     projectId = await db.into(db.projects).insert(
@@ -139,7 +140,8 @@ void main() {
         () async {
       // The cap is a constructor field now — annotated handlers may not take
       // optional parameters.
-      final capped = LogRoutes(db, authorizer, logStore, maxBodyBytes: 5);
+      final capped =
+          LogRoutes(db, authorizer, logStore, LogBroadcast(), maxBodyBytes: 5);
       await expectLater(
         capped.router.call(
           ingestRequest(projectId, [

@@ -4,15 +4,15 @@ import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
-import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../ingest/ingest.dart';
-import '../../rbac/access_check.dart';
+import '../../live/log_broadcast.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
 import '../../storage/log_store.dart';
 import '../../storage/query.dart';
 import '../json_response.dart';
+import '../log_query_params.dart';
 import '../principal_middleware.dart';
 
 part 'logs_route.g.dart';
@@ -35,6 +35,7 @@ class LogRoutes {
   final StructuredLogDatabase _db;
   final Authorizer _authorizer;
   final LogStore _logStore;
+  final LogBroadcast _broadcast;
 
   /// Annotated handlers may not take optional parameters, so the ingest body
   /// cap is a field rather than a named argument — it becomes a
@@ -44,7 +45,8 @@ class LogRoutes {
   LogRoutes(
     this._db,
     this._authorizer,
-    this._logStore, {
+    this._logStore,
+    this._broadcast, {
     this.maxBodyBytes = defaultMaxIngestBodyBytes,
   });
 
@@ -98,8 +100,8 @@ class LogRoutes {
     );
 
     if (outcome.accepted.isNotEmpty) {
-      await _db.transaction(() async {
-        await _logStore.insertBatch(projectId, outcome.accepted);
+      final inserted = await _db.transaction(() async {
+        final rows = await _logStore.insertBatch(projectId, outcome.accepted);
         await (_db.update(
           _db.projectUsage,
         )..where((t) => t.projectId.equals(projectId)))
@@ -111,7 +113,12 @@ class LogRoutes {
                 _db.projectUsage.totalBytes + Constant(outcome.bytesDelta),
           ),
         );
+        return rows;
       });
+      // After the commit, never inside it: a subscriber may react by
+      // reading these rows back (catch-up), and they have to be there
+      // (`log-server-live-stream`).
+      _broadcast.publish(inserted);
     }
 
     return jsonOk({
@@ -126,87 +133,20 @@ class LogRoutes {
   Future<Response> queryLogs(Request request) async {
     final identity = request.requireUser();
     final params = request.url.queryParameters;
-    final projectIdParam = params['project_id'];
-    final groupIdParam = params['group_id'];
-    if ((projectIdParam == null) == (groupIdParam == null)) {
-      throw ApiError.invalidRequest(
-        'Exactly one of project_id or group_id is required.',
-      );
-    }
+    final scope = await resolveLogScope(_db, _authorizer, identity, params);
+    final filter = parseLogFilter(params);
 
-    final roles = await resolveRoles(_authorizer, identity);
-    List<int> projectIds;
-
-    if (projectIdParam != null) {
-      final projectId = int.tryParse(projectIdParam);
-      if (projectId == null) throw ApiError.notFound('project_id not found.');
-      final project = await (_db.select(
-        _db.projects,
-      )..where((t) => t.id.equals(projectId)))
-          .getSingleOrNull();
-      if (project == null) throw ApiError.notFound('project_id not found.');
-      if (!canRead(
-        roles,
-        targetType: ScopeType.project,
-        targetId: projectId,
-        enclosingGroupId: project.groupId,
-      )) {
-        throw ApiError.forbidden();
-      }
-      if (project.isBlocked) {
-        throw const ApiError(
-          403,
-          'project_blocked',
-          'This project is blocked.',
-        );
-      }
-      projectIds = [projectId];
-    } else {
-      final groupId = int.tryParse(groupIdParam!);
-      if (groupId == null) throw ApiError.notFound('group_id not found.');
-      final group = await (_db.select(
-        _db.groups,
-      )..where((t) => t.id.equals(groupId)))
-          .getSingleOrNull();
-      if (group == null) throw ApiError.notFound('group_id not found.');
-      if (!canRead(roles, targetType: ScopeType.group, targetId: groupId)) {
-        throw ApiError.forbidden();
-      }
-      final projects = await (_db.select(
-        _db.projects,
-      )..where((t) => t.groupId.equals(groupId) & t.isBlocked.equals(false)))
-          .get();
-      projectIds = projects.map((p) => p.id).toList();
-    }
-
-    if (projectIds.isEmpty) {
+    if (scope.projectIds.isEmpty) {
       return jsonOk({'items': <Object?>[], 'next_cursor': null});
     }
 
-    final connectionGeneration = params['connection_generation'];
     final page = await _logStore.query(
       LogQuery(
-        projectIds: projectIds,
-        minLevel: params['level'],
-        category: params['category'],
-        logger: params['logger'],
+        projectIds: scope.projectIds,
+        filter: filter,
         from:
             params['from'] != null ? DateTime.tryParse(params['from']!) : null,
         to: params['to'] != null ? DateTime.tryParse(params['to']!) : null,
-        sessionId: params['session_id'],
-        requestId: params['request_id'],
-        connectionGeneration: connectionGeneration != null
-            ? int.tryParse(connectionGeneration)
-            : null,
-        toolCallId: params['tool_call_id'],
-        messageId: params['message_id'],
-        operationId: params['operation_id'],
-        q: params['q'],
-        contextEquals: {
-          for (final entry in params.entries)
-            if (entry.key.startsWith('context.'))
-              entry.key.substring('context.'.length): entry.value,
-        },
         limit: params['limit'] != null ? int.parse(params['limit']!) : 50,
         cursor:
             params['cursor'] != null ? int.tryParse(params['cursor']!) : null,

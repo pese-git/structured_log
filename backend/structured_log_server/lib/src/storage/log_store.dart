@@ -8,9 +8,14 @@ import 'query.dart';
 /// not on `drift` directly.
 abstract class LogStore {
   /// Inserts [entries] under [projectId] in one transaction, returning the
-  /// assigned `id` of each inserted row in the same order as [entries]
+  /// stored rows in the same order as [entries] — ids assigned
   /// (`log-server-storage`: every entry is tied to exactly one project).
-  Future<List<int>> insertBatch(
+  ///
+  /// The rows rather than their ids, because the live stream broadcasts
+  /// exactly what was committed (`log-server-live-stream`) and rebuilding
+  /// a row from its companion would be a second, drift-prone copy of the
+  /// mapping.
+  Future<List<LogEntry>> insertBatch(
     int projectId,
     List<LogEntriesCompanion> entries,
   );
@@ -25,19 +30,19 @@ class DriftLogStore implements LogStore {
   DriftLogStore(this._db);
 
   @override
-  Future<List<int>> insertBatch(
+  Future<List<LogEntry>> insertBatch(
     int projectId,
     List<LogEntriesCompanion> entries,
   ) {
     return _db.transaction(() async {
-      final ids = <int>[];
+      final rows = <LogEntry>[];
       for (final entry in entries) {
-        final id = await _db
+        final row = await _db
             .into(_db.logEntries)
-            .insert(entry.copyWith(projectId: Value(projectId)));
-        ids.add(id);
+            .insertReturning(entry.copyWith(projectId: Value(projectId)));
+        rows.add(row);
       }
-      return ids;
+      return rows;
     });
   }
 

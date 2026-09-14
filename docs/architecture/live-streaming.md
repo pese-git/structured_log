@@ -78,6 +78,32 @@ during the query is buffered, not missed. `since_id` is optional; when
 it's omitted, the stream simply starts from the moment of subscription
 with no catch-up.
 
+## Response buffering: `shelf` turns it on by default
+
+`shelf_io` buffers a streamed response body until the buffer fills — which
+for a live stream means never: the client sees neither events nor
+heartbeats, and the connection looks open and dead at the same time. The
+opt-out is an explicit key in `Response.context`:
+
+```dart
+return Response.ok(
+  body.stream,
+  headers: sseHeaders,
+  context: const {'shelf.io.buffer_output': false},
+);
+```
+
+What matters is that this defect is invisible to tests that call the
+`Handler` directly and read `response.read()`: the buffering lives in
+`HttpResponse`, so it only appears on a real socket. That is why delivery
+is also covered by an integration test that starts `bin/server.dart` as a
+process (`test/bin/server_integration_test.dart`), not by handler tests
+alone.
+
+The response headers carry `Cache-Control: no-cache, no-transform` and
+`X-Accel-Buffering: no` for the same reason — an intermediary proxy that
+decides to "collect" the body reproduces exactly the same picture.
+
 ## Re-validating a long-lived connection
 
 An access token is short-lived by design (minutes — see

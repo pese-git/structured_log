@@ -30,6 +30,7 @@ const _routes = <({String method, String path, Requires requires})>[
   (method: 'POST', path: '/v1/auth/change-password', requires: Requires.user),
   (method: 'POST', path: '/v1/logs', requires: Requires.project),
   (method: 'GET', path: '/v1/logs', requires: Requires.user),
+  (method: 'GET', path: '/v1/logs/stream', requires: Requires.user),
   (method: 'POST', path: '/v1/groups', requires: Requires.user),
   (method: 'GET', path: '/v1/groups', requires: Requires.user),
   (method: 'POST', path: '/v1/groups/1/projects', requires: Requires.user),

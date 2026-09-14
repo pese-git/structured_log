@@ -7,6 +7,7 @@ import 'package:structured_log_server/src/auth/create_admin.dart';
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:structured_log_server/src/http/server.dart';
+import 'package:structured_log_server/src/live/log_broadcast.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 
 const _version = '0.1.0-dev.0';
@@ -106,10 +107,16 @@ Future<void> _runServe(ServerConfig config) async {
     logWarning: (message) => stderr.writeln('warning: $message'),
   );
 
+  // Owned here rather than by buildHandler so shutdown can close it and
+  // every open `GET /v1/logs/stream` subscription ends with the process
+  // instead of hanging on a stream that will never produce again.
+  final logBroadcast = LogBroadcast();
   final handler = buildHandler(
     db,
     signingSecret: config.jwtSigningSecret!,
     issuer: config.jwtIssuer,
+    broadcast: logBroadcast,
+    sseHeartbeatInterval: Duration(seconds: config.sseHeartbeatIntervalSeconds),
   );
 
   final server =
@@ -118,9 +125,13 @@ Future<void> _runServe(ServerConfig config) async {
 
   final done = Completer<void>();
   final subscriptions = <StreamSubscription<ProcessSignal>>[
-    ProcessSignal.sigint.watch().listen((_) => _shutdown(server, db, done)),
+    ProcessSignal.sigint
+        .watch()
+        .listen((_) => _shutdown(server, db, logBroadcast, done)),
     if (!Platform.isWindows)
-      ProcessSignal.sigterm.watch().listen((_) => _shutdown(server, db, done)),
+      ProcessSignal.sigterm
+          .watch()
+          .listen((_) => _shutdown(server, db, logBroadcast, done)),
   ];
 
   await done.future;
@@ -132,10 +143,15 @@ Future<void> _runServe(ServerConfig config) async {
 Future<void> _shutdown(
   HttpServer server,
   StructuredLogDatabase db,
+  LogBroadcast broadcast,
   Completer<void> done,
 ) async {
   if (done.isCompleted) return;
   stdout.writeln('Shutting down...');
+  // Close the broadcast before the server: an open subscription that is
+  // still being fed while the socket goes away would keep the process
+  // alive on a stream nobody can read.
+  await broadcast.close();
   await server.close(force: false);
   await db.close();
   done.complete();
