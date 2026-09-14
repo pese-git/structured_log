@@ -33,7 +33,7 @@
 - **THEN** запрос с фильтром на конкретное значение `order_id` возвращает только записи с этим значением
 
 ### Requirement: Мультитенантные сущности управления доступом
-Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, email — nullable, уникален если задан, created_at, is_active, deleted_at — nullable, token_version — целочисленный счётчик, по умолчанию 0), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, is_blocked — по умолчанию `false`, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
+Хранилище SHALL предоставлять таблицы `users` (id, username уникален, password_hash, display_name, email — nullable, уникален если задан, created_at, is_active, deleted_at — nullable, is_primary_admin — по умолчанию `false`, token_version — целочисленный счётчик, по умолчанию 0), `groups` (id, name, created_at), `teams` (id, group_id — ровно одна группа, name, created_at), `team_members` (team_id, user_id — связь многие-ко-многим), `projects` (id, group_id, name, retention_days, max_entries, max_bytes, is_blocked — по умолчанию `false`, created_at), `project_secret_keys` (id, project_id, key_hash, label, created_at, revoked_at — nullable) и `role_assignments` (id, subject_type — user|team, subject_id, role — admin|owner|user, scope_type — global|group|project, scope_id — nullable для global, created_at).
 
 #### Scenario: username уникален по всей системе
 - **WHEN** отправлен запрос на создание пользователя (регистрация или через admin) с `username`, уже занятым другим пользователем
@@ -44,8 +44,12 @@
 - **THEN** сервер отклоняет запрос и не создаёт вторую запись с тем же `email`; сама колонка `email` в схеме — `nullable` (обязательность конкретно на `POST /v1/auth/register` — требование `log-server-auth`, не ограничение схемы хранения)
 
 #### Scenario: username и email удалённой учётной записи остаются занятыми
-- **WHEN** пользователь с `username`/`email` удалил свой аккаунт (`log-server-auth`, `deleted_at` установлен), и затем отправлен запрос на создание нового пользователя с тем же `username`/`email`
+- **WHEN** учётная запись с `username`/`email` удалена (`log-server-auth`, `deleted_at` установлен — самостоятельно через `DELETE /v1/users/me` или администратором через `DELETE /v1/users/:id`), и затем отправлен запрос на создание нового пользователя с тем же `username`/`email`
 - **THEN** сервер отклоняет запрос по причине занятости — уникальность SHALL проверяться среди всех записей, независимо от `deleted_at`, пока строка удалённого пользователя физически не удалена из хранилища (что эта доработка не реализует — см. Non-Goals `design.md`)
+
+#### Scenario: is_primary_admin установлен не более чем у одного пользователя за всю историю
+- **WHEN** в хранилище уже существует пользователь с `is_primary_admin = true`
+- **THEN** ни один другой пользователь, созданный впоследствии (регистрацией, `POST /v1/users` или повторным `create-admin`), не получает `is_primary_admin = true` — значение `true` в этой колонке SHALL быть уникальным по всей таблице `users`
 
 #### Scenario: Проект всегда принадлежит ровно одной группе
 - **WHEN** создан проект через management API
