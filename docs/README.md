@@ -70,8 +70,13 @@ corrected to match.
   `structured_log_admin_client` Flutter app's own architecture.
 - [architecture/technology-stack.md](architecture/technology-stack.md) —
   every major dependency choice and the alternative it beat.
-- [api/http-api.md](api/http-api.md) — a compact reference table of every
-  HTTP endpoint, grouped by capability.
+- [api/http-api.md](api/http-api.md) — every HTTP endpoint: parameters,
+  request/response bodies, endpoint-specific errors, and a `curl`
+  example.
+- [api/models.md](api/models.md) — the JSON object shapes referenced by
+  `http-api.md` (`User`, `Project`, `LogEntry`, the token response, ...).
+- [api/errors.md](api/errors.md) — the complete error catalog: every
+  HTTP status/code pair the server can return, and where.
 
 ## Who this is for
 

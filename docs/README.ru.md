@@ -72,8 +72,12 @@ decision из `design.md` или требование из `specs/`, назва�
   `structured_log_admin_client`.
 - [architecture/technology-stack.md](architecture/technology-stack.md) —
   каждый значимый выбор зависимости и альтернатива, которую он обошёл.
-- [api/http-api.md](api/http-api.md) — компактная справочная таблица
-  всех HTTP-эндпоинтов по capability.
+- [api/http-api.md](api/http-api.md) — каждый HTTP-эндпоинт: параметры,
+  тела запроса/ответа, специфичные для него ошибки и пример `curl`.
+- [api/models.md](api/models.md) — формы JSON-объектов, на которые
+  ссылается `http-api.md` (`User`, `Project`, `LogEntry`, ответ токена, ...).
+- [api/errors.md](api/errors.md) — полный каталог ошибок: каждая пара
+  HTTP-статус/код, которую может вернуть сервер, и где именно.
 
 ## Для кого это
 
