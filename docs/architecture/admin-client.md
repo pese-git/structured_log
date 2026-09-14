@@ -20,9 +20,18 @@ pattern doesn't fit here (decision 18): the entire point of this app is
 being *the* UI over `structured_log_server`'s specific HTTP contract —
 authentication, RBAC, quotas — concepts that don't exist in the headless
 log-viewing core at all, and there's no second backend contract to
-abstract for. So `structured_log_admin_client` is one Material 3 app,
-not core+skin, until (if ever) a second UI kit for this same client is
-needed.
+abstract for. So `structured_log_admin_client` is one app, not
+core+skin, until (if ever) a second UI kit for this same client is
+needed. The concrete UI toolkit is `fluent_ui`, not Material 3 —
+decision 38 revises that specific choice from an earlier revision of
+decision 18; the "one app, no split" reasoning above is unrelated to
+which toolkit and stands unchanged. This does **not** mean reusing
+`structured_log_fluent`'s widgets — decision 21 (different data source,
+below) still applies; the shared design system is a visual coincidence
+between two packages, not shared code. Screens are pre-designed
+externally (Claude Design) — implementation follows those mockups where
+they exist; the pixel-level layout itself is outside this document's
+(and OpenSpec's) scope.
 
 It also shares **no Dart code** with `structured_log_server` — only the
 documented HTTP/JSON contract (decision 19). A shared request/response
@@ -31,22 +40,72 @@ buy type safety for one client, when contract drift is already caught by
 integration tests that exercise the client's networking logic against a
 real running server.
 
-## HTTP layer: `dio`, not `http`
+## Code organization: feature-first, Clean Architecture per feature
+
+Code is grouped first by domain feature (`auth`, `users`, `projects`,
+`teams`, `log_browser`, `audit`, ...), not by technical file type across
+the whole package (decision 32) — see
+[technology-stack.md](technology-stack.md#architecture-pattern) for the
+full picture, including why the client gets the full four-layer split
+(it has a real presentation layer, unlike the server) while
+`structured_log_server` gets a simpler one.
 
 ```mermaid
 flowchart LR
-    Req["Any API call"] --> I1["Interceptor:\nattach Authorization:\nBearer access_token"]
+    P["presentation\n(Bloc/Cubit + fluent_ui widgets)"] --> A["application\n(use-cases, Either<Failure, T>)"]
+    A --> D["domain\n(entities, repository interfaces)"]
+    A --> I["infrastructure\n(repository impls over\nretrofit clients / log_stream_client)"]
+    I -.implements.-> D
+```
+
+- **`domain`** — entities and repository *interfaces*, no Flutter or
+  `dio` imports; this is what makes `application`-layer logic testable
+  without spinning up widgets or a real server.
+- **`application`** — use-cases orchestrating one or more repositories,
+  returning `Either<Failure, T>` (`fpdart`, decision 33) rather than
+  throwing for expected outcomes (a rejected login, a `409
+  sole_group_owner`, a dropped connection).
+- **`infrastructure`** — concrete repository implementations, mostly
+  thin wrappers over generated `retrofit` clients (decision 37) that map
+  HTTP responses/`DioException`s onto domain `Failure`s.
+- **`presentation`** — one `Bloc`/`Cubit` per feature (decision 36),
+  consuming use-cases (wired in via `cherrypick`, decision 35) and
+  exposing `freezed`-union states (decision 34) that the `fluent_ui`
+  widgets render.
+
+`cherrypick` (the same author's own DI library — already the namesake
+for this workspace's `emb/` layout convention, `AGENTS.md`) registers
+the shared singletons (`ApiClient`, token storage) and each feature's
+`infrastructure`/`application` bindings, so no `Bloc` or widget
+constructs an `infrastructure` dependency directly.
+
+## HTTP layer: `dio` + `retrofit`, not `package:http`
+
+```mermaid
+flowchart LR
+    Req["Any typed API call\n(retrofit-generated method)"] --> I1["Interceptor:\nattach Authorization:\nBearer access_token"]
     I1 --> Srv["structured_log_server"]
     Srv -->|401| I2["Interceptor:\ngrant_type=refresh_token"]
     I2 -->|success| Retry["retry original request\nonce, with new access_token"]
     I2 -->|failure| Logout["clear tokens,\nshow login screen"]
-    Srv -->|non-401| Resp["response to caller"]
+    Srv -->|non-401| Resp["typed response\n(freezed model)"]
 ```
 
-`dio`'s `Interceptor`/`InterceptorsWrapper` gives this
+`dio`'s `Interceptor`/`InterceptorsWrapper` gives the
 attach-token/catch-401/refresh/retry-once chain as a built-in primitive
 (decision 19) — `package:http` doesn't have interceptor chaining and
 would need the same logic hand-rolled on top of it for no real benefit.
+`retrofit` sits on top of that same `dio` instance: one `@RestApi()`
+interface per group of endpoints (`AuthApi`, `UsersApi`, `ProjectsApi`,
+...), generated implementations that call through the interceptor chain
+above, request/response bodies as `freezed`+`json_serializable` models
+(decision 37). The one deliberate exception is `GET /v1/logs/stream`
+(see [live-streaming.md](live-streaming.md)) — a long-lived streamed
+body with hand-parsed SSE frames doesn't fit retrofit's one-call/
+one-typed-response model, so `log_stream_client.dart` calls the same
+`dio` instance directly with `ResponseType.stream`, reusing the same
+interceptors.
+
 The zero-dependency principle that governs `structured_log` itself
 doesn't extend to this app — it's a terminal application, not a library
 something else depends on transitively.
@@ -68,9 +127,10 @@ already-in-memory `List` from a local `LogBuffer`, synchronously, with
 no pagination and no network calls. The admin client's log data is
 remote, server-filtered, and paginated — different enough that adapting
 `LogViewerController` to both sources was rejected as complicating a
-stable, already-published API for one new consumer. The controller
-described below is a separate, small state layer, unique to this
-client.
+stable, already-published API for one new consumer. The state machine
+below is implemented as `LogFeedBloc` (`flutter_bloc`, decision 36) —
+the concrete mechanism behind decision 21's "own small state layer,"
+with each state below a `freezed`-union case (decision 34).
 
 ```mermaid
 stateDiagram-v2

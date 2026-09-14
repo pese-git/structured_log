@@ -10,12 +10,14 @@ row traces to a `design.md` decision — read there for the full argument.
 | Choice | Rejected alternative | Why |
 |---|---|---|
 | `shelf` + `shelf_router` | `dart_frog` | `dart_frog create` imposes its own skeleton/CLI as the primary workflow — breaks with the flat, codegen-free layout of every other package. `dart_frog` is itself built on `shelf`; nothing functional is lost. (decision 1) |
-| `drift` over embedded SQLite (`NativeDatabase`) | raw `package:sqlite3` | The **one** deliberate codegen exception in the workspace, by direct user instruction — type-safe, compile-checked queries and built-in schema migration outweigh `build_runner`'s cost for a 7+ table multi-tenant schema. Scoped to this one package; `*.g.dart` is not committed. (decision 2) |
+| `drift` over embedded SQLite (`NativeDatabase`) | raw `package:sqlite3` | The first deliberate codegen exception in the workspace, by direct user instruction — type-safe, compile-checked queries and built-in schema migration outweigh `build_runner`'s cost for a 7+ table multi-tenant schema. Scoped to this one package; `*.g.dart` is not committed. (decision 2, extended by decision 34 below) |
 | `LIKE '%term%'` full-text search (via `customSelect`) | FTS5 | Avoids a schema/migration-path complication for functionality outside the agreed MVP scope. Upgrade path noted, not built. (decision 3) |
 | One `QueryExecutor`, one isolate, `journal_mode=WAL` | Isolate pool / sharding | `shelf` already serves requests in one isolate by default — a single DB handle needs no extra synchronization. Explicit non-goal to scale beyond it; this is also what makes the [live-stream broadcast](live-streaming.md) an in-process `StreamController` rather than external pub/sub. (decision 4) |
 | `dart_jsonwebtoken` (JWT, HS256) | — | Standard JWT library for access-token signing; see [auth.md](auth.md) for the claim shape. |
 | `bcrypt` for passwords / SHA-256 for high-entropy secrets | One hash for everything | Two different threat models (offline dictionary attack resistance vs. no need for it) get two different algorithms — see [auth.md](auth.md#password-vs-secret-key-hashing-two-algorithms-for-two-threats). (decision 11) |
 | `package:mailer` behind an `EmailSender` interface | Hard-coded SMTP calls | The interface lets an operator swap in a transactional email API without touching the password-reset flow. (decision 24) |
+| `fpdart` (`Either`/`Option`) for expected failures | Exceptions everywhere (the rest of the workspace's style) | Validation errors, RBAC denials, quota limits are part of the contract a caller must handle explicitly, not exceptional control flow; genuine bugs still throw. (decision 33) |
+| `freezed` + `json_serializable` for immutable models/unions | Hand-written value classes | Same `build_runner` run already needed for `drift`; avoids hand-maintained `==`/`copyWith` drifting out of sync as the model count grows. (decision 34) |
 
 ## `structured_log_http`
 
@@ -24,14 +26,55 @@ row traces to a `design.md` decision — read there for the full argument.
 | Separate package, `structured_log` as its only dependency | Extend `structured_log` core, or fold into `structured_log_server` | The wire contract evolves with the *server*, not the logging core — coupling it to the independently-versioned, already-published core package isn't justified. It also can't live in `structured_log_server`: an app that only sends logs shouldn't need `shelf`/`drift`/etc. as transitive dependencies. (decision 5) |
 | `_SerializedAsyncOutput` pattern (from `AsyncFileOutput`) + batching + retry/backoff | A new queuing design | Reuses an already-proven pattern in the workspace instead of inventing a second one for the same problem shape (serialized delivery, per-step error isolation). |
 
+`structured_log_http` is not part of the decisions 32–38 tech-stack expansion below — it stays a small, dependency-free client package, unaffected by `structured_log_server`'s or `structured_log_admin_client`'s internal choices.
+
 ## `structured_log_admin_client`
 
 | Choice | Rejected alternative | Why |
 |---|---|---|
-| One Material 3 app, no core/skin split | `structured_log_admin_core` + swappable UI kit | Premature abstraction with a single consumer — the same "don't abstract before a second consumer" principle already applied in `add-structured-log-flutter/design.md`. (decision 18) |
-| `dio` | `package:http` | Needs interceptor chaining (token injection, 401→refresh→retry) as a built-in primitive, not hand-rolled. (decision 19) |
+| One app, no core/skin split | `structured_log_admin_core` + swappable UI kit | Premature abstraction with a single consumer — the same "don't abstract before a second consumer" principle already applied in `add-structured-log-flutter/design.md`. (decision 18) |
+| `fluent_ui`, not Material 3 | Material 3 (the original decision 18) | Revises decision 18's UI-kit pick specifically (the "no core/skin split" part is unrelated and stands). Screens are pre-designed externally (Claude Design); implementation follows those mockups where they exist. Does **not** mean reusing `structured_log_fluent`'s widgets — decision 21 (different data source) still applies; the shared design system is a visual coincidence, not shared code. (decision 38) |
+| `dio` + `retrofit` for typed endpoints | `package:http`, or hand-written `dio` calls everywhere | `dio` needs interceptor chaining (token injection, 401→refresh→retry) as a built-in primitive (decision 19); `retrofit` removes hand-written serialization boilerplate for the ~15 JSON endpoints. `GET /v1/logs/stream` is the one deliberate exception — hand-written directly on the same `dio` instance, because a long-lived streamed body with custom SSE-frame parsing doesn't fit retrofit's one-call/one-typed-response model. (decisions 19, 37) |
 | `flutter_secure_storage` | `shared_preferences` | Access/refresh tokens are secrets; `shared_preferences` stores plaintext on most platforms. (decision 20) |
-| Own small state layer for the log browser | Reuse `LogViewerController` | Remote, server-filtered, paginated data source is different enough from `LogViewerController`'s local, synchronous, in-memory `LogBuffer` that adapting it would complicate a stable, published API for one new consumer. (decision 21) |
+| `flutter_bloc` (`Bloc`/`Cubit`) for state | `riverpod`/`provider`/an unspecified `ChangeNotifier`-style controller | Concretizes the "own small state layer" for the log browser (decision 21/30) as an explicit state machine — the log feed's `Following`/`ScrolledUp`/`Paused` states and their transitions map directly onto a `Bloc`. Used the same way for every other screen. (decision 36) |
+| `fpdart` (`Either`/`Option`) for expected failures | Exceptions everywhere | Same principle as the server (see above): network errors, `invalid_grant`, permission denials flow as `Either` from `infrastructure`/`application` up to `presentation`. (decision 33) |
+| `freezed` + `json_serializable` for models/DTOs/Bloc states | Hand-written value classes | Pairs naturally with `fpdart`'s `Either<Failure, T>` — both sides are typically `freezed` classes. (decision 34) |
+| `cherrypick` for dependency injection | `get_it`/`provider`/manual constructor wiring | Same author's own DI library — already the namesake for this workspace's `emb/` layout convention (`AGENTS.md`), now used directly as a dependency for the first time. (decision 35) |
+
+## Architecture pattern
+
+Both new packages are organized **feature-first** (`auth`, `users`,
+`projects`, `logs`, ...) rather than by technical file type across the
+whole package — decision 32. Inside each feature, the layering differs
+because only one of the two packages has a UI to separate from domain
+logic:
+
+```mermaid
+flowchart TB
+    subgraph Server["structured_log_server (per feature)"]
+        SD["domain"] --- SDa["data"] --- SH["http"]
+    end
+    subgraph Client["structured_log_admin_client (per feature)"]
+        CD["domain"] --- CA["application"] --- CI["infrastructure"] --- CP["presentation\n(Bloc/Cubit + widgets)"]
+    end
+```
+
+- **Server: a simpler layered split, not full Clean Architecture** — no
+  presentation layer exists in a headless HTTP API, so a four-layer
+  split would be structure for its own sake.
+- **Client: full Clean Architecture** (`domain`/`application`/`infrastructure`/`presentation`)
+  — the client has a real presentation layer (`flutter_bloc` +
+  `fluent_ui` widgets), so separating it from domain/business logic pays
+  for itself in testability (domain logic tested without Flutter,
+  `infrastructure` swapped for a fake in tests).
+- **Shared code** (the server's multi-tenant storage tables; the
+  client's `ApiClient`/token storage/DI wiring) lives outside any one
+  feature, in a `shared`/`common` layer used by several features at
+  once.
+- **Exact folder names are left to implementation** — `tasks.md`
+  describes work by capability, not by a fixed file tree, so this
+  doesn't get pinned down speculatively ahead of writing real code (see
+  `design.md`'s Open Questions).
 
 ## What's deliberately *not* copied from Keycloak
 

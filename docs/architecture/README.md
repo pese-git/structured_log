@@ -100,13 +100,21 @@ sequenceDiagram
 These aren't specific to one capability — they show up repeatedly in
 `design.md` and are worth internalizing before reading the topic docs.
 
-- **No magic, no codegen beyond one deliberate exception.** The
+- **No magic, no codegen in the four original embeddable libraries; a
+  deliberately widened exception for the two new packages.** The
   workspace has a standing "no magic" principle (`add-structured-log-flutter/design.md`,
   decision 4); `shelf`/`shelf_router` over `dart_frog` follows it
-  (decision 1). `drift` (and therefore `build_runner`) is the *one*
+  (decision 1). `drift` (and therefore `build_runner`) was the first
   sanctioned exception, scoped to `structured_log_server`'s storage
-  layer alone, adopted by explicit user direction (decision 2) — not a
-  precedent for codegen elsewhere in the workspace.
+  layer, adopted by explicit user direction (decision 2). Decisions
+  34/37 extend that same exception — still by explicit user direction,
+  still scoped to these two new packages — to `freezed`/`json_serializable`
+  in both `structured_log_server` and `structured_log_admin_client`, and
+  to `retrofit_generator` in the client alone. `structured_log`,
+  `structured_log_flutter`, `structured_log_material`, `structured_log_fluent`,
+  and `structured_log_http` remain codegen-free — none of this is a
+  precedent for them. See [technology-stack.md](technology-stack.md) for
+  the full stack.
 - **Single isolate, no premature scaling.** One `NativeDatabase`
   `QueryExecutor` in one isolate (decision 4) underpins everything: it's
   why the live-stream broadcast can be an in-process `StreamController`
@@ -139,6 +147,18 @@ These aren't specific to one capability — they show up repeatedly in
   design is abstracted "just in case" — see, for example, decision 21's
   explicit rejection of a shared `LogViewerController` data-source
   abstraction before a second consumer exists.
+- **Organized by feature, not by technical file type.** Both new
+  packages' code is grouped first by domain feature (`auth`, `users`,
+  `projects`, `logs`, ...), not by a workspace-wide `routes/`/`services/`/
+  `models/` split (decision 32) — see [technology-stack.md](technology-stack.md#architecture-pattern)
+  for the layering inside each feature (simpler layers on the server,
+  full Clean Architecture on the client, since only the client has a
+  presentation layer to separate from domain logic).
+- **Expected failures are typed, not thrown.** `fpdart`'s `Either`
+  return type is used specifically for outcomes a caller must handle as
+  part of the contract — validation errors, RBAC denials, quota limits,
+  `invalid_grant` — not as a blanket replacement for exceptions, which
+  still signal genuine bugs (decision 33).
 
 ## Where each package lives
 
