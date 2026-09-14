@@ -65,8 +65,8 @@ corrected to match.
 - [architecture/live-streaming.md](architecture/live-streaming.md) — the
   SSE live-tail design (`GET /v1/logs/stream`).
 - [architecture/quotas-and-audit.md](architecture/quotas-and-audit.md) —
-  per-project storage quotas, the administrative audit log, and the
-  authentication events recorded alongside it.
+  per-project storage quotas, the administrative audit log, the
+  authentication events recorded alongside it, and how long each is kept.
 - [architecture/admin-client.md](architecture/admin-client.md) — the
   `structured_log_admin_client` Flutter app's own architecture.
 - [architecture/technology-stack.md](architecture/technology-stack.md) —

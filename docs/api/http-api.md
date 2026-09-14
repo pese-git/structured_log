@@ -627,9 +627,11 @@ Auth: `Authorization: Bearer <access-token>`. Role: `admin` only — not `owner`
 
 **Query parameters:** `actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`, `limit`, `cursor`.
 
-**Response `200`:** `{"items": [AuditLogEntry], "next_cursor": string \| null}`.
+**Response `200`:** `{"items": [AuditLogEntry], "next_cursor": string \| null, "audit_retention_days": integer \| null, "auth_event_retention_days": integer \| null}` — the two retention fields report the policy in force (`null` = kept indefinitely), so an empty result outside the window explains itself ([quotas-and-audit.md](../architecture/quotas-and-audit.md#audit-log-log-server-audit)).
 
 **Errors:** `403 forbidden`.
+
+There is no endpoint that deletes audit entries, for any role, and the retention periods are set in the server's configuration rather than through the API — an admin is a subject of this log, not its owner. Entries disappear only through the operator's configured policy, and each purge that removed anything leaves an `audit.purged` entry behind.
 
 ```bash
 curl -G http://localhost:8080/v1/audit-log \

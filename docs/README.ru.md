@@ -67,8 +67,8 @@ decision из `design.md` или требование из `specs/`, назва�
 - [architecture/live-streaming.md](architecture/live-streaming.md) —
   дизайн живой доставки логов по SSE (`GET /v1/logs/stream`).
 - [architecture/quotas-and-audit.md](architecture/quotas-and-audit.md) —
-  квоты на хранение на проект, административный аудит-лог и
-  записываемые рядом с ним события аутентификации.
+  квоты на хранение на проект, административный аудит-лог, записываемые
+  рядом с ним события аутентификации и сроки хранения тех и других.
 - [architecture/admin-client.md](architecture/admin-client.md) —
   собственная архитектура Flutter-приложения
   `structured_log_admin_client`.

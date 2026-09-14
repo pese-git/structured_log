@@ -633,9 +633,11 @@ Auth: `Authorization: Bearer <access-token>`. Роль: только `admin`.
 
 **Query-параметры:** `actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`, `limit`, `cursor`.
 
-**Ответ `200`:** `{"items": [AuditLogEntry], "next_cursor": строка \| null}`.
+**Ответ `200`:** `{"items": [AuditLogEntry], "next_cursor": string \| null, "audit_retention_days": integer \| null, "auth_event_retention_days": integer \| null}` — два поля срока хранения сообщают действующую политику (`null` = хранится без ограничения срока), поэтому пустой результат за её пределами объясняет сам себя ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md#аудит-лог-log-server-audit)).
 
 **Ошибки:** `403 forbidden`.
+
+Эндпоинта, удаляющего записи аудита, не существует ни для какой роли, а сроки хранения задаются конфигурацией сервера, а не через API — администратор является субъектом этого журнала, а не его владельцем. Записи исчезают только по настроенной оператором политике, и каждый проход очистки, что-то удаливший, оставляет после себя запись `audit.purged`.
 
 ```bash
 curl -G http://localhost:8080/v1/audit-log \

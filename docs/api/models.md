@@ -182,7 +182,7 @@ Returned by `GET /v1/audit-log` ([quotas-and-audit.md](../architecture/quotas-an
 | Field | Type | Notes |
 |---|---|---|
 | `id` | integer | |
-| `actor_user_id` | integer \| null | `null` for events genuinely without an authenticated caller — in practice `auth.login_failed`/`auth.throttled` under a username that matches no account (see [quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
+| `actor_user_id` | integer \| null | `null` for events genuinely without an authenticated caller — `auth.login_failed`/`auth.throttled` under a username that matches no account, and `audit.purged`, which the server writes for itself (see [quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | `action` | string | One of the closed set — see [quotas-and-audit.md](../architecture/quotas-and-audit.md) |
 | `target_type` | string | e.g. `"user"`, `"project"`, `"role_assignment"` |
 | `target_id` | integer \| null | |
@@ -213,6 +213,10 @@ Returned by `GET /v1/audit-log` ([quotas-and-audit.md](../architecture/quotas-an
 
 // action: "auth.throttled" — written once per episode, not per rejected request
 {"key_kind": "subject", "path": "/v1/auth/token", "client_ip": "203.0.113.7"}
+
+// action: "audit.purged" — written by the purge job itself (actor_user_id is null),
+// one row per class per pass, never per chunk
+{"scope": "auth", "deleted_count": 18432, "older_than": "2026-06-16T00:00:00Z"}
 ```
 
 ## Token response

@@ -183,7 +183,7 @@
 | Поле | Тип | Примечания |
 |---|---|---|
 | `id` | integer | |
-| `actor_user_id` | integer \| null | `null` для событий, действительно не имеющих аутентифицированного вызывающего — на практике `auth.login_failed`/`auth.throttled` под именем, не соответствующим ни одной учётной записи (см. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
+| `actor_user_id` | integer \| null | `null` для событий, действительно не имеющих аутентифицированного вызывающего — `auth.login_failed`/`auth.throttled` под именем, не соответствующим ни одной учётной записи, и `audit.purged`, которую сервер пишет сам о себе (см. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | `action` | string | Одно из закрытого набора — см. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md) |
 | `target_type` | string | например, `"user"`, `"project"`, `"role_assignment"` |
 | `target_id` | integer \| null | |
@@ -214,6 +214,10 @@
 
 // action: "auth.throttled" — пишется один раз на эпизод, не на каждый отклонённый запрос
 {"key_kind": "subject", "path": "/v1/auth/token", "client_ip": "203.0.113.7"}
+
+// action: "audit.purged" — пишет сам проход очистки (actor_user_id — null),
+// одна запись на класс за проход, не на порцию
+{"scope": "auth", "deleted_count": 18432, "older_than": "2026-06-16T00:00:00Z"}
 ```
 
 ## Ответ токена
