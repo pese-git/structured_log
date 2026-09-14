@@ -599,7 +599,7 @@ curl -X POST http://localhost:8080/v1/projects/7/secret-keys \
 
 ### `GET /v1/projects/:id/secret-keys`
 
-Роль: `owner`/`admin`.
+Роль: `owner`/`user` с доступом, или `admin`.
 
 **Ответ `200`:** `{"items": [ProjectSecretKey]}` — только метаданные, никогда `secret`.
 
