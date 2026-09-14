@@ -74,6 +74,9 @@ decision из `design.md` или требование из `specs/`, назва�
   `structured_log_admin_client`.
 - [architecture/technology-stack.md](architecture/technology-stack.md) —
   каждый значимый выбор зависимости и альтернатива, которую он обошёл.
+- [operations/configuration.md](operations/configuration.md) — все
+  настройки при запуске: флаги, переменные окружения, приоритет
+  источников, обращение с секретами и что останавливает запуск.
 - [api/http-api.md](api/http-api.md) — каждый HTTP-эндпоинт: параметры,
   тела запроса/ответа, специфичные для него ошибки и пример `curl`.
 - [api/models.md](api/models.md) — формы JSON-объектов, на которые

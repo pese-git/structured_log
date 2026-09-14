@@ -71,6 +71,9 @@ corrected to match.
   `structured_log_admin_client` Flutter app's own architecture.
 - [architecture/technology-stack.md](architecture/technology-stack.md) —
   every major dependency choice and the alternative it beat.
+- [operations/configuration.md](operations/configuration.md) — every
+  startup setting: flags, environment variables, precedence, secret
+  handling, and what fails the launch.
 - [api/http-api.md](api/http-api.md) — every HTTP endpoint: parameters,
   request/response bodies, endpoint-specific errors, and a `curl`
   example.
