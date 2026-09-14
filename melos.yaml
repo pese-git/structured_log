@@ -42,7 +42,7 @@ scripts:
   test:dart:
     exec: dart test
     packageFilters:
-      scope: ["structured_log"]
+      scope: ["structured_log", "structured_log_server"]
     description: Run tests for Dart-only packages
 
   test:flutter:
