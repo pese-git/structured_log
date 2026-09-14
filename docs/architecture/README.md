@@ -104,6 +104,58 @@ sequenceDiagram
     Srv-->>Admin: matching entries (paginated)
 ```
 
+## The middleware chain
+
+Three kinds of request reach the server, and each passes through a
+different chain. What rejects a request, and in what order, is a
+deliberate design decision rather than an accident of wiring:
+
+```mermaid
+flowchart TB
+    subgraph Ingest["POST /v1/logs — ingestion (decisions 9, 13, 25)"]
+        direction TB
+        I1["Project secret key\n401 unauthorized"] --> I2["Project blocked?\n403 project_blocked"]
+        I2 --> I3["Body size\n413 payload_too_large"]
+        I3 --> I4["Per-entry validation + quota\n202 with a rejected list"]
+    end
+
+    subgraph AuthEp["Auth endpoints — no token yet (decisions 43, 44)"]
+        direction TB
+        A1["Rate limiter: IP bucket\nbefore the body is parsed\n429 + Retry-After"] --> A2["Parse body"]
+        A2 --> A3["Rate limiter: subject bucket\nusername / email / sub\n429 + Retry-After"]
+        A3 --> A4["Verify credentials\n400 invalid_grant / 401"]
+        A4 --> A5["Outcome spends or refills\nthe subject bucket; writes auth.*"]
+    end
+
+    subgraph Jwt["Management, GET /v1/logs, /logs/stream (decisions 10, 42)"]
+        direction TB
+        J1["IdentityProvider.verifyAccessToken\n(token_version checked inside)\n401 unauthorized"] --> J2["must_change_password?\n403 must_change_password\nexcept a closed list of paths"]
+        J2 --> J3["Authorization: RBAC scope\n403 forbidden / 404 not_found"]
+        J3 --> J4["Handler\n(logs paths also check\n403 project_blocked)"]
+    end
+```
+
+Three things about this order are load-bearing:
+
+- **The limiter runs before grant processing, not inside it.** A request
+  stopped by the rate limiter never reaches the OAuth2 handler — which is
+  exactly why its `429` uses the general JSON envelope even on the token
+  endpoint, the one place that otherwise answers in RFC 6749's shape
+  ([errors.md](../api/errors.md#429-is-the-one-non-rfc-answer-the-token-endpoint-gives)).
+- **`must_change_password` sits between authentication and
+  authorization.** It isn't an RBAC rule — it applies regardless of role
+  — and it must not depend on roles being resolved first. Placing it here
+  also means one cheap point-lookup next to the `token_version` check the
+  auth step already performs ([auth.md](auth.md#patch-v1usersid-and-the-mandatory-temporary-password)).
+- **Ingestion shares none of it.** `POST /v1/logs` authenticates with a
+  project secret key, not a JWT, and is governed by quotas rather than by
+  the limiter — request frequency there is normal application traffic,
+  not credential guessing
+  ([quotas-and-audit.md](quotas-and-audit.md)).
+
+Every step above is configurable only at startup, never at runtime — see
+[configuration.md](../operations/configuration.md).
+
 ## Principles that recur across the design
 
 These aren't specific to one capability — they show up repeatedly in
