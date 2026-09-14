@@ -30,6 +30,7 @@
 | `username` | string | Уникален; идентификатор для входа ([auth.md](../architecture/auth.ru.md)) |
 | `display_name` | string \| null | |
 | `email` | string \| null | Только контакт для восстановления, не идентификатор для входа |
+| `email_verified_at` | string \| null | ISO 8601; `null` блокирует `grant_type=password` для этого аккаунта, если `email` задан ([auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-перед-входом-не-опционально)); всегда `null`, если `email` — `null` |
 | `is_active` | boolean | `false` при блокировке ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | `deleted_at` | string \| null | ISO 8601; устанавливается один раз, никогда не снимается |
 | `is_primary_admin` | boolean | `true` не более чем у одного пользователя за всю историю |
@@ -41,6 +42,7 @@
   "username": "alice",
   "display_name": "Alice Chen",
   "email": "alice@example.com",
+  "email_verified_at": null,
   "is_active": true,
   "deleted_at": null,
   "is_primary_admin": false,

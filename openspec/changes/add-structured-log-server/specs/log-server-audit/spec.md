@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Аудит фиксирует закрытый список административных действий
-Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
+Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`, `email.verified`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
 
 #### Scenario: Выдача роли создаёт аудит-запись
 - **WHEN** `admin` или `owner` успешно выполняет `POST /v1/role-assignments`
@@ -14,6 +14,10 @@
 #### Scenario: Самостоятельная регистрация фиксируется с самим пользователем как инициатором
 - **WHEN** пользователь успешно регистрируется через `POST /v1/auth/register`
 - **THEN** создаётся аудит-запись `action: user.created` с `actor_user_id`, равным идентификатору только что созданного пользователя, и `target_id`, также равным этому пользователю
+
+#### Scenario: Подтверждение email фиксируется с самим пользователем как инициатором
+- **WHEN** пользователь успешно подтверждает свой email через `POST /v1/auth/verify-email`
+- **THEN** создаётся аудит-запись `action: email.verified` с `actor_user_id` и `target_id`, равными этому пользователю
 
 #### Scenario: Блокировка пользователя и проекта фиксируется в аудите
 - **WHEN** `admin` выполняет `POST /v1/users/:id/block` или `POST /v1/projects/:id/block`

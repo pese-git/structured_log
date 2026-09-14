@@ -30,6 +30,10 @@
 }
 ```
 
+Один случай добавляет третье, нестандартное поле поверх этой формы —
+см. [Расширение RFC-конверта token-эндпоинта: `reason`](#расширение-rfc-конверта-token-эндпоинта-reason)
+ниже.
+
 Больше нигде в этом API не используется поле `error_description`, а
 token-эндпоинт никогда не использует `message`/`details` — эти две формы
 не смешиваются в одном ответе.
@@ -42,8 +46,9 @@ token-эндпоинт никогда не использует `message`/`detai
 | 400 | `invalid_request` | RFC | `DELETE /v1/auth/token` | Поле `refresh_token` отсутствует в form-теле |
 | 400 | `invalid_request` | RFC | `POST /v1/auth/token` | Обязательное поле отсутствует для данного `grant_type` |
 | 400 | `unsupported_grant_type` | RFC | `POST /v1/auth/token` | `grant_type` не `password` и не `refresh_token` |
-| 400 | `invalid_grant` | RFC | `POST /v1/auth/token` | Неверные `username`/`password`; либо `refresh_token` неизвестен/истёк/отозван; либо пользователь заблокирован (`grant_type=refresh_token`) |
+| 400 | `invalid_grant` | RFC | `POST /v1/auth/token` | Неверные `username`/`password`; либо `refresh_token` неизвестен/истёк/отозван; либо пользователь заблокирован (`grant_type=refresh_token`); либо `email` пользователя задан, но не подтверждён (только `grant_type=password` — ответ также несёт `reason: "email_not_verified"`, см. ниже) |
 | 400 | `invalid_token` | общий | `POST /v1/auth/password-reset/confirm` | Токен восстановления неизвестен, истёк или уже использован |
+| 400 | `invalid_token` | общий | `POST /v1/auth/verify-email` | Токен подтверждения неизвестен, истёк или уже использован |
 | 400 | `self_deletion_requires_me` | общий | `DELETE /v1/users/:id` | `:id` равен собственному id вызывающего — самоудаление только через `DELETE /v1/users/me` |
 | 401 | `unauthorized` | общий | Любой JWT-защищённый эндпоинт | Заголовок `Authorization` отсутствует/некорректен; подпись/срок JWT невалидны; либо claim `tv` больше не совпадает с `User.token_version` ([auth.md](../architecture/auth.ru.md#token_version-как-снапшот-в-jwt-остаётся-отзываемым)) |
 | 401 | `unauthorized` | общий | `POST /v1/logs` | Секретный ключ проекта отсутствует, неизвестен, или установлен `revoked_at` |
@@ -108,6 +113,38 @@ token-эндпоинт никогда не использует `message`/`detai
 |---|---|
 | `sole_group_owner` | `{"blocking_groups": [{"id": 3, "name": "checkout-team"}, ...]}` |
 | `invalid_request` | `{"field": "level", "reason": "required"}` (когда проблемное поле однозначно) |
+
+## Расширение RFC-конверта token-эндпоинта: `reason`
+
+`POST /v1/auth/token` с `grant_type=password` возвращает
+`invalid_grant` по нескольким разным причинам — неверный пароль,
+заблокированный аккаунт (через `refresh_token`), неподтверждённый
+`email`
+([auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-перед-входом-не-опционально)).
+В закрытом наборе `error` RFC 6749 нет отдельного кода конкретно для
+последнего случая, а сведение его к обычному `invalid_grant` сделало бы
+его неотличимым для клиента от «неверного пароля» — ровно то различие,
+которое нужно `structured_log_admin_client`, чтобы показать полезное
+сообщение вместо «неверные учётные данные».
+
+Решение — аддитивное поле, не новый конверт:
+
+```json
+{
+  "error": "invalid_grant",
+  "error_description": "email address has not been verified",
+  "reason": "email_not_verified"
+}
+```
+
+`reason` не часть RFC 6749 — оно едет рядом со стандартными полями
+`error`/`error_description`. Любой конформный OAuth2-клиент просто
+игнорирует незнакомое поле, так что это не подрывает совместимость с
+готовыми клиентами, ради которой RFC-форма конверта вообще введена
+(decision 10) — это дополнение, не конкурирующая форма. `reason`
+сейчас появляется только для этого одного случая; остальные причины
+`invalid_grant` (неверный пароль, заблокированный пользователь) не
+несут поля `reason` вовсе, так что само его присутствие уже сигнал.
 
 ## Ошибки, которые никогда не доходят до клиента как HTTP-ответы
 

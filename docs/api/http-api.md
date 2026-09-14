@@ -129,7 +129,8 @@ curl http://localhost:8080/healthz
 
 Spec:
 [specs/log-server-auth/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-auth/spec.md),
-[specs/log-server-password-reset/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-password-reset/spec.md).
+[specs/log-server-password-reset/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-password-reset/spec.md),
+[specs/log-server-email-verification/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-email-verification/spec.md).
 See [auth.md](../architecture/auth.md).
 
 ### `POST /v1/auth/register`
@@ -147,7 +148,7 @@ follows this API's normal JSON convention.
 | `email` | string | yes — mandatory on this path specifically |
 | `display_name` | string | no |
 
-**Response `201`:** [User](models.md#user) (no `RoleAssignment` yet).
+**Response `201`:** [User](models.md#user) (no `RoleAssignment` yet, `email_verified_at: null`). A verification email is sent as a side effect — the account cannot log in via `grant_type=password` until it's confirmed, see below and [auth.md](../architecture/auth.md#email-verification-mandatory-before-login-not-optional).
 
 **Errors:** `400 invalid_request` (missing `email`/`username`/`password`), `403 forbidden` (`registrationEnabled = false`), `409 username_taken`, `409 email_taken`.
 
@@ -155,6 +156,38 @@ follows this API's normal JSON convention.
 curl -X POST http://localhost:8080/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username": "alice", "password": "correct-horse-battery-staple", "email": "alice@example.com"}'
+```
+
+### `POST /v1/auth/verify-email`
+
+Auth: none (the verification token is the credential). JSON body.
+
+**Request body:** `{"token": "..."}`
+
+**Response `200`:** `{}`. Sets `email_verified_at`, after which `grant_type=password` works normally for this account.
+
+**Errors:** `400 invalid_token` (unknown/expired/already-used token).
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"token": "a1b2c3..."}'
+```
+
+### `POST /v1/auth/verify-email/resend`
+
+Auth: none. JSON body.
+
+**Request body:** `{"email": "..."}`
+
+**Response `202`:** `{}` — always, regardless of whether the email is registered or already verified (anti-enumeration, same pattern as `password-reset`).
+
+**Errors:** `400 invalid_request` (missing `email`).
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/verify-email/resend \
+  -H "Content-Type: application/json" \
+  -d '{"email": "alice@example.com"}'
 ```
 
 ### `POST /v1/auth/token`
@@ -170,7 +203,7 @@ with off-the-shelf OAuth2 clients ([auth.md](../architecture/auth.md)).
 
 **Response `200`:** [Token response](models.md#token-response).
 
-**Errors:** all `400`, RFC shape — `invalid_request` (missing field for the given `grant_type`), `unsupported_grant_type`, `invalid_grant` (wrong credentials; unknown/expired/revoked refresh token; blocked user on refresh).
+**Errors:** all `400`, RFC shape — `invalid_request` (missing field for the given `grant_type`), `unsupported_grant_type`, `invalid_grant` (wrong credentials; unknown/expired/revoked refresh token; blocked user on refresh; unverified `email` on `grant_type=password` — response additionally carries `reason: "email_not_verified"`, see [errors.md](errors.md#extending-the-token-endpoints-rfc-envelope-reason)).
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/token \

@@ -179,6 +179,91 @@ sequenceDiagram
 an operator might swap `SmtpEmailSender` for a transactional email API
 without touching the reset flow itself.
 
+## Email verification: mandatory before login, not optional
+
+By direct, explicit user requirement (decision 40): any account with an
+`email` set — whether through self-registration (where it's mandatory)
+or an admin setting one via `POST /v1/users` (where it's optional) —
+must verify that address before `grant_type=password` will issue it
+tokens. Accounts with no `email` at all (including the bootstrap
+`create-admin` account, which never collects one) are simply exempt —
+there's nothing to verify.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client as structured_log_admin_client
+    participant Srv as structured_log_server
+    participant Mail as EmailSender (SmtpEmailSender)
+
+    Note over Srv: account created with an email\n(POST /v1/auth/register, or POST /v1/users)
+    Srv->>Srv: create email_verification_tokens row\n(Random.secure(), SHA-256 hash stored)
+    Srv->>Mail: send(to: email, ...token + optional link...)
+
+    User->>Client: attempts grant_type=password
+    Client->>Srv: POST /v1/auth/token
+    Note over Srv: password correct, but\nemail_verified_at IS NULL
+    Srv-->>Client: invalid_grant\n+ reason: "email_not_verified"
+    Note over Client: shown as a distinct message,\nnot a generic "wrong credentials" error
+
+    User->>Client: enters token (or follows web-build link)
+    Client->>Srv: POST /v1/auth/verify-email {token}
+    alt token valid, unexpired, unused
+        Srv->>Srv: email_verified_at = now(), mark token used,\ninvalidate other unused verification tokens
+        Srv-->>Client: 200
+    else invalid/expired/already used
+        Srv-->>Client: 400 invalid_token
+    end
+
+    User->>Client: retries grant_type=password
+    Client->>Srv: POST /v1/auth/token
+    Srv-->>Client: 200 {access_token, refresh_token, ...}
+```
+
+A few choices worth calling out:
+
+- **One uniform rule, not two paths to track.** The gate is simply "is
+  `email` set and unverified" — it doesn't matter whether the account
+  was self-registered or admin-created. The alternative (gate only
+  self-registered accounts) was rejected specifically because it would
+  need a way to remember *how* an account was created just to answer
+  one question, where "is `email` set" already answers it directly. The
+  practical cost: an admin who sets an `email` at creation time and
+  hands out credentials immediately should tell that person to check
+  their inbox first — a small, accepted trade-off (see `design.md`'s
+  Risks).
+- **`grant_type=refresh_token` isn't re-checked.** A refresh token can
+  only exist for an account that already passed the `grant_type=password`
+  gate once — there's no path to a refresh token for a still-unverified
+  account, so re-checking on every refresh would be redundant. Contrast
+  this with `is_active` (decision 25), which genuinely can change *after*
+  tokens were issued and so *is* re-checked on refresh.
+- **The `reason` field is a deliberate, additive extension to the RFC
+  6749 error envelope.** RFC 6749 doesn't define this case, and its
+  closed `error` set (`invalid_grant`/`invalid_request`/
+  `unsupported_grant_type`) has no better fit than reusing `invalid_grant`
+  — but a generic `invalid_grant` alone would make "wrong password" and
+  "right password, unverified email" indistinguishable to a client. The
+  extra `reason` field rides on top of the standard envelope; any
+  conformant OAuth2 client ignores fields it doesn't recognize, so this
+  doesn't break the compatibility decision 10 introduced RFC-shaped
+  errors for in the first place — `structured_log_admin_client` is just
+  the one client that reads it.
+- **Verification links are `POST`-driven, never a bare `GET`.**
+  Confirming by simply clicking a link (`GET`) is tempting — it needs no
+  screen at all — but `GET` is supposed to be side-effect-free, and an
+  email scanner or link-preview bot following the link would silently
+  burn the token before the real recipient ever sees it. Instead, the
+  web build's page reads `?token=...` from the URL and issues the
+  `POST` itself — the same pattern already used for password-reset
+  links (decision 24), not a new one.
+- **No separate email-sending interface.** Verification reuses
+  `EmailSender` and its `SmtpEmailSender` reference implementation
+  as-is — this flow needed a new token table
+  (`email_verification_tokens`, structurally identical to
+  `password_reset_tokens`) and two new endpoints, not a new way to send
+  mail.
+
 ## Password vs. secret-key hashing: two algorithms for two threats
 
 Decision 11 deliberately does **not** use the same hash for both:

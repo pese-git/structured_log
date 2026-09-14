@@ -30,6 +30,10 @@ off-the-shelf OAuth2 clients ([auth.md](../architecture/auth.md)):
 }
 ```
 
+One case adds a third, non-standard field on top of this shape — see
+[Extending the token endpoint's RFC envelope: `reason`](#extending-the-token-endpoints-rfc-envelope-reason)
+below.
+
 Nothing else in this API uses the `error_description` field name, and
 the token endpoint never uses `message`/`details` — the two shapes don't
 mix on one response.
@@ -42,8 +46,9 @@ mix on one response.
 | 400 | `invalid_request` | RFC | `DELETE /v1/auth/token` | `refresh_token` field missing from the form body |
 | 400 | `invalid_request` | RFC | `POST /v1/auth/token` | Required field missing for the given `grant_type` |
 | 400 | `unsupported_grant_type` | RFC | `POST /v1/auth/token` | `grant_type` is neither `password` nor `refresh_token` |
-| 400 | `invalid_grant` | RFC | `POST /v1/auth/token` | Wrong `username`/`password`; or `refresh_token` unknown/expired/revoked; or the user is blocked (`grant_type=refresh_token`) |
+| 400 | `invalid_grant` | RFC | `POST /v1/auth/token` | Wrong `username`/`password`; or `refresh_token` unknown/expired/revoked; or the user is blocked (`grant_type=refresh_token`); or the user's `email` is set but unverified (`grant_type=password` only — response also carries `reason: "email_not_verified"`, see below) |
 | 400 | `invalid_token` | general | `POST /v1/auth/password-reset/confirm` | Reset token unknown, expired, or already used |
+| 400 | `invalid_token` | general | `POST /v1/auth/verify-email` | Verification token unknown, expired, or already used |
 | 400 | `self_deletion_requires_me` | general | `DELETE /v1/users/:id` | `:id` equals the caller's own id — self-deletion must go through `DELETE /v1/users/me` |
 | 401 | `unauthorized` | general | Any JWT-protected endpoint | `Authorization` header missing/malformed; JWT signature/expiry invalid; or claim `tv` no longer matches `User.token_version` ([auth.md](../architecture/auth.md#token_version-how-a-snapshot-in-a-jwt-stays-revocable)) |
 | 401 | `unauthorized` | general | `POST /v1/logs` | Project secret key missing, unknown, or `revoked_at` is set |
@@ -107,6 +112,37 @@ Codes that do:
 |---|---|
 | `sole_group_owner` | `{"blocking_groups": [{"id": 3, "name": "checkout-team"}, ...]}` |
 | `invalid_request` | `{"field": "level", "reason": "required"}` (when the failing field is unambiguous) |
+
+## Extending the token endpoint's RFC envelope: `reason`
+
+`POST /v1/auth/token`'s `grant_type=password` returns `invalid_grant`
+for several different underlying causes — wrong password, a blocked
+account (via `refresh_token`), and an unverified `email`
+([auth.md](../architecture/auth.md#email-verification-mandatory-before-login-not-optional)).
+RFC 6749's closed `error` set has no code specifically for the last
+one, and folding it into a bare `invalid_grant` would make it
+indistinguishable from "wrong password" to a client — exactly the
+distinction `structured_log_admin_client` needs to show a useful
+message instead of "invalid credentials."
+
+The fix is an additive field, not a new envelope:
+
+```json
+{
+  "error": "invalid_grant",
+  "error_description": "email address has not been verified",
+  "reason": "email_not_verified"
+}
+```
+
+`reason` is not part of RFC 6749 — it rides alongside the standard
+`error`/`error_description` fields. Any conformant OAuth2 client simply
+ignores a field it doesn't recognize, so this doesn't undermine the
+off-the-shelf-client compatibility the RFC-shaped envelope exists for
+in the first place (decision 10) — it's additive, not a competing
+shape. `reason` currently appears only for this one case; other
+`invalid_grant` causes (wrong password, blocked user) carry no `reason`
+field at all, so its mere presence is itself the signal.
 
 ## Errors that never reach the client as HTTP responses
 

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Самостоятельная регистрация пользователя, переключаемая конфигурацией сервера
-Сервер SHALL предоставлять `POST /v1/auth/register`, принимающий `username`, пароль, обязательный `email` и опционально `display_name`; при уникальных `username` и `email` SHALL создавать нового `User` без единого `RoleAssignment` (то есть без доступа ни к одному ресурсу до явной выдачи роли). Доступность этого эндпоинта SHALL управляться конфигурацией сервера (`registrationEnabled`, задаваемой CLI-флагом или переменной окружения при старте); по умолчанию SHALL быть выключена. Обязательность `email` действует только для этого эндпоинта — при создании пользователя администратором (`POST /v1/users`) `email` остаётся опциональным (см. `log-server-password-reset`), так что колонка `User.email` в схеме хранения — `nullable`.
+Сервер SHALL предоставлять `POST /v1/auth/register`, принимающий `username`, пароль, обязательный `email` и опционально `display_name`; при уникальных `username` и `email` SHALL создавать нового `User` без единого `RoleAssignment` (то есть без доступа ни к одному ресурсу до явной выдачи роли). Доступность этого эндпоинта SHALL управляться конфигурацией сервера (`registrationEnabled`, задаваемой CLI-флагом или переменной окружения при старте); по умолчанию SHALL быть выключена. Обязательность `email` действует только для этого эндпоинта — при создании пользователя администратором (`POST /v1/users`) `email` остаётся опциональным (см. `log-server-password-reset`), так что колонка `User.email` в схеме хранения — `nullable`. Заданный этим путём `email` SHALL считаться неподтверждённым до завершения flow из `log-server-email-verification`, который блокирует `grant_type=password` для этой учётной записи, пока он не пройден.
 
 #### Scenario: Успешная регистрация при включённой конфигурации
 - **WHEN** сервер запущен с `registrationEnabled = true`, и отправлен `POST /v1/auth/register` с ещё не занятыми `username`/`email` и паролем
@@ -35,7 +35,7 @@
 - **THEN** значение, сохранённое в колонке `password_hash`, не совпадает с исходным паролем и не может быть тривиально обращено без подбора
 
 ### Requirement: Единый OAuth2-совместимый token-эндпоинт (RFC 6749)
-Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` — этот формат применяется к `POST /v1/auth/token` и `DELETE /v1/auth/token`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`). Оба сценария (`password` и `refresh_token`) SHALL заново резолвить эффективные роли пользователя и текущее значение `token_version` при каждой выдаче — не копировать их из ранее выданного токена (см. следующее требование).
+Сервер SHALL предоставлять `POST /v1/auth/token`, принимающий тело `application/x-www-form-urlencoded` с обязательным полем `grant_type`, различающий два сценария: `grant_type=password` (поля `username`, `password`) и `grant_type=refresh_token` (поле `refresh_token`). При успехе SHALL возвращать JSON-тело со стандартными полями RFC 6749 §5.1: `access_token`, `token_type` (`"Bearer"`), `expires_in`, `refresh_token`, `refresh_expires_in`. Любая ошибка этого эндпоинта (неверные креды, недействительный `grant_type`, недостающее поле) SHALL возвращать тело в формате RFC 6749 §5.2: `{"error": "<invalid_grant|invalid_request|unsupported_grant_type>", "error_description": "..."}` (отказ по причине неподтверждённого email — `log-server-email-verification` — SHALL дополнительно нести нестандартное поле `reason: "email_not_verified"` поверх этой формы) — этот формат применяется к `POST /v1/auth/token` и `DELETE /v1/auth/token`, отдельно от общего JSON-конверта ошибок остального API (`log-server-api`). Оба сценария (`password` и `refresh_token`) SHALL заново резолвить эффективные роли пользователя и текущее значение `token_version` при каждой выдаче — не копировать их из ранее выданного токена (см. следующее требование).
 
 #### Scenario: grant_type=password с верными кредами выдаёт пару токенов
 - **WHEN** отправлен `POST /v1/auth/token` (form-encoded) с `grant_type=password`, `username` и `password`, совпадающими с активным (`is_active = true`) пользователем
@@ -48,6 +48,10 @@
 #### Scenario: grant_type=password для неактивного пользователя отклоняется
 - **WHEN** отправлен `POST /v1/auth/token` с `grant_type=password` и корректными кредами пользователя, у которого `is_active = false`
 - **THEN** сервер отвечает с телом `{"error": "invalid_grant", ...}` и не выдаёт токены
+
+#### Scenario: grant_type=password для неподтверждённого email отклоняется
+- **WHEN** отправлен `POST /v1/auth/token` с `grant_type=password` и корректными кредами пользователя, у которого `email` задан, но не подтверждён (`log-server-email-verification`)
+- **THEN** сервер отвечает телом `{"error": "invalid_grant", "reason": "email_not_verified", ...}` и не выдаёт токены
 
 #### Scenario: Неизвестный grant_type отклоняется
 - **WHEN** отправлен `POST /v1/auth/token` с `grant_type`, отличным от `password` и `refresh_token`

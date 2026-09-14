@@ -30,6 +30,7 @@ Returned by `POST /v1/auth/register`, `POST /v1/users`, `GET /v1/users`, `POST /
 | `username` | string | Unique; the login identifier ([auth.md](../architecture/auth.md)) |
 | `display_name` | string \| null | |
 | `email` | string \| null | Recovery contact only, not a login identifier |
+| `email_verified_at` | string \| null | ISO 8601; `null` blocks `grant_type=password` for this account if `email` is set ([auth.md](../architecture/auth.md#email-verification-mandatory-before-login-not-optional)); always `null` when `email` is `null` |
 | `is_active` | boolean | `false` while blocked ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | `deleted_at` | string \| null | ISO 8601; set once, never cleared |
 | `is_primary_admin` | boolean | `true` on at most one user, ever |
@@ -41,6 +42,7 @@ Returned by `POST /v1/auth/register`, `POST /v1/users`, `GET /v1/users`, `POST /
   "username": "alice",
   "display_name": "Alice Chen",
   "email": "alice@example.com",
+  "email_verified_at": null,
   "is_active": true,
   "deleted_at": null,
   "is_primary_admin": false,

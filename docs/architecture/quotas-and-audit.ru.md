@@ -76,7 +76,7 @@ flowchart LR
   `team.member_removed`, `project.created`, `project.quota_updated`,
   `project.blocked`, `project.unblocked`, `secret_key.created`,
   `secret_key.revoked`, `role_assignment.created`,
-  `role_assignment.revoked`, `password.reset_confirmed`.
+  `role_assignment.revoked`, `password.reset_confirmed`, `email.verified`.
 - **Явно исключено**: `POST`/`GET /v1/logs` и `GET /v1/logs/stream`
   (высокочастотные бизнес-данные, не административное действие над
   собственными ресурсами сервиса — см.

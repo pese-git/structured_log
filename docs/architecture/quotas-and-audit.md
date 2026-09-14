@@ -74,7 +74,7 @@ flowchart LR
   `project.created`, `project.quota_updated`, `project.blocked`,
   `project.unblocked`, `secret_key.created`, `secret_key.revoked`,
   `role_assignment.created`, `role_assignment.revoked`,
-  `password.reset_confirmed`.
+  `password.reset_confirmed`, `email.verified`.
 - **Explicitly excluded**: `POST`/`GET /v1/logs` and `GET
   /v1/logs/stream` (high-frequency business data, not an administrative
   action over the service's own resources — see

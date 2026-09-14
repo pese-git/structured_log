@@ -133,7 +133,8 @@ curl http://localhost:8080/healthz
 
 Спека:
 [specs/log-server-auth/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-auth/spec.md),
-[specs/log-server-password-reset/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-password-reset/spec.md).
+[specs/log-server-password-reset/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-password-reset/spec.md),
+[specs/log-server-email-verification/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-email-verification/spec.md).
 См. [auth.md](../architecture/auth.ru.md).
 
 ### `POST /v1/auth/register`
@@ -151,7 +152,7 @@ Auth: нет. JSON-тело, **не** form-encoded — в отличие от to
 | `email` | string | да — обязательно именно на этом пути |
 | `display_name` | string | нет |
 
-**Ответ `201`:** [User](models.ru.md#user) (ещё без `RoleAssignment`).
+**Ответ `201`:** [User](models.ru.md#user) (ещё без `RoleAssignment`, `email_verified_at: null`). Письмо подтверждения отправляется как побочный эффект — аккаунт не сможет войти через `grant_type=password`, пока не подтвердит его, см. ниже и [auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-перед-входом-не-опционально).
 
 **Ошибки:** `400 invalid_request` (отсутствует `email`/`username`/`password`), `403 forbidden` (`registrationEnabled = false`), `409 username_taken`, `409 email_taken`.
 
@@ -159,6 +160,38 @@ Auth: нет. JSON-тело, **не** form-encoded — в отличие от to
 curl -X POST http://localhost:8080/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username": "alice", "password": "correct-horse-battery-staple", "email": "alice@example.com"}'
+```
+
+### `POST /v1/auth/verify-email`
+
+Auth: нет (токен подтверждения — сам credential). JSON-тело.
+
+**Тело запроса:** `{"token": "..."}`
+
+**Ответ `200`:** `{}`. Устанавливает `email_verified_at`, после чего `grant_type=password` работает штатно для этого аккаунта.
+
+**Ошибки:** `400 invalid_token` (неизвестный/истёкший/уже использованный токен).
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"token": "a1b2c3..."}'
+```
+
+### `POST /v1/auth/verify-email/resend`
+
+Auth: нет. JSON-тело.
+
+**Тело запроса:** `{"email": "..."}`
+
+**Ответ `202`:** `{}` — всегда, независимо от того, зарегистрирован ли email или уже подтверждён (анти-enumeration, тот же паттерн, что `password-reset`).
+
+**Ошибки:** `400 invalid_request` (отсутствует `email`).
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/verify-email/resend \
+  -H "Content-Type: application/json" \
+  -d '{"email": "alice@example.com"}'
 ```
 
 ### `POST /v1/auth/token`
@@ -174,7 +207,7 @@ JSON-конверта и в запросе, и в ответе об ошибке
 
 **Ответ `200`:** [Ответ токена](models.ru.md#ответ-токена).
 
-**Ошибки:** все `400`, форма RFC — `invalid_request` (отсутствует поле для данного `grant_type`), `unsupported_grant_type`, `invalid_grant` (неверные креды; неизвестный/истёкший/отозванный refresh-токен; заблокированный пользователь при refresh).
+**Ошибки:** все `400`, форма RFC — `invalid_request` (отсутствует поле для данного `grant_type`), `unsupported_grant_type`, `invalid_grant` (неверные креды; неизвестный/истёкший/отозванный refresh-токен; заблокированный пользователь при refresh; неподтверждённый `email` при `grant_type=password` — ответ дополнительно несёт `reason: "email_not_verified"`, см. [errors.md](errors.ru.md#расширение-rfc-конверта-token-эндпоинта-reason)).
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/token \
