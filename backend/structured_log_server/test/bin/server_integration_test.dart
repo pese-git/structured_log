@@ -294,4 +294,281 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );
+
+  test(
+    'over a real process: RBAC, revocation, quotas and the two error shapes',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('server_api_integration');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+      final stderrLines = <String>[];
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(stderrLines.add);
+
+      // Broadcast, and kept subscribed: dropping the subscription closes
+      // the pipe, and the server's own "Shutting down..." then dies of a
+      // broken pipe — which would show up as a bogus non-zero exit code.
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen((_) {});
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      final client = HttpClient();
+      addTearDown(client.close);
+
+      /// Unlike the helper in the streaming test, this one reports the
+      /// status instead of asserting success: half these cases are about
+      /// what the server refuses.
+      Future<({int status, Map<String, Object?> body})> call(
+        String method,
+        String path, {
+        Object? json,
+        String? bearer,
+        String? form,
+      }) async {
+        final request = await client.open(method, 'localhost', port, path);
+        if (bearer != null) {
+          request.headers
+              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+        }
+        if (form != null) {
+          request.headers.contentType =
+              ContentType('application', 'x-www-form-urlencoded');
+          request.write(form);
+        } else if (json != null) {
+          request.headers.contentType = ContentType.json;
+          request.write(jsonEncode(json));
+        }
+        final response = await request.close();
+        final text = await response.transform(utf8.decoder).join();
+        return (
+          status: response.statusCode,
+          body: text.isEmpty
+              ? const <String, Object?>{}
+              : jsonDecode(text) as Map<String, Object?>,
+        );
+      }
+
+      Future<({String access, String refresh})> login(
+        String username,
+        String password,
+      ) async {
+        final response = await call(
+          'POST',
+          '/v1/auth/token',
+          form: 'grant_type=password&username=$username&password=$password',
+        );
+        expect(response.status, 200, reason: '${response.body}');
+        return (
+          access: response.body['access_token'] as String,
+          refresh: response.body['refresh_token'] as String,
+        );
+      }
+
+      // --- the forced-password-change gate, end to end -------------------
+      var tokens = await login('root', 'bootstrap-pw');
+
+      final gated = await call('GET', '/v1/groups', bearer: tokens.access);
+      expect(gated.status, 403, reason: 'a temporary password gates the API');
+      expect(gated.body['error'], 'must_change_password');
+
+      final changed = await call(
+        'POST',
+        '/v1/auth/change-password',
+        bearer: tokens.access,
+        json: {'current_password': 'bootstrap-pw', 'new_password': 'real-pw'},
+      );
+      expect(changed.status, 200);
+
+      // Changing the password bumps token_version, so the token that just
+      // made the change is itself no longer valid.
+      final afterChange =
+          await call('GET', '/v1/groups', bearer: tokens.access);
+      expect(afterChange.status, 401);
+
+      tokens = await login('root', 'real-pw');
+      final admin = tokens.access;
+      expect((await call('GET', '/v1/groups', bearer: admin)).status, 200);
+
+      // --- the two error shapes the API deliberately keeps apart ---------
+      final badGrant = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=password&username=root&password=wrong',
+      );
+      expect(badGrant.status, 400);
+      expect(badGrant.body['error'], 'invalid_grant');
+      expect(badGrant.body, contains('error_description'),
+          reason: 'RFC 6749 §5.2 shape, not the general envelope');
+
+      final notFound = await call(
+        'GET',
+        '/v1/projects/999999',
+        bearer: admin,
+      );
+      expect(notFound.status, 404);
+      expect(notFound.body['error'], 'not_found');
+      expect(notFound.body, contains('message'),
+          reason: 'the general envelope, not the RFC 6749 one');
+
+      // --- resources, and a caller who may not touch them ----------------
+      final group =
+          await call('POST', '/v1/groups', bearer: admin, json: {'name': 'g'});
+      expect(group.status, 201);
+      final groupId = group.body['id'] as int;
+
+      final project = await call(
+        'POST',
+        '/v1/groups/$groupId/projects',
+        bearer: admin,
+        json: {'name': 'p', 'retention_days': 7, 'max_entries': 2},
+      );
+      expect(project.status, 201);
+      final projectId = project.body['id'] as int;
+
+      final key = await call(
+        'POST',
+        '/v1/projects/$projectId/secret-keys',
+        bearer: admin,
+        json: <String, Object?>{},
+      );
+      expect(key.status, 201);
+      final secret = key.body['secret'] as String;
+      expect(secret, startsWith('slk_'));
+
+      // The plaintext key is shown exactly once.
+      final listed = await call(
+        'GET',
+        '/v1/projects/$projectId/secret-keys',
+        bearer: admin,
+      );
+      expect(listed.status, 200);
+      final items = listed.body['items'] as List;
+      expect(items.single, isNot(contains('secret')));
+
+      // --- the two credentials do not substitute for one another ---------
+      expect(
+        (await call('GET', '/v1/groups', bearer: secret)).status,
+        401,
+        reason: 'a project key is not an access token',
+      );
+      expect(
+        (await call('POST', '/v1/logs', bearer: admin, json: <Object?>[]))
+            .status,
+        401,
+        reason: 'an access token does not authenticate ingestion',
+      );
+
+      // --- quotas, enforced per entry ------------------------------------
+      Map<String, Object?> entry(String event) => {
+            'event': event,
+            'level': 'info',
+            'timestamp': DateTime.now().toUtc().toIso8601String(),
+          };
+
+      final ingest = await call(
+        'POST',
+        '/v1/logs',
+        bearer: secret,
+        json: [entry('a'), entry('b'), entry('over-quota')],
+      );
+      expect(ingest.status, 202, reason: 'the request itself is well-formed');
+      expect(ingest.body['accepted'], 2);
+      final rejected = ingest.body['rejected'] as List;
+      expect(rejected, hasLength(1));
+      expect(
+        (rejected.single as Map)['error'],
+        'quota_exceeded',
+        reason: 'max_entries was 2',
+      );
+      expect((rejected.single as Map)['index'], 2,
+          reason: 'the rejection names which entry of the batch it was');
+
+      // Raising the quota lets the next batch through — the same path the
+      // operator would take after seeing the rejection.
+      expect(
+        (await call('PATCH', '/v1/projects/$projectId',
+                bearer: admin, json: {'max_entries': 100}))
+            .status,
+        200,
+      );
+      final afterRaise = await call('POST', '/v1/logs',
+          bearer: secret, json: [entry('now-fits')]);
+      expect(afterRaise.body['accepted'], 1);
+      expect(afterRaise.body['rejected'], isEmpty);
+
+      final queried =
+          await call('GET', '/v1/logs?project_id=$projectId', bearer: admin);
+      expect(queried.status, 200);
+      expect(
+        (queried.body['items'] as List).map((e) => (e as Map)['event']),
+        containsAll(['a', 'b', 'now-fits']),
+      );
+
+      // --- a caller with no roles sees nothing ---------------------------
+      // A bare user is what `POST /v1/users` will create; until that
+      // endpoint exists, logging in as one is not possible, so the closest
+      // end-to-end check is that a wrong/forged token is refused.
+      expect(
+        (await call('GET', '/v1/groups', bearer: 'not-a-token')).status,
+        401,
+      );
+
+      // --- refresh and revocation ----------------------------------------
+      final refreshed = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=refresh_token&refresh_token=${tokens.refresh}',
+      );
+      expect(refreshed.status, 200);
+
+      final revoke = await call(
+        'DELETE',
+        '/v1/auth/token',
+        form: 'refresh_token=${tokens.refresh}',
+      );
+      expect(revoke.status, 200);
+
+      final reuse = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=refresh_token&refresh_token=${tokens.refresh}',
+      );
+      expect(reuse.status, 400, reason: 'a revoked refresh token is dead');
+      expect(reuse.body['error'], 'invalid_grant');
+
+      process.kill(ProcessSignal.sigterm);
+      final exitCode =
+          await process.exitCode.timeout(const Duration(seconds: 10));
+      expect(exitCode, 0, reason: stderrLines.join('\n'));
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
 }
