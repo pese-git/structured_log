@@ -52,10 +52,11 @@ token-эндпоинт никогда не использует `message`/`detai
 | 400 | `self_deletion_requires_me` | общий | `DELETE /v1/users/:id` | `:id` равен собственному id вызывающего — самоудаление только через `DELETE /v1/users/me` |
 | 401 | `unauthorized` | общий | Любой JWT-защищённый эндпоинт | Заголовок `Authorization` отсутствует/некорректен; подпись/срок JWT невалидны; либо claim `tv` больше не совпадает с `User.token_version` ([auth.md](../architecture/auth.ru.md#token_version-как-снапшот-в-jwt-остаётся-отзываемым)) |
 | 401 | `unauthorized` | общий | `POST /v1/logs` | Секретный ключ проекта отсутствует, неизвестен, или установлен `revoked_at` |
-| 401 | `invalid_grant` | общий | `DELETE /v1/users/me` | Подтверждение текущим паролем неверно |
+| 401 | `invalid_grant` | общий | `DELETE /v1/users/me`, `POST /v1/auth/change-password` | Подтверждение текущим паролем неверно |
 | 403 | `forbidden` | общий | Management/query-эндпоинты | Эффективные роли вызывающего не покрывают запрошенную область/действие ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | 403 | `project_blocked` | общий | `POST /v1/logs`, `GET /v1/logs?project_id=`, `GET /v1/logs/stream?project_id=` | У целевого проекта `is_blocked = true`; перекрывает обычную авторизацию, а не дополняет её |
 | 403 | `cannot_delete_primary_admin` | общий | `DELETE /v1/users/me`, `DELETE /v1/users/:id` | У цели `is_primary_admin = true` — см. [rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md) |
+| 403 | `must_change_password` | общий | Любой JWT-аутентифицированный эндпоинт, кроме `POST /v1/auth/change-password`, `DELETE /v1/users/me`, `POST /v1/auth/token` (`grant_type=refresh_token`), `DELETE /v1/auth/token` | У вызывающего `must_change_password = true` — см. [auth.md](../architecture/auth.ru.md#patch-v1usersid-и-обязательный-временный-пароль) |
 | 404 | `not_found` | общий | Любой `:id`-эндпоинт; `GET /v1/logs`/`stream` с неизвестным `project_id`/`group_id` | Ресурс не существует (отличается от 403 только когда само существование не чувствительно — см. ниже) |
 | 409 | `username_taken` | общий | `POST /v1/auth/register`, `POST /v1/users` | `username` уже занят другой строкой (удалённые аккаунты по-прежнему резервируют его — [rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | 409 | `email_taken` | общий | `POST /v1/auth/register`, `POST /v1/users` | `email` уже занят другой строкой, то же правило резервирования |

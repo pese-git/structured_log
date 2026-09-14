@@ -282,10 +282,30 @@ curl -X DELETE http://localhost:8080/v1/users/me \
   -d '{"password": "correct-horse-battery-staple"}'
 ```
 
+### `POST /v1/auth/change-password`
+
+Auth: `Authorization: Bearer <access-token>`. JSON body. Available to
+any authenticated role, over their own account only — not just while
+`must_change_password` is set (`log-server-forced-password-change`,
+[auth.md](../architecture/auth.md#patch-v1usersid-and-the-mandatory-temporary-password)).
+
+**Request body:** `{"current_password": "...", "new_password": "..."}`
+
+**Response `200`:** `{}`. Clears `must_change_password` if it was set.
+
+**Errors:** `401 invalid_grant` (wrong current password).
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/change-password \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"current_password": "temp-password-123", "new_password": "a-much-better-passphrase"}'
+```
+
 ## Users, groups, teams, roles (`log-server-rbac`)
 
 Spec:
-[specs/log-server-rbac/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-rbac/spec.md).
+[specs/log-server-rbac/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-rbac/spec.md),
+[specs/log-server-forced-password-change/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-forced-password-change/spec.md).
 See [rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md). All
 endpoints below: `Authorization: Bearer <access-token>`, JSON bodies.
 
@@ -295,7 +315,7 @@ Role: `admin`.
 
 **Request body:** same fields as `POST /v1/auth/register`, but `email` is optional here.
 
-**Response `201`:** [User](models.md#user).
+**Response `201`:** [User](models.md#user) — `must_change_password: true` always (`log-server-forced-password-change`); `email_verified_at: null` if `email` was set.
 
 **Errors:** `403 forbidden`, `409 username_taken`, `409 email_taken`.
 
@@ -317,6 +337,28 @@ Role: `admin`.
 
 ```bash
 curl -G http://localhost:8080/v1/users -H "Authorization: Bearer $ACCESS_TOKEN" -d limit=50
+```
+
+### `PATCH /v1/users/:id`
+
+Role: `admin`. Partial update — any subset of the fields below.
+
+**Request body:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `email` | string | A new value resets `email_verified_at` to `null` and triggers a fresh verification email |
+| `display_name` | string | |
+| `password` | string | Setting this always sets `must_change_password: true` and revokes all of the target's refresh tokens |
+
+**Response `200`:** [User](models.md#user) (updated).
+
+**Errors:** `403 forbidden`, `404 not_found`, `409 email_taken`.
+
+```bash
+curl -X PATCH http://localhost:8080/v1/users/42 \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"password": "new-temp-password-456"}'
 ```
 
 ### `POST /v1/users/:id/block` / `POST /v1/users/:id/unblock`

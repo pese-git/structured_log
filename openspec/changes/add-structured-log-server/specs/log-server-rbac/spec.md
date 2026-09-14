@@ -56,11 +56,15 @@ RBAC-логика SHALL уметь резолвить эффективные р�
 - **THEN** сервер отвечает 403 и не создаёт запись
 
 ### Requirement: Создание пользователей и групп ограничено ролью admin
-`POST /v1/users` и `POST /v1/groups` SHALL быть доступны только пользователям с `RoleAssignment(role: admin, scope: global)`.
+`POST /v1/users`, `PATCH /v1/users/:id` (`log-server-forced-password-change`) и `POST /v1/groups` SHALL быть доступны только пользователям с `RoleAssignment(role: admin, scope: global)`.
 
 #### Scenario: owner не может создать новую группу
 - **WHEN** пользователь с `RoleAssignment(role: owner, scope: group:G)` (без роли `admin`) отправляет `POST /v1/groups`
 - **THEN** сервер отвечает 403 и не создаёт группу
+
+#### Scenario: owner не может редактировать пользователя через PATCH
+- **WHEN** пользователь с `RoleAssignment(role: owner, scope: group:G)` (без роли `admin`) отправляет `PATCH /v1/users/:id` для любого пользователя, включая пользователей своей группы
+- **THEN** сервер отвечает 403 и не изменяет запись
 
 ### Requirement: Управление командами, проектами, квотами и секретными ключами ограничено owner/admin в рамках группы
 `POST`/`PATCH`/`DELETE` на `teams`, `projects` (включая квоты `retention_days`/`max_entries`/`max_bytes`) и `project_secret_keys` внутри группы `G` SHALL быть доступны пользователям с `RoleAssignment(role: admin, scope: global)` или `RoleAssignment(role: owner, scope: group:G)` (прямо или через команду); пользователям только с ролью `user` на `G` или её проекты SHALL быть доступно только чтение (`GET`), не изменение.

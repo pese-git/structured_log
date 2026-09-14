@@ -52,10 +52,11 @@ mix on one response.
 | 400 | `self_deletion_requires_me` | general | `DELETE /v1/users/:id` | `:id` equals the caller's own id — self-deletion must go through `DELETE /v1/users/me` |
 | 401 | `unauthorized` | general | Any JWT-protected endpoint | `Authorization` header missing/malformed; JWT signature/expiry invalid; or claim `tv` no longer matches `User.token_version` ([auth.md](../architecture/auth.md#token_version-how-a-snapshot-in-a-jwt-stays-revocable)) |
 | 401 | `unauthorized` | general | `POST /v1/logs` | Project secret key missing, unknown, or `revoked_at` is set |
-| 401 | `invalid_grant` | general | `DELETE /v1/users/me` | Current-password confirmation is wrong |
+| 401 | `invalid_grant` | general | `DELETE /v1/users/me`, `POST /v1/auth/change-password` | Current-password confirmation is wrong |
 | 403 | `forbidden` | general | Management/query endpoints | Caller's effective roles don't cover the requested scope/action ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | 403 | `project_blocked` | general | `POST /v1/logs`, `GET /v1/logs?project_id=`, `GET /v1/logs/stream?project_id=` | Target project has `is_blocked = true`; overrides normal authorization rather than adding to it |
 | 403 | `cannot_delete_primary_admin` | general | `DELETE /v1/users/me`, `DELETE /v1/users/:id` | Target has `is_primary_admin = true` — see [rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md) |
+| 403 | `must_change_password` | general | Any JWT-authenticated endpoint except `POST /v1/auth/change-password`, `DELETE /v1/users/me`, `POST /v1/auth/token` (`grant_type=refresh_token`), `DELETE /v1/auth/token` | Caller's `must_change_password` is `true` — see [auth.md](../architecture/auth.md#patch-v1usersid-and-the-mandatory-temporary-password) |
 | 404 | `not_found` | general | Any `:id`-addressed endpoint; `GET /v1/logs`/`stream` with an unknown `project_id`/`group_id` | Resource doesn't exist (distinguished from 403 only when existence itself isn't sensitive — see note below) |
 | 409 | `username_taken` | general | `POST /v1/auth/register`, `POST /v1/users` | `username` already belongs to another row (deleted accounts still reserve it — [rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | 409 | `email_taken` | general | `POST /v1/auth/register`, `POST /v1/users` | `email` already belongs to another row, same reservation rule |

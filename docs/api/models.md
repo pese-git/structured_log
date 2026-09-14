@@ -22,7 +22,7 @@ takes precedence and this document should be updated to match.
 
 ## User
 
-Returned by `POST /v1/auth/register`, `POST /v1/users`, `GET /v1/users`, `POST /v1/users/:id/block`/`unblock`.
+Returned by `POST /v1/auth/register`, `POST /v1/users`, `PATCH /v1/users/:id`, `GET /v1/users`, `POST /v1/users/:id/block`/`unblock`.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -31,6 +31,7 @@ Returned by `POST /v1/auth/register`, `POST /v1/users`, `GET /v1/users`, `POST /
 | `display_name` | string \| null | |
 | `email` | string \| null | Recovery contact only, not a login identifier |
 | `email_verified_at` | string \| null | ISO 8601; `null` blocks `grant_type=password` for this account if `email` is set ([auth.md](../architecture/auth.md#email-verification-mandatory-before-login-not-optional)); always `null` when `email` is `null` |
+| `must_change_password` | boolean | `true` whenever an admin set this account's password (creation or `PATCH`); blocks every JWT-authenticated endpoint except a small allowlist until cleared via `POST /v1/auth/change-password` ([auth.md](../architecture/auth.md#patch-v1usersid-and-the-mandatory-temporary-password)); always `false` for self-registered accounts |
 | `is_active` | boolean | `false` while blocked ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | `deleted_at` | string \| null | ISO 8601; set once, never cleared |
 | `is_primary_admin` | boolean | `true` on at most one user, ever |
@@ -43,6 +44,7 @@ Returned by `POST /v1/auth/register`, `POST /v1/users`, `GET /v1/users`, `POST /
   "display_name": "Alice Chen",
   "email": "alice@example.com",
   "email_verified_at": null,
+  "must_change_password": false,
   "is_active": true,
   "deleted_at": null,
   "is_primary_admin": false,

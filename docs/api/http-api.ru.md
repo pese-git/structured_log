@@ -286,10 +286,31 @@ curl -X DELETE http://localhost:8080/v1/users/me \
   -d '{"password": "correct-horse-battery-staple"}'
 ```
 
+### `POST /v1/auth/change-password`
+
+Auth: `Authorization: Bearer <access-token>`. JSON-тело. Доступен любой
+аутентифицированной роли, только над собственной учётной записью — не
+только пока установлен `must_change_password`
+(`log-server-forced-password-change`,
+[auth.md](../architecture/auth.ru.md#patch-v1usersid-и-обязательный-временный-пароль)).
+
+**Тело запроса:** `{"current_password": "...", "new_password": "..."}`
+
+**Ответ `200`:** `{}`. Снимает `must_change_password`, если он был установлен.
+
+**Ошибки:** `401 invalid_grant` (неверный текущий пароль).
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/change-password \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"current_password": "temp-password-123", "new_password": "a-much-better-passphrase"}'
+```
+
 ## Пользователи, группы, команды, роли (`log-server-rbac`)
 
 Спека:
-[specs/log-server-rbac/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-rbac/spec.md).
+[specs/log-server-rbac/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-rbac/spec.md),
+[specs/log-server-forced-password-change/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-forced-password-change/spec.md).
 См. [rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md).
 Все эндпоинты ниже: `Authorization: Bearer <access-token>`, JSON-тела.
 
@@ -299,7 +320,7 @@ curl -X DELETE http://localhost:8080/v1/users/me \
 
 **Тело запроса:** те же поля, что `POST /v1/auth/register`, но `email` здесь опционален.
 
-**Ответ `201`:** [User](models.ru.md#user).
+**Ответ `201`:** [User](models.ru.md#user) — `must_change_password: true` всегда (`log-server-forced-password-change`); `email_verified_at: null`, если `email` был указан.
 
 **Ошибки:** `403 forbidden`, `409 username_taken`, `409 email_taken`.
 
@@ -321,6 +342,28 @@ curl -X POST http://localhost:8080/v1/users \
 
 ```bash
 curl -G http://localhost:8080/v1/users -H "Authorization: Bearer $ACCESS_TOKEN" -d limit=50
+```
+
+### `PATCH /v1/users/:id`
+
+Роль: `admin`. Частичное обновление — любое подмножество полей ниже.
+
+**Тело запроса:**
+
+| Поле | Тип | Примечания |
+|---|---|---|
+| `email` | string | Новое значение сбрасывает `email_verified_at` в `null` и запускает новое письмо подтверждения |
+| `display_name` | string | |
+| `password` | string | Установка этого поля всегда ставит `must_change_password: true` и отзывает все refresh-токены цели |
+
+**Ответ `200`:** [User](models.ru.md#user) (обновлённый).
+
+**Ошибки:** `403 forbidden`, `404 not_found`, `409 email_taken`.
+
+```bash
+curl -X PATCH http://localhost:8080/v1/users/42 \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"password": "new-temp-password-456"}'
 ```
 
 ### `POST /v1/users/:id/block` / `POST /v1/users/:id/unblock`

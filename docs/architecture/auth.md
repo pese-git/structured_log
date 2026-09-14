@@ -264,6 +264,90 @@ A few choices worth calling out:
   `password_reset_tokens`) and two new endpoints, not a new way to send
   mail.
 
+## `PATCH /v1/users/:id` and the mandatory temporary password
+
+By direct user requirement (decisions 41/42): admins can edit an
+existing user's `email`/`display_name`/`password` — closing a gap
+where an admin could create, block, or delete an account but never
+correct it. `username`/`is_active`/`deleted_at`/`is_primary_admin`/roles
+stay out of reach of this endpoint on purpose — each already has its
+own, more narrowly authorized path, and decision 25 already rejected
+folding differently-authorized fields into one generic `PATCH` once
+before.
+
+Whenever an admin sets a password — at creation (`POST /v1/users`) or
+later (`PATCH /v1/users/:id`) — it's unconditionally temporary. There's
+no flag to turn this off:
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Srv as structured_log_server
+    participant User as Target user
+
+    Admin->>Srv: POST /v1/users {password: "..."} or PATCH /v1/users/:id {password: "..."}
+    Note over Srv: must_change_password = true\n(unconditional)\nrevoke all of the target's refresh tokens\ntoken_version += 1
+    Srv-->>Admin: 200/201
+
+    Note over Admin,User: admin communicates the temporary password out-of-band
+
+    User->>Srv: POST /v1/auth/token grant_type=password
+    Note over Srv: login itself is NOT blocked —\nthe user is expected to know this password
+    Srv-->>User: 200 {access_token, refresh_token, ...}
+
+    User->>Srv: any other request, e.g. GET /v1/logs
+    Srv-->>User: 403 must_change_password
+
+    User->>Srv: POST /v1/auth/change-password {current_password, new_password}
+    Note over Srv: verify current_password,\nupdate hash, token_version += 1,\nmust_change_password = false
+    Srv-->>User: 200
+
+    User->>Srv: GET /v1/logs (retried)
+    Srv-->>User: 200 (works normally now)
+```
+
+A few choices worth calling out:
+
+- **Login succeeds; everything else doesn't.** This is the opposite
+  gate shape from [email verification](#email-verification-mandatory-before-login-not-optional),
+  which blocks token issuance itself. Here the user is *expected* to
+  know the temporary password (the admin told them out-of-band), so
+  refusing to issue a token at all would leave no API path to comply
+  with the requirement in the first place. Instead, a small middleware
+  step — sitting right after auth, before authorization — blocks every
+  JWT-authenticated request except an explicit allowlist:
+  `POST /v1/auth/change-password` (obviously — without it the flag
+  could never be cleared), `DELETE /v1/users/me` (someone who'd rather
+  delete the account than deal with it shouldn't be trapped — this
+  endpoint already requires the current password, which doubles as
+  proof they know the temporary one), and the session-maintenance pair
+  `POST /v1/auth/token` (`grant_type=refresh_token`) / `DELETE /v1/auth/token`.
+- **Refresh tokens are explicitly revoked, not just `token_version`-bumped.**
+  A `token_version` bump alone only invalidates the *current* access
+  token — the still-valid refresh token would happily mint a new one,
+  and the user could keep working under the password they already knew,
+  never noticing (or needing) the reset. Revoking refresh tokens (the
+  same call already used for blocking, decision 25) forces a fresh
+  `grant_type=password` login with the *new* password — which only
+  succeeds if they actually received it.
+- **`POST /v1/auth/change-password` is a general capability, not a
+  forced-flow-only one.** It works identically whether
+  `must_change_password` is set or not — this happens to close a
+  separate, previously-identified gap (there was no way to change your
+  own password while already logged in; only the unauthenticated
+  password-reset flow existed, and that needs an `email`).
+- **Changing `email` through `PATCH` resets verification.** A new
+  address hasn't proven anyone owns it yet — even if the old one was
+  verified — so `email_verified_at` resets to `null` and a fresh
+  verification email goes out through the same shared function
+  `POST /v1/auth/register` already uses.
+- **No extra work for the live-stream heartbeat.** If an admin resets
+  someone's password while their `GET /v1/logs/stream` connection is
+  open, the `token_version` bump this already triggers is exactly what
+  the heartbeat's existing re-validation ([live-streaming.md](live-streaming.md#re-validating-a-long-lived-connection))
+  already watches for — the stream closes on its own, no new code
+  needed specifically for this case.
+
 ## Password vs. secret-key hashing: two algorithms for two threats
 
 Decision 11 deliberately does **not** use the same hash for both:

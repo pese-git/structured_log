@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Аудит фиксирует закрытый список административных действий
-Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`, `email.verified`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
+Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`, `email.verified`, `user.updated`, `password.changed`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
 
 #### Scenario: Выдача роли создаёт аудит-запись
 - **WHEN** `admin` или `owner` успешно выполняет `POST /v1/role-assignments`
@@ -14,6 +14,14 @@
 #### Scenario: Самостоятельная регистрация фиксируется с самим пользователем как инициатором
 - **WHEN** пользователь успешно регистрируется через `POST /v1/auth/register`
 - **THEN** создаётся аудит-запись `action: user.created` с `actor_user_id`, равным идентификатору только что созданного пользователя, и `target_id`, также равным этому пользователю
+
+#### Scenario: Редактирование пользователя администратором не раскрывает значение пароля в аудите
+- **WHEN** `admin` успешно меняет `password` пользователя через `PATCH /v1/users/:id`
+- **THEN** создаётся аудит-запись `action: user.updated` с `actor_user_id` — `admin`, `target_id` — редактируемый пользователь, `metadata` отмечает, что поле `password` изменено, но не содержит его хэш или значение
+
+#### Scenario: Самостоятельная смена пароля через change-password фиксируется отдельно от восстановления
+- **WHEN** пользователь успешно выполняет `POST /v1/auth/change-password`
+- **THEN** создаётся аудит-запись `action: password.changed` с `actor_user_id` и `target_id`, равными этому пользователю — отдельно от `password.reset_confirmed`
 
 #### Scenario: Подтверждение email фиксируется с самим пользователем как инициатором
 - **WHEN** пользователь успешно подтверждает свой email через `POST /v1/auth/verify-email`

@@ -22,7 +22,7 @@
 
 ## User
 
-Возвращается `POST /v1/auth/register`, `POST /v1/users`, `GET /v1/users`, `POST /v1/users/:id/block`/`unblock`.
+Возвращается `POST /v1/auth/register`, `POST /v1/users`, `PATCH /v1/users/:id`, `GET /v1/users`, `POST /v1/users/:id/block`/`unblock`.
 
 | Поле | Тип | Примечания |
 |---|---|---|
@@ -31,6 +31,7 @@
 | `display_name` | string \| null | |
 | `email` | string \| null | Только контакт для восстановления, не идентификатор для входа |
 | `email_verified_at` | string \| null | ISO 8601; `null` блокирует `grant_type=password` для этого аккаунта, если `email` задан ([auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-перед-входом-не-опционально)); всегда `null`, если `email` — `null` |
+| `must_change_password` | boolean | `true`, если пароль этого аккаунта задал администратор (создание или `PATCH`); блокирует любой JWT-эндпоинт, кроме небольшого списка исключений, пока не снят через `POST /v1/auth/change-password` ([auth.md](../architecture/auth.ru.md#patch-v1usersid-и-обязательный-временный-пароль)); всегда `false` для самостоятельно зарегистрированных аккаунтов |
 | `is_active` | boolean | `false` при блокировке ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | `deleted_at` | string \| null | ISO 8601; устанавливается один раз, никогда не снимается |
 | `is_primary_admin` | boolean | `true` не более чем у одного пользователя за всю историю |
@@ -43,6 +44,7 @@
   "display_name": "Alice Chen",
   "email": "alice@example.com",
   "email_verified_at": null,
+  "must_change_password": false,
   "is_active": true,
   "deleted_at": null,
   "is_primary_admin": false,
