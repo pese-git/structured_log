@@ -141,6 +141,10 @@ Questions).
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
 | Audit purge chunk | `--audit-purge-batch-size` | TBD | Deleting in chunks keeps ingestion unblocked |
 | Live-stream heartbeat | `--stream-heartbeat-seconds` | TBD | Also re-validates authorization ([live-streaming.md](../architecture/live-streaming.md)) |
+| Own-log level | `--log-level` | `info` | The server's own diagnostics, not ingested entries ([README.md](../architecture/README.md#the-middleware-chain)) |
+| Own-log format | `--log-format` | `console` | `console` or `json` for machine collection |
+| Own-log file | `--log-file` | unset | Unset = console. When set, writing is asynchronous with rotation so it never blocks the single isolate |
+| Own-log rotation | `--log-file-max-bytes`, `--log-file-max-files` | TBD | Only meaningful together with `--log-file` |
 
 ## Examples
 

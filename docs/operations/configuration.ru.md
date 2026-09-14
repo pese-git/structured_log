@@ -140,6 +140,10 @@ design.md).
 | Хранение auth-событий | `--auth-event-retention-days` | не задано | Отделено от предыдущего намеренно |
 | Порция очистки аудита | `--audit-purge-batch-size` | TBD | Удаление порциями не блокирует приём логов |
 | Heartbeat живого потока | `--stream-heartbeat-seconds` | TBD | Он же перепроверяет авторизацию ([live-streaming.md](../architecture/live-streaming.ru.md)) |
+| Уровень собственного лога | `--log-level` | `info` | Диагностика самого сервера, не принятые записи ([README.md](../architecture/README.ru.md#цепочка-middleware)) |
+| Формат собственного лога | `--log-format` | `console` | `console` или `json` для машинного сбора |
+| Файл собственного лога | `--log-file` | не задан | Не задан = консоль. При заданном запись асинхронная, с ротацией, чтобы не блокировать единственный isolate |
+| Ротация файла лога | `--log-file-max-bytes`, `--log-file-max-files` | TBD | Имеют смысл только вместе с `--log-file` |
 
 ## Примеры
 
