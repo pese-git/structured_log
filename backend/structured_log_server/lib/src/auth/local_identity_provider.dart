@@ -59,6 +59,11 @@ class LocalIdentityProvider implements IdentityProvider {
       );
     }
 
-    return VerifiedIdentity(userId: userId, username: username, roles: roles);
+    return VerifiedIdentity(
+      userId: userId,
+      username: username,
+      roles: roles,
+      mustChangePassword: user.mustChangePassword,
+    );
   }
 }

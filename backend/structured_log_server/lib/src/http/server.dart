@@ -9,8 +9,10 @@ import '../rbac/authorizer.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
 import 'auth_middleware.dart';
+import 'must_change_password_middleware.dart';
 import 'project_key_middleware.dart';
 import 'routes/auth_route.dart';
+import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
 import 'routes/logs_route.dart';
 import 'routes/projects_route.dart';
@@ -43,6 +45,11 @@ Handler buildHandler(
   );
   final logStore = DriftLogStore(db);
   final jwtAuth = authMiddleware(identityProvider);
+  final passwordChangeGate = mustChangePasswordMiddleware();
+  // Every JWT route except change-password itself sits behind both auth
+  // and the forced-password-change gate — a temporary password must not
+  // unlock anything else first (log-server-forced-password-change).
+  Handler jwtAuthGated(Handler handler) => jwtAuth(passwordChangeGate(handler));
   final projectKeyAuth = projectKeyMiddleware(db);
 
   final router = Router()
@@ -50,6 +57,11 @@ Handler buildHandler(
     // credentials/tokens (log-server-auth).
     ..post('/v1/auth/token', (req) => issueToken(tokenService, req))
     ..delete('/v1/auth/token', (req) => revokeToken(tokenService, req))
+    // Allowed even with a temporary password — it's how you clear the flag.
+    ..post(
+      '/v1/auth/change-password',
+      jwtAuth((req) => changePassword(db, req)),
+    )
     // Log ingestion (project secret key) / query (JWT) — same paths,
     // different methods, different auth schemes.
     ..post(
@@ -58,34 +70,40 @@ Handler buildHandler(
     )
     ..get(
       '/v1/logs',
-      jwtAuth((req) => queryLogs(db, authorizer, logStore, req)),
+      jwtAuthGated((req) => queryLogs(db, authorizer, logStore, req)),
     )
     // Management API (JWT).
-    ..post('/v1/groups', jwtAuth((req) => createGroup(db, authorizer, req)))
-    ..get('/v1/groups', jwtAuth((req) => listGroups(db, authorizer, req)))
+    ..post(
+      '/v1/groups',
+      jwtAuthGated((req) => createGroup(db, authorizer, req)),
+    )
+    ..get(
+      '/v1/groups',
+      jwtAuthGated((req) => listGroups(db, authorizer, req)),
+    )
     ..post(
       '/v1/groups/<groupId>/projects',
-      jwtAuth((req) => createProject(db, authorizer, req)),
+      jwtAuthGated((req) => createProject(db, authorizer, req)),
     )
     ..patch(
       '/v1/projects/<id>',
-      jwtAuth((req) => updateProjectQuota(db, authorizer, req)),
+      jwtAuthGated((req) => updateProjectQuota(db, authorizer, req)),
     )
     ..get(
       '/v1/projects/<id>',
-      jwtAuth((req) => getProject(db, authorizer, req)),
+      jwtAuthGated((req) => getProject(db, authorizer, req)),
     )
     ..post(
       '/v1/projects/<id>/secret-keys',
-      jwtAuth((req) => createSecretKey(db, authorizer, req)),
+      jwtAuthGated((req) => createSecretKey(db, authorizer, req)),
     )
     ..get(
       '/v1/projects/<id>/secret-keys',
-      jwtAuth((req) => listSecretKeys(db, authorizer, req)),
+      jwtAuthGated((req) => listSecretKeys(db, authorizer, req)),
     )
     ..delete(
       '/v1/projects/<id>/secret-keys/<keyId>',
-      jwtAuth((req) => revokeSecretKey(db, authorizer, req)),
+      jwtAuthGated((req) => revokeSecretKey(db, authorizer, req)),
     )
     // Health — no authentication.
     ..get('/healthz', healthCheck);

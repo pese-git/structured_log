@@ -48,10 +48,17 @@ class VerifiedIdentity {
   final String username;
   final List<EffectiveRole>? roles;
 
+  /// Mirrors `User.must_change_password` at verification time
+  /// (`log-server-forced-password-change`) — `mustChangePasswordMiddleware`
+  /// reads this to gate everything except a small allowlist, without a
+  /// separate point-lookup beyond what verifying the token already did.
+  final bool mustChangePassword;
+
   const VerifiedIdentity({
     required this.userId,
     required this.username,
     this.roles,
+    this.mustChangePassword = false,
   });
 }
 
