@@ -108,7 +108,7 @@
 - [ ] 10.8 Ручной smoke test (`dart run bin/server.dart`/`create-admin`, `HttpLogOutput`, `curl` с access-токеном и с секретным ключом) — зафиксировать результат в этой задаче
 - [ ] 10.9 Отдельный тест (основной администратор; для автосоздания при пустой базе — 34.9): `create-admin` создаёт первого администратора P с `is_primary_admin = true` → повторный `create-admin` создаёт второго администратора без этого флага → `DELETE /v1/users/P.id`, отправленный вторым администратором, отклоняется 403 `cannot_delete_primary_admin`, P всё ещё может войти → `DELETE /v1/users/me`, отправленный самим P, отклоняется тем же кодом → второй администратор успешно удаляется обычным образом (`DELETE /v1/users/:id` от P) → `GET /v1/audit-log` не содержит `user.deleted` для P ни в одной из отклонённых попыток
 
-## 11. structured_log_admin_client — скаффолдинг и API-клиент _(позже — см. design.md «Delivery Phases»)_
+## 11. structured_log_admin_client — скаффолдинг и API-клиент _(Этап 1 — частично, см. design.md «Delivery Phases»)_
 
 - [ ] 11.1 Создать `frontend/structured_log_admin_client/`: `pubspec.yaml` (зависимости `flutter` sdk, `structured_log_admin_ui` (раздел 23, path-зависимость внутри workspace), `fluent_ui`, `dio`, `retrofit`, `flutter_secure_storage`, `fpdart`, `freezed_annotation`, `json_annotation`, `cherrypick`, `flutter_bloc`; dev-зависимости `build_runner`, `freezed`, `json_serializable`, `retrofit_generator`; `structured_log` (собственное логирование приложения — decision 48 `design.md`), без зависимости на `structured_log_server`/`structured_log_http` (decision 19 `design.md`, пересмотренная decision 48 только в части `structured_log`)), `lib/main.dart` (`FluentApp`, не `MaterialApp` — decision 38), `lib/features/` — по фиче (`auth/`, `users/`, `projects/`, `teams/`, `log_browser/`, `audit/`, ... — decision 32), внутри каждой — `domain`/`application`/`infrastructure`/`presentation` (`presentation` компонует atoms/molecules/organisms `structured_log_admin_ui` в конкретные, привязанные к `Bloc` экраны — decision 39), `test/`; веб-платформа через `flutter create --platforms=web` (по аналогии с `structured_log_material_example`/`structured_log_fluent_example`); `LICENSE` скопирован; `*.g.dart`/`*.freezed.dart` добавлены в `.gitignore` пакета
 - [ ] 11.2 Добавить пакет в `packages:` корневого [melos.yaml](../../melos.yaml) и в матрицу существующего `flutter`-job'а CI (не новый job), с шагом `dart run build_runner build --delete-conflicting-outputs` перед `analyze`/`test`
@@ -116,7 +116,7 @@
 - [ ] 11.4 Хранилище токенов (`lib/shared/auth/token_storage.dart`) на `flutter_secure_storage`; тестовый мок-реализация для юнит/виджет-тестов (без реального secure storage в CI — decision 20/Risks `design.md`)
 - [ ] 11.5 DI-контейнер на `cherrypick` (`lib/shared/di/`, или per-feature scope-модули — decision 35): регистрация `ApiClient`/`retrofit`-клиентов/`TokenStorage` как singleton-зависимостей, `infrastructure`-репозиториев каждой фичи как их потребителей, доступных `application`-слою (use-cases) и, через него, `presentation`-слою (`Bloc`/`Cubit`, decision 36) — ни один `Bloc`/виджет не создаёт `infrastructure`-зависимость напрямую
 
-## 12. structured_log_admin_client — аутентификация (admin-client-auth) _(позже — см. design.md «Delivery Phases»)_
+## 12. structured_log_admin_client — аутентификация (admin-client-auth) _(Этап 1 — частично, см. design.md «Delivery Phases»)_
 
 - [ ] 12.1 Экран логина (`username`/пароль → `grant_type=password`), сохранение полученной пары токенов, переход на основной экран
 - [ ] 12.2 Экран регистрации (`POST /v1/auth/register`), понятное сообщение при 403 (регистрация отключена на сервере), переход к логину при успехе
@@ -125,7 +125,7 @@
 - [ ] 12.5 Действие «удалить аккаунт» в настройках (только над собственной учётной записью): предупреждение о необратимости → запрос текущего пароля → `DELETE /v1/users/me`; при успехе — очистка токенов и переход на экран логина; при неверном пароле — ошибка, сессия сохраняется; при 409 (`sole_group_owner`) — показать список блокирующих групп вместо обобщённой ошибки, не выходя из сессии; при 403 (`cannot_delete_primary_admin`) — показать понятное сообщение о том, что основная учётная запись администратора не может быть удалена, вместо обобщённой ошибки, не выходя из сессии (decision 28 `design.md`)
 - [ ] 12.6 Виджет/юнит-тесты на сценарии из `specs/admin-client-auth/spec.md`: успешный/неверный логин, регистрация вкл/выкл (403), токены не в открытом хранилище, прозрачный refresh при 401 без видимой пользователю ошибки, переход на логин при неудачном refresh, выход очищает токены даже при недоступном сервере, удаление аккаунта (успех переводит на логин, неверный пароль не удаляет и не выходит из сессии, предупреждение показывается до отправки пароля, конфликт единственного владельца группы показывает список блокирующих групп, отказ основному администратору показывает понятное сообщение вместо обобщённой ошибки)
 
-## 13. structured_log_admin_client — управление ресурсами (admin-client-resource-management) _(позже — см. design.md «Delivery Phases»)_
+## 13. structured_log_admin_client — управление ресурсами (admin-client-resource-management) _(Этап 1 — частично, см. design.md «Delivery Phases»)_
 
 - [ ] 13.1 Экраны пользователей (список/создание, admin only, скрыт из навигации для остальных); действия «заблокировать»/«разблокировать» и «удалить учётную запись» пользователя (только admin, видно и активно только ему — 5.1); удаление — предупреждение о необратимости без запроса пароля, при 409 (`sole_group_owner`) показать список блокирующих групп вместо закрытия диалога как успешного; успешное удаление убирает пользователя из списка немедленно; действие «удалить учётную запись» скрыто или неактивно на экране пользователя с `is_primary_admin = true`, даже для вызывающего с ролью admin (decision 28 `design.md`) — отказ сервера 403 `cannot_delete_primary_admin` на случай обхода UI показывается как ошибка, а не успех
 - [ ] 13.2 Экраны групп (список/создание, admin only) и команд с составом (список/создание/добавление-удаление участников, owner группы/admin)
@@ -134,7 +134,7 @@
 - [ ] 13.5 UI выдачи/отзыва `RoleAssignment` (роль/область/получатель — пользователь или команда), форма ограничивает выбор ролей/областей согласно правам текущего пользователя (клиентская подсказка — сервер остаётся источником правды)
 - [ ] 13.6 Виджет/юнит-тесты на сценарии из `specs/admin-client-resource-management/spec.md`
 
-## 14. structured_log_admin_client — просмотр и поиск логов (admin-client-log-browser) _(позже — см. design.md «Delivery Phases»)_
+## 14. structured_log_admin_client — просмотр и поиск логов (admin-client-log-browser) _(Этап 1)_
 
 - [ ] 14.1 Селектор области видимости (проект/группа) — ограничен ресурсами, доступными текущему пользователю; экран списка логов недоступен без выбора
 - [ ] 14.2 Элементы управления фильтрами, соответствующие параметрам `GET /v1/logs` (уровень/категория/logger/диапазон времени/correlation ids/`q`/`context.*`), комбинируемые в одном запросе
@@ -142,7 +142,7 @@
 - [ ] 14.4 Детальный просмотр записи (все стандартные поля + произвольный `context`)
 - [ ] 14.5 Виджет/юнит-тесты на сценарии из `specs/admin-client-log-browser/spec.md`
 
-## 15. CI _(Этап 1 — частично, см. design.md «Delivery Phases»)_
+## 15. CI _(Этап 1)_
 
 - [ ] 15.1 Добавить в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) отдельный job для `backend/structured_log_server`/`emb/structured_log_http` (матрица по пакету, `dart-lang/setup-dart`, только `ubuntu-latest`): `pub get` → (для `structured_log_server`: `dart run build_runner build --delete-conflicting-outputs`) → `format --set-exit-if-changed` → `analyze` → `test`
 - [ ] 15.2 Прогнать на GitHub Actions, убедиться, что все job'ы зелёные — включая существующий `test`-job (путь `emb/structured_log`) и `flutter`-job (пути `emb/...` для существующих трёх пакетов + `frontend/structured_log_admin_client`), не сломанные реструктуризацией из раздела 1
@@ -208,7 +208,7 @@
 - [ ] 22.5 Сброс пагинации (14.3) и переоткрытие подписки (22.1) при смене фильтров/области — закрытие текущей подписки перед открытием новой с обновлёнными параметрами
 - [ ] 22.6 Виджет/юнит-тесты на сценарии из `specs/admin-client-log-browser/spec.md` (лента как история чата): автослежение у нижнего края, индикатор новых событий и возврат к живому краю при прокрутке вверх, подгрузка истории по прокрутке к верху без дублей, пауза замораживает список, возобновление показывает пропущенное, переполнение буфера паузы приводит к перезагрузке, смена фильтров закрывает старую подписку и не смешивает её события с новой
 
-## 23. structured_log_admin_ui — библиотека UI-компонентов (atoms/molecules/organisms) _(позже — см. design.md «Delivery Phases»)_
+## 23. structured_log_admin_ui — библиотека UI-компонентов (atoms/molecules/organisms) _(Этап 1)_
 
 Скаффолдинг этого раздела выполняется до или одновременно с 11.1, не после — экраны `structured_log_admin_client` с самого начала компонуются из этих виджетов, а не заводят временные локальные копии для последующего переноса (decision 39/Migration Plan `design.md`).
 
@@ -248,7 +248,7 @@
 - [ ] 26.6 Юнит-тесты на сценарии из `specs/log-server-forced-password-change/spec.md`: `PATCH` меняет отдельные поля независимо, занятый email отклоняется, `username` не редактируется, смена email сбрасывает `email_verified_at` и переотправляет письмо, смена display_name не затрагивает email, создание через `POST /v1/users` и правка пароля через `PATCH` всегда ставят `must_change_password = true` и отзывают refresh-токены (для `PATCH`), регистрация никогда не ставит флаг, вход с временным паролем выдаёт токены, прочие запросы отклоняются 403 `must_change_password`, разрешённые исключения (`change-password`/`DELETE /v1/users/me`/refresh/`DELETE /v1/auth/token`) продолжают работать, успешная смена пароля снимает флаг, неверный текущий пароль отклоняется и не снимает флаг, `change-password` работает и без временного статуса, аудит `user.updated` не содержит пароль, `password.changed` создаётся отдельно от `password.reset_confirmed`
 - [ ] 26.7 Интеграционный тест (расширение `10.1` или отдельный сценарий): `admin` создаёт пользователя через `POST /v1/users` с паролем → `grant_type=password` этим паролем успешен → `GET /v1/users` (или любой другой management-запрос) отклонён 403 `must_change_password` → `POST /v1/auth/change-password` с верным временным + новым паролем → тот же `GET /v1/users` теперь успешен; отдельно: `admin` меняет `email` существующего активного пользователя через `PATCH /v1/users/:id` → его текущий refresh-токен всё ещё валиден (email — не password), но `grant_type=password` отклоняется `reason: email_not_verified`, пока новый адрес не подтверждён
 
-## 27. structured_log_admin_client — редактирование пользователя и смена пароля (admin-client-resource-management, admin-client-auth) _(позже — см. design.md «Delivery Phases»)_
+## 27. structured_log_admin_client — редактирование пользователя и смена пароля (admin-client-resource-management, admin-client-auth) _(Этап 1 — частично, см. design.md «Delivery Phases»)_
 
 - [ ] 27.1 Экран редактирования пользователя (13.1, admin only): поля email/display_name/новый пароль (опционально), `PATCH /v1/users/:id`; предупреждение перед сохранением нового пароля о немедленном завершении сессий цели и обязательной смене пароля при следующем входе; предупреждение при смене email о необходимости повторного подтверждения; список/экран пользователя обновляются немедленно после успеха
 - [ ] 27.2 Клиент перехватывает `403 must_change_password` на любом management/query-запросе (11.3, тот же уровень, что перехват 401) → принудительный экран смены пароля, блокирующий переход к остальным экранам, кроме выхода
@@ -256,7 +256,7 @@
 - [ ] 27.4 Действие «сменить пароль» в настройках (12.x, доступно всегда, не только при принудительной смене) → тот же `POST /v1/auth/change-password`; успех — подтверждение без выхода из сессии
 - [ ] 27.5 Виджет/юнит-тесты на сценарии из `specs/admin-client-resource-management/spec.md` (редактирование пользователя) и `specs/admin-client-auth/spec.md` (принудительная/добровольная смена пароля): действие редактирования скрыто для не-admin, предупреждение перед новым паролем, обновление списка после успеха, `403 must_change_password` переводит на принудительный экран и блокирует остальную навигацию, успешная смена пароля открывает основной экран, неверный текущий пароль не снимает блокировку, смена пароля из настроек работает вне принудительного сценария
 
-## 28. structured_log_server — ограничение частоты auth-эндпоинтов (log-server-rate-limit) _(позже — см. design.md «Delivery Phases»)_
+## 28. structured_log_server — ограничение частоты auth-эндпоинтов (log-server-rate-limit) _(Этап 1)_
 
 - [ ] 28.1 `ServerConfig`-поля ограничителя (`rateLimitEnabled`, ёмкость/скорость пополнения вёдер IP и субъекта, предел числа ключей, `trustedProxyHops`) — уже отмечено в 8.1
 - [ ] 28.2 Token bucket (`lib/src/http/rate_limit/token_bucket.dart`): ёмкость + непрерывное пополнение, ленивый пересчёт по `now - lastRefill` (без таймера на ключ), метод «попытаться списать токен» и метод «восстановить до полного»; возвращает время до появления следующего токена для `Retry-After`
@@ -278,7 +278,7 @@
 - [ ] 29.6 Юнит-тесты на сценарии из `specs/log-server-audit/spec.md` (аутентификация): успешный вход фиксируется с `client_ip`/`user_agent`, неудачный — с причиной, refresh не фиксируется, явный выход фиксируется, неизвестный `username` не попадает в аудит ни в каком виде, `auth.throttled` создаётся ровно один раз на эпизод
 - [ ] 29.7 Интеграционный тест (расширение `10.1` или отдельный сценарий): серия неудачных входов → `429` с `Retry-After` → `GET /v1/audit-log?action=auth.login_failed` показывает попытки, `GET /v1/audit-log?action=auth.throttled` — ровно одну запись на эпизод → после истечения окна вход с верным паролем успешен и даёт `auth.login_succeeded`
 
-## 30. structured_log_admin_client — ограничение частоты и аудит аутентификации _(позже — см. design.md «Delivery Phases»)_
+## 30. structured_log_admin_client — ограничение частоты и аудит аутентификации _(Этап 1 — частично, см. design.md «Delivery Phases»)_
 
 - [ ] 30.1 Перехват `429` в том же interceptor'е `dio`, что и `401` (11.3): чтение `Retry-After`, типизированная ошибка `RateLimited(retryAfter)` наверх через `Either` (decision 45 `design.md`); автоматического повтора нет
 - [ ] 30.2 Экран логина (12.1): сообщение об ограничении частоты с обратным отсчётом и блокировкой кнопки до его конца — отдельно от сообщения о неверных кредах
