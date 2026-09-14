@@ -255,6 +255,16 @@ dart run example/main.dart
   rename/delete/exists на файловой системе, а её поведение отличается между POSIX и Windows).
   Использует `dart-lang/setup-dart` (канал `stable`), а не FVM/Flutter — `structured_log`
   не зависит от Flutter.
+- `server` — для `backend/structured_log_server/`: `dart pub get`, `build_runner`,
+  `dart format --set-exit-if-changed`, `dart analyze`, `dart test` — только
+  `ubuntu-latest` (сервис самохостится на Linux, ОС-чувствительной ротации
+  файлов у него нет). `dart-lang/setup-dart` (канал `stable`), без FVM.
+  Кодогенерация **обязана** идти до `analyze`/`test` — без неё пакет не
+  компилируется (`*.g.dart` не коммитятся). `melos bootstrap` в CI не
+  используется (`sdkPath` в `melos.yaml` указывает на FVM-SDK, которого в CI
+  нет) — вместо него джоба сама пишет `pubspec_overrides.yaml` с путём на
+  `emb/structured_log`, иначе pub взял бы опубликованную версию и ломающее
+  изменение в core-пакете в том же PR прошло бы незамеченным.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
   (+`example/`)), по одному матричному прогону на пакет:

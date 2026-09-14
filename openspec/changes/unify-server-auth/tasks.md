@@ -41,4 +41,4 @@
 - [x] 7.1 `docs/architecture/auth.md` + `auth.ru.md`: описание двух независимых middleware заменяется на единую точку + типы принципала + аксессоры; добавить формат ключа с префиксом `slk_`.
 - [x] 7.2 `docs/api/http-api.md` + `http-api.ru.md`, `docs/api/errors.md` + `errors.ru.md`: упоминания схемы аутентификации `POST /v1/logs` и 401-поведения при перекрёстном предъявлении креденшелов.
 - [x] 7.3 `dart analyze` без замечаний, `dart test` зелёный, `dart format --set-exit-if-changed .` чистый — из `backend/structured_log_server/`; затем `dart run melos run lint` и `dart run melos run test` из корня.
-- [ ] 7.4 Коммит в формате Conventional Commits (`refactor(structured_log_server)!:` — ломающее изменение формата секретного ключа); `CHANGELOG.md`/`version` не трогать.
+- [x] 7.4 Коммит в формате Conventional Commits (`refactor(structured_log_server)!:` — ломающее изменение формата секретного ключа); `CHANGELOG.md`/`version` не трогать.
