@@ -62,6 +62,7 @@ mix on one response.
 | 409 | `email_taken` | general | `POST /v1/auth/register`, `POST /v1/users` | `email` already belongs to another row, same reservation rule |
 | 409 | `sole_group_owner` | general | `DELETE /v1/users/me`, `DELETE /v1/users/:id` | Target is the sole `owner` of one or more groups; `details.blocking_groups` lists them ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | 409 | `deleted_account` | general | `POST /v1/users/:id/unblock` | Target has `deleted_at` set — `unblock` never reactivates a deleted account |
+| 429 | `too_many_requests` | general | `POST /v1/auth/token`, `POST /v1/auth/register`, `POST /v1/auth/password-reset`(`/confirm`), `POST /v1/auth/verify-email`(`/resend`), `POST /v1/auth/change-password`, `DELETE /v1/users/me` | Rate limiter rejected the request before it was processed; response carries `Retry-After` — see [auth.md](../architecture/auth.md#rate-limiting-throttling-without-lockout) |
 | 413 | `payload_too_large` | general | `POST /v1/logs` | Request body exceeds the configured size limit; no entries are stored |
 | 500 | `internal_error` | general | Any | Unexpected server-side failure; the response never includes a stack trace or other internal detail |
 | 507 | `quota_exceeded` | general | `POST /v1/logs` | Only appears *inside* a `202` ingestion response's `rejected[]` array (see below), never as the top-level HTTP status of the response |
@@ -144,6 +145,48 @@ in the first place (decision 10) — it's additive, not a competing
 shape. `reason` currently appears only for this one case; other
 `invalid_grant` causes (wrong password, blocked user) carry no `reason`
 field at all, so its mere presence is itself the signal.
+
+## `429` is the one non-RFC answer the token endpoint gives
+
+`POST`/`DELETE /v1/auth/token` answers in RFC 6749 §5.2's envelope for
+everything it produces itself — but a request stopped by the rate
+limiter never reaches grant processing at all. It's rejected by
+middleware, in exactly the position a reverse proxy would occupy if the
+operator had put one in front of the server, so it answers in the
+general envelope like every other endpoint:
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 43
+Content-Type: application/json
+
+{
+  "error": "too_many_requests",
+  "message": "too many attempts, retry in 43 seconds"
+}
+```
+
+Squeezing this into the RFC envelope would have meant picking
+`invalid_request` — the only code that comes close — and thereby
+telling the client its perfectly well-formed request was malformed.
+Clients tell this case apart by HTTP status, not by body shape; a
+conformant OAuth2 client already has to distinguish `400`-with-an-error-
+body from any other status, and `Retry-After` is a standard HTTP header
+(RFC 9110), not an invention of this API.
+
+Two properties matter when handling `429`:
+
+- **The action did not happen.** No password was checked, no token
+  issued, no email sent. Retrying after `Retry-After` is safe and is the
+  only way to find out whether the credentials were right.
+- **It says nothing about the account.** A `429` on
+  `password-reset`/`verify-email/resend` is returned identically whether
+  or not the submitted address exists — the limiter keys on the string
+  that was submitted, precisely so it can't become the enumeration
+  oracle the `202`-for-everything responses are designed to avoid. There
+  is no account lockout behind it either: nothing is frozen, and access
+  returns on its own once the window passes
+  ([auth.md](../architecture/auth.md#rate-limiting-throttling-without-lockout)).
 
 ## Errors that never reach the client as HTTP responses
 

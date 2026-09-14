@@ -348,6 +348,85 @@ A few choices worth calling out:
   already watches for — the stream closes on its own, no new code
   needed specifically for this case.
 
+## Rate limiting: throttling without lockout
+
+Six unauthenticated auth endpoints plus two password-confirming ones
+(`POST /v1/auth/change-password`, `DELETE /v1/users/me`) share a
+property no other path in this API has: a single request is cheap for
+the caller and expensive for everyone else — it either guesses at a
+password, guesses at a one-time token, or sends an email at the
+server's expense. Decision 43 throttles exactly those, and deliberately
+does **nothing else**.
+
+**There is no account lockout.** Not a failure counter on `User`, not a
+`locked_until` column, not an administrative `unlock`. That option was
+weighed and rejected: `username` is not a secret in this system
+(`POST /v1/auth/register` answers `409 username_taken`, so names are
+enumerable by design), which means lockout would hand anyone a way to
+freeze anyone else's account on purpose and leave the victim waiting on
+an admin. Throttling can't be weaponized that way — it slows the
+attacker exactly as much as it slows a legitimate user on the same key,
+and it undoes itself as time passes.
+
+```mermaid
+flowchart TD
+    Req["Request to a rate-limited path"] --> IP["IP bucket:\nspend a token (EVERY request)"]
+    IP -->|empty| Deny["429 + Retry-After\naction never runs:\nno password checked,\nno token issued, no email sent"]
+    IP -->|ok| SubCheck{"Subject bucket\nalready empty?"}
+    SubCheck -->|yes| Deny
+    SubCheck -->|no| Handle["Verify credentials /\nsend the email"]
+    Handle --> Ok{"Succeeded?"}
+    Ok -->|yes| Refill["Subject bucket refilled to full\n(a legitimate user never meets the limiter)"]
+    Ok -->|no| Spend["Subject bucket spends a token"]
+    Spend --> Fail["Normal error response\n(401/400/…)"]
+```
+
+- **Two keys, both must pass.** The *IP* bucket spends a token on every
+  request, which is what stops one host from spraying attempts across
+  many usernames. The *subject* bucket — keyed by `username`, submitted
+  `email`, or the caller's own id, depending on the endpoint — spends a
+  token only on a *failed* attempt, and a success refills it completely.
+  A user who simply logs in often never meets the limiter at all; a
+  password guesser meets it within a handful of tries.
+- **The subject key is the string that was submitted**, not a row that
+  was found. Keying on a located user would make the limiter itself an
+  existence oracle — non-existent addresses would never throttle and
+  would answer faster — which is exactly the leak the uniform `202`
+  responses on `password-reset`/`verify-email/resend` exist to prevent.
+  The cost is that callers control how many keys get created, so the
+  bucket map is size-capped with LRU eviction and swept of full buckets
+  periodically.
+- **Token bucket, not a fixed window.** A fixed window (N per calendar
+  minute) permits a 2N burst across a window boundary; a token bucket
+  states the sustained rate (refill) and the tolerated burst (capacity)
+  as two separate numbers. Refill is computed lazily on access — no
+  per-key timer.
+- **State lives only in memory.** The server is single-isolate by design
+  (decision 4), so there is no shared counter store to coordinate with,
+  and a restart simply clears every counter. That's an accepted
+  weakness, not an oversight: whoever can restart the process already
+  has operator-level access.
+- **`X-Forwarded-For` is ignored unless trust is configured.**
+  `trustedProxyHops` defaults to `0` (use the socket address). Without
+  that distinction the limiter is either useless (everything behind a
+  proxy shares one address) or trivially bypassed (a spoofed header from
+  a direct client).
+- **The whole thing switches off** (`rateLimitEnabled`) for development,
+  for tests that would otherwise have to count attempts, and for
+  deployments already fronted by the operator's own gateway.
+
+What the limiter does *not* cover is as deliberate: `POST /v1/logs` is
+governed by project quotas ([quotas-and-audit.md](quotas-and-audit.md))
+and a high-entropy secret key, and management endpoints are governed by
+RBAC — in neither case does request frequency buy an attacker anything
+that access alone doesn't already give.
+
+Throttling also can't stop a patient, widely distributed attacker who
+stays under every limit. That's why decision 44 pairs it with audit:
+`auth.login_failed` and `auth.throttled` let an admin *see* such an
+attack even when the limiter isn't stopping it
+([quotas-and-audit.md](quotas-and-audit.md#audit-log-log-server-audit)).
+
 ## Password vs. secret-key hashing: two algorithms for two threats
 
 Decision 11 deliberately does **not** use the same hash for both:

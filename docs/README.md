@@ -57,15 +57,16 @@ corrected to match.
   multi-tenant entity model (`User`/`Group`/`Team`/`Project`/...) and its
   storage schema.
 - [architecture/auth.md](architecture/auth.md) — the OAuth2/OIDC-style
-  token contract, `IdentityProvider`, and `token_version`-based
-  revocation.
+  token contract, `IdentityProvider`, `token_version`-based revocation,
+  and the auth-endpoint rate limiter (throttling, no account lockout).
 - [architecture/rbac-and-lifecycle.md](architecture/rbac-and-lifecycle.md)
   — roles and scopes, blocking, and account deletion (including the
   primary-administrator protection).
 - [architecture/live-streaming.md](architecture/live-streaming.md) — the
   SSE live-tail design (`GET /v1/logs/stream`).
 - [architecture/quotas-and-audit.md](architecture/quotas-and-audit.md) —
-  per-project storage quotas and the administrative audit log.
+  per-project storage quotas, the administrative audit log, and the
+  authentication events recorded alongside it.
 - [architecture/admin-client.md](architecture/admin-client.md) — the
   `structured_log_admin_client` Flutter app's own architecture.
 - [architecture/technology-stack.md](architecture/technology-stack.md) —

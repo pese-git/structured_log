@@ -133,6 +133,17 @@ Spec:
 [specs/log-server-email-verification/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-email-verification/spec.md).
 See [auth.md](../architecture/auth.md).
 
+**Every endpoint in this section is rate-limited**
+(`log-server-rate-limit`), along with `POST /v1/auth/change-password`
+and `DELETE /v1/users/me`: a rejected request answers `429
+too_many_requests` with a `Retry-After` header and the *general* JSON
+envelope — including the token endpoint, the one place it departs from
+the RFC 6749 shape ([errors.md](errors.md#429-is-the-one-non-rfc-answer-the-token-endpoint-gives)).
+A `429` means the action never ran: no password was checked, no token
+issued, no email sent, and no account was locked
+([auth.md](../architecture/auth.md#rate-limiting-throttling-without-lockout)).
+The error lists below don't repeat `429` per endpoint.
+
 ### `POST /v1/auth/register`
 
 Auth: none. JSON body, **not** form-encoded — unlike the token endpoint
@@ -203,7 +214,7 @@ with off-the-shelf OAuth2 clients ([auth.md](../architecture/auth.md)).
 
 **Response `200`:** [Token response](models.md#token-response).
 
-**Errors:** all `400`, RFC shape — `invalid_request` (missing field for the given `grant_type`), `unsupported_grant_type`, `invalid_grant` (wrong credentials; unknown/expired/revoked refresh token; blocked user on refresh; unverified `email` on `grant_type=password` — response additionally carries `reason: "email_not_verified"`, see [errors.md](errors.md#extending-the-token-endpoints-rfc-envelope-reason)).
+**Errors:** `429 too_many_requests` (general envelope, see above); otherwise all `400`, RFC shape — `invalid_request` (missing field for the given `grant_type`), `unsupported_grant_type`, `invalid_grant` (wrong credentials; unknown/expired/revoked refresh token; blocked user on refresh; unverified `email` on `grant_type=password` — response additionally carries `reason: "email_not_verified"`, see [errors.md](errors.md#extending-the-token-endpoints-rfc-envelope-reason)).
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/token \

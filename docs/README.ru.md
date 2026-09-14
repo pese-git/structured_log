@@ -58,15 +58,17 @@ decision из `design.md` или требование из `specs/`, назва�
   мультитенантная модель сущностей (`User`/`Group`/`Team`/`Project`/...)
   и её схема хранения.
 - [architecture/auth.md](architecture/auth.md) — OAuth2/OIDC-подобный
-  контракт токенов, `IdentityProvider` и отзыв прав через
-  `token_version`.
+  контракт токенов, `IdentityProvider`, отзыв прав через `token_version`
+  и ограничитель частоты auth-эндпоинтов (throttling, без блокировки
+  учётной записи).
 - [architecture/rbac-and-lifecycle.md](architecture/rbac-and-lifecycle.md)
   — роли и области видимости, блокировка и удаление аккаунтов (включая
   защиту основного администратора).
 - [architecture/live-streaming.md](architecture/live-streaming.md) —
   дизайн живой доставки логов по SSE (`GET /v1/logs/stream`).
 - [architecture/quotas-and-audit.md](architecture/quotas-and-audit.md) —
-  квоты на хранение на проект и административный аудит-лог.
+  квоты на хранение на проект, административный аудит-лог и
+  записываемые рядом с ним события аутентификации.
 - [architecture/admin-client.md](architecture/admin-client.md) —
   собственная архитектура Flutter-приложения
   `structured_log_admin_client`.

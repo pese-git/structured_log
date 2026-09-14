@@ -137,6 +137,17 @@ curl http://localhost:8080/healthz
 [specs/log-server-email-verification/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-email-verification/spec.md).
 См. [auth.md](../architecture/auth.ru.md).
 
+**Каждый эндпоинт этого раздела ограничен по частоте**
+(`log-server-rate-limit`), вместе с `POST /v1/auth/change-password` и
+`DELETE /v1/users/me`: отклонённый запрос получает `429
+too_many_requests` с заголовком `Retry-After` и *общим* JSON-конвертом —
+включая token-эндпоинт, единственное место, где он отступает от формы
+RFC 6749 ([errors.md](errors.ru.md#429--единственный-ответ-token-эндпоинта-не-в-rfc-форме)).
+`429` означает, что действие не выполнялось: пароль не проверялся, токен
+не выпускался, письмо не отправлялось, и учётная запись не заблокирована
+([auth.md](../architecture/auth.ru.md#ограничение-частоты-throttling-без-блокировки)).
+Списки ошибок ниже не повторяют `429` у каждого эндпоинта.
+
 ### `POST /v1/auth/register`
 
 Auth: нет. JSON-тело, **не** form-encoded — в отличие от token-эндпоинта
@@ -207,7 +218,7 @@ JSON-конверта и в запросе, и в ответе об ошибке
 
 **Ответ `200`:** [Ответ токена](models.ru.md#ответ-токена).
 
-**Ошибки:** все `400`, форма RFC — `invalid_request` (отсутствует поле для данного `grant_type`), `unsupported_grant_type`, `invalid_grant` (неверные креды; неизвестный/истёкший/отозванный refresh-токен; заблокированный пользователь при refresh; неподтверждённый `email` при `grant_type=password` — ответ дополнительно несёт `reason: "email_not_verified"`, см. [errors.md](errors.ru.md#расширение-rfc-конверта-token-эндпоинта-reason)).
+**Ошибки:** `429 too_many_requests` (общий конверт, см. выше); в остальном все `400`, форма RFC — `invalid_request` (отсутствует поле для данного `grant_type`), `unsupported_grant_type`, `invalid_grant` (неверные креды; неизвестный/истёкший/отозванный refresh-токен; заблокированный пользователь при refresh; неподтверждённый `email` при `grant_type=password` — ответ дополнительно несёт `reason: "email_not_verified"`, см. [errors.md](errors.ru.md#расширение-rfc-конверта-token-эндпоинта-reason)).
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/token \

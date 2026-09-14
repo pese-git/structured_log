@@ -182,7 +182,7 @@ Returned by `GET /v1/audit-log` ([quotas-and-audit.md](../architecture/quotas-an
 | Field | Type | Notes |
 |---|---|---|
 | `id` | integer | |
-| `actor_user_id` | integer \| null | `null` only for events genuinely without an authenticated caller (none in the current closed action set — see [quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
+| `actor_user_id` | integer \| null | `null` for events genuinely without an authenticated caller — in practice `auth.login_failed`/`auth.throttled` under a username that matches no account (see [quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | `action` | string | One of the closed set — see [quotas-and-audit.md](../architecture/quotas-and-audit.md) |
 | `target_type` | string | e.g. `"user"`, `"project"`, `"role_assignment"` |
 | `target_id` | integer \| null | |
@@ -200,6 +200,19 @@ Returned by `GET /v1/audit-log` ([quotas-and-audit.md](../architecture/quotas-an
 
 // action: "user.blocked"
 {}
+
+// action: "auth.login_succeeded"
+{"client_ip": "203.0.113.7", "user_agent": "structured_log_admin_client/0.1.0"}
+
+// action: "auth.login_failed" — known account
+{"reason": "invalid_password", "client_ip": "203.0.113.7", "user_agent": "..."}
+
+// action: "auth.login_failed" — no such account (actor_user_id is null,
+// and the submitted username is deliberately NOT stored)
+{"unknown_user": true, "client_ip": "203.0.113.7", "user_agent": "..."}
+
+// action: "auth.throttled" — written once per episode, not per rejected request
+{"key_kind": "subject", "path": "/v1/auth/token", "client_ip": "203.0.113.7"}
 ```
 
 ## Token response

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Аудит фиксирует закрытый список административных действий
-Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`, `email.verified`, `user.updated`, `password.changed`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться.
+Сервер SHALL записывать аудит-запись (`actor_user_id`, `action`, `target_type`, `target_id`, `metadata`, `created_at`) при каждом выполнении одного из следующих действий: `user.created`, `user.blocked`, `user.unblocked`, `user.deleted`, `group.created`, `team.created`, `team.member_added`, `team.member_removed`, `project.created`, `project.quota_updated`, `project.blocked`, `project.unblocked`, `secret_key.created`, `secret_key.revoked`, `role_assignment.created`, `role_assignment.revoked`, `password.reset_confirmed`, `email.verified`, `user.updated`, `password.changed`, `auth.login_succeeded`, `auth.login_failed`, `auth.logged_out`, `auth.throttled`. Аудит-запись SHALL создаваться в той же транзакции, что и само действие — если действие не применяется (откат/ошибка), аудит-запись также не должна сохраниться. Требование одной транзакции SHALL не распространяться на аутентификационные события (`auth.*`): у отказа во входе или у срабатывания ограничителя частоты нет мутации, с которой их можно было бы разделить.
 
 #### Scenario: Выдача роли создаёт аудит-запись
 - **WHEN** `admin` или `owner` успешно выполняет `POST /v1/role-assignments`
@@ -42,6 +42,36 @@
 #### Scenario: Отклонённое по причине единственного владельца группы удаление не создаёт аудит-запись
 - **WHEN** `DELETE /v1/users/me` или `DELETE /v1/users/:id` отклонён с 409 (`sole_group_owner`)
 - **THEN** аудит-запись `user.deleted` не создаётся
+
+### Requirement: Аутентификационные события фиксируются, кроме продления сессии
+Сервер SHALL создавать аудит-запись `auth.login_succeeded` при успешной выдаче токенов по `grant_type=password`, `auth.login_failed` — при отклонённой попытке входа по `grant_type=password`, `auth.logged_out` — при `DELETE /v1/auth/token`, и `auth.throttled` — при срабатывании ограничителя частоты (`log-server-rate-limit`). Сервер SHALL не создавать аудит-записей для `POST /v1/auth/token` с `grant_type=refresh_token`.
+
+#### Scenario: Успешный вход фиксируется
+- **WHEN** пользователь успешно получает токены через `grant_type=password`
+- **THEN** создаётся аудит-запись `auth.login_succeeded` с `actor_user_id` и `target_id`, равными этому пользователю, и `metadata`, содержащей `client_ip` и `user_agent`
+
+#### Scenario: Неудачная попытка входа фиксируется с причиной
+- **WHEN** попытка входа по `grant_type=password` отклонена (неверный пароль, заблокированная/удалённая учётная запись, неподтверждённый email)
+- **THEN** создаётся аудит-запись `auth.login_failed`, чья `metadata` содержит причину отказа, `client_ip` и `user_agent`
+
+#### Scenario: Продление сессии не фиксируется
+- **WHEN** клиент многократно обновляет токены через `grant_type=refresh_token`
+- **THEN** ни одной аудит-записи для этих запросов не создаётся
+
+#### Scenario: Явный выход фиксируется
+- **WHEN** клиент отзывает refresh-токен через `DELETE /v1/auth/token`
+- **THEN** создаётся аудит-запись `auth.logged_out`; для неизвестного/уже отозванного токена (на который сервер отвечает так же, как на действительный) аудит-запись не создаётся
+
+### Requirement: Аудит аутентификации не сохраняет пароли и неизвестные username
+Если попытка входа отклонена потому, что отправленный `username` не соответствует ни одной учётной записи, сервер SHALL записать `actor_user_id: null` и `metadata`, отмечающую только сам факт (`{"unknown_user": true}`), и SHALL не сохранять отправленную строку `username`. Сервер SHALL ни при каких обстоятельствах не сохранять в аудите пароль — ни отправленный, ни его хэш.
+
+#### Scenario: Неизвестный username не попадает в аудит
+- **WHEN** попытка входа отправлена с `username`, которого нет в системе (в том числе если в это поле по ошибке был введён пароль)
+- **THEN** создаётся аудит-запись `auth.login_failed` с `actor_user_id: null`, не содержащая отправленную строку
+
+#### Scenario: Срабатывание ограничителя фиксируется один раз на эпизод
+- **WHEN** ограничитель частоты отклоняет подряд множество запросов по одному и тому же ключу
+- **THEN** создаётся ровно одна аудит-запись `auth.throttled` — в момент, когда ключ впервые оказался исчерпан, а не по одной на каждый отклонённый запрос
 
 ### Requirement: Приём и запрос логов не попадают в аудит
 Аудит-лог SHALL не содержать записей о выполнении `POST /v1/logs`, `GET /v1/logs` или `GET /v1/logs/stream` (`log-server-live-stream`) — это бизнес-данные пользовательского приложения, а не административное действие над ресурсами сервиса.
