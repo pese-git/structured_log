@@ -7,8 +7,8 @@ import '../../errors.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
-import '../auth_middleware.dart';
 import '../json_response.dart';
+import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
 Map<String, Object?> secretKeyJson(ProjectSecretKey key, {String? secret}) {
@@ -39,10 +39,11 @@ Future<Response> createSecretKey(
   Authorizer authorizer,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final projectId = requirePathParamInt(request, 'id');
   final project = await _requireProject(db, projectId);
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   if (!canWrite(
     roles,
     targetType: ScopeType.project,
@@ -61,7 +62,7 @@ Future<Response> createSecretKey(
     );
   }
 
-  final plainKey = generateRandomToken();
+  final plainKey = generateProjectSecretKey();
   final id = await db.into(db.projectSecretKeys).insert(
         ProjectSecretKeysCompanion.insert(
           projectId: projectId,
@@ -83,10 +84,11 @@ Future<Response> listSecretKeys(
   Authorizer authorizer,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final projectId = requirePathParamInt(request, 'id');
   final project = await _requireProject(db, projectId);
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   if (!canRead(
     roles,
     targetType: ScopeType.project,
@@ -110,11 +112,12 @@ Future<Response> revokeSecretKey(
   Authorizer authorizer,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final projectId = requirePathParamInt(request, 'id');
   final keyId = requirePathParamInt(request, 'keyId');
   final project = await _requireProject(db, projectId);
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   if (!canWrite(
     roles,
     targetType: ScopeType.project,

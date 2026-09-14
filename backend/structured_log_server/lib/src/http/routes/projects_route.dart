@@ -6,8 +6,8 @@ import '../../errors.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
-import '../auth_middleware.dart';
 import '../json_response.dart';
+import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
 Map<String, Object?> projectJson(
@@ -55,10 +55,11 @@ Future<Response> createProject(
   Authorizer authorizer,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final groupId = requirePathParamInt(request, 'groupId');
   await _requireGroup(db, groupId);
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   if (!canWrite(roles, targetType: ScopeType.group, targetId: groupId)) {
     throw ApiError.forbidden();
   }
@@ -119,10 +120,11 @@ Future<Response> updateProjectQuota(
   Authorizer authorizer,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final projectId = requirePathParamInt(request, 'id');
   final project = await _requireProject(db, projectId);
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   if (!canWrite(
     roles,
     targetType: ScopeType.project,
@@ -161,10 +163,11 @@ Future<Response> getProject(
   Authorizer authorizer,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final projectId = requirePathParamInt(request, 'id');
   final project = await _requireProject(db, projectId);
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   if (!canRead(
     roles,
     targetType: ScopeType.project,

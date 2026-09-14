@@ -5,8 +5,8 @@ import '../../auth/hashing.dart';
 import '../../errors.dart';
 import '../../rbac/token_version.dart';
 import '../../storage/database.dart';
-import '../auth_middleware.dart';
 import '../json_response.dart';
+import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
 /// `POST /v1/auth/change-password` — available to any authenticated role
@@ -16,7 +16,9 @@ Future<Response> changePassword(
   StructuredLogDatabase db,
   Request request,
 ) async {
-  final identity = request.verifiedIdentity;
+  // The one implemented endpoint the forced-password-change gate exempts —
+  // it is how the flag gets cleared (`log-server-forced-password-change`).
+  final identity = request.requireUser(allowTemporaryPassword: true);
   final body = await readJsonBody(request);
   final currentPassword = body['current_password'];
   final newPassword = body['new_password'];

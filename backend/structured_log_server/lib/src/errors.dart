@@ -33,6 +33,17 @@ class ApiError implements Exception {
   factory ApiError.forbidden([String message = 'Access denied.']) =>
       ApiError(403, 'forbidden', message);
 
+  /// The account authenticated fine but holds a temporary password, so every
+  /// endpoint except the small allowlist is closed to it until it changes
+  /// (`log-server-forced-password-change`). Distinct code from
+  /// [ApiError.forbidden] — the client reacts by prompting for a new
+  /// password, not by reporting a missing right.
+  factory ApiError.mustChangePassword() => ApiError(
+        403,
+        'must_change_password',
+        'This account must change its password before continuing.',
+      );
+
   factory ApiError.notFound([String message = 'Resource not found.']) =>
       ApiError(404, 'not_found', message);
 

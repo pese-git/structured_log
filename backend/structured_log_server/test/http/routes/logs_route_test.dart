@@ -25,11 +25,11 @@ StructuredLogDatabase openInMemory() {
 }
 
 Request ingestRequest(int projectId, Object body) {
-  return Request(
+  return projectKeyRequest(
     'POST',
-    Uri.parse('http://x/v1/logs'),
-    body: jsonEncode(body),
-    context: {'structured_log_server.authenticatedProjectId': projectId},
+    'http://x/v1/logs',
+    projectId: projectId,
+    jsonBody: body,
   );
 }
 

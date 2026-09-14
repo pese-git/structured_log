@@ -180,6 +180,7 @@ decision 23) — с появлением пакетов другой приро�
 - `lib/src/` — по фиче (`auth/`, `users/`, `projects/`, `logs/`, `live_stream/`, `audit/`, ...), плюс `shared`/`common`-слой для сквозных таблиц хранения (`drift`, раздел 2 `tasks.md`) и HTTP-инфраструктуры (`shelf`/`shelf_router`, раздел 6).
 - `bin/` — CLI entrypoint (`bin/server.dart`, раздел 8 `tasks.md`), пока не создан.
 - Кодогенерация: `drift_dev`/`freezed`/`json_serializable` через `build_runner` — `dart run melos run generate` (скоуп `structured_log_server`) или `dart run build_runner build --delete-conflicting-outputs` из директории пакета; `*.g.dart`/`*.freezed.dart` — в `.gitignore` пакета, не коммитятся.
+- HTTP-слой: аутентификация — один резолвящий middleware в общем `Pipeline` (`principal_middleware.dart`), а не обёртка на маршруте; хендлер объявляет требуемого принципала сам (`request.requireUser()`/`requireProject()`), и это обязано быть первой строкой — до парсинга path-параметров и любого обращения к БД, иначе 404 о несуществующей строке утекает неаутентифицированному вызывающему. Новый маршрут обязан появиться в таблице `test/http/route_auth_matrix_test.dart` — иначе тест падает.
 - `publish_to: none` — самостоятельный сервис, а не библиотека для `pub.dev`.
 
 ## Команды

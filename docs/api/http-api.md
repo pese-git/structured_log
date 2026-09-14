@@ -19,8 +19,8 @@ this page should follow.
 
 Examples below use `http://localhost:8080` as the server's base URL,
 and shell variables `$ACCESS_TOKEN` (a JWT from `POST /v1/auth/token`)
-and `$PROJECT_SECRET_KEY` (from `POST /v1/projects/:id/secret-keys`) —
-substitute your own.
+and `$PROJECT_SECRET_KEY` (from `POST /v1/projects/:id/secret-keys`,
+prefixed `slk_`) — substitute your own.
 
 ## Log ingestion, query, and live stream (`log-server-api`, `log-server-live-stream`)
 
@@ -30,7 +30,10 @@ Spec:
 
 ### `POST /v1/logs`
 
-Auth: `Authorization: Bearer <project-secret-key>`.
+Auth: `Authorization: Bearer <project-secret-key>` — the key's value
+carries the `slk_` prefix that tells it apart from an access token in
+the header both schemes share. Presenting an access token here answers
+`401`, exactly as a missing credential does.
 
 **Request body:** JSON array of free-form log-entry objects — see
 [models.md#logentry](models.md#logentry). No wrapper object; the array

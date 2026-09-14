@@ -50,8 +50,8 @@ token-эндпоинт никогда не использует `message`/`detai
 | 400 | `invalid_token` | общий | `POST /v1/auth/password-reset/confirm` | Токен восстановления неизвестен, истёк или уже использован |
 | 400 | `invalid_token` | общий | `POST /v1/auth/verify-email` | Токен подтверждения неизвестен, истёк или уже использован |
 | 400 | `self_deletion_requires_me` | общий | `DELETE /v1/users/:id` | `:id` равен собственному id вызывающего — самоудаление только через `DELETE /v1/users/me` |
-| 401 | `unauthorized` | общий | Любой JWT-защищённый эндпоинт | Заголовок `Authorization` отсутствует/некорректен; подпись/срок JWT невалидны; либо claim `tv` больше не совпадает с `User.token_version` ([auth.md](../architecture/auth.ru.md#token_version-как-снапшот-в-jwt-остаётся-отзываемым)) |
-| 401 | `unauthorized` | общий | `POST /v1/logs` | Секретный ключ проекта отсутствует, неизвестен, или установлен `revoked_at` |
+| 401 | `unauthorized` | общий | Любой JWT-защищённый эндпоинт | Заголовок `Authorization` отсутствует/некорректен; подпись/срок JWT невалидны; claim `tv` больше не совпадает с `User.token_version` ([auth.md](../architecture/auth.ru.md#token_version-как-снапшот-в-jwt-остаётся-отзываемым)); либо вместо access-токена предъявлен секретный ключ проекта |
+| 401 | `unauthorized` | общий | `POST /v1/logs` | Секретный ключ проекта отсутствует, неизвестен, установлен `revoked_at` — либо вместо ключа предъявлен access-токен |
 | 401 | `invalid_grant` | общий | `DELETE /v1/users/me`, `POST /v1/auth/change-password` | Подтверждение текущим паролем неверно |
 | 403 | `forbidden` | общий | Management/query-эндпоинты | Эффективные роли вызывающего не покрывают запрошенную область/действие ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | 403 | `project_blocked` | общий | `POST /v1/logs`, `GET /v1/logs?project_id=`, `GET /v1/logs/stream?project_id=` | У целевого проекта `is_blocked = true`; перекрывает обычную авторизацию, а не дополняет её |

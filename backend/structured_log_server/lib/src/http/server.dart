@@ -8,9 +8,7 @@ import '../errors.dart';
 import '../rbac/authorizer.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
-import 'auth_middleware.dart';
-import 'must_change_password_middleware.dart';
-import 'project_key_middleware.dart';
+import 'principal_middleware.dart';
 import 'routes/auth_route.dart';
 import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
@@ -18,13 +16,20 @@ import 'routes/logs_route.dart';
 import 'routes/projects_route.dart';
 import 'routes/secret_keys_route.dart';
 
-/// Builds the full `shelf` [Handler] for the server: every route this
-/// Stage 1 slice implements, each wrapped with the auth middleware its own
-/// scheme requires (`log-server-auth`'s two independent auth paths — JWT
-/// bearer for management/query endpoints, project secret key for
-/// ingestion — can't share one blanket [Pipeline] middleware since they
-/// apply to different routes, including different methods on the same
-/// path: `GET /v1/logs` vs. `POST /v1/logs`).
+/// Builds the full `shelf` [Handler] for the server.
+///
+/// Authentication is one [Pipeline] stage, not a per-route wrapper:
+/// [principalMiddleware] resolves the `Authorization: Bearer <...>` header
+/// every scheme shares into a `Principal` and hands the request on without
+/// judging it (`log-server-auth`). Each handler then states what it needs —
+/// `request.requireUser()` or `request.requireProject()` — which is what makes
+/// the two schemes able to share `/v1/logs`, where `GET` wants an access token
+/// and `POST` wants a project secret key.
+///
+/// So the route table below says only "method + path → handler". What guards
+/// what is no longer visible here; `test/http/route_auth_matrix_test.dart`
+/// enumerates every route and asserts it rejects the wrong principal, and any
+/// route added without a `require*` call fails it.
 Handler buildHandler(
   StructuredLogDatabase db, {
   required String signingSecret,
@@ -44,71 +49,45 @@ Handler buildHandler(
     issuer: issuer,
   );
   final logStore = DriftLogStore(db);
-  final jwtAuth = authMiddleware(identityProvider);
-  final passwordChangeGate = mustChangePasswordMiddleware();
-  // Every JWT route except change-password itself sits behind both auth
-  // and the forced-password-change gate — a temporary password must not
-  // unlock anything else first (log-server-forced-password-change).
-  Handler jwtAuthGated(Handler handler) => jwtAuth(passwordChangeGate(handler));
-  final projectKeyAuth = projectKeyMiddleware(db);
 
   final router = Router()
-    // Auth — no per-route middleware; TokenService checks its own
-    // credentials/tokens (log-server-auth).
+    // Auth — public; TokenService checks its own credentials/tokens.
     ..post('/v1/auth/token', (req) => issueToken(tokenService, req))
     ..delete('/v1/auth/token', (req) => revokeToken(tokenService, req))
-    // Allowed even with a temporary password — it's how you clear the flag.
-    ..post(
-      '/v1/auth/change-password',
-      jwtAuth((req) => changePassword(db, req)),
-    )
-    // Log ingestion (project secret key) / query (JWT) — same paths,
-    // different methods, different auth schemes.
-    ..post(
-      '/v1/logs',
-      projectKeyAuth((req) => ingestLogs(db, logStore, req)),
-    )
-    ..get(
-      '/v1/logs',
-      jwtAuthGated((req) => queryLogs(db, authorizer, logStore, req)),
-    )
-    // Management API (JWT).
-    ..post(
-      '/v1/groups',
-      jwtAuthGated((req) => createGroup(db, authorizer, req)),
-    )
-    ..get(
-      '/v1/groups',
-      jwtAuthGated((req) => listGroups(db, authorizer, req)),
-    )
+    ..post('/v1/auth/change-password', (req) => changePassword(db, req))
+    // Log ingestion (project secret key) / query (access token) — same path,
+    // different methods, different principals.
+    ..post('/v1/logs', (req) => ingestLogs(db, logStore, req))
+    ..get('/v1/logs', (req) => queryLogs(db, authorizer, logStore, req))
+    // Management API.
+    ..post('/v1/groups', (req) => createGroup(db, authorizer, req))
+    ..get('/v1/groups', (req) => listGroups(db, authorizer, req))
     ..post(
       '/v1/groups/<groupId>/projects',
-      jwtAuthGated((req) => createProject(db, authorizer, req)),
+      (req) => createProject(db, authorizer, req),
     )
     ..patch(
       '/v1/projects/<id>',
-      jwtAuthGated((req) => updateProjectQuota(db, authorizer, req)),
+      (req) => updateProjectQuota(db, authorizer, req),
     )
-    ..get(
-      '/v1/projects/<id>',
-      jwtAuthGated((req) => getProject(db, authorizer, req)),
-    )
+    ..get('/v1/projects/<id>', (req) => getProject(db, authorizer, req))
     ..post(
       '/v1/projects/<id>/secret-keys',
-      jwtAuthGated((req) => createSecretKey(db, authorizer, req)),
+      (req) => createSecretKey(db, authorizer, req),
     )
     ..get(
       '/v1/projects/<id>/secret-keys',
-      jwtAuthGated((req) => listSecretKeys(db, authorizer, req)),
+      (req) => listSecretKeys(db, authorizer, req),
     )
     ..delete(
       '/v1/projects/<id>/secret-keys/<keyId>',
-      jwtAuthGated((req) => revokeSecretKey(db, authorizer, req)),
+      (req) => revokeSecretKey(db, authorizer, req),
     )
-    // Health — no authentication.
+    // Health — public.
     ..get('/healthz', healthCheck);
 
   return const Pipeline()
       .addMiddleware(errorHandlingMiddleware())
+      .addMiddleware(principalMiddleware(identityProvider, db))
       .addHandler(router.call);
 }

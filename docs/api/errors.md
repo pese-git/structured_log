@@ -50,8 +50,8 @@ mix on one response.
 | 400 | `invalid_token` | general | `POST /v1/auth/password-reset/confirm` | Reset token unknown, expired, or already used |
 | 400 | `invalid_token` | general | `POST /v1/auth/verify-email` | Verification token unknown, expired, or already used |
 | 400 | `self_deletion_requires_me` | general | `DELETE /v1/users/:id` | `:id` equals the caller's own id — self-deletion must go through `DELETE /v1/users/me` |
-| 401 | `unauthorized` | general | Any JWT-protected endpoint | `Authorization` header missing/malformed; JWT signature/expiry invalid; or claim `tv` no longer matches `User.token_version` ([auth.md](../architecture/auth.md#token_version-how-a-snapshot-in-a-jwt-stays-revocable)) |
-| 401 | `unauthorized` | general | `POST /v1/logs` | Project secret key missing, unknown, or `revoked_at` is set |
+| 401 | `unauthorized` | general | Any JWT-protected endpoint | `Authorization` header missing/malformed; JWT signature/expiry invalid; claim `tv` no longer matches `User.token_version` ([auth.md](../architecture/auth.md#token_version-how-a-snapshot-in-a-jwt-stays-revocable)); or a project secret key was presented instead of an access token |
+| 401 | `unauthorized` | general | `POST /v1/logs` | Project secret key missing, unknown, `revoked_at` is set — or an access token was presented instead of a key |
 | 401 | `invalid_grant` | general | `DELETE /v1/users/me`, `POST /v1/auth/change-password` | Current-password confirmation is wrong |
 | 403 | `forbidden` | general | Management/query endpoints | Caller's effective roles don't cover the requested scope/action ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | 403 | `project_blocked` | general | `POST /v1/logs`, `GET /v1/logs?project_id=`, `GET /v1/logs/stream?project_id=` | Target project has `is_blocked = true`; overrides normal authorization rather than adding to it |

@@ -114,7 +114,7 @@ exactly once — it is not retrievable afterward by any endpoint.
 | `label` | string \| null | |
 | `created_at` | string | ISO 8601 |
 | `revoked_at` | string \| null | |
-| `secret` | string | **Only in the create response** — the plaintext value, shown once |
+| `secret` | string | **Only in the create response** — the plaintext value, shown once; always prefixed `slk_` |
 
 ## RoleAssignment
 

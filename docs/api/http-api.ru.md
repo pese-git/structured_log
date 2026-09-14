@@ -21,7 +21,7 @@
 Примеры ниже используют `http://localhost:8080` как базовый URL
 сервера, и shell-переменные `$ACCESS_TOKEN` (JWT из `POST
 /v1/auth/token`) и `$PROJECT_SECRET_KEY` (из `POST
-/v1/projects/:id/secret-keys`) — подставьте свои.
+/v1/projects/:id/secret-keys`, с префиксом `slk_`) — подставьте свои.
 
 ## Приём, запрос и живой поток логов (`log-server-api`, `log-server-live-stream`)
 
@@ -31,7 +31,10 @@
 
 ### `POST /v1/logs`
 
-Auth: `Authorization: Bearer <секретный ключ проекта>`.
+Auth: `Authorization: Bearer <секретный ключ проекта>` — значение ключа
+несёт префикс `slk_`, которым он отличается от access-токена в общем для
+обеих схем заголовке. Предъявленный здесь access-токен даёт `401` —
+ровно как отсутствующий креденшел.
 
 **Тело запроса:** JSON-массив произвольных объектов записи лога — см.
 [models.md#logentry](models.ru.md#logentry). Без обёртки; массив — всё

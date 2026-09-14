@@ -18,12 +18,63 @@ threat models, and deliberately different mechanisms (decision 9 vs.
 |---|---|---|
 | Credential | Project secret key | Access-token (JWT) |
 | Who holds it | An application, not a person | A person, via `structured_log_admin_client` |
-| Header | `Authorization: Bearer <project-secret-key>` | `Authorization: Bearer <access-token>` |
+| Header | `Authorization: Bearer slk_<project-secret-key>` | `Authorization: Bearer <access-token>` |
 | Identifies | A `project_id` directly | A `User`, with claims resolved through RBAC |
 | Hashing at rest | SHA-256 (decision 11) | n/a (bcrypt is for the *password*, below) |
 
 A project secret key resolves straight to a `project_id` — an
 application sending logs never needs a user account at all.
+
+### One entry point, two credentials
+
+Only the credentials differ — the header is the same one, and exactly
+one place reads it: `principalMiddleware`, the single authenticating
+stage of the shared `Pipeline` (change `unify-server-auth`). It
+resolves the presented value into a `Principal` — `UserPrincipal`,
+`ProjectPrincipal` or `AnonymousPrincipal` — and **always** passes the
+request on, never answering by itself.
+
+Rejecting inside the middleware is not an option: several endpoints are
+public by construction (`GET /healthz`, `POST`/`DELETE /v1/auth/token`,
+registration, password reset, email verification), so a rejecting
+middleware would immediately grow a list of paths inside itself — that
+is, put routing knowledge back into the auth layer. The handler states
+its own requirement instead, on its very first line:
+
+- `request.requireUser()` → `VerifiedIdentity`, otherwise 401;
+- `request.requireProject()` → `project_id`, otherwise 401.
+
+Hence the behaviour `log-server-auth` relies on: a project secret key
+presented to a management endpoint, and an access token presented to
+`POST /v1/logs`, both answer 401 — exactly as a missing credential
+does. It is also what lets `GET` and `POST` on `/v1/logs` share one
+path with different schemes: the scheme is chosen by the handler, not
+by the route.
+
+Telling the two credentials apart inside the shared header is the job
+of the `slk_` prefix every project secret key carries. A JWT is
+base64url of a JSON object and so always starts with `eyJ`, which rules
+out a collision by construction; a prefixed value is looked up by hash
+in `project_secret_keys` and never reaches signature verification,
+while an unprefixed one never reaches the key lookup. A side benefit,
+not the reason for it: a leaked key is recognizable on sight and to
+secret scanners, the way `ghp_`/`sk-`/`AKIA` are.
+
+The forced-password-change gate lives there too — inside
+`requireUser()`, which answers 403 `must_change_password` by default
+for an account holding a temporary password. The endpoints the spec
+exempts (`POST /v1/auth/change-password`, and later `DELETE
+/v1/users/me`) say so explicitly:
+`requireUser(allowTemporaryPassword: true)` — the exception is written
+in the handler that *is* the exception, not in a list of paths in
+another file.
+
+The price of this layout is that the route table no longer shows what
+guards what. In exchange there is a mechanical check:
+`test/http/route_auth_matrix_test.dart` enumerates every `buildHandler`
+route with the principal it requires and, for each non-public one,
+asserts 401 both with no credential and with a credential of the other
+kind; a route added around the table fails it.
 
 ## The token contract: OAuth2/OIDC-shaped, Keycloak as the reference
 

@@ -47,4 +47,31 @@ void main() {
       expect(hashToken('a'), isNot(hashToken('b')));
     });
   });
+
+  group('generateProjectSecretKey', () {
+    test('carries the scheme prefix', () {
+      expect(generateProjectSecretKey(), startsWith(projectSecretKeyPrefix));
+    });
+
+    test('cannot be confused with a JWT, which always starts with eyJ', () {
+      expect(generateProjectSecretKey(), isNot(startsWith('eyJ')));
+    });
+
+    test('is unique per call', () {
+      expect(generateProjectSecretKey(), isNot(generateProjectSecretKey()));
+    });
+
+    test('hashes as a whole, prefix included', () {
+      final key = generateProjectSecretKey();
+      final withoutPrefix = key.substring(projectSecretKeyPrefix.length);
+      expect(hashToken(key), isNot(hashToken(withoutPrefix)));
+    });
+
+    test('leaves bare generateRandomToken unprefixed (refresh tokens)', () {
+      expect(
+        generateRandomToken(),
+        isNot(startsWith(projectSecretKeyPrefix)),
+      );
+    });
+  });
 }

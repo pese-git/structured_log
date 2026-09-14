@@ -1,8 +1,3 @@
-import 'dart:convert';
-
-import 'package:drift/drift.dart';
-import 'package:shelf/shelf.dart';
-
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../ingest/ingest.dart';
@@ -11,9 +6,11 @@ import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
 import '../../storage/log_store.dart';
 import '../../storage/query.dart';
-import '../auth_middleware.dart';
 import '../json_response.dart';
-import '../project_key_middleware.dart';
+import '../principal_middleware.dart';
+import 'dart:convert';
+import 'package:drift/drift.dart';
+import 'package:shelf/shelf.dart';
 
 /// Default cap on a `POST /v1/logs` request body — a placeholder until
 /// `log-server-config` (section 8) makes it a `ServerConfig` field.
@@ -38,7 +35,7 @@ Future<Response> ingestLogs(
   Request request, {
   int maxBodyBytes = defaultMaxIngestBodyBytes,
 }) async {
-  final projectId = request.authenticatedProjectId;
+  final projectId = request.requireProject();
 
   final project = await (db.select(
     db.projects,
@@ -110,6 +107,7 @@ Future<Response> queryLogs(
   LogStore logStore,
   Request request,
 ) async {
+  final identity = request.requireUser();
   final params = request.url.queryParameters;
   final projectIdParam = params['project_id'];
   final groupIdParam = params['group_id'];
@@ -119,7 +117,7 @@ Future<Response> queryLogs(
     );
   }
 
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, identity);
   List<int> projectIds;
 
   if (projectIdParam != null) {

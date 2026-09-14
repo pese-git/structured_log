@@ -5,8 +5,8 @@ import '../../errors.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
-import '../auth_middleware.dart';
 import '../json_response.dart';
+import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
 Map<String, Object?> groupJson(Group group) {
@@ -23,7 +23,7 @@ Future<Response> createGroup(
   Authorizer authorizer,
   Request request,
 ) async {
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, request.requireUser());
   if (!isGlobalAdmin(roles)) throw ApiError.forbidden();
 
   final body = await readJsonBody(request);
@@ -51,7 +51,7 @@ Future<Response> listGroups(
   Authorizer authorizer,
   Request request,
 ) async {
-  final roles = await resolveRoles(authorizer, request.verifiedIdentity);
+  final roles = await resolveRoles(authorizer, request.requireUser());
   final groups = await db.select(db.groups).get();
   final visible = groups.where(
     (g) => canRead(roles, targetType: ScopeType.group, targetId: g.id),
