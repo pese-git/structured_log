@@ -18,18 +18,29 @@ import 'routes/secret_keys_route.dart';
 
 /// Builds the full `shelf` [Handler] for the server.
 ///
-/// Authentication is one [Pipeline] stage, not a per-route wrapper:
-/// [principalMiddleware] resolves the `Authorization: Bearer <...>` header
-/// every scheme shares into a `Principal` and hands the request on without
-/// judging it (`log-server-auth`). Each handler then states what it needs —
-/// `request.requireUser()` or `request.requireProject()` — which is what makes
-/// the two schemes able to share `/v1/logs`, where `GET` wants an access token
-/// and `POST` wants a project secret key.
+/// There is no route table here: every path lives in a `@Route` annotation on
+/// the handler that serves it, and `shelf_router_generator` turns each route
+/// class into a `Router`. This assembles those routers and nothing else.
 ///
-/// So the route table below says only "method + path → handler". What guards
-/// what is no longer visible here; `test/http/route_auth_matrix_test.dart`
-/// enumerates every route and asserts it rejects the wrong principal, and any
-/// route added without a `require*` call fails it.
+/// They are all mounted at `/` rather than on distinct prefixes, because the
+/// paths don't decompose by prefix — `POST /v1/groups/<groupId>/projects`
+/// belongs to [ProjectRoutes] while `/v1/groups` belongs to [GroupRoutes],
+/// and `/v1/projects/<id>` is split across two classes. A mounted `Router`
+/// that matches nothing returns the `Router.routeNotFound` sentinel, so the
+/// outer router simply continues down the list; order carries no meaning.
+///
+/// Authentication is one [Pipeline] stage: [principalMiddleware] resolves the
+/// `Authorization: Bearer <...>` header every scheme shares into a
+/// `Principal` and hands the request on without judging it
+/// (`log-server-auth`). Each handler then states what it needs —
+/// `request.requireUser()` or `request.requireProject()` — which is what lets
+/// `GET` and `POST /v1/logs` want different credentials, and what makes
+/// mounting safe: nothing wrapping a mounted router can answer 401 before
+/// that router has decided the request isn't its own.
+///
+/// `test/http/route_auth_matrix_test.dart` enumerates every route with the
+/// principal it requires and asserts it rejects the wrong one; a route added
+/// without a `require*` call fails it.
 Handler buildHandler(
   StructuredLogDatabase db, {
   required String signingSecret,
@@ -50,41 +61,19 @@ Handler buildHandler(
   );
   final logStore = DriftLogStore(db);
 
-  final router = Router()
-    // Auth — public; TokenService checks its own credentials/tokens.
-    ..post('/v1/auth/token', (req) => issueToken(tokenService, req))
-    ..delete('/v1/auth/token', (req) => revokeToken(tokenService, req))
-    ..post('/v1/auth/change-password', (req) => changePassword(db, req))
-    // Log ingestion (project secret key) / query (access token) — same path,
-    // different methods, different principals.
-    ..post('/v1/logs', (req) => ingestLogs(db, logStore, req))
-    ..get('/v1/logs', (req) => queryLogs(db, authorizer, logStore, req))
-    // Management API.
-    ..post('/v1/groups', (req) => createGroup(db, authorizer, req))
-    ..get('/v1/groups', (req) => listGroups(db, authorizer, req))
-    ..post(
-      '/v1/groups/<groupId>/projects',
-      (req) => createProject(db, authorizer, req),
-    )
-    ..patch(
-      '/v1/projects/<id>',
-      (req) => updateProjectQuota(db, authorizer, req),
-    )
-    ..get('/v1/projects/<id>', (req) => getProject(db, authorizer, req))
-    ..post(
-      '/v1/projects/<id>/secret-keys',
-      (req) => createSecretKey(db, authorizer, req),
-    )
-    ..get(
-      '/v1/projects/<id>/secret-keys',
-      (req) => listSecretKeys(db, authorizer, req),
-    )
-    ..delete(
-      '/v1/projects/<id>/secret-keys/<keyId>',
-      (req) => revokeSecretKey(db, authorizer, req),
-    )
-    // Health — public.
-    ..get('/healthz', healthCheck);
+  final featureRouters = <Router>[
+    AuthRoutes(tokenService).router,
+    ChangePasswordRoutes(db).router,
+    LogRoutes(db, authorizer, logStore).router,
+    GroupRoutes(db, authorizer).router,
+    ProjectRoutes(db, authorizer).router,
+    SecretKeyRoutes(db, authorizer).router,
+  ];
+
+  final router = Router();
+  for (final featureRouter in featureRouters) {
+    router.mount('/', featureRouter.call);
+  }
 
   return const Pipeline()
       .addMiddleware(errorHandlingMiddleware())

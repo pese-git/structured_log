@@ -39,11 +39,13 @@ void main() {
   late LogStore logStore;
   late int groupId;
   late int projectId;
+  late LogRoutes routes;
 
   setUp(() async {
     db = openInMemory();
     authorizer = Authorizer(db);
     logStore = DriftLogStore(db);
+    routes = LogRoutes(db, authorizer, logStore);
     groupId =
         await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
     projectId = await db.into(db.projects).insert(
@@ -59,9 +61,7 @@ void main() {
   group('ingestLogs', () {
     test('a well-formed batch is accepted and persisted, project_usage updated',
         () async {
-      final response = await ingestLogs(
-        db,
-        logStore,
+      final response = await routes.router.call(
         ingestRequest(projectId, [
           {'event': 'e1', 'level': 'info', 'timestamp': '2026-01-01T00:00:00Z'},
           {
@@ -89,9 +89,7 @@ void main() {
 
     test('a partially invalid batch reports rejections and still returns 202',
         () async {
-      final response = await ingestLogs(
-        db,
-        logStore,
+      final response = await routes.router.call(
         ingestRequest(projectId, [
           {'event': 'ok', 'level': 'info', 'timestamp': '2026-01-01T00:00:00Z'},
           {'event': 'bad'}, // missing level
@@ -118,9 +116,7 @@ void main() {
       );
 
       await expectLater(
-        ingestLogs(
-          db,
-          logStore,
+        routes.router.call(
           ingestRequest(projectId, [
             {
               'event': 'e',
@@ -141,10 +137,11 @@ void main() {
 
     test('a body over the size limit is rejected with 413, nothing stored',
         () async {
+      // The cap is a constructor field now — annotated handlers may not take
+      // optional parameters.
+      final capped = LogRoutes(db, authorizer, logStore, maxBodyBytes: 5);
       await expectLater(
-        ingestLogs(
-          db,
-          logStore,
+        capped.router.call(
           ingestRequest(projectId, [
             {
               'event': 'e',
@@ -152,7 +149,6 @@ void main() {
               'timestamp': '2026-01-01T00:00:00Z'
             },
           ]),
-          maxBodyBytes: 5,
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 413)),
       );
@@ -161,7 +157,9 @@ void main() {
 
     test('a non-array body is rejected with 400', () async {
       await expectLater(
-        ingestLogs(db, logStore, ingestRequest(projectId, {'not': 'an array'})),
+        routes.router.call(
+          ingestRequest(projectId, {'not': 'an array'}),
+        ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
       );
     });
@@ -184,10 +182,7 @@ void main() {
 
     test('requires exactly one of project_id/group_id', () async {
       await expectLater(
-        queryLogs(
-          db,
-          authorizer,
-          logStore,
+        routes.router.call(
           authenticatedRequest('GET', 'http://x/v1/logs', roles: _admin),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
@@ -196,10 +191,7 @@ void main() {
 
     test('rejects both project_id and group_id given together', () async {
       await expectLater(
-        queryLogs(
-          db,
-          authorizer,
-          logStore,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/logs?project_id=$projectId&group_id=$groupId',
@@ -212,10 +204,7 @@ void main() {
 
     test('an authorized project_id query returns matching entries', () async {
       await seedLogs();
-      final response = await queryLogs(
-        db,
-        authorizer,
-        logStore,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/logs?project_id=$projectId',
@@ -231,10 +220,7 @@ void main() {
 
     test('no access to the project scope is rejected with 403', () async {
       await expectLater(
-        queryLogs(
-          db,
-          authorizer,
-          logStore,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/logs?project_id=$projectId',
@@ -247,10 +233,7 @@ void main() {
 
     test('an unknown project_id is rejected with 404', () async {
       await expectLater(
-        queryLogs(
-          db,
-          authorizer,
-          logStore,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/logs?project_id=999999',
@@ -268,10 +251,7 @@ void main() {
         const ProjectsCompanion(isBlocked: Value(true)),
       );
       await expectLater(
-        queryLogs(
-          db,
-          authorizer,
-          logStore,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/logs?project_id=$projectId',
@@ -295,10 +275,7 @@ void main() {
         const ProjectsCompanion(isBlocked: Value(true)),
       );
 
-      final response = await queryLogs(
-        db,
-        authorizer,
-        logStore,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/logs?group_id=$groupId',
@@ -315,10 +292,7 @@ void main() {
       final emptyGroup = await db.into(db.groups).insert(
             GroupsCompanion.insert(name: 'empty'),
           );
-      final response = await queryLogs(
-        db,
-        authorizer,
-        logStore,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/logs?group_id=$emptyGroup',
@@ -353,10 +327,7 @@ void main() {
         ),
       ]);
 
-      final response = await queryLogs(
-        db,
-        authorizer,
-        logStore,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/logs?project_id=$projectId&context.order_id=ord_1',
@@ -372,8 +343,9 @@ void main() {
 
   group('healthCheck', () {
     test('returns 200 with a status field', () async {
-      final response =
-          await healthCheck(Request('GET', Uri.parse('http://x/healthz')));
+      final response = await routes.router.call(
+        Request('GET', Uri.parse('http://x/healthz')),
+      );
       expect(response.statusCode, 200);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['status'], 'ok');

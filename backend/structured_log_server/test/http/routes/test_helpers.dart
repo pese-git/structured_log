@@ -5,16 +5,17 @@ import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/auth/principal.dart';
 
 /// Builds a [Request] as if it had already passed `principalMiddleware`
-/// (`lib/src/http/principal_middleware.dart`) as a user, and `shelf_router`'s
-/// path-param matching — route handlers are tested directly, without a real
-/// HTTP server or router in front of them.
+/// (`lib/src/http/principal_middleware.dart`) as a user.
+///
+/// Route tests send these through the feature's own generated `Router`
+/// (`routes.router.call(...)`), so path parameters come out of the request
+/// URL exactly as they do in production — there is nothing to fake.
 Request authenticatedRequest(
   String method,
   String url, {
   required List<EffectiveRole> roles,
   int userId = 1,
   String username = 'alice',
-  Map<String, String> params = const {},
   bool mustChangePassword = false,
   Object? jsonBody,
 }) {
@@ -31,7 +32,6 @@ Request authenticatedRequest(
           mustChangePassword: mustChangePassword,
         ),
       ),
-      'shelf_router/params': params,
     },
   );
 }

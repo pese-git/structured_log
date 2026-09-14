@@ -29,4 +29,5 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.8.0
   lints: ^3.0.0
+  shelf_router_generator: ^1.1.1
   test: ^1.24.0

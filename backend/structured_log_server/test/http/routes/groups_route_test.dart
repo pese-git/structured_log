@@ -22,18 +22,18 @@ StructuredLogDatabase openInMemory() {
 void main() {
   late StructuredLogDatabase db;
   late Authorizer authorizer;
+  late GroupRoutes routes;
 
   setUp(() {
     db = openInMemory();
     authorizer = Authorizer(db);
+    routes = GroupRoutes(db, authorizer);
   });
   tearDown(() => db.close());
 
   group('createGroup', () {
     test('admin can create a group', () async {
-      final response = await createGroup(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/groups',
@@ -51,9 +51,7 @@ void main() {
 
     test('a non-admin is rejected with 403', () async {
       await expectLater(
-        createGroup(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/groups',
@@ -67,9 +65,7 @@ void main() {
 
     test('a missing name is rejected with 400', () async {
       await expectLater(
-        createGroup(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/groups',
@@ -87,9 +83,7 @@ void main() {
       await db.into(db.groups).insert(GroupsCompanion.insert(name: 'a'));
       await db.into(db.groups).insert(GroupsCompanion.insert(name: 'b'));
 
-      final response = await listGroups(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest('GET', 'http://x/v1/groups', roles: _admin),
       );
       final body = await decodeJson(response);
@@ -102,9 +96,7 @@ void main() {
           );
       await db.into(db.groups).insert(GroupsCompanion.insert(name: 'hidden'));
 
-      final response = await listGroups(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/groups',
@@ -126,9 +118,7 @@ void main() {
     test('a caller with no roles sees no groups', () async {
       await db.into(db.groups).insert(GroupsCompanion.insert(name: 'a'));
 
-      final response = await listGroups(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest('GET', 'http://x/v1/groups', roles: _noRoles),
       );
       final body = await decodeJson(response);

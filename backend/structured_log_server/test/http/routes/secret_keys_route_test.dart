@@ -24,10 +24,12 @@ void main() {
   late Authorizer authorizer;
   late int groupId;
   late int projectId;
+  late SecretKeyRoutes routes;
 
   setUp(() async {
     db = openInMemory();
     authorizer = Authorizer(db);
+    routes = SecretKeyRoutes(db, authorizer);
     groupId =
         await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
     projectId = await db.into(db.projects).insert(
@@ -47,14 +49,11 @@ void main() {
 
   group('createSecretKey', () {
     test('an admin can create a key and receives the plaintext once', () async {
-      final response = await createSecretKey(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/projects/$projectId/secret-keys',
           roles: _admin,
-          params: {'id': '$projectId'},
           jsonBody: {'label': 'prod-instance-1'},
         ),
       );
@@ -67,14 +66,11 @@ void main() {
     });
 
     test('label is optional', () async {
-      final response = await createSecretKey(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/projects/$projectId/secret-keys',
           roles: _admin,
-          params: {'id': '$projectId'},
           jsonBody: const <String, Object?>{},
         ),
       );
@@ -85,14 +81,11 @@ void main() {
 
     test('a read-only caller cannot create a key', () async {
       await expectLater(
-        createSecretKey(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/projects/$projectId/secret-keys',
             roles: userOnProject(projectId),
-            params: {'id': '$projectId'},
             jsonBody: const <String, Object?>{},
           ),
         ),
@@ -102,14 +95,11 @@ void main() {
 
     test('an unknown project is rejected with 404', () async {
       await expectLater(
-        createSecretKey(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/projects/999/secret-keys',
             roles: _admin,
-            params: {'id': '999'},
             jsonBody: const <String, Object?>{},
           ),
         ),
@@ -120,26 +110,20 @@ void main() {
 
   group('listSecretKeys', () {
     test('metadata is listed without ever including the secret', () async {
-      await createSecretKey(
-        db,
-        authorizer,
+      await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/projects/$projectId/secret-keys',
           roles: _admin,
-          params: {'id': '$projectId'},
           jsonBody: {'label': 'k1'},
         ),
       );
 
-      final response = await listSecretKeys(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/projects/$projectId/secret-keys',
           roles: _admin,
-          params: {'id': '$projectId'},
         ),
       );
       final body = await decodeJson(response);
@@ -150,14 +134,11 @@ void main() {
     });
 
     test('a caller with read-only access can still list', () async {
-      final response = await listSecretKeys(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/projects/$projectId/secret-keys',
           roles: userOnProject(projectId),
-          params: {'id': '$projectId'},
         ),
       );
       expect(response.statusCode, 200);
@@ -165,14 +146,11 @@ void main() {
 
     test('a caller with no access at all is rejected with 403', () async {
       await expectLater(
-        listSecretKeys(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/projects/$projectId/secret-keys',
             roles: _noRoles,
-            params: {'id': '$projectId'},
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
@@ -182,14 +160,11 @@ void main() {
 
   group('revokeSecretKey', () {
     Future<int> createTestKey() async {
-      final response = await createSecretKey(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/projects/$projectId/secret-keys',
           roles: _admin,
-          params: {'id': '$projectId'},
           jsonBody: const <String, Object?>{},
         ),
       );
@@ -200,14 +175,11 @@ void main() {
     test('revoking sets revoked_at and returns 204', () async {
       final keyId = await createTestKey();
 
-      final response = await revokeSecretKey(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'DELETE',
           'http://x/v1/projects/$projectId/secret-keys/$keyId',
           roles: _admin,
-          params: {'id': '$projectId', 'keyId': '$keyId'},
         ),
       );
       expect(response.statusCode, 204);
@@ -222,14 +194,11 @@ void main() {
     test('a read-only caller cannot revoke', () async {
       final keyId = await createTestKey();
       await expectLater(
-        revokeSecretKey(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'DELETE',
             'http://x/v1/projects/$projectId/secret-keys/$keyId',
             roles: userOnProject(projectId),
-            params: {'id': '$projectId', 'keyId': '$keyId'},
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
@@ -238,14 +207,11 @@ void main() {
 
     test('an unknown key id is rejected with 404', () async {
       await expectLater(
-        revokeSecretKey(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'DELETE',
             'http://x/v1/projects/$projectId/secret-keys/999',
             roles: _admin,
-            params: {'id': '$projectId', 'keyId': '999'},
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
@@ -261,14 +227,11 @@ void main() {
           );
 
       await expectLater(
-        revokeSecretKey(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'DELETE',
             'http://x/v1/projects/$otherProjectId/secret-keys/$keyId',
             roles: _admin,
-            params: {'id': '$otherProjectId', 'keyId': '$keyId'},
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),

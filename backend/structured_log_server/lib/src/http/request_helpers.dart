@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
-import 'package:shelf_router/shelf_router.dart';
 
 import '../errors.dart';
 
@@ -22,12 +21,17 @@ Future<Map<String, Object?>> readJsonBody(Request request) async {
   return decoded;
 }
 
-/// Reads path parameter [name] (`shelf_router`'s `Request.params`) as an
-/// integer id, throwing `404 not_found` if it's missing or not a valid
-/// integer — an unparsable id can't address an existing row either way.
-int requirePathParamInt(Request request, String name) {
-  final raw = request.params[name];
-  final value = raw == null ? null : int.tryParse(raw);
+/// Parses a path parameter as an integer id, throwing `404 not_found` if it
+/// isn't one — an unparsable id can't address an existing row either way.
+///
+/// Takes the already-extracted [raw] value rather than the request plus a
+/// parameter name: `shelf_router_generator` hands path parameters to the
+/// handler as arguments and checks, at build time, that their names and count
+/// match the route. Looking them up by string would reintroduce exactly the
+/// typo this arrangement removes — a misspelled name used to mean a permanent
+/// 404, not a compile error. [name] is only used for the message.
+int parsePathId(String raw, String name) {
+  final value = int.tryParse(raw);
   if (value == null) {
     throw ApiError.notFound('$name is not a valid id.');
   }

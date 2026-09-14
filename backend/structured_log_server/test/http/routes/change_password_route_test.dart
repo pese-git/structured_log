@@ -21,9 +21,11 @@ StructuredLogDatabase openInMemory() {
 void main() {
   late StructuredLogDatabase db;
   late int userId;
+  late ChangePasswordRoutes routes;
 
   setUp(() async {
     db = openInMemory();
+    routes = ChangePasswordRoutes(db);
     userId = await db.into(db.users).insert(
           UsersCompanion.insert(
             username: 'alice',
@@ -37,8 +39,7 @@ void main() {
 
   test('a correct current password updates the hash and clears the flag',
       () async {
-    final response = await changePassword(
-      db,
+    final response = await routes.router.call(
       authenticatedRequest(
         'POST',
         'http://x/v1/auth/change-password',
@@ -61,8 +62,7 @@ void main() {
   });
 
   test('changing the password increments token_version', () async {
-    await changePassword(
-      db,
+    await routes.router.call(
       authenticatedRequest(
         'POST',
         'http://x/v1/auth/change-password',
@@ -81,8 +81,7 @@ void main() {
   test('an incorrect current password is rejected and nothing changes',
       () async {
     await expectLater(
-      changePassword(
-        db,
+      routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/auth/change-password',
@@ -107,8 +106,7 @@ void main() {
       const UsersCompanion(mustChangePassword: Value(false)),
     );
 
-    final response = await changePassword(
-      db,
+    final response = await routes.router.call(
       authenticatedRequest(
         'POST',
         'http://x/v1/auth/change-password',
@@ -122,8 +120,7 @@ void main() {
 
   test('missing fields are rejected with 400', () async {
     await expectLater(
-      changePassword(
-        db,
+      routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/auth/change-password',

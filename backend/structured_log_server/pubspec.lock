@@ -505,6 +505,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.4"
+  shelf_router_generator:
+    dependency: "direct dev"
+    description:
+      name: shelf_router_generator
+      sha256: e7ee1ce30c6655586a57eaf0a8ae977a6759bad490ec21e08ec6100e9249c1cc
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   shelf_static:
     dependency: transitive
     description:

@@ -24,10 +24,12 @@ void main() {
   late StructuredLogDatabase db;
   late Authorizer authorizer;
   late int groupId;
+  late ProjectRoutes routes;
 
   setUp(() async {
     db = openInMemory();
     authorizer = Authorizer(db);
+    routes = ProjectRoutes(db, authorizer);
     groupId =
         await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
   });
@@ -40,14 +42,11 @@ void main() {
 
   group('createProject', () {
     test('an owner of the group can create a project with a quota', () async {
-      final response = await createProject(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/groups/$groupId/projects',
           roles: ownerOf(groupId),
-          params: {'groupId': '$groupId'},
           jsonBody: {
             'name': 'checkout-service',
             'retention_days': 30,
@@ -68,14 +67,11 @@ void main() {
     });
 
     test('a project-usage row is created alongside the project', () async {
-      final response = await createProject(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/groups/$groupId/projects',
           roles: _admin,
-          params: {'groupId': '$groupId'},
           jsonBody: {'name': 'p', 'retention_days': 7},
         ),
       );
@@ -91,14 +87,11 @@ void main() {
     test('a caller without write access to the group is rejected with 403',
         () async {
       await expectLater(
-        createProject(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/groups/$groupId/projects',
             roles: _noRoles,
-            params: {'groupId': '$groupId'},
             jsonBody: {'name': 'p', 'retention_days': 7},
           ),
         ),
@@ -108,14 +101,11 @@ void main() {
 
     test('an unknown group is rejected with 404', () async {
       await expectLater(
-        createProject(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/groups/999/projects',
             roles: _admin,
-            params: {'groupId': '999'},
             jsonBody: {'name': 'p', 'retention_days': 7},
           ),
         ),
@@ -125,14 +115,11 @@ void main() {
 
     test('a missing retention_days is rejected with 400', () async {
       await expectLater(
-        createProject(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'POST',
             'http://x/v1/groups/$groupId/projects',
             roles: _admin,
-            params: {'groupId': '$groupId'},
             jsonBody: {'name': 'p'},
           ),
         ),
@@ -156,14 +143,11 @@ void main() {
     test('an owner can partially update the quota', () async {
       final projectId = await createTestProject();
 
-      final response = await updateProjectQuota(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'PATCH',
           'http://x/v1/projects/$projectId',
           roles: ownerOf(groupId),
-          params: {'id': '$projectId'},
           jsonBody: {'max_entries': 500},
         ),
       );
@@ -177,26 +161,20 @@ void main() {
     test('max_entries can be cleared back to unlimited with an explicit null',
         () async {
       final projectId = await createTestProject();
-      await updateProjectQuota(
-        db,
-        authorizer,
+      await routes.router.call(
         authenticatedRequest(
           'PATCH',
           'http://x/v1/projects/$projectId',
           roles: ownerOf(groupId),
-          params: {'id': '$projectId'},
           jsonBody: {'max_entries': 500},
         ),
       );
 
-      final response = await updateProjectQuota(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'PATCH',
           'http://x/v1/projects/$projectId',
           roles: ownerOf(groupId),
-          params: {'id': '$projectId'},
           jsonBody: {'max_entries': null},
         ),
       );
@@ -207,9 +185,7 @@ void main() {
     test('a caller with only read access is rejected with 403', () async {
       final projectId = await createTestProject();
       await expectLater(
-        updateProjectQuota(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'PATCH',
             'http://x/v1/projects/$projectId',
@@ -220,7 +196,6 @@ void main() {
                 scopeId: projectId,
               ),
             ],
-            params: {'id': '$projectId'},
             jsonBody: {'max_entries': 1},
           ),
         ),
@@ -230,14 +205,11 @@ void main() {
 
     test('write access via the enclosing group is honored', () async {
       final projectId = await createTestProject();
-      final response = await updateProjectQuota(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'PATCH',
           'http://x/v1/projects/$projectId',
           roles: ownerOf(groupId),
-          params: {'id': '$projectId'},
           jsonBody: {'max_bytes': 42},
         ),
       );
@@ -263,9 +235,7 @@ void main() {
 
     test('a user with project-level access can read usage', () async {
       final projectId = await createTestProject();
-      final response = await getProject(
-        db,
-        authorizer,
+      final response = await routes.router.call(
         authenticatedRequest(
           'GET',
           'http://x/v1/projects/$projectId',
@@ -276,7 +246,6 @@ void main() {
               scopeId: projectId,
             ),
           ],
-          params: {'id': '$projectId'},
         ),
       );
 
@@ -289,14 +258,11 @@ void main() {
     test('a caller with no access is rejected with 403', () async {
       final projectId = await createTestProject();
       await expectLater(
-        getProject(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/projects/$projectId',
             roles: _noRoles,
-            params: {'id': '$projectId'},
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
@@ -305,14 +271,11 @@ void main() {
 
     test('an unknown project is rejected with 404', () async {
       await expectLater(
-        getProject(
-          db,
-          authorizer,
+        routes.router.call(
           authenticatedRequest(
             'GET',
             'http://x/v1/projects/999',
             roles: _admin,
-            params: {'id': '999'},
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),

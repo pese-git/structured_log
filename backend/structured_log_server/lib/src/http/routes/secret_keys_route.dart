@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
 
 import '../../auth/hashing.dart';
 import '../../auth/identity_provider.dart';
@@ -10,6 +11,8 @@ import '../../storage/database.dart';
 import '../json_response.dart';
 import '../principal_middleware.dart';
 import '../request_helpers.dart';
+
+part 'secret_keys_route.g.dart';
 
 Map<String, Object?> secretKeyJson(ProjectSecretKey key, {String? secret}) {
   final json = <String, Object?>{
@@ -32,114 +35,117 @@ Future<Project> _requireProject(StructuredLogDatabase db, int projectId) async {
   return project;
 }
 
-/// `POST /v1/projects/:id/secret-keys` — `owner`/`admin` (`log-server-auth`,
-/// `log-server-rbac`). The plaintext key is only ever returned here.
-Future<Response> createSecretKey(
-  StructuredLogDatabase db,
-  Authorizer authorizer,
-  Request request,
-) async {
-  final identity = request.requireUser();
-  final projectId = requirePathParamInt(request, 'id');
-  final project = await _requireProject(db, projectId);
+class SecretKeyRoutes {
+  final StructuredLogDatabase _db;
+  final Authorizer _authorizer;
 
-  final roles = await resolveRoles(authorizer, identity);
-  if (!canWrite(
-    roles,
-    targetType: ScopeType.project,
-    targetId: projectId,
-    enclosingGroupId: project.groupId,
-  )) {
-    throw ApiError.forbidden();
-  }
+  SecretKeyRoutes(this._db, this._authorizer);
 
-  final body = await readJsonBody(request);
-  final label = body['label'];
-  if (label != null && label is! String) {
-    throw ApiError.invalidRequest(
-      'label must be a string.',
-      details: {'field': 'label', 'reason': 'invalid'},
-    );
-  }
+  Router get router => _$SecretKeyRoutesRouter(this);
 
-  final plainKey = generateProjectSecretKey();
-  final id = await db.into(db.projectSecretKeys).insert(
-        ProjectSecretKeysCompanion.insert(
-          projectId: projectId,
-          keyHash: hashToken(plainKey),
-          label: Value(label as String?),
-        ),
+  /// `owner`/`admin` (`log-server-auth`, `log-server-rbac`). The plaintext
+  /// key is only ever returned here.
+  @Route.post('/v1/projects/<id>/secret-keys')
+  Future<Response> createSecretKey(Request request, String id) async {
+    final identity = request.requireUser();
+    final projectId = parsePathId(id, 'id');
+    final project = await _requireProject(_db, projectId);
+
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canWrite(
+      roles,
+      targetType: ScopeType.project,
+      targetId: projectId,
+      enclosingGroupId: project.groupId,
+    )) {
+      throw ApiError.forbidden();
+    }
+
+    final body = await readJsonBody(request);
+    final label = body['label'];
+    if (label != null && label is! String) {
+      throw ApiError.invalidRequest(
+        'label must be a string.',
+        details: {'field': 'label', 'reason': 'invalid'},
       );
+    }
 
-  final row = await (db.select(
-    db.projectSecretKeys,
-  )..where((t) => t.id.equals(id)))
-      .getSingle();
-  return jsonOk(secretKeyJson(row, secret: plainKey), statusCode: 201);
-}
+    final plainKey = generateProjectSecretKey();
+    final keyId = await _db.into(_db.projectSecretKeys).insert(
+          ProjectSecretKeysCompanion.insert(
+            projectId: projectId,
+            keyHash: hashToken(plainKey),
+            label: Value(label as String?),
+          ),
+        );
 
-/// `GET /v1/projects/:id/secret-keys` — metadata only, never `secret`.
-Future<Response> listSecretKeys(
-  StructuredLogDatabase db,
-  Authorizer authorizer,
-  Request request,
-) async {
-  final identity = request.requireUser();
-  final projectId = requirePathParamInt(request, 'id');
-  final project = await _requireProject(db, projectId);
-
-  final roles = await resolveRoles(authorizer, identity);
-  if (!canRead(
-    roles,
-    targetType: ScopeType.project,
-    targetId: projectId,
-    enclosingGroupId: project.groupId,
-  )) {
-    throw ApiError.forbidden();
+    final row = await (_db.select(
+      _db.projectSecretKeys,
+    )..where((t) => t.id.equals(keyId)))
+        .getSingle();
+    return jsonOk(secretKeyJson(row, secret: plainKey), statusCode: 201);
   }
 
-  final rows = await (db.select(
-    db.projectSecretKeys,
-  )..where((t) => t.projectId.equals(projectId)))
-      .get();
-  return jsonOk({'items': rows.map(secretKeyJson).toList()});
-}
+  /// Metadata only, never `secret`.
+  @Route.get('/v1/projects/<id>/secret-keys')
+  Future<Response> listSecretKeys(Request request, String id) async {
+    final identity = request.requireUser();
+    final projectId = parsePathId(id, 'id');
+    final project = await _requireProject(_db, projectId);
 
-/// `DELETE /v1/projects/:id/secret-keys/:keyId` — `owner`/`admin`,
-/// irreversible.
-Future<Response> revokeSecretKey(
-  StructuredLogDatabase db,
-  Authorizer authorizer,
-  Request request,
-) async {
-  final identity = request.requireUser();
-  final projectId = requirePathParamInt(request, 'id');
-  final keyId = requirePathParamInt(request, 'keyId');
-  final project = await _requireProject(db, projectId);
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canRead(
+      roles,
+      targetType: ScopeType.project,
+      targetId: projectId,
+      enclosingGroupId: project.groupId,
+    )) {
+      throw ApiError.forbidden();
+    }
 
-  final roles = await resolveRoles(authorizer, identity);
-  if (!canWrite(
-    roles,
-    targetType: ScopeType.project,
-    targetId: projectId,
-    enclosingGroupId: project.groupId,
-  )) {
-    throw ApiError.forbidden();
+    final rows = await (_db.select(
+      _db.projectSecretKeys,
+    )..where((t) => t.projectId.equals(projectId)))
+        .get();
+    return jsonOk({'items': rows.map(secretKeyJson).toList()});
   }
 
-  final key = await (db.select(db.projectSecretKeys)
-        ..where(
-          (t) => t.id.equals(keyId) & t.projectId.equals(projectId),
-        ))
-      .getSingleOrNull();
-  if (key == null) throw ApiError.notFound('Secret key not found.');
+  /// `owner`/`admin`, irreversible.
+  @Route.delete('/v1/projects/<id>/secret-keys/<keyId>')
+  Future<Response> revokeSecretKey(
+    Request request,
+    String id,
+    String keyId,
+  ) async {
+    final identity = request.requireUser();
+    final projectId = parsePathId(id, 'id');
+    final secretKeyId = parsePathId(keyId, 'keyId');
+    final project = await _requireProject(_db, projectId);
 
-  await (db.update(
-    db.projectSecretKeys,
-  )..where((t) => t.id.equals(keyId)))
-      .write(
-    ProjectSecretKeysCompanion(revokedAt: Value(DateTime.now())),
-  );
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canWrite(
+      roles,
+      targetType: ScopeType.project,
+      targetId: projectId,
+      enclosingGroupId: project.groupId,
+    )) {
+      throw ApiError.forbidden();
+    }
 
-  return Response(204);
+    final key = await (_db.select(_db.projectSecretKeys)
+          ..where(
+            (t) => t.id.equals(secretKeyId) & t.projectId.equals(projectId),
+          ))
+        .getSingleOrNull();
+    if (key == null) throw ApiError.notFound('Secret key not found.');
+
+    await (_db.update(
+      _db.projectSecretKeys,
+    )..where((t) => t.id.equals(secretKeyId)))
+        .write(
+      ProjectSecretKeysCompanion(revokedAt: Value(DateTime.now())),
+    );
+
+    return Response(204);
+  }
 }

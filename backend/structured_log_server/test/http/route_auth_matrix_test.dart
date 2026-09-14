@@ -98,20 +98,24 @@ void main() {
     );
   }
 
-  test('the table covers every route buildHandler registers', () {
-    // `Router` doesn't expose what was registered on it, so the route table
-    // is counted in the source instead. Adding a route without a line here
-    // fails this — which is the point: whoever adds it has to say what
-    // authenticates it.
-    final source = File('lib/src/http/server.dart').readAsStringSync();
-    final registrations = RegExp(
-      r'\.\.(get|post|put|patch|delete|head|options|all)\(',
-    ).allMatches(source).length;
+  test('the table covers every annotated route', () {
+    // `Router` doesn't expose what was registered on it, and since
+    // `shelf_router_generator` took over the route table there is nothing to
+    // count in `server.dart` either — the routes are the `@Route`
+    // annotations. Adding one without a line here fails this, which is the
+    // point: whoever adds a route has to say what authenticates it.
+    final annotations = Directory('lib/src/http/routes')
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('_route.dart'))
+        .map((f) => f.readAsStringSync())
+        .expand((source) => RegExp(r'@Route[.(]').allMatches(source))
+        .length;
 
     expect(
       _routes.length,
-      registrations,
-      reason: 'routes registered in server.dart but missing from _routes',
+      annotations,
+      reason: '@Route-annotated handlers missing from _routes',
     );
   });
 

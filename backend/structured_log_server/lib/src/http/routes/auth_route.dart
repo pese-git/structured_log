@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
 
 import '../../auth/token_service.dart';
+
+part 'auth_route.g.dart';
 
 /// Renders a [TokenError] as the RFC 6749 §5.2 JSON body — the one place
 /// in this API that doesn't use the general error envelope
@@ -50,70 +53,82 @@ Map<String, Object?> _pairJson(TokenPair pair) => {
       'refresh_expires_in': pair.refreshTokenTtl.inSeconds,
     };
 
-/// `POST /v1/auth/token` — form-encoded, `grant_type=password` or
-/// `grant_type=refresh_token` (`log-server-auth`, RFC 6749).
-Future<Response> issueToken(TokenService tokenService, Request request) async {
-  final form = Uri.splitQueryString(await request.readAsString());
-  final grantType = form['grant_type'];
+/// The token endpoints. Public: [TokenService] checks the credentials these
+/// carry in the body, so no principal is required of the request itself.
+class AuthRoutes {
+  final TokenService _tokenService;
 
-  switch (grantType) {
-    case 'password':
-      final username = form['username'];
-      final password = form['password'];
-      if (username == null || password == null) {
+  AuthRoutes(this._tokenService);
+
+  Router get router => _$AuthRoutesRouter(this);
+
+  /// Form-encoded, `grant_type=password` or `grant_type=refresh_token`
+  /// (`log-server-auth`, RFC 6749).
+  @Route.post('/v1/auth/token')
+  Future<Response> issueToken(Request request) async {
+    final form = Uri.splitQueryString(await request.readAsString());
+    final grantType = form['grant_type'];
+
+    switch (grantType) {
+      case 'password':
+        final username = form['username'];
+        final password = form['password'];
+        if (username == null || password == null) {
+          return _rfc6749Error(
+            400,
+            const TokenError(TokenErrorCode.invalidRequest),
+          );
+        }
+        final result = await _tokenService.passwordGrant(
+          username: username,
+          password: password,
+        );
+        return result.match(
+          (error) => _rfc6749Error(400, error),
+          (pair) => Response(
+            200,
+            body: jsonEncode(_pairJson(pair)),
+            headers: {'content-type': 'application/json'},
+          ),
+        );
+
+      case 'refresh_token':
+        final refreshToken = form['refresh_token'];
+        if (refreshToken == null) {
+          return _rfc6749Error(
+            400,
+            const TokenError(TokenErrorCode.invalidRequest),
+          );
+        }
+        final result = await _tokenService.refreshTokenGrant(refreshToken);
+        return result.match(
+          (error) => _rfc6749Error(400, error),
+          (pair) => Response(
+            200,
+            body: jsonEncode(_pairJson(pair)),
+            headers: {'content-type': 'application/json'},
+          ),
+        );
+
+      default:
         return _rfc6749Error(
           400,
-          const TokenError(TokenErrorCode.invalidRequest),
+          const TokenError(TokenErrorCode.unsupportedGrantType),
         );
-      }
-      final result = await tokenService.passwordGrant(
-        username: username,
-        password: password,
-      );
-      return result.match(
-        (error) => _rfc6749Error(400, error),
-        (pair) => Response(
-          200,
-          body: jsonEncode(_pairJson(pair)),
-          headers: {'content-type': 'application/json'},
-        ),
-      );
+    }
+  }
 
-    case 'refresh_token':
-      final refreshToken = form['refresh_token'];
-      if (refreshToken == null) {
-        return _rfc6749Error(
-          400,
-          const TokenError(TokenErrorCode.invalidRequest),
-        );
-      }
-      final result = await tokenService.refreshTokenGrant(refreshToken);
-      return result.match(
-        (error) => _rfc6749Error(400, error),
-        (pair) => Response(
-          200,
-          body: jsonEncode(_pairJson(pair)),
-          headers: {'content-type': 'application/json'},
-        ),
-      );
-
-    default:
+  /// Always `200` with an empty body once `refresh_token` is present,
+  /// regardless of whether it was valid (RFC 7009 §2.2, anti-enumeration).
+  @Route.delete('/v1/auth/token')
+  Future<Response> revokeToken(Request request) async {
+    final form = Uri.splitQueryString(await request.readAsString());
+    final refreshToken = form['refresh_token'];
+    if (refreshToken == null) {
       return _rfc6749Error(
-        400,
-        const TokenError(TokenErrorCode.unsupportedGrantType),
-      );
+          400, const TokenError(TokenErrorCode.invalidRequest));
+    }
+    await _tokenService.revoke(refreshToken);
+    return Response(200, body: '');
   }
-}
-
-/// `DELETE /v1/auth/token` — always `200` with an empty body once
-/// `refresh_token` is present, regardless of whether it was valid
-/// (RFC 7009 §2.2, anti-enumeration).
-Future<Response> revokeToken(TokenService tokenService, Request request) async {
-  final form = Uri.splitQueryString(await request.readAsString());
-  final refreshToken = form['refresh_token'];
-  if (refreshToken == null) {
-    return _rfc6749Error(400, const TokenError(TokenErrorCode.invalidRequest));
-  }
-  await tokenService.revoke(refreshToken);
-  return Response(200, body: '');
 }
