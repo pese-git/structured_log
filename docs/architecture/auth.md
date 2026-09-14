@@ -142,6 +142,20 @@ external provider's own revocation model (e.g. short Keycloak token TTLs)
 is its own concern, not something this change guarantees for it. **No
 Keycloak adapter is implemented in this change** — only the seam.
 
+**One naming trap that adapter will have to respect:** a Keycloak
+`group` and this system's `Group` are not the same thing. In Keycloak,
+LDAP and OIDC a "group" is a set of *users* — which here is called a
+`Team`. A `Group` here is the container that owns projects and teams,
+carries ownership and receives role grants
+([rbac-and-lifecycle.md](rbac-and-lifecycle.md)). So Keycloak group
+membership maps onto `TeamMember` — or straight onto `RoleAssignment`
+when the adapter supplies rights itself (`roles != null`) — and **never**
+onto `Group`. The word matching is a false friend. The name `Group` is
+kept deliberately (it carries the same meaning as GitLab's `Group`,
+which likewise owns projects); renaming it was considered and rejected,
+which is exactly why the mapping rule is written down here instead of
+being left to whoever writes the adapter to guess.
+
 ## Self-service password recovery
 
 A separate pre-auth flow, not an extension of `/v1/auth/token` (decision
