@@ -21,3 +21,7 @@ Response jsonOk(Object? body, {int statusCode = 200}) {
     headers: {'content-type': 'application/json'},
   );
 }
+
+/// Renders [dt] the way every timestamp field in the API's JSON models is
+/// documented: ISO 8601 in UTC (`docs/api/models.md`).
+String? toIso8601Utc(DateTime? dt) => dt?.toUtc().toIso8601String();

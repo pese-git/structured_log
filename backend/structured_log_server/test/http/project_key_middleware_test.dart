@@ -33,7 +33,7 @@ void main() {
           ProjectSecretKeysCompanion.insert(
             projectId: projectId,
             keyHash: hashToken(plainKey),
-            label: 'test key',
+            label: const Value('test key'),
           ),
         );
   });

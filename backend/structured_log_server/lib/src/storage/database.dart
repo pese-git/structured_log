@@ -73,7 +73,7 @@ class ProjectSecretKeys extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get projectId => integer().references(Projects, #id)();
   TextColumn get keyHash => text()();
-  TextColumn get label => text()();
+  TextColumn get label => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get revokedAt => dateTime().nullable()();
 }
