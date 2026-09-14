@@ -4,10 +4,19 @@
 
 ## Проект
 
-Репозиторий — multi-package workspace на Melos + FVM с плоской раскладкой пакетов
-(каждый пакет — отдельная директория в корне репозитория, перечисленная по имени
-в [melos.yaml](melos.yaml); без вложенности вроде `packages/<name>/`) — по образцу
-[cherrypick](https://github.com/pese-git/cherrypick) того же автора.
+Репозиторий — multi-package workspace на Melos + FVM, пакеты сгруппированы по категориям
+верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
+пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
+(`structured_log`, скины просмотрщика логов, `structured_log_http`), [backend/](backend/) —
+самостоятельные серверные приложения (`structured_log_server`), [frontend/](frontend/) —
+самостоятельные клиентские приложения с UI (`structured_log_admin_client`), [packages/](packages/) —
+пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (пока пусто, без записи
+в `melos.yaml`). Первоначально раскладка была полностью плоской, без категорий — по образцу
+[cherrypick](https://github.com/pese-git/cherrypick) того же автора; категории введены при
+добавлении сервера и admin-клиента
+([openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/),
+decision 23) — с появлением пакетов другой природы (сервис, приложение, а не только встраиваемая
+библиотека) плоский список перестал сам по себе сообщать, что чем является.
 
 `.fvm/fvm_config.json` пинит Flutter SDK для локальной разработки/`melos`-команд
 явной версией (`"flutterSdkVersion"`, сейчас `3.44.9`) — не строкой `"stable"`,
@@ -20,21 +29,36 @@
 `fvm use <version>` из корня репозитория, затем `dart run melos bootstrap` и
 полный прогон `analyze`/`test` по всем пакетам.
 
-Пять пакетов:
+Шесть пакетов в `emb/`:
 
-- [structured_log/](structured_log/) — структурированное логирование для Dart, вдохновлено
+- [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
-- [structured_log_flutter/](structured_log_flutter/) — headless-ядро для in-app просмотра логов
+- [emb/structured_log_flutter/](emb/structured_log_flutter/) — headless-ядро для in-app просмотра логов
   во Flutter (`LogBuffer`, `LogViewerController`, `logLevelColor()`); не зависит ни от какой
   конкретной дизайн-системы. Опубликован на pub.dev.
-- [structured_log_material/](structured_log_material/) — Material 3 виджет просмотрщика логов
+- [emb/structured_log_material/](emb/structured_log_material/) — Material 3 виджет просмотрщика логов
   поверх `structured_log_flutter`. Разрешена публикация на pub.dev (`publish_to: none` снят).
-- [structured_log_fluent/](structured_log_fluent/) — Fluent UI (WinUI-style) виджет просмотрщика
+- [emb/structured_log_fluent/](emb/structured_log_fluent/) — Fluent UI (WinUI-style) виджет просмотрщика
   логов поверх `structured_log_flutter` (master-detail вместо bottom sheet). Разрешена
   публикация на pub.dev (`publish_to: none` снят).
-- [structured_log_cupertino/](structured_log_cupertino/) — Cupertino (iOS-style) виджет
+- [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino (iOS-style) виджет
   просмотрщика логов поверх `structured_log_flutter` (pushed-экран деталей на узких экранах,
   master-detail split на широких/iPad). Разрешена публикация на pub.dev (`publish_to: none` снят).
+- [emb/structured_log_http/](emb/structured_log_http/) — `HttpLogOutput`: `LogSink`-вывод,
+  отправляющий записи на `structured_log_server` по HTTP (батчинг, retry с backoff). Единственная
+  зависимость — `structured_log`. Скаффолдинг (Этап 0); реализация — раздел 9 `tasks.md` в
+  [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
+
+Плюс один пакет в `backend/`:
+
+- [backend/structured_log_server/](backend/structured_log_server/) — self-hosted сервер приёма/
+  хранения/поиска/живой трансляции логов (`shelf`+`shelf_router`, `drift`/SQLite). Скаффолдинг
+  (Этап 0, пустой публичный API); реализация — разделы 2–8/21/26/28/33/34 `tasks.md` в
+  [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
+  `publish_to: none` — самостоятельный сервис, не библиотека для встраивания.
+
+`frontend/` и `packages/` пока пусты (`structured_log_admin_client`/`structured_log_admin_ui`
+появятся там по мере реализации Этапа 1 той же change).
 
 `structured_log_material`/`structured_log_fluent`/`structured_log_cupertino` фактически ещё не
 опубликованы (нет `CHANGELOG.md` — публикация требует прогнать `melos version` первым, см.
@@ -54,11 +78,15 @@
 Верхний уровень репозитория:
 
 - [README.md](README.md) / [README.ru.md](README.ru.md) — обзор workspace целиком, для внешних читателей.
-- [structured_log/](structured_log/) — пакет структурированного логирования (см. ниже).
-- [structured_log_flutter/](structured_log_flutter/) — headless-ядро просмотрщика логов (см. ниже).
-- [structured_log_material/](structured_log_material/) — Material-скин просмотрщика логов (см. ниже).
-- [structured_log_fluent/](structured_log_fluent/) — Fluent-скин просмотрщика логов (см. ниже).
-- [structured_log_cupertino/](structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
+- [emb/structured_log/](emb/structured_log/) — пакет структурированного логирования (см. ниже).
+- [emb/structured_log_flutter/](emb/structured_log_flutter/) — headless-ядро просмотрщика логов (см. ниже).
+- [emb/structured_log_material/](emb/structured_log_material/) — Material-скин просмотрщика логов (см. ниже).
+- [emb/structured_log_fluent/](emb/structured_log_fluent/) — Fluent-скин просмотрщика логов (см. ниже).
+- [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
+- [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
+- [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
+- [frontend/](frontend/) — пока пусто; здесь появится `structured_log_admin_client`.
+- [packages/](packages/) — пока пусто; резерв под пакеты вне категорий `emb`/`backend`/`frontend`.
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
   только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
@@ -69,76 +97,90 @@
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
   читаемое по темам изложение поверх `design.md`/`specs/*.md`, а не замена им (при расхождении
   приоритет у OpenSpec-артефактов). Билингвальные пары файлов (`*.md`/`*.ru.md`), по той же
-  конвенции, что `README.md`/`README.ru.md` и `structured_log/doc/ARCHITECTURE.md`/`.ru.md`. См.
+  конвенции, что `README.md`/`README.ru.md` и `emb/structured_log/doc/ARCHITECTURE.md`/`.ru.md`. См.
   [docs/README.md](docs/README.md) для оглавления.
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) — CI.
-- [LICENSE](LICENSE) — лицензия репозитория; копия лежит также внутри `structured_log/`
+- [LICENSE](LICENSE) — лицензия репозитория; копия лежит также внутри `emb/structured_log/`
   (и будет копироваться в каждый новый пакет), так как `dart pub publish` пакует только
   содержимое директории пакета.
 
-Внутри [structured_log/](structured_log/):
+Внутри [emb/structured_log/](emb/structured_log/):
 
-- [structured_log/lib/structured_log.dart](structured_log/lib/structured_log.dart) — публичный barrel-файл экспорта.
-- [structured_log/lib/src/logger.dart](structured_log/lib/src/logger.dart) — `BoundLogger`, `LogLevel`, `getLogger()`.
-- [structured_log/lib/src/configuration.dart](structured_log/lib/src/configuration.dart) — глобальный синглтон `StructlogConfiguration`.
-- [structured_log/lib/src/sink.dart](structured_log/lib/src/sink.dart) — `LogSink`, мультивывод с независимой фильтрацией по уровню/категории и runtime-переключением.
-- [structured_log/lib/src/correlation.dart](structured_log/lib/src/correlation.dart) — `LogCorrelation`, типизированные id (session/request/connection/tool-call/message/operation) для `BoundLogger.withCorrelation()`.
-- [structured_log/lib/src/processors.dart](structured_log/lib/src/processors.dart) — процессоры, трансформирующие запись лога.
-- [structured_log/lib/src/formatters.dart](structured_log/lib/src/formatters.dart) — функции вывода (консоль, файл, ротация файлов) — синхронные.
-- [structured_log/lib/src/async_file_output.dart](structured_log/lib/src/async_file_output.dart) — `AsyncFileOutput`/`AsyncRotatingFileOutput`, неблокирующие аналоги файлового вывода с сериализованной очередью записи.
-- [structured_log/test/structlog_test.dart](structured_log/test/structlog_test.dart) — модульные тесты по компонентам.
-- [structured_log/test/integration_test.dart](structured_log/test/integration_test.dart) — интеграционные тесты, проверяющие пакет как целую систему на реальных файлах.
-- [structured_log/example/main.dart](structured_log/example/main.dart) — рабочий пример использования.
-- [structured_log/doc/ARCHITECTURE.md](structured_log/doc/ARCHITECTURE.md) / [structured_log/doc/ARCHITECTURE.ru.md](structured_log/doc/ARCHITECTURE.ru.md) — внутренний дизайн для контрибьюторов с mermaid-диаграммами (жизненный цикл лог-вызова, мульти-синк роутинг).
+- [emb/structured_log/lib/structured_log.dart](emb/structured_log/lib/structured_log.dart) — публичный barrel-файл экспорта.
+- [emb/structured_log/lib/src/logger.dart](emb/structured_log/lib/src/logger.dart) — `BoundLogger`, `LogLevel`, `getLogger()`.
+- [emb/structured_log/lib/src/configuration.dart](emb/structured_log/lib/src/configuration.dart) — глобальный синглтон `StructlogConfiguration`.
+- [emb/structured_log/lib/src/sink.dart](emb/structured_log/lib/src/sink.dart) — `LogSink`, мультивывод с независимой фильтрацией по уровню/категории и runtime-переключением.
+- [emb/structured_log/lib/src/correlation.dart](emb/structured_log/lib/src/correlation.dart) — `LogCorrelation`, типизированные id (session/request/connection/tool-call/message/operation) для `BoundLogger.withCorrelation()`.
+- [emb/structured_log/lib/src/processors.dart](emb/structured_log/lib/src/processors.dart) — процессоры, трансформирующие запись лога.
+- [emb/structured_log/lib/src/formatters.dart](emb/structured_log/lib/src/formatters.dart) — функции вывода (консоль, файл, ротация файлов) — синхронные.
+- [emb/structured_log/lib/src/async_file_output.dart](emb/structured_log/lib/src/async_file_output.dart) — `AsyncFileOutput`/`AsyncRotatingFileOutput`, неблокирующие аналоги файлового вывода с сериализованной очередью записи.
+- [emb/structured_log/test/structlog_test.dart](emb/structured_log/test/structlog_test.dart) — модульные тесты по компонентам.
+- [emb/structured_log/test/integration_test.dart](emb/structured_log/test/integration_test.dart) — интеграционные тесты, проверяющие пакет как целую систему на реальных файлах.
+- [emb/structured_log/example/main.dart](emb/structured_log/example/main.dart) — рабочий пример использования.
+- [emb/structured_log/doc/ARCHITECTURE.md](emb/structured_log/doc/ARCHITECTURE.md) / [emb/structured_log/doc/ARCHITECTURE.ru.md](emb/structured_log/doc/ARCHITECTURE.ru.md) — внутренний дизайн для контрибьюторов с mermaid-диаграммами (жизненный цикл лог-вызова, мульти-синк роутинг).
 
-Внутри [structured_log_flutter/](structured_log_flutter/):
+Внутри [emb/structured_log_flutter/](emb/structured_log_flutter/):
 
-- [structured_log_flutter/lib/structured_log_flutter.dart](structured_log_flutter/lib/structured_log_flutter.dart) — barrel-файл экспорта.
-- [structured_log_flutter/lib/src/log_buffer.dart](structured_log_flutter/lib/src/log_buffer.dart) — `LogBuffer`: кольцевой буфер, `capture()` подключается как `OutputFunction`/`LogSink.output`, отдаёт записи как `ValueListenable`.
-- [structured_log_flutter/lib/src/log_viewer_controller.dart](structured_log_flutter/lib/src/log_viewer_controller.dart) — `LogViewerController` (`ChangeNotifier`): фильтры по уровню/категории/поиску, пауза, `clear()`; плюс публичная `logLevelOf()`.
-- [structured_log_flutter/lib/src/log_level_colors.dart](structured_log_flutter/lib/src/log_level_colors.dart) — `logLevelColor()`: единственный источник цветов `LogLevel`, общий для всех скинов (Material/Fluent/Cupertino); живёт здесь, а не в конкретном скине, т.к. `Color`/`Brightness` не привязаны ни к одной дизайн-системе — извлечено из `structured_log_material`, когда появился третий скин (`structured_log_cupertino`), см. `design.md` соответствующей change.
-- [structured_log_flutter/test/](structured_log_flutter/test/) — тесты (`flutter test`) на `LogBuffer`, `LogViewerController` и `logLevelColor()`.
+- [emb/structured_log_flutter/lib/structured_log_flutter.dart](emb/structured_log_flutter/lib/structured_log_flutter.dart) — barrel-файл экспорта.
+- [emb/structured_log_flutter/lib/src/log_buffer.dart](emb/structured_log_flutter/lib/src/log_buffer.dart) — `LogBuffer`: кольцевой буфер, `capture()` подключается как `OutputFunction`/`LogSink.output`, отдаёт записи как `ValueListenable`.
+- [emb/structured_log_flutter/lib/src/log_viewer_controller.dart](emb/structured_log_flutter/lib/src/log_viewer_controller.dart) — `LogViewerController` (`ChangeNotifier`): фильтры по уровню/категории/поиску, пауза, `clear()`; плюс публичная `logLevelOf()`.
+- [emb/structured_log_flutter/lib/src/log_level_colors.dart](emb/structured_log_flutter/lib/src/log_level_colors.dart) — `logLevelColor()`: единственный источник цветов `LogLevel`, общий для всех скинов (Material/Fluent/Cupertino); живёт здесь, а не в конкретном скине, т.к. `Color`/`Brightness` не привязаны ни к одной дизайн-системе — извлечено из `structured_log_material`, когда появился третий скин (`structured_log_cupertino`), см. `design.md` соответствующей change.
+- [emb/structured_log_flutter/test/](emb/structured_log_flutter/test/) — тесты (`flutter test`) на `LogBuffer`, `LogViewerController` и `logLevelColor()`.
 
-Внутри [structured_log_material/](structured_log_material/):
+Внутри [emb/structured_log_material/](emb/structured_log_material/):
 
-- [structured_log_material/lib/structured_log_material.dart](structured_log_material/lib/structured_log_material.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter` (собственной копии палитры у пакета больше нет).
-- [structured_log_material/lib/src/material_log_viewer.dart](structured_log_material/lib/src/material_log_viewer.dart) — `MaterialLogViewer`: встраиваемый виджет без своей хромы (тулбар поиска/паузы/очистки, чипы категории и уровня, список); ниже брейкпоинта master-detail — список + модальный `LogEntryDetailSheet` по тапу, на и выше него — список и немодальная `LogEntryDetailPanel` рядом.
-- [structured_log_material/lib/src/material_log_viewer_page.dart](structured_log_material/lib/src/material_log_viewer_page.dart) — `MaterialLogViewerPage`: тонкая обёртка `Scaffold`/`AppBar` (заголовок «Logs») вокруг `MaterialLogViewer` для полноэкранного сценария.
-- [structured_log_material/lib/src/log_category_chips.dart](structured_log_material/lib/src/log_category_chips.dart) — `LogCategoryChips`: ряд `ChoiceChip` фильтра по `category`, скрывается при <2 категориях.
-- [structured_log_material/lib/src/log_entry_tile.dart](structured_log_material/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (уровень/время/event/category); `selected` подсвечивает запись, показанную в `LogEntryDetailPanel`.
-- [structured_log_material/lib/src/log_entry_detail_sheet.dart](structured_log_material/lib/src/log_entry_detail_sheet.dart) — `LogEntryDetailSheet`: модальный bottom sheet с полным контекстом записи и копированием (узкие экраны).
-- [structured_log_material/lib/src/log_entry_detail_panel.dart](structured_log_material/lib/src/log_entry_detail_panel.dart) — `LogEntryDetailPanel`: тот же контент, что в `LogEntryDetailSheet`, но немодальной панелью для master-detail split (широкие экраны).
-- [structured_log_material/lib/src/log_viewer_empty_state.dart](structured_log_material/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «логов ещё нет» / «нет по фильтру».
-- [structured_log_material/test/](structured_log_material/test/) — виджет-тесты (`flutter test`).
-- [structured_log_material/example/](structured_log_material/example/) — полноценное Flutter-приложение (`structured_log_material_example` в `melos.yaml`), запускается через `flutter run -d chrome` (или `-d web-server`) из этой директории; поддерживает web; демонстрирует и `MaterialLogViewerPage`, и встроенный `MaterialLogViewer` в боковой панели.
+- [emb/structured_log_material/lib/structured_log_material.dart](emb/structured_log_material/lib/structured_log_material.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter` (собственной копии палитры у пакета больше нет).
+- [emb/structured_log_material/lib/src/material_log_viewer.dart](emb/structured_log_material/lib/src/material_log_viewer.dart) — `MaterialLogViewer`: встраиваемый виджет без своей хромы (тулбар поиска/паузы/очистки, чипы категории и уровня, список); ниже брейкпоинта master-detail — список + модальный `LogEntryDetailSheet` по тапу, на и выше него — список и немодальная `LogEntryDetailPanel` рядом.
+- [emb/structured_log_material/lib/src/material_log_viewer_page.dart](emb/structured_log_material/lib/src/material_log_viewer_page.dart) — `MaterialLogViewerPage`: тонкая обёртка `Scaffold`/`AppBar` (заголовок «Logs») вокруг `MaterialLogViewer` для полноэкранного сценария.
+- [emb/structured_log_material/lib/src/log_category_chips.dart](emb/structured_log_material/lib/src/log_category_chips.dart) — `LogCategoryChips`: ряд `ChoiceChip` фильтра по `category`, скрывается при <2 категориях.
+- [emb/structured_log_material/lib/src/log_entry_tile.dart](emb/structured_log_material/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (уровень/время/event/category); `selected` подсвечивает запись, показанную в `LogEntryDetailPanel`.
+- [emb/structured_log_material/lib/src/log_entry_detail_sheet.dart](emb/structured_log_material/lib/src/log_entry_detail_sheet.dart) — `LogEntryDetailSheet`: модальный bottom sheet с полным контекстом записи и копированием (узкие экраны).
+- [emb/structured_log_material/lib/src/log_entry_detail_panel.dart](emb/structured_log_material/lib/src/log_entry_detail_panel.dart) — `LogEntryDetailPanel`: тот же контент, что в `LogEntryDetailSheet`, но немодальной панелью для master-detail split (широкие экраны).
+- [emb/structured_log_material/lib/src/log_viewer_empty_state.dart](emb/structured_log_material/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «логов ещё нет» / «нет по фильтру».
+- [emb/structured_log_material/test/](emb/structured_log_material/test/) — виджет-тесты (`flutter test`).
+- [emb/structured_log_material/example/](emb/structured_log_material/example/) — полноценное Flutter-приложение (`structured_log_material_example` в `melos.yaml`), запускается через `flutter run -d chrome` (или `-d web-server`) из этой директории; поддерживает web; демонстрирует и `MaterialLogViewerPage`, и встроенный `MaterialLogViewer` в боковой панели.
 
-Внутри [structured_log_fluent/](structured_log_fluent/):
+Внутри [emb/structured_log_fluent/](emb/structured_log_fluent/):
 
-- [structured_log_fluent/lib/structured_log_fluent.dart](structured_log_fluent/lib/structured_log_fluent.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter`.
-- [structured_log_fluent/lib/src/fluent_log_viewer.dart](structured_log_fluent/lib/src/fluent_log_viewer.dart) — `FluentLogViewer`: встраиваемый виджет без своей хромы — master-detail split view (список слева, панель деталей справа), тулбар с поиском/`LogCategoryComboBox`/уровнем/паузой/очисткой. Адаптивен под собственную ширину (не окна): ниже брейкпоинта тулбар переносится на вторую строку, а master-detail сворачивается в список с открытием деталей по тапу и кнопкой «назад».
-- [structured_log_fluent/lib/src/fluent_log_viewer_page.dart](structured_log_fluent/lib/src/fluent_log_viewer_page.dart) — `FluentLogViewerPage`: тонкая обёртка `ScaffoldPage` (заголовок «Logs», back-кнопка при пуше) вокруг `FluentLogViewer` для полноэкранного сценария.
-- [structured_log_fluent/lib/src/log_category_combo_box.dart](structured_log_fluent/lib/src/log_category_combo_box.dart) — `LogCategoryComboBox`: `ComboBox`-фильтр по `category`, скрывается при <2 категориях.
-- [structured_log_fluent/lib/src/log_entry_tile.dart](structured_log_fluent/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (бейдж уровня/время/event/category), hover- и accent-подсветка выбора через `HoverButton`.
-- [structured_log_fluent/lib/src/log_entry_detail_pane.dart](structured_log_fluent/lib/src/log_entry_detail_pane.dart) — `LogEntryDetailPane`: панель деталей (не модальная) с полным контекстом записи и копированием.
-- [structured_log_fluent/lib/src/log_viewer_empty_state.dart](structured_log_fluent/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No results found».
-- [structured_log_fluent/lib/src/log_level_colors.dart](structured_log_fluent/lib/src/log_level_colors.dart) — только `logLevelAbbreviation()` (короткий бейдж уровня); `logLevelColor()` теперь общий, приезжает из `structured_log_flutter`.
-- [structured_log_fluent/test/](structured_log_fluent/test/) — виджет-тесты (`flutter test`); поведенческие тесты (`fluent_log_viewer_test.dart`) пампят `FluentLogViewer` напрямую без `ScaffoldPage`/`Navigator` на широком вьюпорте (1200×800 — дефолтный 800×600 слишком узкий), `fluent_log_viewer_responsive_test.dart` — брейкпоинты на явно заданной ширине через `SizedBox`, `fluent_log_viewer_page_test.dart` — только специфика страницы (заголовок/back-кнопка); скоуп-хелперы `_inList`/`_inDetailPane` (список и панель деталей видны одновременно, `find.text(event)` иначе находит дубликаты).
-- [structured_log_fluent/example/](structured_log_fluent/example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `FluentLogViewerPage`, и встроенный `FluentLogViewer` в боковой панели (`Expanded`, не фиксированная ширина — иначе при сужении окна `Row` переполняется).
+- [emb/structured_log_fluent/lib/structured_log_fluent.dart](emb/structured_log_fluent/lib/structured_log_fluent.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter`.
+- [emb/structured_log_fluent/lib/src/fluent_log_viewer.dart](emb/structured_log_fluent/lib/src/fluent_log_viewer.dart) — `FluentLogViewer`: встраиваемый виджет без своей хромы — master-detail split view (список слева, панель деталей справа), тулбар с поиском/`LogCategoryComboBox`/уровнем/паузой/очисткой. Адаптивен под собственную ширину (не окна): ниже брейкпоинта тулбар переносится на вторую строку, а master-detail сворачивается в список с открытием деталей по тапу и кнопкой «назад».
+- [emb/structured_log_fluent/lib/src/fluent_log_viewer_page.dart](emb/structured_log_fluent/lib/src/fluent_log_viewer_page.dart) — `FluentLogViewerPage`: тонкая обёртка `ScaffoldPage` (заголовок «Logs», back-кнопка при пуше) вокруг `FluentLogViewer` для полноэкранного сценария.
+- [emb/structured_log_fluent/lib/src/log_category_combo_box.dart](emb/structured_log_fluent/lib/src/log_category_combo_box.dart) — `LogCategoryComboBox`: `ComboBox`-фильтр по `category`, скрывается при <2 категориях.
+- [emb/structured_log_fluent/lib/src/log_entry_tile.dart](emb/structured_log_fluent/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (бейдж уровня/время/event/category), hover- и accent-подсветка выбора через `HoverButton`.
+- [emb/structured_log_fluent/lib/src/log_entry_detail_pane.dart](emb/structured_log_fluent/lib/src/log_entry_detail_pane.dart) — `LogEntryDetailPane`: панель деталей (не модальная) с полным контекстом записи и копированием.
+- [emb/structured_log_fluent/lib/src/log_viewer_empty_state.dart](emb/structured_log_fluent/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No results found».
+- [emb/structured_log_fluent/lib/src/log_level_colors.dart](emb/structured_log_fluent/lib/src/log_level_colors.dart) — только `logLevelAbbreviation()` (короткий бейдж уровня); `logLevelColor()` теперь общий, приезжает из `structured_log_flutter`.
+- [emb/structured_log_fluent/test/](emb/structured_log_fluent/test/) — виджет-тесты (`flutter test`); поведенческие тесты (`fluent_log_viewer_test.dart`) пампят `FluentLogViewer` напрямую без `ScaffoldPage`/`Navigator` на широком вьюпорте (1200×800 — дефолтный 800×600 слишком узкий), `fluent_log_viewer_responsive_test.dart` — брейкпоинты на явно заданной ширине через `SizedBox`, `fluent_log_viewer_page_test.dart` — только специфика страницы (заголовок/back-кнопка); скоуп-хелперы `_inList`/`_inDetailPane` (список и панель деталей видны одновременно, `find.text(event)` иначе находит дубликаты).
+- [emb/structured_log_fluent/example/](emb/structured_log_fluent/example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `FluentLogViewerPage`, и встроенный `FluentLogViewer` в боковой панели (`Expanded`, не фиксированная ширина — иначе при сужении окна `Row` переполняется).
 - `fluent_ui: ^4.16.1` — обычный диапазон, не точный пин. До 2026-09 было зафиксировано точной версией `4.15.1`, т.к. `4.16.1` не компилировалась с Flutter SDK, который тогда был в проекте (`3.41.7`) — рассинхрон API `fluent_ui`/Flutter framework (`RawTooltip.ignorePointer`, `ReorderableListView.builder.onReorderItem`, тип `ScrollCacheExtent`; `flutter analyze` это не ловит, только `flutter test`/`flutter build`). Причина оказалась не в `fluent_ui`, а в устаревшем локальном `stable`-снепшоте FVM в этом репозитории: `fluent_ui 4.16.0` уже требовал Flutter `3.44.0+` («refactor: Flutter 3.44.0 support» в его CHANGELOG), но его собственный `environment.flutter` констрейнт (`>=3.32.0`) этого не отражал. После обновления `.fvm/fvm_config.json` на `3.44.9` (см. ниже) пакет компилируется и все тесты проходят — диапазон снят.
 
-Внутри [structured_log_cupertino/](structured_log_cupertino/):
+Внутри [emb/structured_log_cupertino/](emb/structured_log_cupertino/):
 
-- [structured_log_cupertino/lib/structured_log_cupertino.dart](structured_log_cupertino/lib/structured_log_cupertino.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter`.
-- [structured_log_cupertino/lib/src/cupertino_log_viewer.dart](structured_log_cupertino/lib/src/cupertino_log_viewer.dart) — `CupertinoLogViewer`: встраиваемый виджет без своей хромы — тулбар (`CupertinoSearchTextField`, пауза/очистка), `LogCategoryFilterBar`, `CupertinoSlidingSegmentedControl` уровня, список. Адаптивен под собственную ширину: ниже брейкпоинта master-detail — список, тап пушит `LogEntryDetailPanel` отдельным экраном через `CupertinoPageRoute` (стандартный iOS-паттерн, как в Почте/Настройках на iPhone); на и выше него — список и немодальная `LogEntryDetailPanel` рядом (как на iPad).
-- [structured_log_cupertino/lib/src/cupertino_log_viewer_page.dart](structured_log_cupertino/lib/src/cupertino_log_viewer_page.dart) — `CupertinoLogViewerPage`: тонкая обёртка `CupertinoPageScaffold` (заголовок «Logs», back-кнопка при пуше — штатная для `CupertinoNavigationBar`) вокруг `CupertinoLogViewer`.
-- [structured_log_cupertino/lib/src/log_category_filter_bar.dart](structured_log_cupertino/lib/src/log_category_filter_bar.dart) — `LogCategoryFilterBar`: горизонтально прокручиваемый ряд pill-кнопок фильтра по `category` (не `CupertinoSlidingSegmentedControl` — тот годится только для маленького фиксированного набора опций, а категории динамические), скрывается при <2 категориях.
-- [structured_log_cupertino/lib/src/log_entry_tile.dart](structured_log_cupertino/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (точка уровня/время/event/category); `showsDisclosureIndicator` — шеврон вправо на узких экранах (переход на новый экран), `selected` — подсветка на широких (master-detail).
-- [structured_log_cupertino/lib/src/log_entry_detail_panel.dart](structured_log_cupertino/lib/src/log_entry_detail_panel.dart) — `LogEntryDetailPanel`: немодальный контент деталей записи с копированием — используется и в master-detail split, и внутри `CupertinoPageScaffold` при пуше на узких экранах (никакого отдельного «sheet»-варианта, в отличие от `structured_log_material`, — на iOS паттерн детали записи это pushed-экран, а не bottom sheet).
-- [structured_log_cupertino/lib/src/log_viewer_empty_state.dart](structured_log_cupertino/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No logs match the current filter».
+- [emb/structured_log_cupertino/lib/structured_log_cupertino.dart](emb/structured_log_cupertino/lib/structured_log_cupertino.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter`.
+- [emb/structured_log_cupertino/lib/src/cupertino_log_viewer.dart](emb/structured_log_cupertino/lib/src/cupertino_log_viewer.dart) — `CupertinoLogViewer`: встраиваемый виджет без своей хромы — тулбар (`CupertinoSearchTextField`, пауза/очистка), `LogCategoryFilterBar`, `CupertinoSlidingSegmentedControl` уровня, список. Адаптивен под собственную ширину: ниже брейкпоинта master-detail — список, тап пушит `LogEntryDetailPanel` отдельным экраном через `CupertinoPageRoute` (стандартный iOS-паттерн, как в Почте/Настройках на iPhone); на и выше него — список и немодальная `LogEntryDetailPanel` рядом (как на iPad).
+- [emb/structured_log_cupertino/lib/src/cupertino_log_viewer_page.dart](emb/structured_log_cupertino/lib/src/cupertino_log_viewer_page.dart) — `CupertinoLogViewerPage`: тонкая обёртка `CupertinoPageScaffold` (заголовок «Logs», back-кнопка при пуше — штатная для `CupertinoNavigationBar`) вокруг `CupertinoLogViewer`.
+- [emb/structured_log_cupertino/lib/src/log_category_filter_bar.dart](emb/structured_log_cupertino/lib/src/log_category_filter_bar.dart) — `LogCategoryFilterBar`: горизонтально прокручиваемый ряд pill-кнопок фильтра по `category` (не `CupertinoSlidingSegmentedControl` — тот годится только для маленького фиксированного набора опций, а категории динамические), скрывается при <2 категориях.
+- [emb/structured_log_cupertino/lib/src/log_entry_tile.dart](emb/structured_log_cupertino/lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (точка уровня/время/event/category); `showsDisclosureIndicator` — шеврон вправо на узких экранах (переход на новый экран), `selected` — подсветка на широких (master-detail).
+- [emb/structured_log_cupertino/lib/src/log_entry_detail_panel.dart](emb/structured_log_cupertino/lib/src/log_entry_detail_panel.dart) — `LogEntryDetailPanel`: немодальный контент деталей записи с копированием — используется и в master-detail split, и внутри `CupertinoPageScaffold` при пуше на узких экранах (никакого отдельного «sheet»-варианта, в отличие от `structured_log_material`, — на iOS паттерн детали записи это pushed-экран, а не bottom sheet).
+- [emb/structured_log_cupertino/lib/src/log_viewer_empty_state.dart](emb/structured_log_cupertino/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No logs match the current filter».
 - `CupertinoSlidingSegmentedControl`'s type parameter должен быть non-nullable (`bound Object`) — фильтр уровня (включая `null` = «All») закодирован как индекс в списке опций, а не сам `LogLevel?` напрямую.
-- [structured_log_cupertino/test/](structured_log_cupertino/test/) — виджет-тесты (`flutter test`), структура и приёмы тестирования как у `structured_log_fluent`/`structured_log_material` (поведенческие тесты на явно заданной узкой ширине, брейкпоинты — на явно заданной широкой, отдельный тест для page-обёртки).
-- [structured_log_cupertino/example/](structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
+- [emb/structured_log_cupertino/test/](emb/structured_log_cupertino/test/) — виджет-тесты (`flutter test`), структура и приёмы тестирования как у `structured_log_fluent`/`structured_log_material` (поведенческие тесты на явно заданной узкой ширине, брейкпоинты — на явно заданной широкой, отдельный тест для page-обёртки).
+- [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
 - `cupertino_icons` — обычная зависимость (иконки `CupertinoIcons` не бандлятся во Flutter SDK сами по себе); `uses-material-design: false` — пакет не тянет Material-иконки/шрифты.
+
+Внутри [emb/structured_log_http/](emb/structured_log_http/) (скаффолдинг, Этап 0 — публичный API пока пуст):
+
+- [emb/structured_log_http/lib/structured_log_http.dart](emb/structured_log_http/lib/structured_log_http.dart) — barrel-файл экспорта.
+- `lib/src/http_output.dart` (раздел 9 `tasks.md`) — `HttpLogOutput` по паттерну `_SerializedAsyncOutput`/`AsyncFileOutput` из `structured_log` (сериализованная очередь, `catchError` на каждом шаге, публичный `flushed`), плюс батчинг по размеру/таймауту и retry с backoff на сетевых ошибках/5xx (не на 4xx).
+- Зависимость — только `structured_log` (чистый Dart, без `dio`/`http`; `dart:io`'s `HttpClient`, как и в `async_file_output.dart` самого `structured_log`).
+
+Внутри [backend/structured_log_server/](backend/structured_log_server/) (скаффолдинг, Этап 0 — публичный API пока пуст, файловая раскладка внутри фичи намеренно не зафиксирована заранее, decision 32 `design.md`):
+
+- [backend/structured_log_server/lib/structured_log_server.dart](backend/structured_log_server/lib/structured_log_server.dart) — barrel-файл экспорта.
+- `lib/src/` — по фиче (`auth/`, `users/`, `projects/`, `logs/`, `live_stream/`, `audit/`, ...), плюс `shared`/`common`-слой для сквозных таблиц хранения (`drift`, раздел 2 `tasks.md`) и HTTP-инфраструктуры (`shelf`/`shelf_router`, раздел 6).
+- `bin/` — CLI entrypoint (`bin/server.dart`, раздел 8 `tasks.md`), пока не создан.
+- Кодогенерация: `drift_dev`/`freezed`/`json_serializable` через `build_runner` — `dart run melos run generate` (скоуп `structured_log_server`) или `dart run build_runner build --delete-conflicting-outputs` из директории пакета; `*.g.dart`/`*.freezed.dart` — в `.gitignore` пакета, не коммитятся.
+- `publish_to: none` — самостоятельный сервис, а не библиотека для `pub.dev`.
 
 ## Команды
 
@@ -158,7 +200,7 @@ dart run melos run lint
 Для прямых вызовов `dart` нужно сначала зайти в директорию пакета:
 
 ```bash
-cd structured_log
+cd emb/structured_log
 
 dart analyze
 dart format .
@@ -173,7 +215,7 @@ dart run example/main.dart
 
 ## Соглашения
 
-- Публичный API `structured_log` экспортируется только через [structured_log/lib/structured_log.dart](structured_log/lib/structured_log.dart); новые публичные символы добавлять туда же.
+- Публичный API `structured_log` экспортируется только через [emb/structured_log/lib/structured_log.dart](emb/structured_log/lib/structured_log.dart); новые публичные символы добавлять туда же.
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
@@ -225,8 +267,8 @@ dart run example/main.dart
 2. `dart test` — все тесты должны проходить.
 3. `dart format --set-exit-if-changed .` — код должен быть отформатирован.
 4. При изменении публичного поведения пакета обновлять его `README.md`/`README.ru.md`
-   ([structured_log/](structured_log/README.md), [structured_log_flutter/](structured_log_flutter/README.md),
-   [structured_log_material/](structured_log_material/README.md), [structured_log_fluent/](structured_log_fluent/README.md),
-   [structured_log_cupertino/](structured_log_cupertino/README.md))
+   ([emb/structured_log/](emb/structured_log/README.md), [emb/structured_log_flutter/](emb/structured_log_flutter/README.md),
+   [emb/structured_log_material/](emb/structured_log_material/README.md), [emb/structured_log_fluent/](emb/structured_log_fluent/README.md),
+   [emb/structured_log_cupertino/](emb/structured_log_cupertino/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

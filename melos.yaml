@@ -1,14 +1,16 @@
 name: structured_log_workspace
 
 packages:
-  - structured_log
-  - structured_log_flutter
-  - structured_log_material
-  - structured_log_material/example
-  - structured_log_fluent
-  - structured_log_fluent/example
-  - structured_log_cupertino
-  - structured_log_cupertino/example
+  - emb/structured_log
+  - emb/structured_log_flutter
+  - emb/structured_log_material
+  - emb/structured_log_material/example
+  - emb/structured_log_fluent
+  - emb/structured_log_fluent/example
+  - emb/structured_log_cupertino
+  - emb/structured_log_cupertino/example
+  - emb/structured_log_http
+  - backend/structured_log_server
 
 command:
   bootstrap:
@@ -62,6 +64,12 @@ scripts:
     packageFilters:
       scope: ["structured_log"]
     description: Run tests with coverage (Dart-only packages)
+
+  generate:
+    exec: dart run build_runner build --delete-conflicting-outputs
+    packageFilters:
+      scope: ["structured_log_server"]
+    description: Run code generation (drift/freezed/json_serializable) for structured_log_server
 
   lint:
     steps:
