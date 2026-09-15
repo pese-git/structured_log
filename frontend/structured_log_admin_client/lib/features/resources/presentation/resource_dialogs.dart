@@ -409,43 +409,52 @@ class SecretKeyRevealDialog extends StatelessWidget {
           ),
         ],
       ),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const AdminBanner(
-            message:
-                'Значение показывается только один раз. После закрытия окна '
-                'оно нигде не будет доступно — сохраните его сейчас.',
-            tone: AdminBannerTone.error,
-          ),
-          const SizedBox(height: AdminSpacing.x14),
-          Container(
-            padding: const EdgeInsets.all(AdminSpacing.x12),
-            decoration: BoxDecoration(
-              color: colors.cardBg,
-              border: Border.all(color: colors.border),
-              borderRadius: BorderRadius.circular(AdminRadius.control),
+      // Scrolling, like the quota dialogs above, and for two reasons at once.
+      // A bare `Column` defaults to `MainAxisSize.max`, and `ContentDialog`
+      // hands its content a *loose* `Flexible` — a maximum height, not a tight
+      // one — so such a column takes the whole of it and the dialog stands as
+      // tall as the window whatever it is holding. And a window short enough
+      // that the content really does not fit should scroll rather than
+      // overflow (`test/features/resources/dialog_layout_test.dart`).
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const AdminBanner(
+              message:
+                  'Значение показывается только один раз. После закрытия окна '
+                  'оно нигде не будет доступно — сохраните его сейчас.',
+              tone: AdminBannerTone.error,
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SelectableText(
-                    secret,
-                    style: AdminTypography.monoSmall.copyWith(
-                      color: colors.text,
+            const SizedBox(height: AdminSpacing.x14),
+            Container(
+              padding: const EdgeInsets.all(AdminSpacing.x12),
+              decoration: BoxDecoration(
+                color: colors.cardBg,
+                border: Border.all(color: colors.border),
+                borderRadius: BorderRadius.circular(AdminRadius.control),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      secret,
+                      style: AdminTypography.monoSmall.copyWith(
+                        color: colors.text,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: AdminSpacing.x8),
-                IconButton(
-                  icon: const Icon(FluentIcons.copy, size: 16),
-                  onPressed: () =>
-                      Clipboard.setData(ClipboardData(text: secret)),
-                ),
-              ],
+                  const SizedBox(width: AdminSpacing.x8),
+                  IconButton(
+                    icon: const Icon(FluentIcons.copy, size: 16),
+                    onPressed: () =>
+                        Clipboard.setData(ClipboardData(text: secret)),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         AdminButton(
@@ -505,33 +514,42 @@ class _NameDialogState extends State<NameDialog> {
         widget.title,
         style: AdminTypography.sectionTitle.copyWith(color: colors.text),
       ),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (widget.errorText != null) ...[
-            AdminBanner(
-              message: widget.errorText!,
-              tone: AdminBannerTone.error,
-            ),
-            const SizedBox(height: AdminSpacing.x14),
-          ],
-          AdminTextField(
-            label: widget.fieldLabel,
-            controller: _value,
-            autofocus: true,
-            onSubmitted: () => widget.onSubmit(_value.text.trim()),
-          ),
-          if (widget.description != null) ...[
-            const SizedBox(height: AdminSpacing.x10),
-            Text(
-              widget.description!,
-              style: AdminTypography.caption.copyWith(
-                color: colors.textSecondary,
-                height: 1.45,
+      // Scrolling, like the quota dialogs above, and for two reasons at once.
+      // A bare `Column` defaults to `MainAxisSize.max`, and `ContentDialog`
+      // hands its content a *loose* `Flexible` — a maximum height, not a tight
+      // one — so such a column takes the whole of it and the dialog stands as
+      // tall as the window whatever it is holding. And a window short enough
+      // that the content really does not fit should scroll rather than
+      // overflow (`test/features/resources/dialog_layout_test.dart`).
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.errorText != null) ...[
+              AdminBanner(
+                message: widget.errorText!,
+                tone: AdminBannerTone.error,
               ),
+              const SizedBox(height: AdminSpacing.x14),
+            ],
+            AdminTextField(
+              label: widget.fieldLabel,
+              controller: _value,
+              autofocus: true,
+              onSubmitted: () => widget.onSubmit(_value.text.trim()),
             ),
+            if (widget.description != null) ...[
+              const SizedBox(height: AdminSpacing.x10),
+              Text(
+                widget.description!,
+                style: AdminTypography.caption.copyWith(
+                  color: colors.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
       actions: [
         AdminButton(
