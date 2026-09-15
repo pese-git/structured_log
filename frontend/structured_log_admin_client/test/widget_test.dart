@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/api/api_client.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
+import 'package:structured_log_admin_client/shared/auth/session_controller.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
 import 'package:structured_log_admin_client/shared/di/app_module.dart';
 import 'package:structured_log_admin_client/shared/logging/setup.dart';
@@ -19,12 +20,13 @@ void main() {
       tokenStorage: InMemoryTokenStorage(),
     );
 
-    await tester.pumpWidget(AdminApp(scope: scope));
+    await tester.pumpWidget(
+      AdminApp(scope: scope, session: SessionController()),
+    );
     await tester.pumpAndSettle();
 
-    // Section 12 replaces this; until then the placeholder is what proves the
-    // shell came up rather than failing silently.
-    expect(find.text('Экран входа ещё не реализован'), findsOneWidget);
+    // With no stored session the shell lands on sign-in.
+    expect(find.text('Вход в систему'), findsOneWidget);
   });
 
   test('the scope wires the data layer as singletons', () {

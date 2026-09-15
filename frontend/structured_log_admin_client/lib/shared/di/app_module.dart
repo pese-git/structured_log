@@ -1,4 +1,5 @@
 import 'package:cherrypick/cherrypick.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:structured_log/structured_log.dart';
 
@@ -29,6 +30,12 @@ class AppModule extends Module {
   /// in a real desktop or mobile build, where [SecureTokenStorage] is right.
   final TokenStorage? tokenStorageOverride;
 
+  /// Answers HTTP without a socket. Supplied by tests that drive the whole
+  /// app — the same seam as [tokenStorageOverride], for the same reason: a
+  /// widget test has no network, and a screen wired to a real client cannot be
+  /// exercised end to end.
+  final HttpClientAdapter? httpAdapter;
+
   /// Raised when a session cannot be renewed — the router sends the user back
   /// to sign-in. Passed in rather than resolved to keep this module free of
   /// any navigation dependency.
@@ -38,6 +45,7 @@ class AppModule extends Module {
     required this.config,
     required this.logger,
     this.tokenStorageOverride,
+    this.httpAdapter,
     this.onSessionExpired,
   });
 
@@ -61,6 +69,7 @@ class AppModule extends Module {
             config: currentScope.resolve<AppConfig>(),
             storage: currentScope.resolve<TokenStorage>(),
             onSessionExpired: onSessionExpired,
+            adapter: httpAdapter,
           ),
         )
         .singleton();
@@ -75,6 +84,7 @@ Scope openAppScope({
   required AppConfig config,
   required BoundLogger logger,
   TokenStorage? tokenStorage,
+  HttpClientAdapter? httpAdapter,
   void Function()? onSessionExpired,
 }) {
   final scope = CherryPick.openRootScope();
@@ -83,6 +93,7 @@ Scope openAppScope({
       config: config,
       logger: logger,
       tokenStorageOverride: tokenStorage,
+      httpAdapter: httpAdapter,
       onSessionExpired: onSessionExpired,
     ),
   ]);

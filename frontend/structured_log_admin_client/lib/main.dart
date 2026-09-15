@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
 import 'app/app.dart';
+import 'shared/auth/session_controller.dart';
 import 'shared/config/app_config.dart';
 import 'shared/di/app_module.dart';
 import 'shared/logging/setup.dart';
@@ -27,10 +28,15 @@ void main() {
   final log = configureClientLogging();
   log.info('client.starting', context: {'base_url': _baseUrl});
 
+  // Created before the scope: the API client's interceptor reports an
+  // unrenewable session to it, and the widget tree listens to the same object.
+  final session = SessionController();
+
   final scope = openAppScope(
     config: const AppConfig(baseUrl: _baseUrl),
     logger: log,
+    onSessionExpired: session.expire,
   );
 
-  runApp(AdminApp(scope: scope));
+  runApp(AdminApp(scope: scope, session: session));
 }

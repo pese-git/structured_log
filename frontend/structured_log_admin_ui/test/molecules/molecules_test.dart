@@ -230,4 +230,119 @@ void main() {
       );
     });
   });
+
+  group('AdminTextField', () {
+    testWidgets('shows its label and reports typing', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      String? seen;
+
+      await tester.pumpWidget(
+        _host(
+          AdminTextField(
+            label: 'Имя пользователя',
+            controller: controller,
+            onChanged: (v) => seen = v,
+          ),
+        ),
+      );
+
+      expect(find.text('Имя пользователя'), findsOneWidget);
+      await tester.enterText(find.byType(TextBox), 'dana.kim');
+      expect(seen, 'dana.kim');
+    });
+
+    testWidgets('a password field masks what is typed', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _host(
+          AdminTextField(
+            label: 'Пароль',
+            controller: controller,
+            obscure: true,
+          ),
+        ),
+      );
+      expect(tester.widget<TextBox>(find.byType(TextBox)).obscureText, isTrue);
+    });
+
+    testWidgets('an error message is shown under the field', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _host(
+          AdminTextField(
+            label: 'Email',
+            controller: controller,
+            errorText: 'Укажите email',
+          ),
+        ),
+      );
+      expect(find.text('Укажите email'), findsOneWidget);
+    });
+
+    testWidgets('a disabled field does not accept input', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _host(
+          AdminTextField(
+            label: 'Пароль',
+            controller: controller,
+            enabled: false,
+          ),
+        ),
+      );
+      expect(tester.widget<TextBox>(find.byType(TextBox)).enabled, isFalse);
+    });
+
+    testWidgets('the label line can carry a link', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _host(
+          AdminTextField(
+            label: 'Пароль',
+            controller: controller,
+            labelAction: const Text('Забыли пароль?'),
+          ),
+        ),
+      );
+      expect(find.text('Забыли пароль?'), findsOneWidget);
+    });
+  });
+
+  group('AdminBanner', () {
+    testWidgets('renders its message in each tone', (tester) async {
+      for (final tone in AdminBannerTone.values) {
+        await tester.pumpWidget(
+          _host(AdminBanner(message: 'Что-то произошло', tone: tone)),
+        );
+        expect(find.text('Что-то произошло'), findsOneWidget, reason: '$tone');
+      }
+    });
+
+    testWidgets('an action belongs to the message', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          AdminBanner(
+            message: 'Email не подтверждён',
+            tone: AdminBannerTone.info,
+            action: AdminButton(
+              label: 'Отправить ещё раз',
+              onPressed: () {},
+              size: AdminButtonSize.tonal,
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Email не подтверждён'), findsOneWidget);
+      expect(find.text('Отправить ещё раз'), findsOneWidget);
+    });
+  });
 }

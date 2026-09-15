@@ -50,12 +50,18 @@ class GalleryPage extends StatefulWidget {
 
 class _GalleryPageState extends State<GalleryPage> {
   final _search = TextEditingController();
+  final _username = TextEditingController();
+  final _password = TextEditingController();
+  final _email = TextEditingController();
   var _navIndex = 0;
   var _selectedRow = 1;
 
   @override
   void dispose() {
     _search.dispose();
+    _username.dispose();
+    _password.dispose();
+    _email.dispose();
     super.dispose();
   }
 
@@ -161,6 +167,70 @@ class _GalleryPageState extends State<GalleryPage> {
                 const SizedBox(width: AdminSpacing.x18),
                 const AdminLoadingIndicator(),
               ],
+            ),
+          ),
+          _Section(
+            title: 'Molecules · AdminTextField',
+            child: SizedBox(
+              width: 340,
+              child: Column(
+                children: [
+                  AdminTextField(
+                    label: 'Имя пользователя',
+                    controller: _username,
+                    placeholder: 'dana.kim',
+                  ),
+                  const SizedBox(height: AdminSpacing.x18),
+                  AdminTextField(
+                    label: 'Пароль',
+                    controller: _password,
+                    obscure: true,
+                    labelAction: Text(
+                      'Забыли пароль?',
+                      style: AdminTypography.bodySmall.copyWith(
+                        color: colors.accent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AdminSpacing.x18),
+                  AdminTextField(
+                    label: 'Email',
+                    controller: _email,
+                    errorText: 'Укажите email — он понадобится для '
+                        'восстановления пароля',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _Section(
+            title: 'Molecules · AdminBanner',
+            child: SizedBox(
+              width: 480,
+              child: Column(
+                children: [
+                  const AdminBanner(
+                    tone: AdminBannerTone.error,
+                    message: 'Неверное имя пользователя или пароль. '
+                        'Попробуйте ещё раз.',
+                  ),
+                  const SizedBox(height: AdminSpacing.x10),
+                  const AdminBanner(
+                    tone: AdminBannerTone.warning,
+                    message: 'Слишком много попыток входа. Следующая будет '
+                        'принята через 00:43.',
+                  ),
+                  const SizedBox(height: AdminSpacing.x10),
+                  AdminBanner(
+                    message: 'Email этой учётной записи ещё не подтверждён.',
+                    action: AdminButton(
+                      label: 'Отправить письмо ещё раз',
+                      onPressed: () {},
+                      size: AdminButtonSize.tonal,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           _Section(
