@@ -217,6 +217,156 @@ void main() {
     });
   });
 
+  group('listProjects', () {
+    Future<int> addProject(int inGroup, String name, {bool blocked = false}) {
+      return db.into(db.projects).insert(
+            ProjectsCompanion.insert(
+              groupId: inGroup,
+              name: name,
+              retentionDays: 30,
+              isBlocked: Value(blocked),
+            ),
+          );
+    }
+
+    test('an admin sees every project', () async {
+      final other = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'other'));
+      await addProject(groupId, 'a');
+      await addProject(other, 'b');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects',
+          roles: [
+            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+          ],
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(2));
+    });
+
+    test('a project-scoped role sees that project and nothing else', () async {
+      final mine = await addProject(groupId, 'mine');
+      await addProject(groupId, 'theirs');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects',
+          roles: [
+            EffectiveRole(
+              role: Role.user,
+              scopeType: ScopeType.project,
+              scopeId: mine,
+            ),
+          ],
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      // The point of the endpoint being flat: this user holds no role on the
+      // enclosing group, so GET /v1/groups shows them nothing, and a
+      // projects-under-a-group route would leave them no way in at all.
+      expect(items, hasLength(1));
+      expect((items.single! as Map<String, Object?>)['name'], 'mine');
+    });
+
+    test('a group role covers the projects inside it', () async {
+      final other = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'other'));
+      await addProject(groupId, 'ours');
+      await addProject(other, 'not ours');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects',
+          roles: ownerOf(groupId),
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(1));
+      expect((items.single! as Map<String, Object?>)['name'], 'ours');
+    });
+
+    test('group_id narrows the same list', () async {
+      final other = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'other'));
+      await addProject(groupId, 'here');
+      await addProject(other, 'elsewhere');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects?group_id=$other',
+          roles: [
+            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+          ],
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(1));
+      expect((items.single! as Map<String, Object?>)['name'], 'elsewhere');
+    });
+
+    test('a blocked project is listed, carrying its state', () async {
+      await addProject(groupId, 'blocked', blocked: true);
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects',
+          roles: ownerOf(groupId),
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      // Hiding it would read as deletion; whoever shows the list decides what
+      // to do with the flag.
+      expect((items.single! as Map<String, Object?>)['is_blocked'], isTrue);
+    });
+
+    test('usage counters are not computed for a list', () async {
+      await addProject(groupId, 'p');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects',
+          roles: ownerOf(groupId),
+        ),
+      );
+
+      final project = (await decodeJson(response))['items'] as List<Object?>;
+      final json = project.single! as Map<String, Object?>;
+      expect(json.containsKey('entry_count'), isFalse);
+      expect(json.containsKey('total_bytes'), isFalse);
+    });
+
+    test('a non-numeric group_id is a 400, not an empty list', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/projects?group_id=abc',
+            roles: ownerOf(groupId),
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
+      );
+    });
+  });
+
   group('getProject', () {
     Future<int> createTestProject() async {
       final id = await db.into(db.projects).insert(

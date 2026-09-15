@@ -59,6 +59,53 @@ class ProjectRoutes {
 
   Router get router => _$ProjectRoutesRouter(this);
 
+  /// Every project the caller may read, flat rather than nested under a
+  /// group.
+  ///
+  /// Flat because RBAC grants a role on a group **or** on a single project,
+  /// and a project-scoped role does not cover the enclosing group
+  /// (`access_check.dart`'s `_covers`): such a user sees nothing in
+  /// `GET /v1/groups`, so a projects-under-a-group endpoint would leave them
+  /// with no way to reach the one project they do have. `group_id` narrows
+  /// the same list for a screen that shows one group.
+  ///
+  /// Usage counters are deliberately absent — `entry_count`/`total_bytes`
+  /// come from `GET /v1/projects/:id`, one project at a time
+  /// (`log-server-quotas`), and computing them for every visible project
+  /// would make a selector's request the most expensive one in the API.
+  ///
+  /// Blocked projects are listed, carrying `is_blocked`: whoever shows the
+  /// list decides what to do with them, and hiding a project that exists
+  /// would read as its deletion.
+  @Route.get('/v1/projects')
+  Future<Response> listProjects(Request request) async {
+    final identity = request.requireUser();
+    final roles = await resolveRoles(_authorizer, identity);
+
+    final groupIdParam = request.url.queryParameters['group_id'];
+    final groupFilter =
+        groupIdParam == null ? null : int.tryParse(groupIdParam);
+    if (groupIdParam != null && groupFilter == null) {
+      throw ApiError.invalidRequest('group_id must be an integer.');
+    }
+
+    final select = _db.select(_db.projects);
+    if (groupFilter != null) {
+      select.where((t) => t.groupId.equals(groupFilter));
+    }
+    final projects = await select.get();
+
+    final visible = projects.where(
+      (project) => canRead(
+        roles,
+        targetType: ScopeType.project,
+        targetId: project.id,
+        enclosingGroupId: project.groupId,
+      ),
+    );
+    return jsonOk({'items': visible.map(projectJson).toList()});
+  }
+
   /// `owner` of the enclosing group, or `admin` (`log-server-rbac`,
   /// `log-server-quotas`).
   @Route.post('/v1/groups/<groupId>/projects')
