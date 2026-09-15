@@ -1,0 +1,34 @@
+name: structured_log_fluent
+description: >-
+  A Fluent UI (WinUI-style) in-app log viewer for structured_log, built on
+  structured_log_flutter.
+version: 0.1.0-dev.4
+repository: https://github.com/pese-git/structured_log.git
+
+environment:
+  sdk: ^3.0.0
+  # fluent_ui 4.16.0+ needs this (its own pubspec doesn't say so — see the
+  # dependency comment below); enforce it here instead of letting an older
+  # Flutter SDK resolve fine and then fail deep inside fluent_ui at build.
+  flutter: ">=3.44.0"
+
+dependencies:
+  # fluent_ui 4.16.0+ requires Flutter 3.44.0+ (its own CHANGELOG: "refactor:
+  # Flutter 3.44.0 support") but its `environment.flutter` constraint still
+  # says >=3.32.0 — too loose to catch this at `pub get` time. Confirmed:
+  # 4.16.1 fails to compile on Flutter 3.41.7 (RawTooltip.ignorePointer,
+  # ReorderableListView.builder.onReorderItem, ScrollCacheExtent all
+  # missing) but compiles and passes all tests on Flutter 3.44.9.
+  fluent_ui: ^4.16.1
+  flutter:
+    sdk: flutter
+  structured_log: ^0.2.0-dev.0+1
+  structured_log_flutter: ^0.1.0-dev.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,15 +1,9 @@
-name: structured_log
-description: Structured logging for Dart, inspired by Python's structlog. Log JSON with context binding.
-version: 0.2.0
-repository: https://github.com/pese-git/structured_log.git
+name: structured_log_workspace
+description: Melos workspace root for the structured_log monorepo — not a published package.
+publish_to: none
 
 environment:
   sdk: ^3.0.0
 
-dependencies:
-  meta: ^1.9.0
-
 dev_dependencies:
-  lints: ^3.0.0
-  test: ^1.24.0
   melos: ^6.0.0

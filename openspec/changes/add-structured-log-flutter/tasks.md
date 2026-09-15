@@ -1,0 +1,39 @@
+## 1. Реструктуризация репозитория в monorepo
+
+- [x] 1.1 `git mv` существующих `lib/`, `test/`, `example/`, `pubspec.yaml`, `pubspec.lock`, `CHANGELOG.md`, `README.md`, `README.ru.md`, `doc/` в `structured_log/` (плоско, в корень репозитория — по образцу [cherrypick](https://github.com/pese-git/cherrypick)); `LICENSE` скопирован туда же (нужен для будущей публикации на pub.dev)
+- [x] 1.2 Обновить корневой `melos.yaml` на workspace-конфигурацию с явным списком пакетов (`packages: [structured_log]`, готово к расширению до `structured_log_flutter`/`structured_log_material`); скрипты переведены с одиночных `run:` на `exec:`/`steps:` по пакетам
+- [x] 1.3 Обновить пути в разделе «Структура» [AGENTS.md](../../AGENTS.md), CI ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) — `working-directory: structured_log`) и ссылки в README/README.ru
+- [x] 1.4 `dart analyze`/`dart format --set-exit-if-changed`/`dart test` внутри `structured_log/` — подтверждено, пакет не сломан переносом (28/28 тестов). `melos bootstrap`/`melos run analyze`/`melos run test`/`melos run lint` подтверждены через `dart run melos <cmd>` (глобально активированный `melos` на этой машине падает с `Invalid kernel binary format version` — рассинхрон со снапшотом относительно текущего Dart SDK, не связан с реструктуризацией; `dart run melos` работает в обход этой проблемы). Для этого в корень добавлен `pubspec.yaml` (`publish_to: none`, только `melos` в dev-зависимостях — не член workspace, в `packages:` не входит), по образцу корневого `pubspec.yaml` в `cherrypick`
+
+## 2. structured_log_flutter (headless-ядро)
+
+- [x] 2.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log` через `path:`; `publish_to: none` пока не публикуется), `lib/structured_log_flutter.dart` (barrel-файл), `test/`, `example/` (не запускается через голый `dart run` — `package:flutter/foundation.dart` тянет `dart:ui`, доступный только через `flutter run`/`flutter test`, см. комментарий в файле); `LICENSE` скопирован
+- [x] 2.2 Реализовать `LogBuffer`: кольцевой буфер ограниченной ёмкости (по умолчанию 500), `capture()` с сигнатурой `OutputFunction`, `ValueListenable<List<Map<String, dynamic>>>`
+- [x] 2.3 Тесты `LogBuffer`: вытеснение старейшей записи при переполнении, обновление `ValueListenable` при захвате, подключение `capture` как `output` в `LogSink`
+- [x] 2.4 Реализовать `LogViewerController` (`ChangeNotifier`): `levelFilter`, `categoryFilter`, `searchQuery`, `paused`, `visibleEntries`, `clear()`
+- [x] 2.5 Тесты `LogViewerController`: фильтрация по уровню/категории/тексту поиска, поведение паузы, `clear()` очищает буфер и уведомляет слушателей — 17 тестов, все проходят через `flutter test`
+- [x] 2.6 Dartdoc с примерами для публичного API (`LogBuffer`, `LogViewerController`) в стиле, принятом в `structured_log`
+- [x] 2.7 Проверено: `grep` по `lib/` не находит импортов `package:flutter/material.dart`, `package:flutter/cupertino.dart`, `package:fluent_ui/fluent_ui.dart`
+
+## 3. structured_log_material (Material-скин)
+
+- [x] 3.1 Скаффолдинг пакета: `pubspec.yaml` (зависимости: `flutter` sdk, `structured_log` ^0.2.0, `structured_log_flutter` через `path:` — не опубликован, `publish_to: none`), `lib/`, `test/`, `example/`; `LICENSE` скопирован
+- [x] 3.2 Виджет списка записей (`MaterialLogViewerPage`): сортировка «новые сверху» (`visibleEntries.reversed`), живое обновление через `AnimatedBuilder` на `LogViewerController`
+- [x] 3.3 Строка записи (`LogEntryTile`): цветовой индикатор уровня, временная метка (`HH:mm:ss` из ISO-таймстампа), `event`, тег `category` (если задан)
+- [x] 3.4 Верхняя панель: заголовок «Logs», поле поиска (`TextField` → `searchQuery`), чипы фильтра по уровню (`ChoiceChip` → `levelFilter`), переключатель паузы/возобновления, действие очистки — по макетам из [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
+- [x] 3.5 Bottom sheet детального вида (`LogEntryDetailSheet`): все ключи контекста кроме `event`/`level`/`timestamp` как пары ключ-значение + копирование в буфер обмена
+- [x] 3.6 Empty-state (`LogViewerEmptyState`) с двумя вариантами: «No logs yet» (без действия сброса) и «No logs match the current filter» (с кнопкой «Clear filters»)
+- [x] 3.7 Цвета — из `Theme.of(context)`, кроме индикаторов уровня: единая функция `logLevelColor(LogLevel, Brightness)` в `log_level_colors.dart`, больше нигде не дублируется
+- [x] 3.8 Виджет-тесты на каждый сценарий из `specs/flutter-log-viewer-material/spec.md` — 13 тестов (`flutter test`), все проходят
+- [x] 3.9 `example/` — полноценное Flutter-приложение (собственный `pubspec.yaml`, `lib/main.dart`, web-платформа через `flutter create --platforms=web`, зарегистрировано в `melos.yaml` как `structured_log_material_example`), подключающее `LogBuffer` к `LogSink` и встраивающее `MaterialLogViewerPage`; `flutter build web` и `flutter test` проходят
+
+## 4. CI
+
+- [x] 4.1 Добавлена джоба `flutter` в [.github/workflows/ci.yml](../../.github/workflows/ci.yml) (`subosito/flutter-action`, канал `stable`, только `ubuntu-latest` — по design.md: этим пакетам не нужна ОС-чувствительная проверка ротации файлов, как у `structured_log`) с матрицей по трём пакетам (`structured_log_flutter`, `structured_log_material`, `structured_log_material/example`): `flutter pub get` → `dart format --set-exit-if-changed .` → `flutter analyze` → `flutter test`. Существующая Dart-only джоба для `structured_log` не тронута
+- [x] 4.2 Проверено на GitHub Actions ([прогон 34487537912](https://github.com/pese-git/structured_log/actions/runs/34487537912)): все 6 джоб зелёные — `Analyze & test` на ubuntu/macos/windows (`structured_log`) и `Analyze & test Flutter` на всех трёх Flutter-пакетах
+
+## 5. Документация и финализация
+
+- [x] 5.1 `README.md`/`README.ru.md` для `structured_log_flutter` и `structured_log_material` (установка, быстрый старт, справочник API, пример подключения `LogBuffer` к `LogSink`); заодно поправлена устаревшая пометка «не опубликован» в `structured_log/README.md`/`README.ru.md` (пакет уже на pub.dev, `^0.2.0`) и структура/статус пакетов в [AGENTS.md](../../AGENTS.md)
+- [x] 5.2 ~~`CHANGELOG.md` для обоих новых пакетов вручную~~ — отменено: действующее правило в [AGENTS.md](../../AGENTS.md) («Коммиты и версионирование») требует не редактировать `CHANGELOG.md` вручную никогда, только через `melos version`; `structured_log/CHANGELOG.md` уже в собственном (не Keep a Changelog) формате `melos version`. `CHANGELOG.md` для `structured_log_flutter`/`structured_log_material` появятся автоматически при первом `melos version` для каждого пакета
+- [x] 5.3 `openspec-verify-change` прогнан: 21/21 требований покрыто кодом и тестами, все decisions из `design.md` соблюдены, критических проблем нет (одна незначительная SUGGESTION — корневой `pubspec.yaml`-workaround не упомянут в `design.md`, не блокирует)
