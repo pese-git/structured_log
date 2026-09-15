@@ -5,6 +5,7 @@ import 'package:structured_log_admin_client/shared/api/api_client.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
 import 'package:structured_log_admin_client/shared/di/app_module.dart';
+import 'package:structured_log_admin_client/shared/logging/setup.dart';
 
 void main() {
   tearDown(CherryPick.closeRootScope);
@@ -12,6 +13,7 @@ void main() {
   testWidgets('the app boots and puts something on screen', (tester) async {
     final scope = openAppScope(
       config: const AppConfig(baseUrl: 'https://logs.example.test'),
+      logger: configureClientLogging(),
       // No keychain in a widget test — that is what the override exists for
       // (design.md decision 20 / Risks).
       tokenStorage: InMemoryTokenStorage(),
@@ -28,6 +30,7 @@ void main() {
   test('the scope wires the data layer as singletons', () {
     final scope = openAppScope(
       config: const AppConfig(baseUrl: 'https://logs.example.test'),
+      logger: configureClientLogging(),
       tokenStorage: InMemoryTokenStorage(),
     );
 

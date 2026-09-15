@@ -5,7 +5,6 @@ import 'package:structured_log/structured_log.dart';
 import '../api/api_client.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
-import '../logging/setup.dart';
 
 /// The application's shared dependencies.
 ///
@@ -21,6 +20,11 @@ import '../logging/setup.dart';
 class AppModule extends Module {
   final AppConfig config;
 
+  /// Created once by `main()` and handed in, not built here: constructing it
+  /// installs the global `StructlogConfiguration`, and a provider that did
+  /// that would reinstall it every time the scope was rebuilt.
+  final BoundLogger logger;
+
   /// Supplied by tests and by the web build, which has no keychain. Left null
   /// in a real desktop or mobile build, where [SecureTokenStorage] is right.
   final TokenStorage? tokenStorageOverride;
@@ -32,6 +36,7 @@ class AppModule extends Module {
 
   AppModule({
     required this.config,
+    required this.logger,
     this.tokenStorageOverride,
     this.onSessionExpired,
   });
@@ -40,7 +45,7 @@ class AppModule extends Module {
   void builder(Scope currentScope) {
     bind<AppConfig>().toInstance(config);
 
-    bind<BoundLogger>().toProvide(configureClientLogging).singleton();
+    bind<BoundLogger>().toInstance(logger);
 
     bind<TokenStorage>()
         .toProvide(
@@ -68,6 +73,7 @@ class AppModule extends Module {
 /// the scope to the widget tree.
 Scope openAppScope({
   required AppConfig config,
+  required BoundLogger logger,
   TokenStorage? tokenStorage,
   void Function()? onSessionExpired,
 }) {
@@ -75,6 +81,7 @@ Scope openAppScope({
   scope.installModules([
     AppModule(
       config: config,
+      logger: logger,
       tokenStorageOverride: tokenStorage,
       onSessionExpired: onSessionExpired,
     ),

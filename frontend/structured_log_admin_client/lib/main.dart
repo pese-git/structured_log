@@ -27,7 +27,10 @@ void main() {
   final log = configureClientLogging();
   log.info('client.starting', context: {'base_url': _baseUrl});
 
-  final scope = openAppScope(config: const AppConfig(baseUrl: _baseUrl));
+  final scope = openAppScope(
+    config: const AppConfig(baseUrl: _baseUrl),
+    logger: log,
+  );
 
   runApp(AdminApp(scope: scope));
 }
