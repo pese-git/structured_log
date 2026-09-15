@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/shared/api/api_client.dart';
+import 'package:structured_log_admin_client/shared/api/api_failure.dart';
+import 'package:structured_log_admin_client/shared/api/failure_mapper.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
@@ -159,6 +161,75 @@ void main() {
       throwsA(isA<DioException>()),
     );
     expect(adapter.requests, hasLength(1), reason: 'no refresh was attempted');
+    expect(expired, 0);
+  });
+
+  test('a 429 is handed to the caller rather than retried', () async {
+    var expired = 0;
+    final adapter = FakeAdapter(
+      (options) => const FakeReply(
+        429,
+        body: {'error': 'too_many_requests'},
+        headers: {
+          'retry-after': ['43'],
+        },
+      ),
+    );
+
+    final client = ApiClient(
+      config: _config,
+      storage: InMemoryTokenStorage(_session),
+      adapter: adapter,
+      onSessionExpired: () => expired++,
+    );
+
+    final refusal = await client.groups.list().then<DioException?>(
+      (_) => null,
+      onError: (Object error) => error as DioException,
+    );
+
+    expect(
+      adapter.requests,
+      hasLength(1),
+      reason:
+          'the limiter counts attempts per subject, so a retry the caller did '
+          'not ask for spends their next one and extends the wait they are '
+          'already serving (`specs/admin-client-auth`)',
+    );
+    expect(expired, 0, reason: 'being throttled is not a session ending');
+
+    // And it reaches the screen as a wait rather than as something generic:
+    // the failure carries how long, out of `Retry-After`.
+    final failure = mapDioException(refusal!);
+    expect(failure, isA<RateLimitedFailure>());
+    expect(
+      (failure as RateLimitedFailure).retryAfter,
+      const Duration(seconds: 43),
+    );
+  });
+
+  test('a 429 from the token endpoint is not turned into a refresh', () async {
+    var expired = 0;
+    final adapter = FakeAdapter(
+      (options) => const FakeReply(429, body: {'error': 'too_many_requests'}),
+    );
+
+    final client = ApiClient(
+      config: _config,
+      storage: InMemoryTokenStorage(_session),
+      adapter: adapter,
+      onSessionExpired: () => expired++,
+    );
+
+    await expectLater(
+      client.auth.signIn('password', 'root', 'correct'),
+      throwsA(isA<DioException>()),
+    );
+
+    // The token endpoint is exempt by path, and this is the case that shows
+    // why it has to be: a throttled sign-in answered by spending the refresh
+    // token would turn one refused attempt into two.
+    expect(adapter.requests, hasLength(1));
     expect(expired, 0);
   });
 
