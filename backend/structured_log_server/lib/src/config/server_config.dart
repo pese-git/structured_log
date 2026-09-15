@@ -33,7 +33,7 @@ const serverConfigParams = <ParamSpec>[
     defaultValue: 8080,
   ),
   ParamSpec(
-    name: 'jwt-signing-secret',
+    name: 'jwt-secret',
     type: ParamType.string,
     description: 'HMAC secret access tokens are signed with.',
     isSecret: true,
@@ -168,7 +168,7 @@ class ServerConfig {
   final String dbPath;
   final String httpHost;
   final int httpPort;
-  final String? jwtSigningSecret;
+  final String? jwtSecret;
   final String jwtIssuer;
   final int maxIngestBodyBytes;
   final int retentionPurgeIntervalSeconds;
@@ -191,7 +191,7 @@ class ServerConfig {
     required this.dbPath,
     required this.httpHost,
     required this.httpPort,
-    required this.jwtSigningSecret,
+    required this.jwtSecret,
     required this.jwtIssuer,
     required this.maxIngestBodyBytes,
     required this.retentionPurgeIntervalSeconds,
@@ -220,7 +220,7 @@ class ServerConfig {
       dbPath: get('db-path'),
       httpHost: get('http-host'),
       httpPort: get('http-port'),
-      jwtSigningSecret: get('jwt-signing-secret'),
+      jwtSecret: get('jwt-secret'),
       jwtIssuer: get('jwt-issuer'),
       maxIngestBodyBytes: get('max-ingest-body-bytes'),
       retentionPurgeIntervalSeconds: get('retention-purge-interval-seconds'),

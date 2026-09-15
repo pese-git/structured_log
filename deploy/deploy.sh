@@ -16,7 +16,7 @@ REPO_ROOT="$(cd .. && pwd)"
 
 FLUTTER="$REPO_ROOT/.fvm/flutter_sdk/bin/flutter"
 CLIENT="$REPO_ROOT/frontend/structured_log_admin_client"
-SECRET_FILE="./secrets/jwt_signing_secret"
+SECRET_FILE="./secrets/jwt_secret"
 
 rebuild=""
 for arg in "$@"; do

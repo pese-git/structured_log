@@ -22,7 +22,7 @@ ServerConfig baseConfig({
     dbPath: ':memory:',
     httpHost: '0.0.0.0',
     httpPort: 8080,
-    jwtSigningSecret: 'secret',
+    jwtSecret: 'secret',
     jwtIssuer: 'test',
     maxIngestBodyBytes: 1024,
     retentionPurgeIntervalSeconds: 3600,

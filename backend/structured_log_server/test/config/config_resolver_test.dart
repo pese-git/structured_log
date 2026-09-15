@@ -31,7 +31,7 @@ const _enumParam = ParamSpec(
   allowedValues: {'console', 'json'},
 );
 const _secretParam = ParamSpec(
-  name: 'jwt-signing-secret',
+  name: 'jwt-secret',
   type: ParamType.string,
   description: 'JWT secret.',
   isSecret: true,
@@ -182,19 +182,19 @@ void main() {
     test('there is no CLI flag for a secret param', () {
       final result = resolverWith(
         [_secretParam],
-      ).parse(['--jwt-signing-secret=x'], {}, command: 'serve');
+      ).parse(['--jwt-secret=x'], {}, command: 'serve');
       expect(result.outcome, ConfigParseOutcome.errors);
-      expect(result.errors.single, contains('jwt-signing-secret'));
+      expect(result.errors.single, contains('jwt-secret'));
     });
 
     test('a secret is read from its env var', () {
       final result = resolverWith([_secretParam]).parse(
         [],
-        {'STRUCTURED_LOG_JWT_SIGNING_SECRET': 's3cr3t'},
+        {'STRUCTURED_LOG_JWT_SECRET': 's3cr3t'},
         command: 'serve',
       );
-      expect(result.values!['jwt-signing-secret']!.value, 's3cr3t');
-      expect(result.values!['jwt-signing-secret']!.source, ConfigSource.env);
+      expect(result.values!['jwt-secret']!.value, 's3cr3t');
+      expect(result.values!['jwt-secret']!.source, ConfigSource.env);
     });
 
     test('a secret is read from a _FILE path, trailing newline stripped', () {
@@ -206,19 +206,19 @@ void main() {
 
       final result = resolverWith([_secretParam]).parse(
         [],
-        {'STRUCTURED_LOG_JWT_SIGNING_SECRET_FILE': file.path},
+        {'STRUCTURED_LOG_JWT_SECRET_FILE': file.path},
         command: 'serve',
       );
-      expect(result.values!['jwt-signing-secret']!.value, 'from-file-secret');
-      expect(result.values!['jwt-signing-secret']!.source, ConfigSource.file);
+      expect(result.values!['jwt-secret']!.value, 'from-file-secret');
+      expect(result.values!['jwt-secret']!.source, ConfigSource.file);
     });
 
     test('setting both the value and the _FILE form is rejected', () {
       final result = resolverWith([_secretParam]).parse(
         [],
         {
-          'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'a',
-          'STRUCTURED_LOG_JWT_SIGNING_SECRET_FILE': '/tmp/whatever',
+          'STRUCTURED_LOG_JWT_SECRET': 'a',
+          'STRUCTURED_LOG_JWT_SECRET_FILE': '/tmp/whatever',
         },
         command: 'serve',
       );
@@ -228,7 +228,7 @@ void main() {
     test('an unreadable secret file is rejected', () {
       final result = resolverWith([_secretParam]).parse(
         [],
-        {'STRUCTURED_LOG_JWT_SIGNING_SECRET_FILE': '/no/such/path'},
+        {'STRUCTURED_LOG_JWT_SECRET_FILE': '/no/such/path'},
         command: 'serve',
       );
       expect(result.outcome, ConfigParseOutcome.errors);
@@ -296,7 +296,7 @@ void main() {
     test('a secret value is masked but its source is shown', () {
       final result = resolverWith([_secretParam]).parse(
         [],
-        {'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'top-secret-value'},
+        {'STRUCTURED_LOG_JWT_SECRET': 'top-secret-value'},
         command: 'serve',
       );
       final output = formatPrintConfig([_secretParam], result.values!);

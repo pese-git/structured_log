@@ -151,7 +151,7 @@ Future<void> _runServe(
   final logBroadcast = LogBroadcast();
   final handler = buildHandler(
     db,
-    signingSecret: config.jwtSigningSecret!,
+    signingSecret: config.jwtSecret!,
     issuer: config.jwtIssuer,
     broadcast: logBroadcast,
     sseHeartbeatInterval: Duration(seconds: config.sseHeartbeatIntervalSeconds),

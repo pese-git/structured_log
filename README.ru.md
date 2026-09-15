@@ -120,7 +120,7 @@ StructlogConfiguration.configure(
 [backend/structured_log_server/README.ru.md](backend/structured_log_server/README.ru.md):
 
 ```bash
-export STRUCTURED_LOG_JWT_SIGNING_SECRET='длинная-случайная-строка'
+export STRUCTURED_LOG_JWT_SECRET='длинная-случайная-строка'
 dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 

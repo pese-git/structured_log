@@ -30,7 +30,7 @@ ServerConfig configWith({
     dbPath: ':memory:',
     httpHost: 'localhost',
     httpPort: 0,
-    jwtSigningSecret: 'test-secret',
+    jwtSecret: 'test-secret',
     jwtIssuer: 'test',
     maxIngestBodyBytes: 1024 * 1024,
     retentionPurgeIntervalSeconds: 3600,

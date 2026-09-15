@@ -17,7 +17,7 @@ ServerConfig configWith({
     dbPath: ':memory:',
     httpHost: 'localhost',
     httpPort: 0,
-    jwtSigningSecret: 'secret-value',
+    jwtSecret: 'secret-value',
     jwtIssuer: 'test',
     maxIngestBodyBytes: 1024,
     retentionPurgeIntervalSeconds: 3600,
@@ -111,14 +111,14 @@ void main() {
     test('masks secrets and keeps everything else', () {
       final outcome = ConfigResolver(serverConfigParams).parse(
         ['--http-port=9000', '--db-path=/tmp/x.sqlite'],
-        {'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'do-not-log-me'},
+        {'STRUCTURED_LOG_JWT_SECRET': 'do-not-log-me'},
         command: 'serve',
       );
       expect(outcome.values, isNotNull, reason: '${outcome.errors}');
 
       final context = maskedConfigContext(serverConfigParams, outcome.values!);
 
-      expect(context['jwt_signing_secret'], '***');
+      expect(context['jwt_secret'], '***');
       expect(
         context.values.join(' '),
         isNot(contains('do-not-log-me')),
@@ -131,7 +131,7 @@ void main() {
     test('an unset secret reads as null, not as a mask', () {
       final outcome = ConfigResolver(serverConfigParams).parse(
         ['--db-path=/tmp/x.sqlite'],
-        {'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'irrelevant'},
+        {'STRUCTURED_LOG_JWT_SECRET': 'irrelevant'},
         command: 'serve',
       );
       expect(outcome.values, isNotNull, reason: '${outcome.errors}');

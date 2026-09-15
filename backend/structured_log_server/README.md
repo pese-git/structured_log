@@ -41,7 +41,7 @@ cd backend/structured_log_server
 dart pub get
 dart run build_runner build --delete-conflicting-outputs   # drift/freezed/router code
 
-export STRUCTURED_LOG_JWT_SIGNING_SECRET='a-long-random-string'
+export STRUCTURED_LOG_JWT_SECRET='a-long-random-string'
 dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 
@@ -153,7 +153,7 @@ order of priority. Secrets are environment-only.
 | Setting | Default |
 |---|---|
 | `--db-path` | required for `serve` |
-| `STRUCTURED_LOG_JWT_SIGNING_SECRET` | required for `serve` |
+| `STRUCTURED_LOG_JWT_SECRET` | required for `serve` |
 | `--http-host` / `--http-port` | `0.0.0.0` / `8080` |
 | `--max-ingest-body-bytes` | `10485760` |
 | `--retention-purge-interval-seconds` | `3600` |

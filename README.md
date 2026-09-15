@@ -116,7 +116,7 @@ Running that server — see
 for the path from an empty database to a queried log entry:
 
 ```bash
-export STRUCTURED_LOG_JWT_SIGNING_SECRET='a-long-random-string'
+export STRUCTURED_LOG_JWT_SECRET='a-long-random-string'
 dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 

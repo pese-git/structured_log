@@ -62,7 +62,7 @@ too low and everyone shares one bucket. One proxy in front means `1`.
 
 ### The signing secret
 
-`deploy/secrets/jwt_signing_secret`, generated on first run, mounted read-only,
+`deploy/secrets/jwt_secret`, generated on first run, mounted read-only,
 git-ignored.
 
 It is a file rather than an environment variable because every secret this

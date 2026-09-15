@@ -56,6 +56,35 @@ void main() {
       expect(outcome.rejected.single.message, contains('level'));
     });
 
+    test('a reserved field name is rejected, one entry at a time', () {
+      // Not a matter of taste: GET /v1/logs returns an entry as its stored
+      // context with the server's id/project_id/received_at merged on top, so
+      // an application field of the same name would be stored intact and then
+      // shadowed on the way out, with nothing to say it had happened.
+      for (final reserved in reservedEntryFieldNames) {
+        final outcome = processIngestBatch(
+          rawEntries: [
+            validEntry()..[reserved] = 'mine',
+            validEntry(),
+          ],
+          maxEntries: null,
+          maxBytes: null,
+          currentEntryCount: 0,
+          currentTotalBytes: 0,
+          receivedAt: _now,
+        );
+
+        expect(outcome.rejected.single.index, 0, reason: reserved);
+        expect(outcome.rejected.single.error, 'validation_error');
+        expect(outcome.rejected.single.message, contains(reserved));
+        expect(
+          outcome.accepted,
+          hasLength(1),
+          reason: 'one bad entry does not take the batch down with it',
+        );
+      }
+    });
+
     test('an unrecognized level is rejected', () {
       final outcome = processIngestBatch(
         rawEntries: [validEntry(level: 'catastrophic')],

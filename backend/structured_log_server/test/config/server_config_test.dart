@@ -13,7 +13,7 @@ const _expectedParamNames = {
   'db-path',
   'http-host',
   'http-port',
-  'jwt-signing-secret',
+  'jwt-secret',
   'jwt-issuer',
   'max-ingest-body-bytes',
   'retention-purge-interval-seconds',
@@ -73,7 +73,7 @@ void main() {
         [],
         {
           'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-          'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'test-secret',
+          'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
         },
         command: commandServe,
       );
@@ -81,7 +81,7 @@ void main() {
 
       final config = ServerConfig.fromResolved(result.values!);
       expect(config.dbPath, '/tmp/db.sqlite');
-      expect(config.jwtSigningSecret, 'test-secret');
+      expect(config.jwtSecret, 'test-secret');
       expect(config.httpPort, 8080);
       expect(config.bootstrapAdminEnabled, isTrue);
       expect(config.rateLimitEnabled, isTrue);
@@ -89,7 +89,7 @@ void main() {
     },
   );
 
-  test('create-admin only requires db-path, not jwt-signing-secret', () {
+  test('create-admin only requires db-path, not jwt-secret', () {
     final result = ConfigResolver(serverConfigParams).parse(
       [],
       {'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite'},
@@ -97,6 +97,6 @@ void main() {
     );
     expect(result.outcome, ConfigParseOutcome.success);
     final config = ServerConfig.fromResolved(result.values!);
-    expect(config.jwtSigningSecret, isNull);
+    expect(config.jwtSecret, isNull);
   });
 }

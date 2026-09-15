@@ -41,7 +41,7 @@ cd backend/structured_log_server
 dart pub get
 dart run build_runner build --delete-conflicting-outputs   # drift/freezed/router
 
-export STRUCTURED_LOG_JWT_SIGNING_SECRET='длинная-случайная-строка'
+export STRUCTURED_LOG_JWT_SECRET='длинная-случайная-строка'
 dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 
@@ -154,7 +154,7 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 | Настройка | По умолчанию |
 |---|---|
 | `--db-path` | обязательна для `serve` |
-| `STRUCTURED_LOG_JWT_SIGNING_SECRET` | обязательна для `serve` |
+| `STRUCTURED_LOG_JWT_SECRET` | обязательна для `serve` |
 | `--http-host` / `--http-port` | `0.0.0.0` / `8080` |
 | `--max-ingest-body-bytes` | `10485760` |
 | `--retention-purge-interval-seconds` | `3600` |

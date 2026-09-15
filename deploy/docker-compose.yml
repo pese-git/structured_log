@@ -17,7 +17,7 @@ services:
       # Secrets come from the environment or from a mounted file, never from a
       # flag — an argument is visible in the process list to everyone on the
       # host. `_FILE` is read for any secret parameter.
-      STRUCTURED_LOG_JWT_SIGNING_SECRET_FILE: /run/secrets/jwt_signing_secret
+      STRUCTURED_LOG_JWT_SECRET_FILE: /run/secrets/jwt_secret
       STRUCTURED_LOG_DB_PATH: /data/logs.db
       STRUCTURED_LOG_HTTP_HOST: 0.0.0.0
       STRUCTURED_LOG_HTTP_PORT: 8080
@@ -33,7 +33,7 @@ services:
       STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME: ${STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME:-admin}
     volumes:
       - data:/data
-      - ./secrets/jwt_signing_secret:/run/secrets/jwt_signing_secret:ro
+      - ./secrets/jwt_secret:/run/secrets/jwt_secret:ro
     # Not published to the host: the only way in is through the proxy, which
     # is what keeps the deployment single-origin.
     expose:

@@ -35,7 +35,7 @@ void main() {
         '--db-path=$dbPath',
         '--http-port=$port', // overrides STRUCTURED_LOG_HTTP_PORT below
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_HTTP_PORT':
             '0', // would bind an ephemeral port if honored
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
@@ -94,7 +94,7 @@ void main() {
         // Fast enough that a blocked project is noticed inside the test.
         '--sse-heartbeat-interval-seconds=1',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -313,7 +313,7 @@ void main() {
         '--db-path=${dir.path}/test.sqlite',
         '--http-port=$port',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -590,7 +590,7 @@ void main() {
         '--db-path=${dir.path}/test.sqlite',
         '--http-port=$port',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       });
       addTearDown(() => process.kill(ProcessSignal.sigterm));
@@ -655,7 +655,7 @@ void main() {
         // Slow enough that the bucket cannot refill mid-test.
         '--rate-limit-refill-per-minute=1',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       });
       addTearDown(() => process.kill(ProcessSignal.sigterm));
@@ -726,7 +726,7 @@ void main() {
         '--http-port=$port',
         '--log-format=json',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       });
       addTearDown(() => process.kill(ProcessSignal.sigterm));
@@ -777,7 +777,7 @@ void main() {
       final started = entryWhere((e) => e['event'] == 'server.starting');
       expect(started, isNotNull, reason: 'startup is logged too');
       expect(
-        started!['jwt_signing_secret'],
+        started!['jwt_secret'],
         '***',
         reason: 'the effective configuration is logged with secrets masked',
       );
@@ -818,7 +818,7 @@ void main() {
         '--log-level=debug',
         '--retention-purge-interval-seconds=1',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       });
       addTearDown(() => process.kill(ProcessSignal.sigterm));
@@ -926,7 +926,7 @@ void main() {
         '--db-path=$dbPath',
         '--http-port=$port',
       ], environment: {
-        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         // Off, so the account under test is the one create-admin wrote and
         // not one auto-bootstrap produced on the way up.
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',

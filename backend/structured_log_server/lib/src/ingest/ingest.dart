@@ -117,11 +117,31 @@ class _ValidatedEntry {
         sizeBytes = null;
 }
 
+/// Names the server assigns to an entry when it reads one back.
+///
+/// An application cannot use them for its own fields: the query response is
+/// built as `{...context, id, project_id, received_at}`, so anything sharing
+/// one of these names would be overwritten on the way out.
+const reservedEntryFieldNames = {'id', 'project_id', 'received_at'};
+
 _ValidatedEntry _validateEntry(Object? raw, DateTime receivedAt) {
   if (raw is! Map) {
     return const _ValidatedEntry.invalid('entry must be a JSON object');
   }
   final map = Map<String, Object?>.from(raw);
+
+  // `GET /v1/logs` returns an entry as its stored context with the server's
+  // own three fields merged on top (`logs_route.dart`'s `logEntryJson`), so a
+  // field of the same name would be shadowed at read: stored intact, never
+  // visible again, and nothing would say so. Refusing it here is what makes
+  // that loss impossible rather than silent.
+  for (final reserved in reservedEntryFieldNames) {
+    if (map.containsKey(reserved)) {
+      return _ValidatedEntry.invalid(
+        '$reserved: is a reserved field name and cannot be used in an entry',
+      );
+    }
+  }
 
   final level = map['level'];
   if (level is! String || !logLevelOrder.contains(level)) {
