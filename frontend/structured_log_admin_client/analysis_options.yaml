@@ -12,6 +12,8 @@ analyzer:
     # style on code nobody edits.
     - "**/*.g.dart"
     - "**/*.freezed.dart"
+    - build/**
+    - web/**
 
 linter:
   rules:

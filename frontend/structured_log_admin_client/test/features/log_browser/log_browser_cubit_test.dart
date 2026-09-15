@@ -92,11 +92,11 @@ void main() {
     await cubit.selectScope(const LogScope.project(id: 1, name: 'payments'));
 
     expect(repository.calls.single.cursor, isNull);
-    expect(
-      cubit.state.entries.map((e) => e.id),
-      [1, 2, 3],
-      reason: 'the server answers newest-first; the feed reads as a history',
-    );
+    expect(cubit.state.entries.map((e) => e.id), [
+      1,
+      2,
+      3,
+    ], reason: 'the server answers newest-first; the feed reads as a history');
     expect(cubit.state.nextCursor, '1');
   });
 
