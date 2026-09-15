@@ -45,9 +45,10 @@ decision 23) — с появлением пакетов другой приро�
   просмотрщика логов поверх `structured_log_flutter` (pushed-экран деталей на узких экранах,
   master-detail split на широких/iPad). Разрешена публикация на pub.dev (`publish_to: none` снят).
 - [emb/structured_log_http/](emb/structured_log_http/) — `HttpLogOutput`: `LogSink`-вывод,
-  отправляющий записи на `structured_log_server` по HTTP (батчинг, retry с backoff). Единственная
-  зависимость — `structured_log`. Скаффолдинг (Этап 0); реализация — раздел 9 `tasks.md` в
-  [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
+  отправляющий записи на `structured_log_server` по HTTP (батчинг по размеру/таймауту, retry с
+  backoff, ограниченный буфер с вытеснением самых старых записей, `flushed`). Единственная
+  зависимость — `structured_log`; транспорт — `dart:io` `HttpClient`, без `dio`/`http`.
+  Реализован (раздел 9 `tasks.md`); `README.md` ещё нет — это задача 16.1.
 
 Плюс один пакет в `backend/`:
 
@@ -269,6 +270,12 @@ dart run example/main.dart
   нет) — вместо него джоба сама пишет `pubspec_overrides.yaml` с путём на
   `emb/structured_log`, иначе pub взял бы опубликованную версию и ломающее
   изменение в core-пакете в том же PR прошло бы незамеченным.
+- `http-sender` — для `emb/structured_log_http/`: `dart pub get`,
+  `dart format --set-exit-if-changed`, `dart analyze`, `dart test` — отдельной
+  джобой, а не матричной записью рядом с сервером: пакет чистый Dart без
+  кодогенерации, и матрица тянула бы за собой шаг `build_runner` впустую.
+  Как и джоба сервера, сама пишет `pubspec_overrides.yaml` на
+  `emb/structured_log`.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
   (+`example/`)), по одному матричному прогону на пакет:

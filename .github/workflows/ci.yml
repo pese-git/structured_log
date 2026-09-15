@@ -123,6 +123,54 @@ jobs:
       - name: Run integration tests
         run: dart test --tags integration
 
+  http-sender:
+    name: Analyze & test (structured_log_http)
+    runs-on: ubuntu-latest
+    # Pure Dart, no code generation and no OS-sensitive behaviour: its own
+    # job rather than a matrix entry beside structured_log_server, which
+    # would drag the build_runner step along for nothing.
+    defaults:
+      run:
+        working-directory: emb/structured_log_http
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log_http/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # Same reason as the server job: without the override pub resolves the
+      # published structured_log, and a breaking change to it in the same PR
+      # would go unnoticed here.
+      - name: Link the workspace copy of structured_log
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../structured_log
+          EOF
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      - name: Run tests
+        run: dart test
+
   flutter:
     name: Analyze & test Flutter (${{ matrix.package }})
     runs-on: ubuntu-latest
