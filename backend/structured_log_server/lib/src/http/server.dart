@@ -1,5 +1,6 @@
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
+import 'package:structured_log/structured_log.dart';
 
 import '../auth/claims.dart';
 import '../auth/local_identity_provider.dart';
@@ -10,6 +11,7 @@ import '../rbac/authorizer.dart';
 import '../live/log_broadcast.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
+import 'logging_middleware.dart';
 import 'principal_middleware.dart';
 import 'rate_limit_middleware.dart';
 import 'routes/auth_route.dart';
@@ -53,6 +55,7 @@ Handler buildHandler(
   Duration sseHeartbeatInterval = defaultSseHeartbeat,
   ServerConfig? config,
   DateTime Function()? clock,
+  BoundLogger? logger,
 }) {
   final authorizer = Authorizer(db);
   final claimsResolver = ClaimsResolver(db, authorizer);
@@ -94,7 +97,15 @@ Handler buildHandler(
     router.mount('/', featureRouter.call);
   }
 
-  var pipeline = const Pipeline().addMiddleware(errorHandlingMiddleware());
+  var pipeline = const Pipeline();
+  // Outermost, so the status it records is the one the client received —
+  // including responses the error middleware below it rendered. Absent in
+  // tests that build a handler without a logger, which keeps their output
+  // to the assertions.
+  if (logger != null) {
+    pipeline = pipeline.addMiddleware(requestLoggingMiddleware(logger));
+  }
+  pipeline = pipeline.addMiddleware(errorHandlingMiddleware());
   // Ahead of authentication: throttling by address must not depend on the
   // request being understood, and a rejected one should cost nothing beyond
   // a bucket lookup. Skipped entirely when no config is supplied — route

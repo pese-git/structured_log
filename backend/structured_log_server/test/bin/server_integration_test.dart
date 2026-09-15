@@ -703,4 +703,92 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
+
+  test(
+    'the running server logs its own diagnostics as structured JSON',
+    () async {
+      // buildHandler takes the logger as an optional argument, exactly like
+      // the rate-limit config did — so "the middleware exists and is tested"
+      // says nothing about whether the real process installed it.
+      final dir = Directory.systemTemp.createTempSync('server_logging_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+        '--log-format=json',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final lines = <String>[];
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen(lines.add);
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      final client = HttpClient();
+      addTearDown(client.close);
+      final request = await client.get('localhost', port, '/healthz');
+      await (await request.close()).drain<void>();
+
+      Map<String, Object?>? entryWhere(
+          bool Function(Map<String, Object?>) test) {
+        for (final line in lines) {
+          if (!line.startsWith('{')) continue;
+          final decoded = jsonDecode(line);
+          if (decoded is Map<String, Object?> && test(decoded)) return decoded;
+        }
+        return null;
+      }
+
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (entryWhere((e) => e['event'] == 'request.completed') == null) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail('no request.completed logged; stdout was:\n${lines.join('\n')}');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+
+      final completed = entryWhere((e) => e['event'] == 'request.completed')!;
+      expect(completed['method'], 'GET');
+      expect(completed['path'], '/healthz');
+      expect(completed['status'], 200);
+      expect(completed['request_id'], isA<String>());
+
+      final started = entryWhere((e) => e['event'] == 'server.starting');
+      expect(started, isNotNull, reason: 'startup is logged too');
+      expect(
+        started!['jwt_signing_secret'],
+        '***',
+        reason: 'the effective configuration is logged with secrets masked',
+      );
+      expect(
+        lines.join('\n'),
+        isNot(contains('integration-test-secret')),
+        reason: 'and the secret itself never appears',
+      );
+
+      process.kill(ProcessSignal.sigterm);
+      expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 }

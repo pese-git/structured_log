@@ -7,6 +7,7 @@ import 'package:structured_log_server/src/auth/create_admin.dart';
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:structured_log_server/src/http/server.dart';
+import 'package:structured_log_server/src/logging/setup.dart';
 import 'package:structured_log_server/src/live/log_broadcast.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 
@@ -86,7 +87,7 @@ Future<void> main(List<String> arguments) async {
   if (command == commandCreateAdmin) {
     await _runCreateAdmin(config);
   } else {
-    await _runServe(config);
+    await _runServe(config, result.values!);
   }
 }
 
@@ -115,14 +116,32 @@ Future<void> _runCreateAdmin(ServerConfig config) async {
   }
 }
 
-Future<void> _runServe(ServerConfig config) async {
+Future<void> _runServe(
+  ServerConfig config,
+  Map<String, ResolvedValue> resolved,
+) async {
+  // Before anything else that can fail, so a problem opening the database
+  // or bootstrapping the administrator is already reported through the
+  // configured sinks rather than through whatever happens to be at hand
+  // (`tasks.md` 33.2).
+  final logging = configureServerLogging(config);
+  final log = logging.logger;
+
+  log.info(
+    'server.starting',
+    context: maskedConfigContext(serverConfigParams, resolved),
+  );
+
   final db = StructuredLogDatabase.open(config.dbPath);
 
   // Bootstrap runs before the port opens (design.md decision 49).
   await bootstrapAdmin(
     db,
     config,
-    logWarning: (message) => stderr.writeln('warning: $message'),
+    logWarning: (message) => log.warning(
+      'bootstrap.warning',
+      context: {'message': message},
+    ),
   );
 
   // Owned here rather than by buildHandler so shutdown can close it and
@@ -136,6 +155,7 @@ Future<void> _runServe(ServerConfig config) async {
     broadcast: logBroadcast,
     sseHeartbeatInterval: Duration(seconds: config.sseHeartbeatIntervalSeconds),
     config: config,
+    logger: log,
   );
 
   final server =
@@ -149,13 +169,20 @@ Future<void> _runServe(ServerConfig config) async {
   final subscriptions = <StreamSubscription<ProcessSignal>>[
     ProcessSignal.sigint
         .watch()
-        .listen((_) => _shutdown(server, db, logBroadcast, done)),
+        .listen((_) => _shutdown(server, db, logBroadcast, logging, done)),
     if (!Platform.isWindows)
       ProcessSignal.sigterm
           .watch()
-          .listen((_) => _shutdown(server, db, logBroadcast, done)),
+          .listen((_) => _shutdown(server, db, logBroadcast, logging, done)),
   ];
 
+  log.info('server.started', context: {
+    'host': server.address.host,
+    'port': server.port,
+  });
+  // Also on stdout, unconditionally: this line is the readiness signal a
+  // supervisor waits for, and it must not disappear because the log level
+  // was turned up or the log was pointed at a file.
   stdout.writeln('Listening on http://${server.address.host}:${server.port}');
 
   await done.future;
@@ -168,9 +195,11 @@ Future<void> _shutdown(
   HttpServer server,
   StructuredLogDatabase db,
   LogBroadcast broadcast,
+  ServerLogging logging,
   Completer<void> done,
 ) async {
   if (done.isCompleted) return;
+  logging.logger.info('server.stopping');
   stdout.writeln('Shutting down...');
   // Close the broadcast before the server: an open subscription that is
   // still being fed while the socket goes away would keep the process
@@ -178,5 +207,7 @@ Future<void> _shutdown(
   await broadcast.close();
   await server.close(force: false);
   await db.close();
+  // Last, so queued file writes land before the process goes away.
+  await logging.flush();
   done.complete();
 }

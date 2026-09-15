@@ -1,4 +1,5 @@
 import 'package:shelf/shelf.dart';
+import 'package:structured_log/structured_log.dart';
 
 import '../config/server_config.dart';
 import '../errors.dart';
@@ -111,6 +112,7 @@ extension RateLimitRequest on Request {
 Middleware rateLimitMiddleware(
   ServerConfig config, {
   DateTime Function()? clock,
+  BoundLogger? logger,
 }) {
   final now = clock ?? DateTime.now;
 
@@ -148,7 +150,17 @@ Middleware rateLimitMiddleware(
       if (!bucket.tryConsume(at)) {
         // Before the body is even read: a request rejected on its address
         // should cost the server nothing but this lookup.
-        throw ApiError.tooManyRequests(bucket.timeUntilNextToken(at));
+        final retryAfter = bucket.timeUntilNextToken(at);
+        // Worth a line in the server's own log: a throttled address is
+        // either an attack or a misconfigured client, and both are things
+        // an operator wants to see (`design.md` decision 48). The address
+        // is the only thing recorded — no body, no header.
+        logger?.warning('rate_limit.throttled', context: {
+          'path': path,
+          'client_ip': ip,
+          'retry_after_s': retryAfter.inSeconds,
+        });
+        throw ApiError.tooManyRequests(retryAfter);
       }
 
       return innerHandler(
