@@ -33,3 +33,7 @@ logs/
 .codegraph/
 .codex/
 .opencode/
+# Deployment state, never committed: .env is per-host, and the signing secret
+# lets whoever holds it mint access tokens for any account.
+deploy/.env
+deploy/secrets/
