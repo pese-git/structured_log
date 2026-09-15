@@ -193,6 +193,7 @@ jobs:
           - emb/structured_log_cupertino/example
           - frontend/structured_log_admin_ui
           - frontend/structured_log_admin_ui/example
+          - frontend/structured_log_admin_client
 
     steps:
       - uses: actions/checkout@v4
@@ -212,6 +213,14 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # Only structured_log_admin_client uses build_runner (freezed /
+      # json_serializable / retrofit). It must run before analyze and test:
+      # *.g.dart and *.freezed.dart are not committed, so without it the
+      # package does not compile — same rule as the server job.
+      - name: Generate code
+        if: matrix.package == 'frontend/structured_log_admin_client'
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Verify formatting
         run: dart format --set-exit-if-changed .

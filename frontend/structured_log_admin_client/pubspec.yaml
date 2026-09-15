@@ -1,0 +1,65 @@
+name: structured_log_admin_client
+description: "Self-hosted admin client for structured_log_server."
+publish_to: none
+version: 0.1.0-dev.0
+
+environment:
+  # ^3.8, not the workspace's usual ^3.0: json_serializable 6.11 emits
+  # null-aware elements (`?instance.field`) for `includeIfNull: false`, and
+  # that language feature only exists from 3.8. A lower floor makes the generated
+  # code unparseable rather than merely unsupported.
+  sdk: ^3.8.0
+  flutter: ">=3.44.0" # fluent_ui 4.16.0+ needs this — see structured_log_admin_ui
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI: Fluent, and this client's own component library (design.md
+  # decisions 38/39). fluent_ui is still a direct dependency — the screens use
+  # its primitives alongside the wrapped ones.
+  fluent_ui: ^4.16.1
+  structured_log_admin_ui:
+    path: ../structured_log_admin_ui
+
+  # Data layer: dio + retrofit for the typed endpoints; GET /v1/logs/stream is
+  # written by hand on the same dio instance (decision 37).
+  dio: ^5.7.0
+  retrofit: ^4.4.1
+
+  # Expected outcomes as Either, never programmer errors (decision 33).
+  fpdart: ^1.1.1
+
+  # Immutable models and sealed unions (decision 34).
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
+  # DI (decision 35) and state (decision 36).
+  cherrypick: ^2.0.0
+  flutter_bloc: ^8.1.6
+
+  # Tokens never touch shared preferences (decision 20).
+  flutter_secure_storage: ^9.2.2
+
+  # The client logs its own work through the workspace's own logger
+  # (decision 48). No dependency on structured_log_server or
+  # structured_log_http: this client talks to the server over HTTP like any
+  # other consumer (decision 19).
+  structured_log: ^0.2.0-dev.0+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  build_runner: ^2.4.13
+  freezed: ^3.0.0
+  json_serializable: ^6.8.0
+  # 10.x, not 9.x: retrofit_generator 9.7.0 declares `retrofit: ^4.6.0` but
+  # does not compile against 4.10 — retrofit added a `Parser` enum value its
+  # switch does not handle, and the too-loose constraint lets pub pair them
+  # anyway. Same class of trap as fluent_ui/Flutter, see AGENTS.md.
+  retrofit_generator: ^10.2.9
+
+flutter:
+  uses-material-design: true

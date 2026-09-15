@@ -1,0 +1,83 @@
+import 'package:cherrypick/cherrypick.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:structured_log/structured_log.dart';
+
+import '../api/api_client.dart';
+import '../auth/token_storage.dart';
+import '../config/app_config.dart';
+import '../logging/setup.dart';
+
+/// The application's shared dependencies.
+///
+/// Everything below is a singleton within the scope, because each is a
+/// connection or a store rather than a value: a second [ApiClient] would mean
+/// a second set of interceptors, and two token storages would disagree about
+/// whose session is current.
+///
+/// Feature repositories belong in per-feature modules installed into their own
+/// subscopes (design.md decision 35), so a feature can be composed — and torn
+/// down — without touching this one. No `Bloc` or widget builds an
+/// infrastructure dependency itself; they resolve one.
+class AppModule extends Module {
+  final AppConfig config;
+
+  /// Supplied by tests and by the web build, which has no keychain. Left null
+  /// in a real desktop or mobile build, where [SecureTokenStorage] is right.
+  final TokenStorage? tokenStorageOverride;
+
+  /// Raised when a session cannot be renewed — the router sends the user back
+  /// to sign-in. Passed in rather than resolved to keep this module free of
+  /// any navigation dependency.
+  final void Function()? onSessionExpired;
+
+  AppModule({
+    required this.config,
+    this.tokenStorageOverride,
+    this.onSessionExpired,
+  });
+
+  @override
+  void builder(Scope currentScope) {
+    bind<AppConfig>().toInstance(config);
+
+    bind<BoundLogger>().toProvide(configureClientLogging).singleton();
+
+    bind<TokenStorage>()
+        .toProvide(
+          () =>
+              tokenStorageOverride ??
+              const SecureTokenStorage(FlutterSecureStorage()),
+        )
+        .singleton();
+
+    bind<ApiClient>()
+        .toProvide(
+          () => ApiClient(
+            config: currentScope.resolve<AppConfig>(),
+            storage: currentScope.resolve<TokenStorage>(),
+            onSessionExpired: onSessionExpired,
+          ),
+        )
+        .singleton();
+  }
+}
+
+/// Opens the root scope with [AppModule] installed.
+///
+/// The one place that composes the application; `main()` calls it and hands
+/// the scope to the widget tree.
+Scope openAppScope({
+  required AppConfig config,
+  TokenStorage? tokenStorage,
+  void Function()? onSessionExpired,
+}) {
+  final scope = CherryPick.openRootScope();
+  scope.installModules([
+    AppModule(
+      config: config,
+      tokenStorageOverride: tokenStorage,
+      onSessionExpired: onSessionExpired,
+    ),
+  ]);
+  return scope;
+}
