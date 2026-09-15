@@ -12,6 +12,7 @@ packages:
   - emb/structured_log_http
   - backend/structured_log_server
   - frontend/structured_log_admin_ui
+  - frontend/structured_log_admin_ui/example
 
 command:
   bootstrap:
@@ -58,6 +59,7 @@ scripts:
         "structured_log_cupertino",
         "structured_log_cupertino_example",
         "structured_log_admin_ui",
+        "structured_log_admin_ui_example",
       ]
     description: Run tests for Flutter packages
 

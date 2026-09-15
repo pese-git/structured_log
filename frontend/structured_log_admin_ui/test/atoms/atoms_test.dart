@@ -60,20 +60,44 @@ void main() {
       expect(button.onPressed, isNull);
     });
 
-    testWidgets('the tonal variant is the shorter one', (tester) async {
-      await tester.pumpWidget(
-        _host(
-          AdminButton(
-            label: 'Открыть',
-            onPressed: () {},
-            variant: AdminButtonVariant.tonal,
+    testWidgets('each size is the height the canvas draws', (tester) async {
+      const expected = {
+        AdminButtonSize.tonal: AdminSizes.tonalButtonHeight,
+        AdminButtonSize.toolbar: AdminSizes.buttonHeight,
+        AdminButtonSize.dialog: AdminSizes.dialogButtonHeight,
+      };
+      for (final entry in expected.entries) {
+        await tester.pumpWidget(
+          _host(
+            AdminButton(
+              label: 'Открыть',
+              onPressed: () {},
+              size: entry.key,
+            ),
           ),
-        ),
-      );
-      expect(
-        tester.getSize(find.byType(AdminButton)).height,
-        AdminSizes.tonalButtonHeight,
-      );
+        );
+        expect(
+          tester.getSize(find.byType(AdminButton)).height,
+          entry.value,
+          reason: '${entry.key}',
+        );
+      }
+    });
+
+    testWidgets('the danger variant fills, like the accent one',
+        (tester) async {
+      for (final variant in AdminButtonVariant.values) {
+        await tester.pumpWidget(
+          _host(
+            AdminButton(
+              label: 'Удалить',
+              onPressed: () {},
+              variant: variant,
+            ),
+          ),
+        );
+        expect(find.text('Удалить'), findsOneWidget);
+      }
     });
 
     testWidgets('renders a leading icon when given one', (tester) async {

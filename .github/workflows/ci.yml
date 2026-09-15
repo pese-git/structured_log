@@ -192,6 +192,7 @@ jobs:
           - emb/structured_log_cupertino
           - emb/structured_log_cupertino/example
           - frontend/structured_log_admin_ui
+          - frontend/structured_log_admin_ui/example
 
     steps:
       - uses: actions/checkout@v4

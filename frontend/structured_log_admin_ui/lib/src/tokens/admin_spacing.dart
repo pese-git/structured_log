@@ -49,8 +49,10 @@ abstract final class AdminSizes {
   /// Accent and standard buttons in a toolbar.
   static const double buttonHeight = 30;
 
-  /// Filter boxes, inputs, the avatar.
+  /// Filter boxes, inputs, the avatar — and a dialog's footer buttons, which
+  /// the artboards draw one step taller than a toolbar's.
   static const double controlHeight = 32;
+  static const double dialogButtonHeight = 32;
 
   /// A navigation item.
   static const double navItemHeight = 40;

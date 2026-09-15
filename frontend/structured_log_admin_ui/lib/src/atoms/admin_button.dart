@@ -2,17 +2,30 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 import '../tokens/tokens.dart';
 
-/// Which of the canvas's three button treatments to paint.
+/// How a button is filled — the canvas uses exactly three treatments.
 enum AdminButtonVariant {
-  /// Filled with the accent — the one primary action on a screen.
+  /// Filled with the accent: the one primary action on a screen.
   accent,
 
-  /// Outlined, on a surface: the toolbar's secondary actions.
+  /// Outlined, on a surface: secondary actions.
   standard,
 
-  /// The same outline two pixels shorter, as the artboards use inside cards
-  /// and list rows where a full-height button would crowd the row.
+  /// Filled with the error colour, for the confirming half of a destructive
+  /// dialog. Never used outside one in the artboards.
+  danger,
+}
+
+/// How tall a button is. The canvas sizes by context rather than on one
+/// scale, and the three heights are consistent across the artboards.
+enum AdminButtonSize {
+  /// 28 — inside a card or a list row, where a full-height button crowds.
   tonal,
+
+  /// 30 — a screen toolbar.
+  toolbar,
+
+  /// 32, with a larger face — a dialog's footer.
+  dialog,
 }
 
 /// A button in the admin client's vocabulary.
@@ -31,22 +44,43 @@ class AdminButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   final AdminButtonVariant variant;
+  final AdminButtonSize size;
 
   const AdminButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.variant = AdminButtonVariant.standard,
+    this.size = AdminButtonSize.toolbar,
     this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
-    final isAccent = variant == AdminButtonVariant.accent;
-    final height = variant == AdminButtonVariant.tonal
-        ? AdminSizes.tonalButtonHeight
-        : AdminSizes.buttonHeight;
+    final isFilled = variant != AdminButtonVariant.standard;
+    final fill =
+        variant == AdminButtonVariant.danger ? colors.errorFg : colors.accent;
+    final fillPressed = variant == AdminButtonVariant.danger
+        ? colors.errorFg
+        : colors.accentDark;
+    final (height, textStyle, padding) = switch (size) {
+      AdminButtonSize.tonal => (
+          AdminSizes.tonalButtonHeight,
+          AdminTypography.bodySmall,
+          AdminSpacing.x12,
+        ),
+      AdminButtonSize.toolbar => (
+          AdminSizes.buttonHeight,
+          AdminTypography.bodySmall,
+          AdminSpacing.x12,
+        ),
+      AdminButtonSize.dialog => (
+          AdminSizes.dialogButtonHeight,
+          AdminTypography.body,
+          16.0,
+        ),
+    };
 
     return SizedBox(
       height: height,
@@ -55,12 +89,10 @@ class AdminButton extends StatelessWidget {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.isDisabled) {
-              return isAccent ? colors.borderStrong : colors.cardBg;
+              return isFilled ? colors.borderStrong : colors.cardBg;
             }
-            if (isAccent) {
-              return states.isPressed || states.isHovered
-                  ? colors.accentDark
-                  : colors.accent;
+            if (isFilled) {
+              return states.isPressed || states.isHovered ? fillPressed : fill;
             }
             return states.isPressed || states.isHovered
                 ? colors.cardBg
@@ -68,22 +100,22 @@ class AdminButton extends StatelessWidget {
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.isDisabled) return colors.textTertiary;
-            return isAccent ? colors.surface : colors.text;
+            return isFilled ? colors.surface : colors.text;
           }),
           padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: AdminSpacing.x12),
+            EdgeInsets.symmetric(horizontal: padding),
           ),
           shape: WidgetStateProperty.resolveWith((states) {
             return RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AdminRadius.control),
-              // The accent button carries no outline in any artboard; the
-              // other two are defined by theirs.
-              side: isAccent
+              // A filled button carries no outline in any artboard; the
+              // standard one is defined by its own.
+              side: isFilled
                   ? BorderSide.none
                   : BorderSide(color: colors.borderStrong),
             );
           }),
-          textStyle: WidgetStateProperty.all(AdminTypography.bodySmall),
+          textStyle: WidgetStateProperty.all(textStyle),
         ),
         child: icon == null
             ? Text(label)
