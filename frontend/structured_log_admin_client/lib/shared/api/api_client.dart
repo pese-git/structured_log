@@ -7,6 +7,7 @@ import 'auth_api.dart';
 import 'auth_interceptor.dart';
 import 'logs_api.dart';
 import 'resources_api.dart';
+import 'streaming/streaming_adapter.dart';
 
 /// Everything this client uses to talk to `structured_log_server`, built once
 /// and handed out by the DI root.
@@ -21,11 +22,18 @@ import 'resources_api.dart';
 /// - the retry client — also uninterceptored, used to replay the original
 ///   request once the new token is in hand.
 ///
-/// [dio] is also what section 22's hand-written `GET /v1/logs/stream` will
-/// use: the stream needs the same base URL and the same Authorization header,
-/// and only its timeouts differ (decision 37).
+/// [streamDio] is the fourth, and it exists only because of the web. The
+/// live log subscription needs the same base URL, the same Authorization
+/// header and the same refresh as everything else — so it shares the very
+/// interceptor *instance*, which is what keeps "one refresh in flight" true
+/// across both — but it also needs a response delivered as it arrives, and
+/// dio's browser adapter cannot do that (see `streaming_adapter_web.dart`).
+/// Off the web it is an ordinary `Dio` with no adapter of its own.
 class ApiClient {
   final Dio dio;
+
+  /// What `GET /v1/logs/stream` runs on (decision 37).
+  final Dio streamDio;
 
   final AuthApi auth;
   final GroupsApi groups;
@@ -35,6 +43,7 @@ class ApiClient {
 
   ApiClient._({
     required this.dio,
+    required this.streamDio,
     required this.auth,
     required this.groups,
     required this.projects,
@@ -63,42 +72,62 @@ class ApiClient {
     final dio = Dio(optionsFor(config.requestTimeout));
     final refreshClient = Dio(optionsFor(config.requestTimeout));
     final retryClient = Dio(optionsFor(config.requestTimeout));
+    // No send/receive deadline: a live subscription is a body that stays open
+    // on purpose, and `LogStreamClient` applies its own idle timeout per
+    // request. Connecting still has one.
+    final streamDio = Dio(
+      optionsFor(config.requestTimeout)
+        ..receiveTimeout = null
+        ..sendTimeout = null,
+    );
+
+    final streamingAdapter = createStreamingAdapter();
+    if (streamingAdapter != null) {
+      streamDio.httpClientAdapter = streamingAdapter;
+    }
 
     if (adapter != null) {
       dio.httpClientAdapter = adapter;
       refreshClient.httpClientAdapter = adapter;
       retryClient.httpClientAdapter = adapter;
+      // A test that answers without a socket answers for the stream too, and
+      // its adapter outranks the platform one.
+      streamDio.httpClientAdapter = adapter;
     }
 
     final refreshApi = AuthApi(refreshClient);
 
-    dio.interceptors.add(
-      AuthInterceptor(
-        storage: storage,
-        retryClient: retryClient,
-        onSessionExpired: onSessionExpired,
-        refresh: (refreshToken) async {
-          try {
-            final response = await refreshApi.refresh(
-              AuthApi.refreshGrant,
-              refreshToken,
-            );
-            return TokenPair(
-              accessToken: response.accessToken,
-              refreshToken: response.refreshToken,
-            );
-          } on DioException {
-            // Any failure here — refused, offline, timed out — ends the
-            // session. Distinguishing them would only offer the user a retry
-            // of something they cannot influence.
-            return null;
-          }
-        },
-      ),
+    final authInterceptor = AuthInterceptor(
+      storage: storage,
+      retryClient: retryClient,
+      onSessionExpired: onSessionExpired,
+      refresh: (refreshToken) async {
+        try {
+          final response = await refreshApi.refresh(
+            AuthApi.refreshGrant,
+            refreshToken,
+          );
+          return TokenPair(
+            accessToken: response.accessToken,
+            refreshToken: response.refreshToken,
+          );
+        } on DioException {
+          // Any failure here — refused, offline, timed out — ends the
+          // session. Distinguishing them would only offer the user a retry
+          // of something they cannot influence.
+          return null;
+        }
+      },
     );
+
+    // The same object in both, not two of them: the guard that collapses
+    // parallel 401s into one refresh lives in the instance.
+    dio.interceptors.add(authInterceptor);
+    streamDio.interceptors.add(authInterceptor);
 
     return ApiClient._(
       dio: dio,
+      streamDio: streamDio,
       auth: AuthApi(dio),
       groups: GroupsApi(dio),
       projects: ProjectsApi(dio),

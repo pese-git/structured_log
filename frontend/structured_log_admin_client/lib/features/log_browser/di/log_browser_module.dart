@@ -15,13 +15,15 @@ import '../presentation/log_feed_bloc.dart';
 class LogBrowserModule extends Module {
   @override
   void builder(Scope currentScope) {
-    // Runs on `ApiClient.dio` — the same instance the generated clients use,
-    // so the live stream carries the same Authorization header and the same
-    // one-shot refresh (decision 37).
+    // Runs on `ApiClient.streamDio` — its own instance, but carrying the same
+    // interceptor object as the generated clients, so the subscription gets
+    // the same Authorization header and shares their refresh (decision 37).
+    // It is separate only because the web needs an adapter that can deliver a
+    // body as it arrives.
     bind<LogStreamClient>()
         .toProvide(
           () => LogStreamClient(
-            currentScope.resolve<ApiClient>().dio,
+            currentScope.resolve<ApiClient>().streamDio,
             logger: currentScope.resolve<BoundLogger>(),
           ),
         )

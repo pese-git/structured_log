@@ -41,6 +41,12 @@ dependencies:
   # Tokens never touch shared preferences (decision 20).
   flutter_secure_storage: ^9.2.2
 
+  # Browser APIs, for one thing only: the live log subscription reads its body
+  # through `fetch`, because dio's browser adapter delivers a response whole
+  # and a stream that never ends therefore never arrives
+  # (`shared/api/streaming/streaming_adapter_web.dart`).
+  web: ^1.1.0
+
   # The client logs its own work through the workspace's own logger
   # (decision 48). No dependency on structured_log_server or
   # structured_log_http: this client talks to the server over HTTP like any
