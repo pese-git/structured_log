@@ -61,8 +61,8 @@ decision 23) — с появлением пакетов другой приро�
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
   `publish_to: none` — самостоятельный сервис, не библиотека для встраивания.
 
-`frontend/` и `packages/` пока пусты (`structured_log_admin_client`/`structured_log_admin_ui`
-появятся там по мере реализации Этапа 1 той же change).
+В `frontend/` пока один пакет — `structured_log_admin_ui` (раздел 23 той же change, реализован);
+`structured_log_admin_client` появится рядом по мере реализации раздела 11. `packages/` пока пуст.
 
 `structured_log_material`/`structured_log_fluent`/`structured_log_cupertino` фактически ещё не
 опубликованы (нет `CHANGELOG.md` — публикация требует прогнать `melos version` первым, см.
@@ -89,7 +89,7 @@ decision 23) — с появлением пакетов другой приро�
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
-- `frontend/` — директории ещё нет (git не хранит пустые); появится вместе с `structured_log_admin_client`/`structured_log_admin_ui`, разделы 11 и 23 `tasks.md`.
+- [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже); `structured_log_admin_client` появится рядом, раздел 11 `tasks.md`.
 - `packages/` — директории ещё нет; резерв под пакеты вне категорий `emb`/`backend`/`frontend`.
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
@@ -178,6 +178,26 @@ decision 23) — с появлением пакетов другой приро�
 - [emb/structured_log_http/lib/src/http_output.dart](emb/structured_log_http/lib/src/http_output.dart) — `HttpLogOutput`: батчинг по размеру/таймауту, retry с backoff на сетевых ошибках/таймаутах/5xx (на 4xx — нет, кроме `408`/`429`), ограниченный буфер с вытеснением самых старых, публичный `flushed`. **Все неотправленные записи лежат в одной очереди, из которой насос забирает по `batchSize`** — первая версия выстраивала батчи цепочкой futures, и лимит буфера тогда не ограничивал память (см. 9.4 в `tasks.md`).
 - Транспорт — `dart:io`'s `HttpClient`, зависимость только `structured_log` (без `dio`/`http`). Шов `BatchSender` позволяет тестировать батчинг/retry/вытеснение без сокета; отдельная группа тестов работает против настоящего `HttpServer`.
 - `README.md`/`README.ru.md` — билингвальная пара, как у остальных пакетов.
+
+Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
+
+- Библиотека компонентов `structured_log_admin_client` по Atomic Design — `tokens`/`atoms`/`molecules`/`organisms`,
+  без `templates`/`pages` (те собирают экран вокруг реальных данных и остаются в клиенте, decision 39).
+- Зависимости — **только** `flutter` sdk и `fluent_ui`. Ни `flutter_bloc`/`cherrypick`/`dio`/`fpdart`/`freezed`,
+  ни самого `structured_log_admin_client`: направление зависимости одностороннее, и это проверяется
+  компилятором, а не соглашением. Намерение продублировано тестом `test/package_boundary_test.dart`.
+- `lib/src/tokens/` — значения перенесены из канваса «Structured Log Admin UI» (макеты живут вне
+  репозитория, ссылки — в памяти сессии; все 26 артбордов делят один блок `--fl-*`). Палитра уровней
+  лога — **своя копия**, не импорт из `structured_log_flutter` (decision 39, тот же принцип, что между
+  `structured_log_material` и `structured_log_fluent`). Фон бейджа уровня не таблица, а правило «цвет
+  поверх поверхности при alpha 0.16»: оно воспроизводит все четыре значения канваса точно и потому даёт
+  согласованные `trace`/`critical`, которых нет ни на одном артборде.
+- **Канвас светлый и десктопный.** Тёмная тема выведена, а не сверена; адаптивных раскладок нет вовсе —
+  это отдельная задача 23.9 (сперва дорисовать узкие артборды). Брейкпоинты, когда дойдёт, меряются по
+  собственной ширине виджета через `LayoutBuilder`, как в скинах `emb/`, а не по ширине окна.
+- `example/` — web-галерея компонентов (`structured_log_admin_ui_example`), `flutter run -d chrome`.
+  В её тестах `pumpAndSettle` неприменим: `AdminLoadingIndicator` крутится вечно, нужен `pump`.
+- `publish_to: none` — привязан к эстетике одного клиента, не кит общего назначения.
 
 Внутри [backend/structured_log_server/](backend/structured_log_server/) (файловая раскладка внутри фичи намеренно не фиксировалась заранее, decision 32 `design.md`):
 
@@ -293,7 +313,7 @@ dart run example/main.dart
   `emb/structured_log`.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
-  (+`example/`)), по одному матричному прогону на пакет:
+  (+`example/`), `structured_log_admin_ui` (+`example/`)), по одному матричному прогону на пакет:
   `flutter pub get`, `dart format --set-exit-if-changed`, `flutter analyze`, `flutter test`.
   Только `ubuntu-latest` — этим пакетам не нужна ОС-чувствительная проверка ротации файлов.
   Использует `subosito/flutter-action`, канал `stable`.
