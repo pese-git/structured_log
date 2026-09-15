@@ -22,9 +22,22 @@ class LogEntryDto {
   final String? category;
   final String? logger;
 
-  /// Everything the entry carried that is not one of the fields above —
-  /// correlation ids and whatever else the application bound. Shown in the
-  /// detail pane on equal footing with the standard fields.
+  /// Correlation. The spec counts these among an entry's standard fields
+  /// rather than among its arbitrary ones (`specs/admin-client-log-browser`),
+  /// so the detail view shows them in their own block — which it cannot do if
+  /// they arrive mixed into [context].
+  final String? sessionId;
+  final String? requestId;
+  final String? toolCallId;
+  final String? messageId;
+  final String? operationId;
+
+  /// The only correlation value that is not a string.
+  final int? connectionGeneration;
+
+  /// Everything the entry carried that is none of the fields above — whatever
+  /// the application bound itself. Shown in the detail pane on equal footing
+  /// with the standard fields, which is the whole reason it is kept.
   final Map<String, dynamic> context;
 
   const LogEntryDto({
@@ -37,6 +50,12 @@ class LogEntryDto {
     this.timestamp,
     this.category,
     this.logger,
+    this.sessionId,
+    this.requestId,
+    this.toolCallId,
+    this.messageId,
+    this.operationId,
+    this.connectionGeneration,
   });
 
   /// Keys lifted into named fields; everything else stays in [context].
@@ -49,6 +68,12 @@ class LogEntryDto {
     'timestamp',
     'category',
     'logger',
+    'session_id',
+    'request_id',
+    'tool_call_id',
+    'message_id',
+    'operation_id',
+    'connection_generation',
   };
 
   factory LogEntryDto.fromJson(Map<String, dynamic> json) {
@@ -66,6 +91,12 @@ class LogEntryDto {
           : null,
       category: json['category'] as String?,
       logger: json['logger'] as String?,
+      sessionId: json['session_id'] as String?,
+      requestId: json['request_id'] as String?,
+      toolCallId: json['tool_call_id'] as String?,
+      messageId: json['message_id'] as String?,
+      operationId: json['operation_id'] as String?,
+      connectionGeneration: json['connection_generation'] as int?,
       context: {
         for (final entry in json.entries)
           if (!_ownKeys.contains(entry.key)) entry.key: entry.value,
