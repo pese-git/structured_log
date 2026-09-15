@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../../auth/token_service.dart';
+import '../rate_limit_middleware.dart';
 
 part 'auth_route.g.dart';
 
@@ -79,17 +80,29 @@ class AuthRoutes {
             const TokenError(TokenErrorCode.invalidRequest),
           );
         }
+        // The subject half of the limiter, checked before the password is:
+        // a throttled attempt must not verify credentials at all, even
+        // correct ones (`log-server-rate-limit`).
+        final attempt = request.rateLimitAttempt;
+        attempt.requireSubject(username);
+
         final result = await _tokenService.passwordGrant(
           username: username,
           password: password,
         );
         return result.match(
-          (error) => _rfc6749Error(400, error),
-          (pair) => Response(
-            200,
-            body: jsonEncode(_pairJson(pair)),
-            headers: {'content-type': 'application/json'},
-          ),
+          (error) {
+            attempt.failed();
+            return _rfc6749Error(400, error);
+          },
+          (pair) {
+            attempt.succeeded();
+            return Response(
+              200,
+              body: jsonEncode(_pairJson(pair)),
+              headers: {'content-type': 'application/json'},
+            );
+          },
         );
 
       case 'refresh_token':

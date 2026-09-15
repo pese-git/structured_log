@@ -8,6 +8,7 @@ import '../../rbac/token_version.dart';
 import '../../storage/database.dart';
 import '../json_response.dart';
 import '../principal_middleware.dart';
+import '../rate_limit_middleware.dart';
 import '../request_helpers.dart';
 
 part 'change_password_route.g.dart';
@@ -27,6 +28,11 @@ class ChangePasswordRoutes {
     // The one implemented endpoint the forced-password-change gate exempts —
     // it is how the flag gets cleared (`log-server-forced-password-change`).
     final identity = request.requireUser(allowTemporaryPassword: true);
+    // Subject is the authenticated user, not a submitted string
+    // (`log-server-rate-limit`).
+    final attempt = request.rateLimitAttempt;
+    attempt.requireSubject('user:${identity.userId}');
+
     final body = await readJsonBody(request);
     final currentPassword = body['current_password'];
     final newPassword = body['new_password'];
@@ -41,9 +47,11 @@ class ChangePasswordRoutes {
     )..where((t) => t.id.equals(identity.userId)))
         .getSingle();
     if (!verifyPassword(currentPassword, user.passwordHash)) {
+      attempt.failed();
       throw const ApiError(
           401, 'invalid_grant', 'Current password is incorrect.');
     }
+    attempt.succeeded();
 
     await _db.transaction(() async {
       await (_db.update(

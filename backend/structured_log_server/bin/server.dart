@@ -135,6 +135,7 @@ Future<void> _runServe(ServerConfig config) async {
     issuer: config.jwtIssuer,
     broadcast: logBroadcast,
     sseHeartbeatInterval: Duration(seconds: config.sseHeartbeatIntervalSeconds),
+    config: config,
   );
 
   final server =

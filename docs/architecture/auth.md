@@ -459,6 +459,16 @@ flowchart TD
   token only on a *failed* attempt, and a success refills it completely.
   A user who simply logs in often never meets the limiter at all; a
   password guesser meets it within a handful of tries.
+- **One number configures both capacities** (`rateLimitBucketCapacity`),
+  which has a non-obvious consequence: from a single address the IP bucket
+  always empties first, since it spends on every request while the subject
+  bucket spends only on failures. So the IP bucket is what stops an
+  attacker working from one address, and the subject bucket is what covers
+  the **distributed** guess, where every attempt arrives from a fresh
+  address and therefore a fresh, full IP bucket. That is exactly the
+  division of labour two keys exist for — but making the subject limit
+  stricter than the address limit would need more than one number.
+
 - **The subject key is the string that was submitted**, not a row that
   was found. Keying on a located user would make the limiter itself an
   existence oracle — non-existent addresses would never throttle and

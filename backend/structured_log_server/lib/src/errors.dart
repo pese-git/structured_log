@@ -14,11 +14,16 @@ class ApiError implements Exception {
   final String message;
   final Map<String, Object?>? details;
 
+  /// Extra response headers this failure carries — `Retry-After` on a
+  /// `429`, and nothing else so far.
+  final Map<String, String>? headers;
+
   const ApiError(
     this.statusCode,
     this.code,
     this.message, {
     this.details,
+    this.headers,
   });
 
   factory ApiError.invalidRequest(
@@ -47,13 +52,33 @@ class ApiError implements Exception {
   factory ApiError.notFound([String message = 'Resource not found.']) =>
       ApiError(404, 'not_found', message);
 
+  /// Throttled by `log-server-rate-limit`. [retryAfter] is rounded up to
+  /// whole seconds, and at least one — `Retry-After: 0` would invite an
+  /// immediate retry that is certain to be rejected again.
+  ///
+  /// This is the one place `POST /v1/auth/token` answers in the general
+  /// envelope instead of the RFC 6749 shape (`design.md` decision 43): the
+  /// rejection happens before the request is understood as a grant at all.
+  factory ApiError.tooManyRequests(Duration retryAfter) {
+    final seconds = (retryAfter.inMilliseconds / 1000).ceil();
+    return ApiError(
+      429,
+      'too_many_requests',
+      'Too many requests. Retry later.',
+      headers: {'retry-after': '${seconds < 1 ? 1 : seconds}'},
+    );
+  }
+
   Response toResponse() {
     final body = <String, Object?>{'error': code, 'message': message};
     if (details != null) body['details'] = details;
     return Response(
       statusCode,
       body: jsonEncode(body),
-      headers: {'content-type': 'application/json'},
+      headers: {
+        'content-type': 'application/json',
+        ...?headers,
+      },
     );
   }
 

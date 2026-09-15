@@ -4,12 +4,14 @@ import 'package:shelf_router/shelf_router.dart';
 import '../auth/claims.dart';
 import '../auth/local_identity_provider.dart';
 import '../auth/token_service.dart';
+import '../config/server_config.dart';
 import '../errors.dart';
 import '../rbac/authorizer.dart';
 import '../live/log_broadcast.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
 import 'principal_middleware.dart';
+import 'rate_limit_middleware.dart';
 import 'routes/auth_route.dart';
 import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
@@ -49,6 +51,8 @@ Handler buildHandler(
   required String issuer,
   LogBroadcast? broadcast,
   Duration sseHeartbeatInterval = defaultSseHeartbeat,
+  ServerConfig? config,
+  DateTime Function()? clock,
 }) {
   final authorizer = Authorizer(db);
   final claimsResolver = ClaimsResolver(db, authorizer);
@@ -90,8 +94,17 @@ Handler buildHandler(
     router.mount('/', featureRouter.call);
   }
 
-  return const Pipeline()
-      .addMiddleware(errorHandlingMiddleware())
+  var pipeline = const Pipeline().addMiddleware(errorHandlingMiddleware());
+  // Ahead of authentication: throttling by address must not depend on the
+  // request being understood, and a rejected one should cost nothing beyond
+  // a bucket lookup. Skipped entirely when no config is supplied — route
+  // tests build a handler without one.
+  if (config != null) {
+    pipeline =
+        pipeline.addMiddleware(rateLimitMiddleware(config, clock: clock));
+  }
+
+  return pipeline
       .addMiddleware(principalMiddleware(identityProvider, db))
       .addHandler(router.call);
 }

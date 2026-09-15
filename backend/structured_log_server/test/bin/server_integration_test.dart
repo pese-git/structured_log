@@ -629,4 +629,78 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
+
+  test(
+    'the rate limiter is actually wired into the running server',
+    () async {
+      // buildHandler takes the config as an optional argument, so the whole
+      // limiter is inert unless bin/server.dart passes it — which it once
+      // silently did not. Every other rate-limit test builds the handler
+      // itself and cannot see that.
+      final dir = Directory.systemTemp.createTempSync('server_ratelimit_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+        '--rate-limit-bucket-capacity=3',
+        // Slow enough that the bucket cannot refill mid-test.
+        '--rate-limit-refill-per-minute=1',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen((_) {});
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      final client = HttpClient();
+      addTearDown(client.close);
+
+      Future<HttpClientResponse> attempt() async {
+        final request = await client
+            .postUrl(Uri.parse('http://localhost:$port/v1/auth/token'));
+        request.headers.contentType =
+            ContentType('application', 'x-www-form-urlencoded');
+        request.write('grant_type=password&username=nobody&password=wrong');
+        return request.close();
+      }
+
+      // Three attempts fit in the bucket and are refused on their merits;
+      // the fourth is refused by the limiter.
+      for (var i = 0; i < 3; i++) {
+        final response = await attempt();
+        await response.drain<void>();
+        expect(response.statusCode, 400, reason: 'attempt $i');
+      }
+
+      final throttled = await attempt();
+      final body = await throttled.transform(utf8.decoder).join();
+      expect(throttled.statusCode, 429);
+      expect(throttled.headers.value('retry-after'), isNotNull);
+      expect(jsonDecode(body), containsPair('error', 'too_many_requests'));
+
+      process.kill(ProcessSignal.sigterm);
+      expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 }
