@@ -18,10 +18,11 @@ import 'login_state.dart';
 /// 23.9. Below the width it was drawn at, the page scrolls sideways rather
 /// than overflowing; that is a fallback, not a designed state.
 class LoginPage extends StatefulWidget {
-  /// The base URL this build points at, shown under the form as the artboard
-  /// does. An operator running several deployments needs to see which one this
-  /// window is.
-  final String serverLabel;
+  /// The deployment this window talks to, shown under the form as the
+  /// artboard does — an operator running several needs to see which one this
+  /// is. `null` hides the line rather than leaving a label with nothing after
+  /// it.
+  final String? serverLabel;
 
   /// Set when the user arrives here because a session could not be renewed,
   /// rather than by opening the app. The artboard has its own banner for it.
@@ -150,14 +151,16 @@ class _LoginPageState extends State<LoginPage> {
               // request is in flight, and while a limiter is counting down.
               onPressed: state.canSubmit ? _submit : null,
             ),
-            const SizedBox(height: AdminSpacing.x18),
-            Text(
-              'Сервер: ${widget.serverLabel}',
-              textAlign: TextAlign.center,
-              style: AdminTypography.caption.copyWith(
-                color: colors.textTertiary,
+            if (widget.serverLabel != null) ...[
+              const SizedBox(height: AdminSpacing.x18),
+              Text(
+                'Сервер: ${widget.serverLabel}',
+                textAlign: TextAlign.center,
+                style: AdminTypography.caption.copyWith(
+                  color: colors.textTertiary,
+                ),
               ),
-            ),
+            ],
           ],
         );
       },

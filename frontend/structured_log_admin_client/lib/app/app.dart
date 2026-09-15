@@ -108,11 +108,20 @@ class _AuthGateState extends State<AuthGate> {
     return const _PlaceholderHome();
   }
 
-  /// Host and port only: the scheme is noise on a line whose job is to say
-  /// which deployment this window is pointed at.
-  String get _serverLabel {
-    final baseUrl = widget.scope.resolve<AppConfig>().baseUrl;
-    return Uri.tryParse(baseUrl)?.authority ?? baseUrl;
+  /// Host and port of the deployment this window talks to, or `null` when
+  /// there is nothing worth showing.
+  ///
+  /// The base URL is empty in the bundled deployment — the client is served
+  /// beside the API and addresses it relative to the page — so the page's own
+  /// origin is the honest answer there. Printing "Сервер:" with nothing after
+  /// it, which is what an empty base URL produced before, told the operator
+  /// less than saying nothing.
+  String? get _serverLabel {
+    final configured = widget.scope.resolve<AppConfig>().baseUrl;
+    final authority = configured.isEmpty
+        ? Uri.base.authority
+        : (Uri.tryParse(configured)?.authority ?? configured);
+    return authority.isEmpty ? null : authority;
   }
 }
 

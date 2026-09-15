@@ -34,11 +34,12 @@ const _tokens = FakeReply(
 _buildApp(
   FakeReply Function(RequestOptions options) handler, {
   TokenPair? storedSession,
+  String? baseUrl,
 }) {
   final session = SessionController();
   final storage = InMemoryTokenStorage(storedSession);
   final scope = openAppScope(
-    config: _config,
+    config: baseUrl == null ? _config : AppConfig(baseUrl: baseUrl),
     logger: configureClientLogging(),
     tokenStorage: storage,
     httpAdapter: FakeAdapter(handler),
@@ -249,5 +250,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('logs.example.test'), findsOneWidget);
+  });
+
+  testWidgets('an empty base URL leaves out the server line entirely', (
+    tester,
+  ) async {
+    useArtboardSurface(tester);
+    // What the bundled deployment builds with: the client is served beside the
+    // API and addresses it relative to the page. A label with nothing after it
+    // says less than no label, which is what this pins.
+    final built = _buildApp((_) => _tokens, baseUrl: '');
+
+    await tester.pumpWidget(built.app);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Сервер:'), findsNothing);
   });
 }
