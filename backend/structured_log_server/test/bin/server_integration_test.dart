@@ -791,4 +791,65 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
+
+  test(
+    'the retention purge job runs in the running server',
+    () async {
+      // Third instance of the same hazard: the job is constructed in
+      // bin/server.dart, so unit tests of the scheduler say nothing about
+      // whether the process ever starts one. A pass that deletes nothing
+      // looks identical to a job that was never scheduled, which is why it
+      // reports itself at debug.
+      final dir = Directory.systemTemp.createTempSync('server_purge_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+        '--log-format=json',
+        '--log-level=debug',
+        '--retention-purge-interval-seconds=1',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final lines = <String>[];
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen(lines.add);
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      bool sawPurge() => lines.any((line) =>
+          line.startsWith('{') && line.contains('retention.purge_completed'));
+
+      final deadline = DateTime.now().add(const Duration(seconds: 15));
+      while (!sawPurge()) {
+        if (DateTime.now().isAfter(deadline)) {
+          fail('the purge job never ran; stdout was:\n${lines.join('\n')}');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+
+      process.kill(ProcessSignal.sigterm);
+      expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 }

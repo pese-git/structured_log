@@ -181,6 +181,9 @@ decision 23) — с появлением пакетов другой приро�
 - `lib/src/` — по фиче (`auth/`, `users/`, `projects/`, `logs/`, `live_stream/`, `audit/`, ...), плюс `shared`/`common`-слой для сквозных таблиц хранения (`drift`, раздел 2 `tasks.md`) и HTTP-инфраструктуры (`shelf`/`shelf_router`, раздел 6).
 - `bin/` — CLI entrypoint (`bin/server.dart`, раздел 8 `tasks.md`), пока не создан.
 - Кодогенерация: `drift_dev`/`freezed`/`json_serializable`/`shelf_router_generator` через `build_runner` — `dart run melos run generate` (скоуп `structured_log_server`) или `dart run build_runner build --delete-conflicting-outputs` из директории пакета; `*.g.dart`/`*.freezed.dart` — в `.gitignore` пакета, не коммитятся.
+- Периодическая очистка по `retention_days` (`lib/src/retention/purge_job.dart`)
+  живёт таймером в `bin/server.dart` и останавливается в shutdown до закрытия БД.
+  Удаление — порциями, порция и уменьшение `project_usage` в одной транзакции.
 - Собственная диагностика сервера идёт только через `structured_log`
   (`lib/src/logging/setup.dart`), `print`/`debugPrint`/`dart:developer`
   запрещены и проверяются стражем `test/logging/no_print_test.dart`. Три

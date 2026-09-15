@@ -8,6 +8,7 @@ import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:structured_log_server/src/http/server.dart';
 import 'package:structured_log_server/src/logging/setup.dart';
+import 'package:structured_log_server/src/retention/purge_job.dart';
 import 'package:structured_log_server/src/live/log_broadcast.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 
@@ -158,6 +159,16 @@ Future<void> _runServe(
     logger: log,
   );
 
+  // The periodic retention purge needs a long-running process to live in,
+  // which is precisely why it belongs here and not in the library
+  // (`tasks.md` 7.3). Started before the port opens so a backlog from a
+  // previous run begins clearing immediately.
+  final purge = PurgeScheduler(
+    db,
+    interval: Duration(seconds: config.retentionPurgeIntervalSeconds),
+    logger: log,
+  )..start();
+
   final server =
       await shelf_io.serve(handler, config.httpHost, config.httpPort);
 
@@ -167,13 +178,13 @@ Future<void> _runServe(
   // it outright instead of shutting it down.
   final done = Completer<void>();
   final subscriptions = <StreamSubscription<ProcessSignal>>[
-    ProcessSignal.sigint
-        .watch()
-        .listen((_) => _shutdown(server, db, logBroadcast, logging, done)),
+    ProcessSignal.sigint.watch().listen(
+          (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
+        ),
     if (!Platform.isWindows)
-      ProcessSignal.sigterm
-          .watch()
-          .listen((_) => _shutdown(server, db, logBroadcast, logging, done)),
+      ProcessSignal.sigterm.watch().listen(
+            (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
+          ),
   ];
 
   log.info('server.started', context: {
@@ -195,12 +206,16 @@ Future<void> _shutdown(
   HttpServer server,
   StructuredLogDatabase db,
   LogBroadcast broadcast,
+  PurgeScheduler purge,
   ServerLogging logging,
   Completer<void> done,
 ) async {
   if (done.isCompleted) return;
   logging.logger.info('server.stopping');
   stdout.writeln('Shutting down...');
+  // Before the database closes: a purge pass firing against a closed
+  // connection would be an unhandled error on the way out.
+  purge.stop();
   // Close the broadcast before the server: an open subscription that is
   // still being fed while the socket goes away would keep the process
   // alive on a stream nobody can read.
