@@ -23,16 +23,21 @@ class AdminTag extends StatelessWidget {
     return Container(
       height: AdminSizes.badgeHeight,
       padding: const EdgeInsets.symmetric(horizontal: AdminSpacing.x8),
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: colors.cardBg,
         border: Border.all(color: colors.borderStrong),
         borderRadius: BorderRadius.circular(AdminRadius.control),
       ),
-      child: Text(
-        label,
-        style: AdminTypography.caption.copyWith(
-          color: foreground ?? colors.textSecondary,
+      // `widthFactor: 1` keeps the tag the width of its label. A Container
+      // given `alignment` and no width expands to its constraints instead,
+      // which inside a Wrap or a stretched column means a full-width bar.
+      child: Center(
+        widthFactor: 1,
+        child: Text(
+          label,
+          style: AdminTypography.caption.copyWith(
+            color: foreground ?? colors.textSecondary,
+          ),
         ),
       ),
     );

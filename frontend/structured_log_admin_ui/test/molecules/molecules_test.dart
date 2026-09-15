@@ -163,6 +163,27 @@ void main() {
   });
 
   group('AdminStatusTag', () {
+    testWidgets('hugs its label instead of filling the row', (tester) async {
+      // A Container with `alignment` and no width expands to its constraints;
+      // in a Wrap or a stretched column that turns every status tag into a
+      // full-width bar. Widget tests that only checked the height missed it,
+      // the gallery showed it immediately.
+      await tester.pumpWidget(
+        _host(
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: AdminStatusTag(
+              label: 'Заблокирован',
+              tone: AdminStatusTone.error,
+            ),
+          ),
+        ),
+      );
+      final width = tester.getSize(find.byType(AdminStatusTag)).width;
+      expect(width, lessThan(200));
+      expect(width, greaterThan(AdminSpacing.x8 * 2));
+    });
+
     testWidgets('each tone gets its own pair', (tester) async {
       for (final tone in AdminStatusTone.values) {
         await tester.pumpWidget(

@@ -124,6 +124,19 @@ void main() {
         AdminSizes.badgeHeight,
       );
     });
+
+    testWidgets('hugs its label rather than filling the available width',
+        (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: AdminTag(label: 'owner'),
+          ),
+        ),
+      );
+      expect(tester.getSize(find.byType(AdminTag)).width, lessThan(120));
+    });
   });
 
   group('AdminEmptyState', () {
