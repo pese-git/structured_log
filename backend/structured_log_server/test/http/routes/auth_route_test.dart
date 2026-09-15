@@ -320,4 +320,40 @@ void main() {
       expect((await decode(response))['error'], 'invalid_grant');
     });
   });
+
+  group('a malformed body is refused, not crashed into', () {
+    // Both token endpoints are pre-auth: whatever arrives here is input nobody
+    // controls. Uri.splitQueryString throws on illegal percent encoding, and
+    // an uncaught throw meant 500 plus a stack trace in the server log for
+    // anything a caller felt like sending.
+    test('POST answers 400 invalid_request', () async {
+      final routes = AuthRoutes(
+        _StubTokenService(
+          passwordResult: const Right(_pair),
+          refreshResult: const Right(_pair),
+        ),
+      );
+      final response = await routes.router.call(
+        form('POST', 'grant_type=password&username=a&password=%zz'),
+      );
+
+      expect(response.statusCode, 400);
+      expect(await decode(response), containsPair('error', 'invalid_request'));
+    });
+
+    test('DELETE answers 400 invalid_request', () async {
+      final routes = AuthRoutes(
+        _StubTokenService(
+          passwordResult: const Right(_pair),
+          refreshResult: const Right(_pair),
+        ),
+      );
+      final response = await routes.router.call(
+        form('DELETE', 'refresh_token=%zz'),
+      );
+
+      expect(response.statusCode, 400);
+      expect(await decode(response), containsPair('error', 'invalid_request'));
+    });
+  });
 }

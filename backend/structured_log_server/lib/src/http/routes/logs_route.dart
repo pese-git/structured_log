@@ -13,6 +13,7 @@ import '../../storage/log_store.dart';
 import '../../storage/query.dart';
 import '../json_response.dart';
 import '../log_query_params.dart';
+import '../request_helpers.dart';
 import '../principal_middleware.dart';
 
 part 'logs_route.g.dart';
@@ -80,10 +81,9 @@ class LogRoutes {
       );
     }
 
-    final decoded = raw.isEmpty ? <Object?>[] : jsonDecode(raw);
-    if (decoded is! List) {
-      throw ApiError.invalidRequest('Request body must be a JSON array.');
-    }
+    // Through the helper, so a malformed body is 400 rather than the 500 a
+    // bare jsonDecode produced — this endpoint takes whatever a client sends.
+    final decoded = await readJsonArrayBody(raw);
 
     final usage = await (_db.select(
       _db.projectUsage,

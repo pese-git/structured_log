@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:shelf/shelf.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
+import 'package:structured_log_server/src/auth/principal.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/logs_route.dart';
 import 'package:structured_log_server/src/rbac/authorizer.dart';
@@ -161,6 +162,25 @@ void main() {
       await expectLater(
         routes.router.call(
           ingestRequest(projectId, {'not': 'an array'}),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
+      );
+    });
+
+    test('a body that is not JSON at all is rejected with 400', () async {
+      // Not a variation on the one above: a bare jsonDecode threw
+      // FormatException here, which left the handler as a 500 and a stack
+      // trace in the log for anything a client happened to send.
+      await expectLater(
+        routes.router.call(
+          Request(
+            'POST',
+            Uri.parse('http://x/v1/logs'),
+            body: '{"event": "truncated"',
+            context: {
+              'structured_log_server.principal': ProjectPrincipal(projectId),
+            },
+          ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
       );

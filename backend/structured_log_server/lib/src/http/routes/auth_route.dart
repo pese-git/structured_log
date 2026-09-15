@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../../auth/token_service.dart';
+import '../request_helpers.dart';
 import '../rate_limit_middleware.dart';
 
 part 'auth_route.g.dart';
@@ -67,7 +68,11 @@ class AuthRoutes {
   /// (`log-server-auth`, RFC 6749).
   @Route.post('/v1/auth/token')
   Future<Response> issueToken(Request request) async {
-    final form = Uri.splitQueryString(await request.readAsString());
+    final form = tryParseFormBody(await request.readAsString());
+    if (form == null) {
+      return _rfc6749Error(
+          400, const TokenError(TokenErrorCode.invalidRequest));
+    }
     final grantType = form['grant_type'];
 
     switch (grantType) {
@@ -135,7 +140,11 @@ class AuthRoutes {
   /// regardless of whether it was valid (RFC 7009 §2.2, anti-enumeration).
   @Route.delete('/v1/auth/token')
   Future<Response> revokeToken(Request request) async {
-    final form = Uri.splitQueryString(await request.readAsString());
+    final form = tryParseFormBody(await request.readAsString());
+    if (form == null) {
+      return _rfc6749Error(
+          400, const TokenError(TokenErrorCode.invalidRequest));
+    }
     final refreshToken = form['refresh_token'];
     if (refreshToken == null) {
       return _rfc6749Error(
