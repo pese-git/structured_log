@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:structured_log_server/src/storage/database.dart';
 import 'package:test/test.dart';
 
 /// Runs `bin/server.dart` as a real OS process — `log-server-config`'s
@@ -851,5 +852,132 @@ void main() {
       expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
     },
     timeout: const Timeout(Duration(seconds: 60)),
+  );
+
+  test(
+    'over a real process: create-admin marks the first administrator primary, '
+    'refuses a second one, and the serving process accepts that account',
+    () async {
+      // `createAdmin()` is unit-tested, but nothing there proves the
+      // `create-admin` subcommand reaches it with the resolved config, nor
+      // that the account it writes is one the serving process will then
+      // accept (`tasks.md` 10.9 — the same wiring hazard as the purge job
+      // above).
+      final dir =
+          Directory.systemTemp.createTempSync('create_admin_integration');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final dbPath = '${dir.path}/test.sqlite';
+
+      // The password goes through the environment because it has to: a
+      // secret parameter deliberately has no CLI flag at all
+      // (`config_resolver.dart`), so it can never land in a process listing.
+      Future<ProcessResult> runCreateAdmin(String username, String password) {
+        return Process.run('dart', [
+          'run',
+          'bin/server.dart',
+          'create-admin',
+          '--db-path=$dbPath',
+          '--bootstrap-admin-username=$username',
+        ], environment: {
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': password,
+        });
+      }
+
+      final first = await runCreateAdmin('root', 'chosen-pw');
+      expect(first.exitCode, 0, reason: '${first.stderr}');
+      expect(first.stdout as String, contains('Created administrator "root"'));
+      // A password the operator chose is never echoed back at them — only a
+      // generated one is, and then on stderr as a one-time warning.
+      expect('${first.stdout}${first.stderr}', isNot(contains('chosen-pw')));
+
+      // No second administrator while the first is active: `create-admin` is
+      // a recovery path, not a user-management command (`design.md`
+      // decisions 12/27).
+      final second = await runCreateAdmin('second', 'other-pw');
+      expect(second.exitCode, isNot(0));
+      expect(
+        second.stderr as String,
+        contains('active administrator already exists'),
+      );
+
+      // `is_primary_admin` has no HTTP surface in Stage 1 (`GET /v1/users`
+      // is section 5.1), so the table is the only place it can be read.
+      final db = StructuredLogDatabase.open(dbPath);
+      final users = await db.select(db.users).get();
+      await db.close();
+      expect(users, hasLength(1), reason: 'the refused call wrote nothing');
+      expect(users.single.username, 'root');
+      expect(users.single.isPrimaryAdmin, isTrue);
+      expect(
+        users.single.mustChangePassword,
+        isFalse,
+        reason: 'the operator chose the password themselves',
+      );
+
+      // --- and the serving process accepts that account ------------------
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=$dbPath',
+        '--http-port=$port',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        // Off, so the account under test is the one create-admin wrote and
+        // not one auto-bootstrap produced on the way up.
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen((_) {});
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      final client = HttpClient();
+      addTearDown(client.close);
+
+      final tokenRequest =
+          await client.open('POST', 'localhost', port, '/v1/auth/token');
+      tokenRequest.headers.contentType =
+          ContentType('application', 'x-www-form-urlencoded');
+      tokenRequest
+          .write('grant_type=password&username=root&password=chosen-pw');
+      final tokenResponse = await tokenRequest.close();
+      final tokenBody =
+          jsonDecode(await tokenResponse.transform(utf8.decoder).join())
+              as Map<String, Object?>;
+      expect(tokenResponse.statusCode, 200, reason: '$tokenBody');
+
+      final groupsRequest =
+          await client.open('GET', 'localhost', port, '/v1/groups');
+      groupsRequest.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${tokenBody['access_token']}',
+      );
+      final groupsResponse = await groupsRequest.close();
+      await groupsResponse.drain<void>();
+      expect(
+        groupsResponse.statusCode,
+        200,
+        reason: 'a password the operator chose does not gate the API',
+      );
+
+      process.kill(ProcessSignal.sigterm);
+      expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
   );
 }
