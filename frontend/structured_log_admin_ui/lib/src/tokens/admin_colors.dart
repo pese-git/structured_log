@@ -53,6 +53,16 @@ class AdminColors {
   final Color warnFg;
   final Color warnBg;
 
+  /// The live-feed pill while the subscription is following.
+  ///
+  /// Its own green, not [successFg]/[successBg]: `LogBrowser.dc.html` states
+  /// these inline rather than through the shared `:root` block, and they are
+  /// a step brighter than the status green the rest of the canvas uses.
+  /// Transcribed as drawn — "live" and "active" are not the same claim, and
+  /// flattening them here would decide that for the canvas.
+  final Color liveFg;
+  final Color liveBg;
+
   const AdminColors({
     required this.accent,
     required this.accentDark,
@@ -71,6 +81,8 @@ class AdminColors {
     required this.successBg,
     required this.warnFg,
     required this.warnBg,
+    required this.liveFg,
+    required this.liveBg,
   });
 
   /// Transcribed verbatim from the canvas `:root` block.
@@ -92,6 +104,8 @@ class AdminColors {
     successBg: Color(0xFFDFF6DD),
     warnFg: Color(0xFF9D5D00),
     warnBg: Color(0xFFFFF4CE),
+    liveFg: Color(0xFF16A34A),
+    liveBg: Color(0xFFDAF0E2),
   );
 
   /// Derived, not transcribed — see the class doc. Each role keeps its light
@@ -115,6 +129,8 @@ class AdminColors {
     successBg: Color(0xFF223A22),
     warnFg: Color(0xFFFCE100),
     warnBg: Color(0xFF433519),
+    liveFg: Color(0xFF5CD68A),
+    liveBg: Color(0xFF18331F),
   );
 
   static AdminColors of(Brightness brightness) =>

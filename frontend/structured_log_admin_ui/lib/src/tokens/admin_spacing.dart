@@ -8,6 +8,7 @@ abstract final class AdminSpacing {
   static const double x2 = 2;
   static const double x4 = 4;
   static const double x6 = 6;
+  static const double x7 = 7;
   static const double x8 = 8;
   static const double x10 = 10;
   static const double x12 = 12;

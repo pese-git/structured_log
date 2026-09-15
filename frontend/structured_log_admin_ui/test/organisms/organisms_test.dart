@@ -309,4 +309,86 @@ void main() {
       expect(opened, 1);
     });
   });
+
+  group('AdminFeedStatusStrip', () {
+    testWidgets('the live strip only reports', (tester) async {
+      await tester.pumpWidget(
+        _host(const AdminFeedStatusStrip.live(
+            message: 'Лента в реальном времени')),
+      );
+
+      expect(find.text('Лента в реальном времени'), findsOneWidget);
+      expect(find.byType(AdminButton), findsNothing);
+      expect(find.byType(HyperlinkButton), findsNothing);
+    });
+
+    testWidgets('the unseen strip is itself the way back', (tester) async {
+      var pressed = 0;
+      await tester.pumpWidget(
+        _host(
+          AdminFeedStatusStrip.unseen(
+            message: '12 новых записей · перейти к свежим',
+            onAction: () => pressed++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('12 новых записей · перейти к свежим'));
+      await tester.pumpAndSettle();
+      expect(pressed, 1);
+    });
+
+    testWidgets('a held feed says what is waiting and offers to resume',
+        (tester) async {
+      var resumed = 0;
+      await tester.pumpWidget(
+        _host(
+          AdminFeedStatusStrip.held(
+            message: 'Лента на паузе · накоплено 38 записей',
+            actionLabel: 'Возобновить',
+            onAction: () => resumed++,
+          ),
+        ),
+      );
+
+      expect(
+          find.text('Лента на паузе · накоплено 38 записей'), findsOneWidget);
+      await tester.tap(find.text('Возобновить'));
+      await tester.pumpAndSettle();
+      expect(resumed, 1);
+    });
+
+    testWidgets('a stalled feed explains itself on a second line',
+        (tester) async {
+      await tester.pumpWidget(
+        _host(
+          AdminFeedStatusStrip.stalled(
+            message: 'Пауза длилась слишком долго',
+            description: 'Часть событий не поместилась в буфер.',
+            actionLabel: 'Перезагрузить и продолжить',
+            onAction: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Пауза длилась слишком долго'), findsOneWidget);
+      expect(
+          find.text('Часть событий не поместилась в буфер.'), findsOneWidget);
+      expect(find.text('Перезагрузить и продолжить'), findsOneWidget);
+    });
+
+    testWidgets('the loading strip spins and offers nothing', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const AdminFeedStatusStrip.loadingOlder(
+            message: 'Загружаются более ранние записи…',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(AdminLoadingIndicator), findsOneWidget);
+      expect(find.byType(HyperlinkButton), findsNothing);
+    });
+  });
 }

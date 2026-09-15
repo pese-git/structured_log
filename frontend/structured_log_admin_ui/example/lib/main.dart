@@ -317,6 +317,52 @@ class _GalleryPageState extends State<GalleryPage> {
             ),
           ),
           _Section(
+            title: 'Molecules · AdminLivePill',
+            child: Row(
+              children: const [
+                AdminLivePill(label: 'В реальном времени'),
+                SizedBox(width: AdminSpacing.x10),
+                AdminLivePill(label: 'На паузе', tone: AdminLiveTone.paused),
+              ],
+            ),
+          ),
+          _Section(
+            title: 'Organisms · AdminFeedStatusStrip',
+            child: Column(
+              children: [
+                const AdminFeedStatusStrip.live(
+                  message:
+                      'Лента в реальном времени — новые записи появляются снизу',
+                ),
+                const SizedBox(height: AdminSpacing.x10),
+                AdminFeedStatusStrip.unseen(
+                  message: '12 новых записей · перейти к свежим',
+                  onAction: () {},
+                ),
+                const SizedBox(height: AdminSpacing.x10),
+                AdminFeedStatusStrip.held(
+                  message: 'Лента на паузе · накоплено 38 записей',
+                  actionLabel: 'Возобновить',
+                  onAction: () {},
+                ),
+                const SizedBox(height: AdminSpacing.x10),
+                AdminFeedStatusStrip.stalled(
+                  message: 'Пауза длилась слишком долго',
+                  description:
+                      'Часть событий не поместилась в буфер. Возобновление '
+                      'перезагрузит свежую страницу целиком, а не покажет '
+                      'неполный список.',
+                  actionLabel: 'Перезагрузить и продолжить',
+                  onAction: () {},
+                ),
+                const SizedBox(height: AdminSpacing.x10),
+                const AdminFeedStatusStrip.loadingOlder(
+                  message: 'Загружаются более ранние записи…',
+                ),
+              ],
+            ),
+          ),
+          _Section(
             title: 'Organisms · AdminResourceRow',
             child: Column(
               children: [

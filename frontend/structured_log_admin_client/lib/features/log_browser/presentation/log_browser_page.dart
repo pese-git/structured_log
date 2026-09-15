@@ -4,18 +4,28 @@ import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../shared/api/api_failure.dart';
 import '../domain/log_filter.dart';
-import 'log_browser_cubit.dart';
-import 'log_browser_state.dart';
+import '../domain/log_scope.dart';
 import 'log_entry_detail_pane.dart';
+import 'log_feed_bloc.dart';
+import 'log_feed_event.dart';
+import 'log_feed_state.dart';
 import 'log_level_mapping.dart';
 import 'scope_selector.dart';
 
-/// The log screen, as `LogBrowser.dc.html` draws it: filters across the top,
-/// the feed on the left, one entry in full on the right.
+/// The log screen, as `LogBrowser.dc.html` draws it: the scope and its
+/// filters across the top, the feed on the left, one entry in full on the
+/// right, and a strip under the feed saying what the live subscription is
+/// doing.
 ///
-/// The live subscription is section 22; this is the paged half. The feed is
-/// already in reading order — oldest at the top — so the live edge will be
-/// the bottom of the same list.
+/// The list is **reversed**, which is the one structural decision worth
+/// knowing before reading the rest. Index 0 is the bottom — the newest entry —
+/// so the live edge is offset 0 and the oldest entry held is at
+/// `maxScrollExtent`. Everything the feed has to do falls out of that: an
+/// entry appended while the reader is up in the history does not move the
+/// viewport, an older page prepended at the far end does not move it either,
+/// and returning to the live edge is a scroll to zero. A forward list would
+/// need the scroll offset corrected by hand after every insertion, which is
+/// where "the list jumped" bugs come from.
 class LogBrowserPage extends StatefulWidget {
   const LogBrowserPage({super.key});
 
@@ -27,11 +37,19 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
   final _search = TextEditingController();
   final _scroll = ScrollController();
 
+  /// How close to either end counts as being there. One row's height, so the
+  /// live edge is reached by scrolling to it rather than exactly onto it.
+  static const _edgeSlack = 48.0;
+
+  /// The last thing reported to the bloc, so a scroll gesture raises one event
+  /// at its boundary instead of one per frame.
+  bool? _atLiveEdge;
+
   @override
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    context.read<LogBrowserCubit>().start();
+    context.read<LogFeedBloc>().add(const LogFeedEvent.started());
   }
 
   @override
@@ -43,18 +61,53 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
     super.dispose();
   }
 
-  /// Older entries are fetched at the **top** — the feed reads as a history,
-  /// so scrolling up goes back in time.
   void _onScroll() {
-    if (_scroll.position.pixels > 200) return;
-    context.read<LogBrowserCubit>().loadMore();
+    if (!_scroll.hasClients) return;
+    final position = _scroll.position;
+    final bloc = context.read<LogFeedBloc>();
+
+    // Reversed list: the far end is the oldest entry held, so reaching it is
+    // the request for the page before it.
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      bloc.add(const LogFeedEvent.olderRequested());
+    }
+
+    final atEdge = position.pixels <= _edgeSlack;
+    if (atEdge == _atLiveEdge) return;
+    _atLiveEdge = atEdge;
+    bloc.add(
+      atEdge
+          ? const LogFeedEvent.scrolledToBottom()
+          : const LogFeedEvent.scrolledAwayFromBottom(),
+    );
+  }
+
+  void _toLiveEdge() {
+    if (!_scroll.hasClients) return;
+    _scroll.animateTo(
+      0,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
-    return BlocBuilder<LogBrowserCubit, LogBrowserState>(
+    return BlocConsumer<LogFeedBloc, LogFeedState>(
+      // Following the live edge means staying at offset 0 as entries arrive.
+      // Usually the reversed list keeps it there on its own; this covers the
+      // case where it does not — a row taller than the viewport's remainder,
+      // or an entry that landed while the list was settling.
+      listenWhen: (before, after) =>
+          after.mode is FeedFollowing &&
+          after.entries.length > before.entries.length,
+      listener: (context, state) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _toLiveEdge();
+        });
+      },
       builder: (context, state) {
         if (state.loadingOptions) {
           return const Center(child: AdminLoadingIndicator());
@@ -69,17 +122,29 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
           );
         }
 
-        if (!state.hasScope) {
+        final scope = state.scope;
+        if (scope == null) {
           return ScopeSelector(
             options: options,
-            selected: state.scope,
-            onSelected: context.read<LogBrowserCubit>().selectScope,
+            selected: null,
+            onSelected: (picked) => context.read<LogFeedBloc>().add(
+              LogFeedEvent.scopeSelected(picked),
+            ),
           );
         }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AdminSpacing.x24,
+                AdminSpacing.x18,
+                AdminSpacing.x24,
+                AdminSpacing.x12,
+              ),
+              child: _Header(scope: scope),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AdminSpacing.x24),
               child: _FilterBar(state: state, search: _search),
@@ -94,7 +159,11 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
                   children: [
                     SizedBox(
                       width: AdminSizes.masterListWidth,
-                      child: _Feed(state: state, controller: _scroll),
+                      child: _Feed(
+                        state: state,
+                        controller: _scroll,
+                        onToLiveEdge: _toLiveEdge,
+                      ),
                     ),
                     Container(width: 1, color: colors.border),
                     Expanded(child: _Detail(state: state)),
@@ -108,7 +177,7 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
     );
   }
 
-  static String _failureText(LogBrowserState state) {
+  static String _failureText(LogFeedState state) {
     return switch (state.failure) {
       null => 'Попробуйте обновить страницу.',
       ForbiddenFailure() => 'Нет доступа к этой области.',
@@ -118,53 +187,106 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
   }
 }
 
+/// Title, the scope being read, and the way back to the selector.
+class _Header extends StatelessWidget {
+  final LogScope scope;
+
+  const _Header({required this.scope});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    final label = switch (scope) {
+      ProjectScope(:final name) => 'Проект: $name',
+      GroupScope(:final name) => 'Группа: $name',
+    };
+
+    return Row(
+      children: [
+        Text(
+          'Логи',
+          style: AdminTypography.pageTitle.copyWith(color: colors.text),
+        ),
+        const SizedBox(width: AdminSpacing.x24),
+        Container(
+          height: AdminSizes.controlHeight,
+          padding: const EdgeInsets.symmetric(horizontal: AdminSpacing.x10),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: colors.accentTint,
+            borderRadius: BorderRadius.circular(AdminRadius.control),
+          ),
+          child: Text(
+            label,
+            style: AdminTypography.label.copyWith(
+              color: colors.accentDark,
+              fontSize: 13,
+            ),
+          ),
+        ),
+        const SizedBox(width: AdminSpacing.x10),
+        AdminButton(
+          label: 'Изменить область',
+          onPressed: () => context.read<LogFeedBloc>().add(
+            const LogFeedEvent.scopeCleared(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _FilterBar extends StatelessWidget {
-  final LogBrowserState state;
+  final LogFeedState state;
   final TextEditingController search;
 
   const _FilterBar({required this.state, required this.search});
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<LogBrowserCubit>();
+    final bloc = context.read<LogFeedBloc>();
     final filter = state.filter;
+    void apply(LogFilter next) => bloc.add(LogFeedEvent.filterChanged(next));
+
+    final paused = state.mode.isPaused;
 
     return AdminFilterBar(
       leading: AdminSearchField(
         controller: search,
         placeholder: 'Поиск по событию',
         // Applied on submit rather than on every keystroke: each change is a
-        // full query, and the server's `q` runs as a LIKE over stored JSON.
+        // full query plus a new subscription, and the server's `q` runs as a
+        // LIKE over stored JSON.
         onChanged: (_) {},
-        onCleared: () => cubit.applyFilter(filter.copyWith(search: null)),
+        onCleared: () => apply(filter.copyWith(search: null)),
       ),
       filters: [
         AdminFilterChip(
           value: _levelLabel(filter.minLevel),
           hasMenu: true,
           selected: filter.minLevel != null,
-          onPressed: () => _pickLevel(context, cubit, filter),
+          onPressed: () => _pickLevel(bloc, filter),
         ),
         if (filter.category != null)
           AdminFilterChip(
             label: 'Категория',
             value: filter.category!,
             selected: true,
-            onCleared: () => cubit.applyFilter(filter.copyWith(category: null)),
+            onCleared: () => apply(filter.copyWith(category: null)),
           ),
         if (filter.logger != null)
           AdminFilterChip(
             label: 'Logger',
             value: filter.logger!,
             selected: true,
-            onCleared: () => cubit.applyFilter(filter.copyWith(logger: null)),
+            onCleared: () => apply(filter.copyWith(logger: null)),
           ),
         for (final entry in filter.context.entries)
           AdminFilterChip(
             label: entry.key,
             value: entry.value,
             selected: true,
-            onCleared: () => cubit.applyFilter(
+            onCleared: () => apply(
               filter.copyWith(context: {...filter.context}..remove(entry.key)),
             ),
           ),
@@ -173,7 +295,7 @@ class _FilterBar extends StatelessWidget {
         AdminButton(
           label: 'Найти',
           variant: AdminButtonVariant.accent,
-          onPressed: () => cubit.applyFilter(
+          onPressed: () => apply(
             filter.copyWith(search: search.text.isEmpty ? null : search.text),
           ),
         ),
@@ -182,13 +304,20 @@ class _FilterBar extends StatelessWidget {
             label: 'Сбросить',
             onPressed: () {
               search.clear();
-              cubit.clearFilter();
+              apply(const LogFilter());
             },
           ),
+        AdminLivePill(
+          label: paused ? 'На паузе' : 'В реальном времени',
+          tone: paused ? AdminLiveTone.paused : AdminLiveTone.live,
+        ),
         AdminButton(
-          label: 'Сменить область',
-          onPressed: () => cubit.select(null),
-          icon: FluentIcons.switch_widget,
+          label: paused ? 'Возобновить' : 'Пауза',
+          onPressed: () => bloc.add(
+            paused
+                ? const LogFeedEvent.resumeRequested()
+                : const LogFeedEvent.pauseRequested(),
+          ),
         ),
       ],
     );
@@ -207,28 +336,29 @@ class _FilterBar extends StatelessWidget {
     };
   }
 
-  void _pickLevel(
-    BuildContext context,
-    LogBrowserCubit cubit,
-    LogFilter filter,
-  ) {
+  void _pickLevel(LogFeedBloc bloc, LogFilter filter) {
     // The level is a floor, not an equality: `warning` also returns errors
     // and criticals, which is what the labels say.
     const levels = [null, 'debug', 'info', 'warning', 'error', 'critical'];
     final next = levels[(levels.indexOf(filter.minLevel) + 1) % levels.length];
-    cubit.applyFilter(filter.copyWith(minLevel: next));
+    bloc.add(LogFeedEvent.filterChanged(filter.copyWith(minLevel: next)));
   }
 }
 
 class _Feed extends StatelessWidget {
-  final LogBrowserState state;
+  final LogFeedState state;
   final ScrollController controller;
+  final VoidCallback onToLiveEdge;
 
-  const _Feed({required this.state, required this.controller});
+  const _Feed({
+    required this.state,
+    required this.controller,
+    required this.onToLiveEdge,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<LogBrowserCubit>();
+    final bloc = context.read<LogFeedBloc>();
 
     if (state.loading) {
       return const Center(child: AdminLoadingIndicator());
@@ -249,27 +379,29 @@ class _Feed extends StatelessWidget {
     return Column(
       children: [
         if (state.loadingMore)
-          const Padding(
-            padding: EdgeInsets.all(AdminSpacing.x8),
-            child: AdminLoadingIndicator(inline: true),
+          const AdminFeedStatusStrip.loadingOlder(
+            message: 'Загружаются более ранние записи…',
           ),
         Expanded(
           child: ListView.builder(
             controller: controller,
+            // Index 0 is the bottom of the viewport — see the class doc.
+            reverse: true,
             itemCount: state.entries.length,
             itemBuilder: (context, index) {
-              final entry = state.entries[index];
+              final entry = state.entries[state.entries.length - 1 - index];
               return AdminLogEntryRow(
                 level: logLevelOf(entry.level),
                 time: _time(entry.receivedAt),
                 event: entry.event,
                 category: entry.category,
                 selected: state.selectedEntryId == entry.id,
-                onPressed: () => cubit.select(entry.id),
+                onPressed: () => bloc.add(LogFeedEvent.entrySelected(entry.id)),
               );
             },
           ),
         ),
+        _FeedStatus(state: state, onToLiveEdge: onToLiveEdge),
       ],
     );
   }
@@ -283,8 +415,96 @@ class _Feed extends StatelessWidget {
   }
 }
 
+/// The one strip under the feed. Which of the five it is, is the whole of
+/// what the live half has to report.
+class _FeedStatus extends StatelessWidget {
+  final LogFeedState state;
+  final VoidCallback onToLiveEdge;
+
+  const _FeedStatus({required this.state, required this.onToLiveEdge});
+
+  @override
+  Widget build(BuildContext context) {
+    final bloc = context.read<LogFeedBloc>();
+
+    // A subscription the server closed for good outranks the mode: the feed
+    // is not following anything, whatever the reader last asked for.
+    final ended = state.liveEndReason;
+    if (ended != null) {
+      return AdminFeedStatusStrip.stalled(
+        message: 'Живая трансляция остановлена',
+        description: ended == 'project_blocked'
+            ? 'Проект заблокирован — новые записи по нему больше не приходят. '
+                  'Показанное ниже осталось от последней загрузки.'
+            : 'Сервер закрыл подписку ($ended). Список ниже остался от '
+                  'последней загрузки.',
+        actionLabel: 'Перезагрузить и продолжить',
+        onAction: () => bloc.add(const LogFeedEvent.reloadRequested()),
+      );
+    }
+
+    return switch (state.mode) {
+      FeedFollowing() => const AdminFeedStatusStrip.live(
+        message: 'Лента в реальном времени — новые записи появляются снизу',
+      ),
+      FeedScrolledUp(:final unseen) when unseen > 0 =>
+        AdminFeedStatusStrip.unseen(
+          message: '$unseen ${_newEntries(unseen)} · перейти к свежим',
+          onAction: () {
+            onToLiveEdge();
+            bloc.add(const LogFeedEvent.scrolledToBottom());
+          },
+        ),
+      FeedScrolledUp() => const AdminFeedStatusStrip.live(
+        message: 'Лента в реальном времени — новые записи появляются снизу',
+      ),
+      FeedPaused(overflowed: true) => AdminFeedStatusStrip.stalled(
+        message: 'Пауза длилась слишком долго',
+        description:
+            'Часть событий не поместилась в буфер. Возобновление перезагрузит '
+            'свежую страницу целиком, а не покажет неполный список.',
+        actionLabel: 'Перезагрузить и продолжить',
+        onAction: () => bloc.add(const LogFeedEvent.resumeRequested()),
+      ),
+      FeedPaused(:final buffered) => AdminFeedStatusStrip.held(
+        message: 'Лента на паузе · накоплено $buffered ${_entries(buffered)}',
+        actionLabel: 'Возобновить',
+        onAction: () {
+          bloc.add(const LogFeedEvent.resumeRequested());
+          onToLiveEdge();
+        },
+      ),
+    };
+  }
+
+  /// Russian needs three forms: "12 новых записей" reads wrong for 1 and
+  /// for 22, and the canvas shows the count in both strips.
+  static String _newEntries(int count) => switch (_form(count)) {
+    _Plural.one => 'новая запись',
+    _Plural.few => 'новые записи',
+    _Plural.many => 'новых записей',
+  };
+
+  static String _entries(int count) => switch (_form(count)) {
+    _Plural.one => 'запись',
+    _Plural.few => 'записи',
+    _Plural.many => 'записей',
+  };
+
+  static _Plural _form(int count) {
+    final lastTwo = count % 100;
+    final last = count % 10;
+    if (lastTwo >= 11 && lastTwo <= 14) return _Plural.many;
+    if (last == 1) return _Plural.one;
+    if (last >= 2 && last <= 4) return _Plural.few;
+    return _Plural.many;
+  }
+}
+
+enum _Plural { one, few, many }
+
 class _Detail extends StatelessWidget {
-  final LogBrowserState state;
+  final LogFeedState state;
 
   const _Detail({required this.state});
 
@@ -302,7 +522,9 @@ class _Detail extends StatelessWidget {
     }
     return LogEntryDetailPane(
       entry: entry,
-      onClose: () => context.read<LogBrowserCubit>().select(null),
+      onClose: () => context.read<LogFeedBloc>().add(
+        const LogFeedEvent.entrySelected(null),
+      ),
     );
   }
 }

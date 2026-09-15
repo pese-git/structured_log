@@ -345,4 +345,45 @@ void main() {
       expect(find.text('Отправить ещё раз'), findsOneWidget);
     });
   });
+
+  group('AdminLivePill', () {
+    testWidgets('says which state the feed is in', (tester) async {
+      await tester.pumpWidget(
+        _host(const AdminLivePill(label: 'В реальном времени')),
+      );
+      expect(find.text('В реальном времени'), findsOneWidget);
+
+      await tester.pumpWidget(
+        _host(
+          const AdminLivePill(
+            label: 'На паузе',
+            tone: AdminLiveTone.paused,
+          ),
+        ),
+      );
+      expect(find.text('На паузе'), findsOneWidget);
+    });
+
+    testWidgets('the two tones do not share a colour', (tester) async {
+      Color dotOf(WidgetTester tester) {
+        final dot = tester.widget<Container>(
+          find.descendant(
+            of: find.byType(AdminLiveDot),
+            matching: find.byType(Container),
+          ),
+        );
+        return (dot.decoration! as BoxDecoration).color!;
+      }
+
+      await tester.pumpWidget(_host(const AdminLivePill(label: 'Живая')));
+      final live = dotOf(tester);
+
+      await tester.pumpWidget(
+        _host(
+          const AdminLivePill(label: 'Пауза', tone: AdminLiveTone.paused),
+        ),
+      );
+      expect(dotOf(tester), isNot(live));
+    });
+  });
 }

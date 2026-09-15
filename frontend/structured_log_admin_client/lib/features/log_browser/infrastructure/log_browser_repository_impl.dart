@@ -5,14 +5,21 @@ import '../../../shared/api/api_client.dart';
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/failure_mapper.dart';
 import '../../../shared/api/logs_api.dart';
+import '../domain/live_feed_event.dart';
 import '../domain/log_browser_repository.dart';
 import '../domain/log_filter.dart';
 import '../domain/log_scope.dart';
+import 'log_stream_client.dart';
 
 class LogBrowserRepositoryImpl implements LogBrowserRepository {
   final ApiClient _api;
 
-  const LogBrowserRepositoryImpl(this._api);
+  /// The live half. Separate from [ApiClient] because it is the one endpoint
+  /// written by hand rather than generated (design.md decision 37), even
+  /// though it runs on the same `Dio` instance.
+  final LogStreamClient _stream;
+
+  const LogBrowserRepositoryImpl(this._api, this._stream);
 
   @override
   Future<Either<ApiFailure, ScopeOptions>> loadScopes() async {
@@ -85,5 +92,14 @@ class LogBrowserRepositoryImpl implements LogBrowserRepository {
     } on DioException catch (error) {
       return left(mapDioException(error));
     }
+  }
+
+  @override
+  Stream<LiveFeedEvent> watch({
+    required LogScope scope,
+    required LogFilter filter,
+    int? sinceId,
+  }) {
+    return _stream.connect(scope: scope, filter: filter, sinceId: sinceId);
   }
 }

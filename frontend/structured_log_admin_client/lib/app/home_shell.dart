@@ -5,7 +5,7 @@ import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../features/auth/application/sign_out.dart';
 import '../features/log_browser/di/log_browser_module.dart';
-import '../features/log_browser/presentation/log_browser_cubit.dart';
+import '../features/log_browser/presentation/log_feed_bloc.dart';
 import '../features/log_browser/presentation/log_browser_page.dart';
 import '../shared/auth/session_controller.dart';
 
@@ -52,7 +52,7 @@ class _HomeShellState extends State<HomeShell> {
         ),
       ],
       content: BlocProvider(
-        create: (_) => _logScope.resolve<LogBrowserCubit>(),
+        create: (_) => _logScope.resolve<LogFeedBloc>(),
         child: const LogBrowserPage(),
       ),
     );

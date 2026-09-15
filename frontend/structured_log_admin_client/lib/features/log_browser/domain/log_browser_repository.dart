@@ -2,6 +2,7 @@ import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/log_dto.dart';
+import 'live_feed_event.dart';
 import 'log_filter.dart';
 import 'log_scope.dart';
 
@@ -23,5 +24,21 @@ abstract interface class LogBrowserRepository {
     required LogFilter filter,
     String? cursor,
     int limit,
+  });
+
+  /// Entries accepted from now on, in the same scope and with the same filter
+  /// as [query] — the subscription behind the chat-history feed
+  /// (`specs/admin-client-log-browser`).
+  ///
+  /// [sinceId] is the newest entry already held, so the server replays the
+  /// gap between that page and this subscription rather than leaving a hole.
+  ///
+  /// Not an `Either`: a live subscription has outcomes over time, not one
+  /// outcome, so its refusals travel as [LiveFeedFailed] inside the stream
+  /// and the stream itself never errors.
+  Stream<LiveFeedEvent> watch({
+    required LogScope scope,
+    required LogFilter filter,
+    int? sinceId,
   });
 }
