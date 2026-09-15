@@ -571,4 +571,62 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );
+
+  test(
+    'a console that stops reading does not turn a clean shutdown into a crash',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('server_pipe_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SIGNING_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final stderrLines = <String>[];
+      process.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen(stderrLines.add);
+
+      // `firstWhere` cancels its subscription once it matches, which closes
+      // the read end of the pipe — the same thing `| head` does, or a
+      // supervisor that exits while the server keeps running. The server
+      // then writes "Shutting down..." into a pipe nobody holds.
+      await process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      process.kill(ProcessSignal.sigterm);
+      final exitCode =
+          await process.exitCode.timeout(const Duration(seconds: 10));
+
+      // Without the guard in bin/server.dart this is 255: the broken pipe
+      // arrives as an unhandled error in the root zone, where neither a
+      // try/catch nor a guarded zone can intercept it.
+      expect(exitCode, 0, reason: stderrLines.join('\n'));
+      expect(
+        stderrLines.join('\n'),
+        isNot(contains('Unhandled exception')),
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
 }

@@ -12,7 +12,25 @@ import 'package:structured_log_server/src/storage/database.dart';
 
 const _version = '0.1.0-dev.0';
 
+/// Stops a vanished console from killing the process.
+///
+/// Whoever reads this process's output can go away while it is still
+/// running — `| head`, a supervisor that exited, a parent that stopped
+/// reading the pipe. The next write then fails with a broken pipe, and
+/// `dart:io` dispatches that failure through the **root** zone, so neither
+/// a `try`/`catch` around the write nor a `runZonedGuarded` around `main`
+/// ever sees it: it surfaces as an unhandled exception and exit code 255.
+/// An otherwise clean shutdown reporting failure is worse than losing a
+/// line of console output, and attaching a handler to the sink's `done`
+/// future is what actually marks the error handled.
+void _tolerateAClosedConsole() {
+  stdout.done.catchError((Object _) {});
+  stderr.done.catchError((Object _) {});
+}
+
 Future<void> main(List<String> arguments) async {
+  _tolerateAClosedConsole();
+
   final String command;
   final List<String> configArgs;
   if (arguments.isNotEmpty && !arguments.first.startsWith('-')) {
@@ -121,8 +139,11 @@ Future<void> _runServe(ServerConfig config) async {
 
   final server =
       await shelf_io.serve(handler, config.httpHost, config.httpPort);
-  stdout.writeln('Listening on http://${server.address.host}:${server.port}');
 
+  // Signal handlers before the readiness line, not after: that line is what
+  // a supervisor waits for before considering the process up, and until the
+  // handlers are installed a SIGTERM takes the default disposition and kills
+  // it outright instead of shutting it down.
   final done = Completer<void>();
   final subscriptions = <StreamSubscription<ProcessSignal>>[
     ProcessSignal.sigint
@@ -133,6 +154,8 @@ Future<void> _runServe(ServerConfig config) async {
           .watch()
           .listen((_) => _shutdown(server, db, logBroadcast, done)),
   ];
+
+  stdout.writeln('Listening on http://${server.address.host}:${server.port}');
 
   await done.future;
   for (final subscription in subscriptions) {
