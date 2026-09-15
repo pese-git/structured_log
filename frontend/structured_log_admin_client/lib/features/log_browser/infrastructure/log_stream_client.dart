@@ -224,11 +224,17 @@ class LogStreamClient {
   /// (`specs/admin-client-auth`). If the refresh fails too, the session ends
   /// there rather than here.
   ///
+  /// `server_shutdown` is too: the server is being restarted, which is what a
+  /// deploy looks like from here, and the feed should pick up again on its own
+  /// once it is back rather than make the reader reload the page.
+  ///
   /// Anything unrecognised is treated as final. A reason this client does not
   /// know is a reason it cannot claim to have handled, and a feed that stops
   /// visibly is better than one that reconnects forever.
   static bool _resolvableByReconnect(String reason) =>
-      reason == 'token_revoked' || reason == 'server_error';
+      reason == 'token_revoked' ||
+      reason == 'server_error' ||
+      reason == 'server_shutdown';
 
   static String _reasonOf(String data) {
     try {

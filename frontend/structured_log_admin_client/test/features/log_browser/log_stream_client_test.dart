@@ -239,6 +239,21 @@ void main() {
       await subscription.cancel();
     });
 
+    test('a server being restarted is waited out, not surfaced', () async {
+      final events = <LiveFeedEvent>[];
+      final subscription = connect().listen(events.add);
+      await connections(1);
+
+      // What a deploy looks like from here: the server ends every open
+      // subscription on its way down (`log_stream_route.dart`).
+      adapter.connections.first.end('server_shutdown');
+      await connections(2);
+
+      expect(events, isEmpty);
+
+      await subscription.cancel();
+    });
+
     test('a blocked project ends the subscription for good', () async {
       final events = <LiveFeedEvent>[];
       var done = false;

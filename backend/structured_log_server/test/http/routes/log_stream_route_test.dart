@@ -354,6 +354,31 @@ void main() {
     });
   });
 
+  group('shutting down', () {
+    test('closing the broadcast ends every open subscription', () async {
+      final reader = await open('project_id=$projectId');
+
+      // What `bin/server.dart` does first on SIGTERM. Until this ended the
+      // response, `HttpServer.close(force: false)` waited for a connection
+      // that never finishes, and the process sat on the signal until
+      // something killed it.
+      await broadcast.close();
+      await reader.waitFor(
+        () => reader.frames.any((frame) => frame.event == 'end'),
+      );
+
+      final terminal = reader.frames.last;
+      expect(terminal.event, 'end');
+      expect(
+        jsonDecode(terminal.data),
+        {'reason': 'server_shutdown'},
+        reason: 'a subscriber is told why, rather than left with a socket '
+            'that stopped answering — and the reason says it is worth '
+            'reconnecting once the server is back',
+      );
+    });
+  });
+
   group('filtering', () {
     test('an entry below the level filter is not delivered', () async {
       final reader = await open('project_id=$projectId&level=warning');

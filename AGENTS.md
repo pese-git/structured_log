@@ -73,7 +73,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 В `frontend/` два пакета — `structured_log_admin_ui` (раздел 23, реализован, кроме адаптивности —
 23.9) и `structured_log_admin_client` (разделы 11/12/13/14/22/27 — слой данных, вход, принудительная
 и добровольная смена пароля, группы/проекты/секретные ключи, просмотр и поиск логов, живая лента;
-из Этапа 1 остались 30.3–30.5). `packages/` пока пуст.
+из Этапа 1 остались 30.3–30.5). В `packages/` — `structured_log_e2e` (сквозные тесты, см. ниже).
 
 `structured_log_material`/`structured_log_fluent`/`structured_log_cupertino` фактически ещё не
 опубликованы (нет `CHANGELOG.md` — публикация требует прогнать `melos version` первым, см.
@@ -102,7 +102,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
-- `packages/` — директории ещё нет; резерв под пакеты вне категорий `emb`/`backend`/`frontend`.
+- [packages/e2e/](packages/e2e/) — `structured_log_e2e`, сквозные тесты через всю систему (см. ниже).
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
   только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
@@ -301,6 +301,21 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `test/logging/diagnostics_isolation_test.dart`).
 - HTTP-слой: ограничение частоты (`rate_limit_middleware.dart`) стоит в `Pipeline` **до** аутентификации — отклонённый по адресу запрос не должен стоить серверу даже разбора тела; субъектная половина ограничителя вызывается из хендлера (`request.rateLimitAttempt`), потому что субъект известен только ему. Аутентификация — один резолвящий middleware в общем `Pipeline` (`principal_middleware.dart`), а не обёртка на маршруте; хендлер объявляет требуемого принципала сам (`request.requireUser()`/`requireProject()`), и это обязано быть первой строкой — до парсинга path-параметров и любого обращения к БД, иначе 404 о несуществующей строке утекает неаутентифицированному вызывающему. Маршруты задаются аннотациями `@Route.<verb>` на методах классов `*Routes` и собираются `shelf_router_generator`; `buildHandler` только монтирует сгенерированные роутеры. Новый маршрут обязан появиться в таблице `test/http/route_auth_matrix_test.dart` — иначе тест падает.
 - `publish_to: none` — самостоятельный сервис, а не библиотека для `pub.dev`.
+
+Внутри [packages/e2e/](packages/e2e/):
+
+- `structured_log_e2e` (`publish_to: none`) — поднимает `bin/server.dart` **настоящим процессом** и
+  гоняет через него всю цепочку: `structured_log` → `HttpLogOutput` → сервер → `ApiClient` и
+  репозитории admin-клиента → SSE. Существует потому, что все остальные наборы останавливаются на
+  шве: серверные тесты собирают хендлер, клиентские отвечают подставным адаптером, тесты отправщика
+  говорят с заглушкой — а оба дефекта 15.09.2026 жили ровно в швах.
+- Flutter-пакет (`flutter test`), не Dart: импортирует admin-клиент, а тот — Flutter-пакет.
+- `dependency_overrides` с путями прописаны **в самом `pubspec.yaml`**, а не оставлены
+  `melos bootstrap`: CI идёт без melos, а hosted-`structured_log` тянул бы опубликованную версию.
+- В `melos.yaml` заведён отдельный скрипт `test:e2e` — в общий `test` набор не входит: каждый файл
+  платит за `dart run` сервера и требует сгенерированного кода сервера и клиента.
+- **Браузерный слой не покрыт** (решение пользователя 15.09.2026). Класс «на web ведёт себя иначе» —
+  как неумение dio стримить — этими тестами не ловится.
 
 Внутри [deploy/](deploy/):
 

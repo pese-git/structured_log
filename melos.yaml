@@ -14,6 +14,7 @@ packages:
   - frontend/structured_log_admin_ui
   - frontend/structured_log_admin_ui/example
   - frontend/structured_log_admin_client
+  - packages/e2e
 
 command:
   bootstrap:
@@ -64,6 +65,16 @@ scripts:
         "structured_log_admin_client",
       ]
     description: Run tests for Flutter packages
+
+  test:e2e:
+    exec: flutter test
+    packageFilters:
+      scope: ["structured_log_e2e"]
+    description: >-
+      Run the end-to-end suite. Not part of `test`: every case starts
+      bin/server.dart as a real process, which costs a `dart run` compile,
+      and it needs the server's generated code to exist first
+      (`melos run generate`).
 
   test:coverage:
     exec: dart test --coverage=coverage

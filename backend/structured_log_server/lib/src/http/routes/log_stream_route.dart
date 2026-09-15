@@ -124,16 +124,25 @@ class LogStreamRoutes {
       onCancel: stop,
     );
 
-    upstream = _broadcast.stream.listen((entry) {
-      if (buffering) {
-        buffered.add(entry);
-        return;
-      }
-      // Fire-and-forget: deliver awaits a point lookup, and the broadcast
-      // stream has no back-pressure to apply anyway. Ordering is preserved
-      // by the id check inside deliver, not by the await.
-      unawaited(deliver(entry));
-    });
+    upstream = _broadcast.stream.listen(
+      (entry) {
+        if (buffering) {
+          buffered.add(entry);
+          return;
+        }
+        // Fire-and-forget: deliver awaits a point lookup, and the broadcast
+        // stream has no back-pressure to apply anyway. Ordering is preserved
+        // by the id check inside deliver, not by the await.
+        unawaited(deliver(entry));
+      },
+      // The broadcast closes when the process is shutting down, and this is
+      // what lets it. `shelf_io`'s graceful close waits for active
+      // connections to finish, and a subscription never finishes on its own:
+      // without ending the body here the server sits on SIGTERM until
+      // something kills it — which for `docker stop` means ten seconds and
+      // then SIGKILL, on a SQLite database mid-write.
+      onDone: () => unawaited(end('server_shutdown')),
+    );
 
     // Catch-up, then hand the buffer over. Anything already replayed is
     // dropped by id, so a batch that was both read back and broadcast is
