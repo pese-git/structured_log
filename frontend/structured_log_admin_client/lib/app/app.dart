@@ -3,9 +3,13 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../features/auth/application/change_password.dart';
 import '../features/auth/application/restore_session.dart';
 import '../features/auth/application/sign_in.dart';
+import '../features/auth/application/sign_out.dart';
 import '../features/auth/di/auth_module.dart';
+import '../features/auth/presentation/change_password_cubit.dart';
+import '../features/auth/presentation/force_password_change_page.dart';
 import '../features/auth/presentation/login_cubit.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/auth/presentation/login_state.dart';
@@ -106,7 +110,28 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
+    // The gate outranks everything behind it: while it holds, the server
+    // answers 403 to every other endpoint, so there is no screen to show
+    // (`specs/admin-client-auth`).
+    if (widget.session.mustChangePassword) {
+      return BlocProvider(
+        create: (_) => ChangePasswordCubit(
+          changePassword: _authScope.resolve<ChangePassword>(),
+          currentUsername: _authScope.resolve<CurrentUsername>(),
+        ),
+        child: ForcePasswordChangePage(
+          onChanged: widget.session.passwordChanged,
+          onSignOut: _signOut,
+        ),
+      );
+    }
+
     return HomeShell(scope: widget.scope, session: widget.session);
+  }
+
+  Future<void> _signOut() async {
+    await _authScope.resolve<SignOut>()();
+    widget.session.signedOutNow();
   }
 
   /// Host and port of the deployment this window talks to, or `null` when

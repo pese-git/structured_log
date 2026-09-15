@@ -36,6 +36,7 @@ void main() {
     config: const AppConfig(baseUrl: _baseUrl),
     logger: log,
     onSessionExpired: session.expire,
+    onPasswordChangeRequired: session.passwordChangeRequired,
   );
 
   runApp(AdminApp(scope: scope, session: session));

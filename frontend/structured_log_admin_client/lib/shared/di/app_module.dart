@@ -41,12 +41,18 @@ class AppModule extends Module {
   /// any navigation dependency.
   final void Function()? onSessionExpired;
 
+  /// Raised when the server refuses everything until the password is changed.
+  /// Passed in for the same reason as [onSessionExpired]: the interceptor has
+  /// no widget tree to reach into.
+  final void Function()? onPasswordChangeRequired;
+
   AppModule({
     required this.config,
     required this.logger,
     this.tokenStorageOverride,
     this.httpAdapter,
     this.onSessionExpired,
+    this.onPasswordChangeRequired,
   });
 
   @override
@@ -69,6 +75,7 @@ class AppModule extends Module {
             config: currentScope.resolve<AppConfig>(),
             storage: currentScope.resolve<TokenStorage>(),
             onSessionExpired: onSessionExpired,
+            onPasswordChangeRequired: onPasswordChangeRequired,
             adapter: httpAdapter,
           ),
         )
@@ -86,6 +93,7 @@ Scope openAppScope({
   TokenStorage? tokenStorage,
   HttpClientAdapter? httpAdapter,
   void Function()? onSessionExpired,
+  void Function()? onPasswordChangeRequired,
 }) {
   final scope = CherryPick.openRootScope();
   scope.installModules([
@@ -95,6 +103,7 @@ Scope openAppScope({
       tokenStorageOverride: tokenStorage,
       httpAdapter: httpAdapter,
       onSessionExpired: onSessionExpired,
+      onPasswordChangeRequired: onPasswordChangeRequired,
     ),
   ]);
   return scope;

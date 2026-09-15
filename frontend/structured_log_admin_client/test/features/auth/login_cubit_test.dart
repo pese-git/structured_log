@@ -24,6 +24,15 @@ class _FakeRepository implements AuthRepository {
 
   @override
   Future<bool> hasSession() async => false;
+
+  @override
+  Future<Either<AuthFailure, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async => right(unit);
+
+  @override
+  Future<String?> currentUsername() async => null;
 }
 
 void main() {

@@ -3,7 +3,9 @@ import 'package:fpdart/fpdart.dart';
 import 'package:structured_log/structured_log.dart';
 
 import '../../../shared/api/auth_api.dart';
+import '../../../shared/api/dto/auth_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
+import '../../../shared/auth/access_token_claims.dart';
 import '../../../shared/auth/token_pair.dart';
 import '../../../shared/auth/token_storage.dart';
 import '../domain/auth_failure.dart';
@@ -76,6 +78,57 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> hasSession() async => await _storage.read() != null;
+
+  @override
+  Future<Either<AuthFailure, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _api.changePassword(
+        ChangePasswordRequestDto(
+          currentPassword: currentPassword,
+          newPassword: newPassword,
+        ),
+      );
+      // Neither password is logged, here or anywhere (decision 48).
+      _log.info('auth.password_changed');
+      return right(unit);
+    } on DioException catch (error) {
+      final failure = _mapChangePassword(error);
+      _log.warning(
+        'auth.password_change_refused',
+        context: {'failure': failure.runtimeType.toString()},
+      );
+      return left(failure);
+    }
+  }
+
+  @override
+  Future<String?> currentUsername() async {
+    final tokens = await _storage.read();
+    return tokens == null ? null : usernameFromAccessToken(tokens.accessToken);
+  }
+
+  /// `POST /v1/auth/change-password` answers in the API's general envelope,
+  /// not the RFC 6749 one — but it reuses `invalid_grant` for the one refusal
+  /// the screen must name: the current password was wrong.
+  AuthFailure _mapChangePassword(DioException error) {
+    final response = error.response;
+    if (response == null) return AuthFailure.network(message: error.message);
+    if (response.statusCode == 429) {
+      return AuthFailure.rateLimited(retryAfterOf(response));
+    }
+
+    final body = response.data;
+    final envelope = body is Map<String, dynamic> ? body : const {};
+    if (envelope['error'] == 'invalid_grant') {
+      return const AuthFailure.invalidCredentials();
+    }
+    return AuthFailure.unexpected(
+      message: envelope['message'] as String? ?? error.message,
+    );
+  }
 
   /// Maps the RFC 6749 body the token endpoint answers with — not the API's
   /// general envelope, which is what [mapDioException] handles everywhere

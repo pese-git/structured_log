@@ -27,4 +27,26 @@ abstract interface class AuthRepository {
   /// Whether a session is already stored — what decides between the login
   /// screen and the app on startup.
   Future<bool> hasSession();
+
+  /// Replaces this account's own password.
+  ///
+  /// The same call serves both ways in: the forced screen the server puts a
+  /// temporary password behind, and the voluntary one in settings
+  /// (`specs/admin-client-auth`).
+  ///
+  /// The session survives it. The server bumps `token_version`, which retires
+  /// the access token in hand, but the refresh token stays good — so the next
+  /// request renews itself through the interceptor and the user is not sent
+  /// back to sign in.
+  Future<Either<AuthFailure, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
+  /// The signed-in account's username, read out of the access token.
+  ///
+  /// `null` when there is no session, or when the token carries no name. There
+  /// is no `GET /v1/users/me` in this stage, and the screens that show who is
+  /// signed in have nowhere else to get it.
+  Future<String?> currentUsername();
 }

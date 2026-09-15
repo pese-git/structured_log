@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../domain/auth_failure.dart';
+import 'auth_brand_panel.dart';
 import 'login_cubit.dart';
 import 'login_state.dart';
 
@@ -73,7 +74,11 @@ class _LoginPageState extends State<LoginPage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _BrandPanel(),
+                const AuthBrandPanel(
+                  description:
+                      'Централизованный сбор и поиск структурированных логов с '
+                      'нескольких проектов и команд — без стороннего SaaS.',
+                ),
                 Expanded(
                   child: ColoredBox(
                     color: colors.surface,
@@ -226,66 +231,5 @@ class _FailureBanner extends StatelessWidget {
             'раз, а если повторится — загляните в журнал сервера.',
       ),
     };
-  }
-}
-
-class _BrandPanel extends StatelessWidget {
-  const _BrandPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = AdminColors.of(FluentTheme.of(context).brightness);
-    return Container(
-      width: 440,
-      color: colors.accent,
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(AdminRadius.control),
-                ),
-                child: Icon(
-                  FluentIcons.text_document,
-                  size: 22,
-                  color: colors.accent,
-                ),
-              ),
-              const SizedBox(height: AdminSpacing.x18),
-              Text(
-                'Structured Log',
-                style: AdminTypography.pageTitle.copyWith(
-                  color: colors.surface,
-                ),
-              ),
-              const SizedBox(height: AdminSpacing.x4),
-              Text(
-                'Панель администрирования',
-                style: AdminTypography.body.copyWith(
-                  color: colors.surface.withValues(alpha: 0.85),
-                ),
-              ),
-            ],
-          ),
-          Text(
-            'Централизованный сбор и поиск структурированных логов с '
-            'нескольких проектов и команд — без стороннего SaaS.',
-            style: AdminTypography.body.copyWith(
-              color: colors.surface.withValues(alpha: 0.92),
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

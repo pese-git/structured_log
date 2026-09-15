@@ -25,6 +25,14 @@ class AuthInterceptor extends Interceptor {
   /// Called once per expiry, after the stored tokens are cleared.
   final void Function()? onSessionExpired;
 
+  /// The server answered `403 must_change_password`. The session is perfectly
+  /// good; the account is simply not allowed to do anything else until its
+  /// password is changed, and that gate applies to every endpoint but one
+  /// (`log-server-forced-password-change`). Reported here, at the same level
+  /// as a 401, because it can come back from any screen's first request
+  /// (`specs/admin-client-auth`).
+  final void Function()? onPasswordChangeRequired;
+
   /// Replays the original request after a successful refresh. Separate from
   /// the `Dio` under this interceptor for the same reason as [_refresh].
   final Dio _retryClient;
@@ -54,6 +62,7 @@ class AuthInterceptor extends Interceptor {
     required Future<TokenPair?> Function(String refreshToken) refresh,
     required Dio retryClient,
     this.onSessionExpired,
+    this.onPasswordChangeRequired,
   }) : _storage = storage,
        _refresh = refresh,
        _retryClient = retryClient;
@@ -79,8 +88,22 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final options = err.requestOptions;
+    final status = err.response?.statusCode;
+
+    if (status == 403 && _codeOf(err) == 'must_change_password') {
+      onPasswordChangeRequired?.call();
+      return handler.next(err);
+    }
+
     final isRecoverable =
-        err.response?.statusCode == 401 &&
+        status == 401 &&
+        // `invalid_grant` on a 401 is never a stale token — it is
+        // `POST /v1/auth/change-password` saying the current password was
+        // wrong (the server spells a stale token `unauthorized`). Refreshing
+        // would replay the attempt, which costs a second failure against the
+        // per-user rate limiter and locks someone out after a handful of
+        // typos.
+        _codeOf(err) != 'invalid_grant' &&
         !_isExempt(options) &&
         options.extra[_retriedExtra] != true;
     if (!isRecoverable) return handler.next(err);
@@ -113,6 +136,12 @@ class AuthInterceptor extends Interceptor {
 
   static bool _isExempt(RequestOptions options) =>
       options.extra[skipAuthExtra] == true || options.path == _tokenPath;
+
+  /// The server's own error code, out of the `{"error": …}` envelope.
+  static String? _codeOf(DioException error) {
+    final body = error.response?.data;
+    return body is Map<String, dynamic> ? body['error'] as String? : null;
+  }
 
   Future<TokenPair?> _runRefresh(String refreshToken) {
     final existing = _refreshInFlight;

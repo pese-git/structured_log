@@ -55,6 +55,7 @@ class ApiClient {
     required AppConfig config,
     required TokenStorage storage,
     void Function()? onSessionExpired,
+    void Function()? onPasswordChangeRequired,
 
     /// Swapped in tests for an adapter that answers without a socket.
     HttpClientAdapter? adapter,
@@ -101,6 +102,7 @@ class ApiClient {
       storage: storage,
       retryClient: retryClient,
       onSessionExpired: onSessionExpired,
+      onPasswordChangeRequired: onPasswordChangeRequired,
       refresh: (refreshToken) async {
         try {
           final response = await refreshApi.refresh(

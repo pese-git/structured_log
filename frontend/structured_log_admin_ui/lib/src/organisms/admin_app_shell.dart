@@ -41,7 +41,14 @@ class AdminAppShell extends StatelessWidget {
 
   /// The heading above the content — the artboards repeat the current
   /// section's name here at 28px.
-  final String title;
+  /// The page heading, drawn at the top of the content pane.
+  ///
+  /// `null` for a screen that draws its own — which is what the artboards
+  /// mostly show, because the primary action sits on the same line as the
+  /// heading ("Группы" beside "Создать группу", "Логи" beside the scope
+  /// pill) and only the screen knows what that action is. Passing a title
+  /// here *and* drawing one prints it twice.
+  final String? title;
 
   final Widget content;
 
@@ -60,7 +67,7 @@ class AdminAppShell extends StatelessWidget {
     required this.sections,
     required this.selectedIndex,
     required this.onSelected,
-    required this.title,
+    this.title,
     required this.content,
     required this.accountName,
     required this.accountRole,
@@ -102,20 +109,21 @@ class AdminAppShell extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AdminSpacing.x24,
-                        AdminSpacing.x18,
-                        AdminSpacing.x24,
-                        AdminSpacing.x12,
-                      ),
-                      child: Text(
-                        title,
-                        style: AdminTypography.pageTitle.copyWith(
-                          color: colors.text,
+                    if (title != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AdminSpacing.x24,
+                          AdminSpacing.x18,
+                          AdminSpacing.x24,
+                          AdminSpacing.x12,
+                        ),
+                        child: Text(
+                          title!,
+                          style: AdminTypography.pageTitle.copyWith(
+                            color: colors.text,
+                          ),
                         ),
                       ),
-                    ),
                     Expanded(child: content),
                   ],
                 ),

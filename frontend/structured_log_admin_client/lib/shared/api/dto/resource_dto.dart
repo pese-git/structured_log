@@ -80,6 +80,27 @@ abstract class CreateProjectRequestDto with _$CreateProjectRequestDto {
       _$CreateProjectRequestDtoFromJson(json);
 }
 
+/// `PATCH /v1/projects/{id}` — the quota, replaced wholesale.
+///
+/// Nulls are **sent**, not omitted, and that is the whole point of a separate
+/// class from [CreateProjectRequestDto]. The server distinguishes "leave this
+/// alone" from "make this unlimited" by whether the key is present at all
+/// (`projects_route.dart` reads `body.containsKey`), so a form that clears a
+/// limit has to put `null` on the wire. `includeIfNull: false`, which the
+/// create request uses, would silently mean "unchanged" here.
+@freezed
+abstract class UpdateProjectQuotaRequestDto
+    with _$UpdateProjectQuotaRequestDto {
+  const factory UpdateProjectQuotaRequestDto({
+    @JsonKey(name: 'retention_days') required int retentionDays,
+    @JsonKey(name: 'max_entries') required int? maxEntries,
+    @JsonKey(name: 'max_bytes') required int? maxBytes,
+  }) = _UpdateProjectQuotaRequestDto;
+
+  factory UpdateProjectQuotaRequestDto.fromJson(Map<String, dynamic> json) =>
+      _$UpdateProjectQuotaRequestDtoFromJson(json);
+}
+
 @freezed
 abstract class SecretKeyDto with _$SecretKeyDto {
   const factory SecretKeyDto({

@@ -3,6 +3,7 @@ import 'package:structured_log/structured_log.dart';
 
 import '../../../shared/api/api_client.dart';
 import '../../../shared/auth/token_storage.dart';
+import '../application/change_password.dart';
 import '../application/restore_session.dart';
 import '../application/sign_in.dart';
 import '../application/sign_out.dart';
@@ -42,6 +43,12 @@ class AuthModule extends Module {
     );
     bind<RestoreSession>().toProvide(
       () => RestoreSession(currentScope.resolve<AuthRepository>()),
+    );
+    bind<ChangePassword>().toProvide(
+      () => ChangePassword(currentScope.resolve<AuthRepository>()),
+    );
+    bind<CurrentUsername>().toProvide(
+      () => CurrentUsername(currentScope.resolve<AuthRepository>()),
     );
   }
 }

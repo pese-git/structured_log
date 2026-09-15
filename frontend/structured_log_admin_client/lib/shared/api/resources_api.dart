@@ -47,6 +47,14 @@ abstract class ProjectsApi {
   /// come back here and nowhere else.
   @GET('/v1/projects/{id}')
   Future<ProjectDto> get(@Path('id') int id);
+
+  /// Replaces the quota. `owner` of the project's group, or `admin`; the
+  /// server refuses anyone else.
+  @PATCH('/v1/projects/{id}')
+  Future<ProjectDto> updateQuota(
+    @Path('id') int id,
+    @Body() UpdateProjectQuotaRequestDto body,
+  );
 }
 
 /// `/v1/projects/{id}/secret-keys`.
