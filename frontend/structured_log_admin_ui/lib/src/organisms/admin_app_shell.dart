@@ -78,6 +78,18 @@ class AdminAppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Its own width, not the window's. A shell inside a pane is as wide
+        // as the pane, and asking `MediaQuery` would give it the wrong answer
+        // in exactly that case (`AdminBreakpoints`).
+        final collapsed = constraints.maxWidth < AdminBreakpoints.navRail;
+        return _build(colors, collapsed: collapsed);
+      },
+    );
+  }
+
+  Widget _build(AdminColors colors, {required bool collapsed}) {
     return ColoredBox(
       color: colors.pageBg,
       child: Padding(
@@ -86,8 +98,11 @@ class AdminAppShell extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
-              width: AdminSizes.navPaneWidth,
+              width: collapsed
+                  ? AdminBreakpoints.navRailWidth
+                  : AdminSizes.navPaneWidth,
               child: _NavPane(
+                collapsed: collapsed,
                 sections: sections,
                 selectedIndex: selectedIndex,
                 onSelected: onSelected,
@@ -137,6 +152,11 @@ class AdminAppShell extends StatelessWidget {
 }
 
 class _NavPane extends StatelessWidget {
+  /// Icons only: no labels, no section titles, no account name. Everything
+  /// that survives is still reachable — the items keep their tooltips, and
+  /// the account block is still the button it was.
+  final bool collapsed;
+
   final List<AdminNavSection> sections;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -146,6 +166,7 @@ class _NavPane extends StatelessWidget {
   final VoidCallback? onAccountPressed;
 
   const _NavPane({
+    required this.collapsed,
     required this.sections,
     required this.selectedIndex,
     required this.onSelected,
@@ -162,29 +183,37 @@ class _NavPane extends StatelessWidget {
     final children = <Widget>[];
 
     for (final section in sections) {
-      children.add(
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AdminSpacing.x14,
-            AdminSpacing.x14,
-            AdminSpacing.x14,
-            AdminSpacing.x4,
-          ),
-          child: Text(
-            section.title,
-            style: AdminTypography.caption.copyWith(
-              color: colors.textTertiary,
+      if (!collapsed) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AdminSpacing.x14,
+              AdminSpacing.x14,
+              AdminSpacing.x14,
+              AdminSpacing.x4,
+            ),
+            child: Text(
+              section.title,
+              style: AdminTypography.caption.copyWith(
+                color: colors.textTertiary,
+              ),
             ),
           ),
-        ),
-      );
+        );
+      }
       for (final item in section.items) {
         final index = flatIndex++;
         children.add(
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AdminSpacing.x8),
+            padding: EdgeInsets.fromLTRB(
+              AdminSpacing.x8,
+              0,
+              AdminSpacing.x8,
+              collapsed ? AdminSpacing.x4 : 0,
+            ),
             child: _NavItemView(
               item: item,
+              collapsed: collapsed,
               selected: index == selectedIndex,
               onPressed: () => onSelected(index),
             ),
@@ -197,23 +226,27 @@ class _NavPane extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AdminSpacing.x14,
+          padding: EdgeInsets.fromLTRB(
+            collapsed ? AdminSpacing.x8 : AdminSpacing.x14,
             AdminSpacing.x12,
-            AdminSpacing.x14,
+            collapsed ? AdminSpacing.x8 : AdminSpacing.x14,
             AdminSpacing.x10,
           ),
           child: Row(
+            mainAxisAlignment:
+                collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
               Icon(FluentIcons.text_document, size: 20, color: colors.accent),
-              const SizedBox(width: AdminSpacing.x10),
-              Expanded(
-                child: Text(
-                  productName,
-                  overflow: TextOverflow.ellipsis,
-                  style: AdminTypography.label.copyWith(color: colors.text),
+              if (!collapsed) ...[
+                const SizedBox(width: AdminSpacing.x10),
+                Expanded(
+                  child: Text(
+                    productName,
+                    overflow: TextOverflow.ellipsis,
+                    style: AdminTypography.label.copyWith(color: colors.text),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -225,12 +258,15 @@ class _NavPane extends StatelessWidget {
           child: HoverButton(
             onPressed: onAccountPressed,
             builder: (context, states) => Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AdminSpacing.x14,
+              padding: EdgeInsets.symmetric(
+                horizontal: collapsed ? AdminSpacing.x8 : AdminSpacing.x14,
                 vertical: AdminSpacing.x12,
               ),
               color: states.isHovered ? colors.cardBg : null,
               child: Row(
+                mainAxisAlignment: collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
                 children: [
                   Container(
                     width: AdminSizes.controlHeight,
@@ -247,34 +283,36 @@ class _NavPane extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(width: AdminSpacing.x10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          accountName,
-                          overflow: TextOverflow.ellipsis,
-                          style: AdminTypography.bodySmall.copyWith(
-                            color: colors.text,
+                  if (!collapsed) ...[
+                    const SizedBox(width: AdminSpacing.x10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            accountName,
+                            overflow: TextOverflow.ellipsis,
+                            style: AdminTypography.bodySmall.copyWith(
+                              color: colors.text,
+                            ),
                           ),
-                        ),
-                        Text(
-                          accountRole,
-                          overflow: TextOverflow.ellipsis,
-                          style: AdminTypography.caption.copyWith(
-                            color: colors.textTertiary,
+                          Text(
+                            accountRole,
+                            overflow: TextOverflow.ellipsis,
+                            style: AdminTypography.caption.copyWith(
+                              color: colors.textTertiary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  if (onAccountPressed != null)
-                    Icon(
-                      FluentIcons.sign_out,
-                      size: 16,
-                      color: colors.textSecondary,
-                    ),
+                    if (onAccountPressed != null)
+                      Icon(
+                        FluentIcons.sign_out,
+                        size: 16,
+                        color: colors.textSecondary,
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -299,11 +337,13 @@ class _NavPane extends StatelessWidget {
 
 class _NavItemView extends StatelessWidget {
   final AdminNavItem item;
+  final bool collapsed;
   final bool selected;
   final VoidCallback onPressed;
 
   const _NavItemView({
     required this.item,
+    required this.collapsed,
     required this.selected,
     required this.onPressed,
   });
@@ -318,8 +358,8 @@ class _NavItemView extends StatelessWidget {
           children: [
             Container(
               height: AdminSizes.navItemHeight,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AdminSpacing.x12,
+              padding: EdgeInsets.symmetric(
+                horizontal: collapsed ? 0 : AdminSpacing.x12,
               ),
               decoration: BoxDecoration(
                 color: selected
@@ -328,25 +368,32 @@ class _NavItemView extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AdminRadius.control),
               ),
               child: Row(
+                mainAxisAlignment: collapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
                 children: [
                   Icon(
                     item.icon,
                     size: 16,
                     color: selected ? colors.text : colors.textSecondary,
                   ),
-                  const SizedBox(width: AdminSpacing.x12),
-                  Expanded(
-                    child: Text(
-                      item.label,
-                      overflow: TextOverflow.ellipsis,
-                      style: (selected
-                              ? AdminTypography.label
-                              : AdminTypography.body)
-                          .copyWith(
-                        color: selected ? colors.text : colors.textSecondary,
+                  // The label is what the rail drops, and the tooltip is what
+                  // replaces it — an icon alone does not say where it goes.
+                  if (!collapsed) ...[
+                    const SizedBox(width: AdminSpacing.x12),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        overflow: TextOverflow.ellipsis,
+                        style: (selected
+                                ? AdminTypography.label
+                                : AdminTypography.body)
+                            .copyWith(
+                          color: selected ? colors.text : colors.textSecondary,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

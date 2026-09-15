@@ -50,16 +50,20 @@ class GroupDetailPage extends StatelessWidget {
               const SizedBox(height: AdminSpacing.x10),
               Text(
                 groupName,
+                overflow: TextOverflow.ellipsis,
                 style: AdminTypography.pageTitle.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x24),
               Row(
                 children: [
-                  Text(
-                    'Проекты',
-                    style: AdminTypography.label.copyWith(color: colors.text),
+                  Expanded(
+                    child: Text(
+                      'Проекты',
+                      overflow: TextOverflow.ellipsis,
+                      style: AdminTypography.label.copyWith(color: colors.text),
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: AdminSpacing.x12),
                   AdminButton(
                     label: 'Проект',
                     icon: FluentIcons.add,

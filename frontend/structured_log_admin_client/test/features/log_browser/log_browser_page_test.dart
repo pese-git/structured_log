@@ -120,6 +120,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
+  void useNarrowSurface(WidgetTester tester) {
+    tester.view.physicalSize = const Size(640, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   Future<void> pumpScreen(WidgetTester tester) async {
     useWideSurface(tester);
     await tester.pumpWidget(_host(makeBloc()));
@@ -290,5 +297,54 @@ void main() {
       find.text('Webhook delivery failed after 3 attempts'),
       findsOneWidget,
     );
+  });
+
+  group('narrow', () {
+    testWidgets('the detail replaces the feed instead of squeezing beside it', (
+      tester,
+    ) async {
+      repository.entries = [_entry()];
+      useNarrowSurface(tester);
+      await tester.pumpWidget(_host(makeBloc()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('payments'));
+      await tester.pumpAndSettle();
+
+      // No detail pane standing empty beside the list — there is no room for
+      // one, so the list has the pane to itself.
+      expect(find.text('Выберите запись'), findsNothing);
+      expect(
+        find.text('Webhook delivery failed after 3 attempts'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Webhook delivery failed after 3 attempts'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('СТАНДАРТНЫЕ ПОЛЯ'), findsOneWidget);
+      expect(find.text('К ленте'), findsOneWidget);
+
+      await tester.tap(find.text('К ленте'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('СТАНДАРТНЫЕ ПОЛЯ'), findsNothing);
+      expect(
+        find.text('Webhook delivery failed after 3 attempts'),
+        findsOneWidget,
+        reason: 'back goes to the feed, not out of the screen',
+      );
+    });
+
+    testWidgets('wide, both halves are on screen at once', (tester) async {
+      repository.entries = [_entry()];
+      await openFeed(tester);
+
+      expect(
+        find.text('Выберите запись'),
+        findsOneWidget,
+        reason: 'the detail pane is there, waiting, when there is room for it',
+      );
+      expect(find.text('К ленте'), findsNothing);
+    });
   });
 }

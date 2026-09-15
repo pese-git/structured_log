@@ -67,3 +67,29 @@ abstract final class AdminSizes {
   /// The level badge's fixed width, so a column of them aligns.
   static const double levelBadgeWidth = 34;
 }
+
+/// Where a layout changes shape.
+///
+/// Measured against **the widget's own width**, never the window's, the same
+/// way the viewer skins in `emb/` do it (`_masterDetailBreakpoint`). A pane
+/// inside a split does not become wide because the window is, and a component
+/// that asks the window gets that wrong in exactly the case it matters.
+///
+/// The numbers come from what the drawn widths need rather than from a device
+/// catalogue: the nav pane is 252 and the master list is 340, so a split needs
+/// room for the list plus a detail worth reading beside it.
+abstract final class AdminBreakpoints {
+  /// Below this, the navigation pane collapses to a rail of icons
+  /// (`GroupsNarrow.dc.html`). 252 of labelled pane out of less than this
+  /// leaves the content less than a card with an action needs.
+  static const double navRail = 900;
+
+  /// Below this — measured on the content pane, not the window — a
+  /// master/detail split becomes the master alone, and opening an item
+  /// replaces it (`LogBrowserNarrow.dc.html`).
+  static const double masterDetail = 700;
+
+  /// The rail's width: a 40px control with 8px either side, so the active
+  /// item's marker does not sit against the edge.
+  static const double navRailWidth = 56;
+}

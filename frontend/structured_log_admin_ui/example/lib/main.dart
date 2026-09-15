@@ -363,6 +363,37 @@ class _GalleryPageState extends State<GalleryPage> {
             ),
           ),
           _Section(
+            title: 'Organisms · AdminLogEntryRow',
+            child: Column(
+              children: [
+                const AdminLogEntryRow(
+                  level: AdminLogLevel.error,
+                  time: '09:12:55',
+                  event: 'Webhook delivery failed after 3 attempts',
+                  category: 'webhooks',
+                  selected: true,
+                ),
+                AdminLogEntryRow(
+                  level: AdminLogLevel.info,
+                  time: '09:13:18',
+                  event: 'Refund requested',
+                  category: 'payments',
+                  onPressed: () {},
+                ),
+                // Narrow layouts open an entry on its own screen instead of
+                // beside the list, and the chevron is what says so.
+                AdminLogEntryRow(
+                  level: AdminLogLevel.warning,
+                  time: '09:13:44',
+                  event: 'Slow query',
+                  category: 'db',
+                  showsDisclosure: true,
+                  onPressed: () {},
+                ),
+              ],
+            ),
+          ),
+          _Section(
             title: 'Organisms · AdminResourceRow',
             child: Column(
               children: [

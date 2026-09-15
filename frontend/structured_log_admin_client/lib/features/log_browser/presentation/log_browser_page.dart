@@ -154,20 +154,46 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: colors.border)),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: AdminSizes.masterListWidth,
-                      child: _Feed(
-                        state: state,
-                        controller: _scroll,
-                        onToLiveEdge: _toLiveEdge,
-                      ),
-                    ),
-                    Container(width: 1, color: colors.border),
-                    Expanded(child: _Detail(state: state)),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Its own width, not the window's: this pane sits beside
+                    // a navigation rail whose width is not fixed, so the
+                    // window says nothing useful about the room here
+                    // (`AdminBreakpoints`, and the same rule as the viewer
+                    // skins in `emb/`).
+                    final split =
+                        constraints.maxWidth >= AdminBreakpoints.masterDetail;
+                    if (split) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            width: AdminSizes.masterListWidth,
+                            child: _Feed(
+                              state: state,
+                              controller: _scroll,
+                              onToLiveEdge: _toLiveEdge,
+                            ),
+                          ),
+                          Container(width: 1, color: colors.border),
+                          Expanded(child: _Detail(state: state)),
+                        ],
+                      );
+                    }
+
+                    // Narrow: the detail replaces the feed rather than
+                    // squeezing beside it, and says how to get back
+                    // (`LogBrowserNarrow.dc.html`).
+                    if (state.selectedEntry != null) {
+                      return _NarrowDetail(state: state);
+                    }
+                    return _Feed(
+                      state: state,
+                      controller: _scroll,
+                      onToLiveEdge: _toLiveEdge,
+                      showsDisclosure: true,
+                    );
+                  },
                 ),
               ),
             ),
@@ -201,14 +227,13 @@ class _Header extends StatelessWidget {
       GroupScope(:final name) => 'Группа: $name',
     };
 
-    return Row(
-      children: [
-        Text(
-          'Логи',
-          style: AdminTypography.pageTitle.copyWith(color: colors.text),
-        ),
-        const SizedBox(width: AdminSpacing.x24),
-        Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Narrow, the pill gives up its width and the action gives up its
+        // label — the header stays one line either way
+        // (`LogBrowserNarrow.dc.html`).
+        final compact = constraints.maxWidth < AdminBreakpoints.masterDetail;
+        final pill = Container(
           height: AdminSizes.controlHeight,
           padding: const EdgeInsets.symmetric(horizontal: AdminSpacing.x10),
           alignment: Alignment.center,
@@ -218,20 +243,44 @@ class _Header extends StatelessWidget {
           ),
           child: Text(
             label,
+            overflow: TextOverflow.ellipsis,
             style: AdminTypography.label.copyWith(
               color: colors.accentDark,
               fontSize: 13,
             ),
           ),
-        ),
-        const SizedBox(width: AdminSpacing.x10),
-        AdminButton(
-          label: 'Изменить область',
-          onPressed: () => context.read<LogFeedBloc>().add(
-            const LogFeedEvent.scopeCleared(),
-          ),
-        ),
-      ],
+        );
+
+        return Row(
+          children: [
+            Text(
+              'Логи',
+              style: AdminTypography.pageTitle.copyWith(color: colors.text),
+            ),
+            SizedBox(width: compact ? AdminSpacing.x12 : AdminSpacing.x24),
+            if (compact) Flexible(child: pill) else pill,
+            const SizedBox(width: AdminSpacing.x10),
+            if (compact)
+              Tooltip(
+                message: 'Изменить область',
+                child: AdminButton(
+                  label: '',
+                  icon: FluentIcons.switch_widget,
+                  onPressed: () => context.read<LogFeedBloc>().add(
+                    const LogFeedEvent.scopeCleared(),
+                  ),
+                ),
+              )
+            else
+              AdminButton(
+                label: 'Изменить область',
+                onPressed: () => context.read<LogFeedBloc>().add(
+                  const LogFeedEvent.scopeCleared(),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -350,10 +399,15 @@ class _Feed extends StatelessWidget {
   final ScrollController controller;
   final VoidCallback onToLiveEdge;
 
+  /// A chevron on every row. Only when tapping one leads somewhere — which
+  /// on a narrow screen it does, because the detail takes the whole pane.
+  final bool showsDisclosure;
+
   const _Feed({
     required this.state,
     required this.controller,
     required this.onToLiveEdge,
+    this.showsDisclosure = false,
   });
 
   @override
@@ -502,6 +556,44 @@ class _FeedStatus extends StatelessWidget {
 }
 
 enum _Plural { one, few, many }
+
+/// The selected entry, filling the pane, with the way back to the feed.
+class _NarrowDetail extends StatelessWidget {
+  final LogFeedState state;
+
+  const _NarrowDetail({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AdminSpacing.x14,
+            AdminSpacing.x12,
+            AdminSpacing.x14,
+            AdminSpacing.x12,
+          ),
+          child: Row(
+            children: [
+              AdminButton(
+                label: 'К ленте',
+                icon: FluentIcons.back,
+                onPressed: () => context.read<LogFeedBloc>().add(
+                  const LogFeedEvent.entrySelected(null),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(height: 1, color: colors.border),
+        Expanded(child: _Detail(state: state)),
+      ],
+    );
+  }
+}
 
 class _Detail extends StatelessWidget {
   final LogFeedState state;

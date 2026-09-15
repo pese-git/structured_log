@@ -113,9 +113,12 @@ class _Header extends StatelessWidget {
         const SizedBox(height: AdminSpacing.x10),
         Row(
           children: [
-            Text(
-              project.name,
-              style: AdminTypography.pageTitle.copyWith(color: colors.text),
+            Flexible(
+              child: Text(
+                project.name,
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.pageTitle.copyWith(color: colors.text),
+              ),
             ),
             if (project.isBlocked) ...[
               const SizedBox(width: AdminSpacing.x12),
@@ -162,11 +165,14 @@ class _Quota extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(
-              'Квота и использование',
-              style: AdminTypography.label.copyWith(color: colors.text),
+            Expanded(
+              child: Text(
+                'Квота и использование',
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
             ),
-            const Spacer(),
+            const SizedBox(width: AdminSpacing.x12),
             AdminButton(
               label: 'Изменить квоту',
               icon: FluentIcons.edit,
@@ -275,11 +281,14 @@ class _SecretKeys extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(
-              'Секретные ключи проекта',
-              style: AdminTypography.label.copyWith(color: colors.text),
+            Expanded(
+              child: Text(
+                'Секретные ключи проекта',
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
             ),
-            const Spacer(),
+            const SizedBox(width: AdminSpacing.x12),
             AdminButton(
               label: 'Создать ключ',
               icon: FluentIcons.add,

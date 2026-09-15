@@ -22,11 +22,19 @@ void main() {
     await tester.pump();
 
     expect(find.text('Галерея компонентов'), findsOneWidget);
-    // One badge per level, which is the point of showing them together.
-    expect(
-      find.byType(AdminLogLevelBadge),
-      findsNWidgets(AdminLogLevel.values.length),
-    );
+    // Every level is drawn somewhere, which is the point of showing them
+    // together. Counting badges across the whole page instead would break
+    // whenever a section that happens to contain one is added — and one was.
+    for (final level in AdminLogLevel.values) {
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is AdminLogLevelBadge && widget.level == level,
+        ),
+        findsWidgets,
+        reason: 'no badge for $level',
+      );
+    }
+    expect(find.byType(AdminLogEntryRow), findsWidgets);
     expect(find.byType(AdminAppShell), findsOneWidget);
     expect(find.byType(AdminFilterBar), findsOneWidget);
     expect(find.byType(AdminResourceRow), findsWidgets);

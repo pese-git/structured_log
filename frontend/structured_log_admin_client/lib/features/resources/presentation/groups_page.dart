@@ -35,23 +35,35 @@ class GroupsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Text(
-                    'Группы',
-                    style: AdminTypography.pageTitle.copyWith(
-                      color: colors.text,
-                    ),
-                  ),
-                  const Spacer(),
-                  AdminButton(
-                    label: 'Создать группу',
-                    icon: FluentIcons.add,
-                    variant: AdminButtonVariant.accent,
-                    size: AdminButtonSize.dialog,
-                    onPressed: () => _create(context),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Narrow, the action keeps its icon and loses most of its
+                  // label; the title takes what is left rather than being
+                  // painted over (`GroupsNarrow.dc.html`).
+                  final compact =
+                      constraints.maxWidth < AdminBreakpoints.masterDetail;
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Группы',
+                          overflow: TextOverflow.ellipsis,
+                          style: AdminTypography.pageTitle.copyWith(
+                            color: colors.text,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AdminSpacing.x12),
+                      AdminButton(
+                        label: compact ? 'Группа' : 'Создать группу',
+                        icon: FluentIcons.add,
+                        variant: AdminButtonVariant.accent,
+                        size: AdminButtonSize.dialog,
+                        onPressed: () => _create(context),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: AdminSpacing.x18),
               Expanded(child: _body(context, state)),

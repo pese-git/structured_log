@@ -191,7 +191,25 @@ void main() {
   });
 
   group('AdminAppShell', () {
+    /// The shell chooses its shape from its own width, and a widget test's
+    /// default surface (800) is below the breakpoint — so a test about the
+    /// labelled pane has to say how wide it is.
+    void useWideSurface(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
+    void useNarrowSurface(WidgetTester tester) {
+      tester.view.physicalSize = const Size(720, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+    }
+
     testWidgets('draws sections, items and the page title', (tester) async {
+      useWideSurface(tester);
       await tester.pumpWidget(
         _host(
           AdminAppShell(
@@ -215,6 +233,7 @@ void main() {
     });
 
     testWidgets('reports a flat index across sections', (tester) async {
+      useWideSurface(tester);
       final selected = <int>[];
       await tester.pumpWidget(
         _host(
@@ -237,7 +256,60 @@ void main() {
       expect(selected, [2]);
     });
 
+    testWidgets('narrow, the pane becomes a rail of icons', (tester) async {
+      useNarrowSurface(tester);
+      await tester.pumpWidget(
+        _host(
+          AdminAppShell(
+            sections: _sections,
+            selectedIndex: 0,
+            onSelected: (_) {},
+            accountName: 'Jana Novak',
+            accountRole: 'Администратор',
+            content: const SizedBox.shrink(),
+          ),
+        ),
+      );
+
+      // Labels, section titles and the account name are what the rail drops.
+      expect(find.text('Обзор'), findsNothing);
+      expect(find.text('Пользователи'), findsNothing);
+      expect(find.text('Jana Novak'), findsNothing);
+      // The initials stay: they are the account button, which is still one.
+      expect(find.text('JN'), findsOneWidget);
+      // And every item is still there to be pressed.
+      expect(find.byIcon(FluentIcons.people), findsOneWidget);
+      expect(find.byIcon(FluentIcons.group), findsOneWidget);
+    });
+
+    testWidgets('a rail item still reports the same index', (tester) async {
+      useNarrowSurface(tester);
+      final selected = <int>[];
+      await tester.pumpWidget(
+        _host(
+          AdminAppShell(
+            sections: _sections,
+            selectedIndex: 0,
+            onSelected: selected.add,
+            accountName: 'Jana Novak',
+            accountRole: 'Администратор',
+            content: const SizedBox.shrink(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byIcon(FluentIcons.group));
+      await tester.pumpAndSettle();
+
+      expect(
+        selected,
+        [2],
+        reason: 'collapsing changes what is drawn, not what it means',
+      );
+    });
+
     testWidgets('hidden entries are simply absent', (tester) async {
+      useWideSurface(tester);
       await tester.pumpWidget(
         _host(
           AdminAppShell(

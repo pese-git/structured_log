@@ -24,6 +24,12 @@ class AdminLogEntryRow extends StatelessWidget {
   /// Highlights the row whose entry the detail pane is showing.
   final bool selected;
 
+  /// A chevron at the end of the row, for when tapping it opens the entry
+  /// somewhere else rather than beside the list — which is what a narrow
+  /// layout does (`LogBrowserNarrow.dc.html`). Pointless in a master/detail
+  /// split, where [selected] already says where the entry went.
+  final bool showsDisclosure;
+
   final VoidCallback? onPressed;
 
   const AdminLogEntryRow({
@@ -33,6 +39,7 @@ class AdminLogEntryRow extends StatelessWidget {
     required this.event,
     this.category,
     this.selected = false,
+    this.showsDisclosure = false,
     this.onPressed,
   });
 
@@ -80,6 +87,14 @@ class AdminLogEntryRow extends StatelessWidget {
               if (category != null) ...[
                 const SizedBox(width: AdminSpacing.x8),
                 AdminTag(label: category!),
+              ],
+              if (showsDisclosure) ...[
+                const SizedBox(width: AdminSpacing.x8),
+                Icon(
+                  FluentIcons.chevron_right,
+                  size: 12,
+                  color: colors.textTertiary,
+                ),
               ],
             ],
           ),
