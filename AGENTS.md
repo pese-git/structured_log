@@ -256,7 +256,11 @@ dart run example/main.dart
   Использует `dart-lang/setup-dart` (канал `stable`), а не FVM/Flutter — `structured_log`
   не зависит от Flutter.
 - `server` — для `backend/structured_log_server/`: `dart pub get`, `build_runner`,
-  `dart format --set-exit-if-changed`, `dart analyze`, `dart test` — только
+  `dart format --set-exit-if-changed`, `dart analyze`, `dart test
+  --exclude-tags integration`, затем отдельным шагом `dart test --tags
+  integration` (поднимает `bin/server.dart` процессом; тег объявлен в
+  `dart_test.yaml`, но не исключён — разделение нужно только чтобы в логе
+  было видно, какой из двух прогонов упал) — только
   `ubuntu-latest` (сервис самохостится на Linux, ОС-чувствительной ротации
   файлов у него нет). `dart-lang/setup-dart` (канал `stable`), без FVM.
   Кодогенерация **обязана** идти до `analyze`/`test` — без неё пакет не

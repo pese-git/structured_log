@@ -110,8 +110,18 @@ jobs:
       - name: Analyze
         run: dart analyze
 
+      # Split from the integration run below only so the log says which of
+      # the two failed: `integration` is declared in dart_test.yaml but not
+      # excluded, so a plain `dart test` would run both anyway.
       - name: Run tests
-        run: dart test
+        run: dart test --exclude-tags integration
+
+      # These spawn bin/server.dart as a real OS process. They are the only
+      # tests that exercise anything the in-process handler can't show —
+      # config resolved from a separate process's environment, SSE actually
+      # reaching a socket, and shutdown behaviour on a signal.
+      - name: Run integration tests
+        run: dart test --tags integration
 
   flutter:
     name: Analyze & test Flutter (${{ matrix.package }})
