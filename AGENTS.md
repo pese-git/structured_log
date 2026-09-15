@@ -61,8 +61,9 @@ decision 23) — с появлением пакетов другой приро�
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
   `publish_to: none` — самостоятельный сервис, не библиотека для встраивания.
 
-В `frontend/` пока один пакет — `structured_log_admin_ui` (раздел 23 той же change, реализован);
-`structured_log_admin_client` появится рядом по мере реализации раздела 11. `packages/` пока пуст.
+В `frontend/` два пакета — `structured_log_admin_ui` (раздел 23, реализован) и
+`structured_log_admin_client` (раздел 11 — скаффолдинг и слой данных готовы, экранов ещё нет:
+разделы 12–14 и 22). `packages/` пока пуст.
 
 `structured_log_material`/`structured_log_fluent`/`structured_log_cupertino` фактически ещё не
 опубликованы (нет `CHANGELOG.md` — публикация требует прогнать `melos version` первым, см.
@@ -89,7 +90,8 @@ decision 23) — с появлением пакетов другой приро�
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
-- [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже); `structured_log_admin_client` появится рядом, раздел 11 `tasks.md`.
+- [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
+- [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
 - `packages/` — директории ещё нет; резерв под пакеты вне категорий `emb`/`backend`/`frontend`.
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
@@ -198,6 +200,32 @@ decision 23) — с появлением пакетов другой приро�
 - `example/` — web-галерея компонентов (`structured_log_admin_ui_example`), `flutter run -d chrome`.
   В её тестах `pumpAndSettle` неприменим: `AdminLoadingIndicator` крутится вечно, нужен `pump`.
 - `publish_to: none` — привязан к эстетике одного клиента, не кит общего назначения.
+
+Внутри [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/):
+
+- Приложение (`publish_to: none`), web-платформа. Экранов пока нет — готов слой данных
+  (раздел 11), домашний экран заглушка до 12.1.
+- Раскладка: `lib/shared/` (`api`/`auth`/`config`/`di`/`logging`) + `lib/features/<фича>/` с
+  `domain`/`application`/`infrastructure`/`presentation`. **Директории заводятся вместе с первым
+  файлом**, а не пустыми (decision 32), поэтому `features/` появится в разделах 12–14/22.
+- `ApiClient` держит **три** инстанса `dio`, и это главное, что нужно знать до правок: основной с
+  перехватчиком аутентификации; клиент обновления **без** перехватчика (refresh, которому ответили
+  401 на основном инстансе, вошёл бы обратно в тот же перехватчик); клиент повтора исходного
+  запроса. Токен-эндпоинт исключён по пути, а не только по флагу — 401 от него означает неверный
+  пароль или израсходованный refresh-токен. Параллельные 401 делят одно обновление.
+- `retrofit`-интерфейсы заведены **только под существующие маршруты сервера**; `GET /v1/logs/stream`
+  в них отсутствует намеренно (decision 37) — SSE пишется вручную поверх того же `dio` в разделе 22.
+- `LogEntryDto` разобран вручную: сервер разливает `context` по верхнему уровню ответа, и
+  `json_serializable` не умеет «эти ключи мои, остальное сохрани».
+- Кодогенерация: `freezed`/`json_serializable`/`retrofit_generator` через `build_runner` —
+  `dart run melos run generate` или из директории пакета; `*.g.dart`/`*.freezed.dart` не коммитятся.
+  **`retrofit_generator` — 10.x, не 9.x**: 9.7.0 объявляет `retrofit: ^4.6.0`, но не компилируется с
+  4.10 (в enum `Parser` появилось значение, которого нет в его switch) — тот же класс ловушки, что с
+  `fluent_ui`/Flutter. 10.x требует `build ^4`, а `freezed` 2.x — `build ^2`, поэтому `freezed` здесь 3.x.
+- `environment.sdk` — `^3.8.0`, а не привычный воркспейсу `^3.0.0`: `json_serializable` генерирует
+  null-aware elements (`?instance.field`) для `includeIfNull: false`, ниже 3.8 такой код не парсится.
+- `analysis_options.yaml` гасит `invalid_annotation_target` — `freezed` ставит `@JsonKey` на параметры
+  конструктора, это штатный обходной путь самого `freezed`.
 
 Внутри [backend/structured_log_server/](backend/structured_log_server/) (файловая раскладка внутри фичи намеренно не фиксировалась заранее, decision 32 `design.md`):
 
@@ -313,8 +341,11 @@ dart run example/main.dart
   `emb/structured_log`.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
-  (+`example/`), `structured_log_admin_ui` (+`example/`)), по одному матричному прогону на пакет:
-  `flutter pub get`, `dart format --set-exit-if-changed`, `flutter analyze`, `flutter test`.
+  (+`example/`), `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному
+  матричному прогону на пакет: `flutter pub get`, `dart format --set-exit-if-changed`,
+  `flutter analyze`, `flutter test`. Для `structured_log_admin_client` между `pub get` и
+  `format` вставлен условный (`if: matrix.package == ...`) шаг `build_runner` — кодогенерация нужна
+  только ему.
   Только `ubuntu-latest` — этим пакетам не нужна ОС-чувствительная проверка ротации файлов.
   Использует `subosito/flutter-action`, канал `stable`.
 
