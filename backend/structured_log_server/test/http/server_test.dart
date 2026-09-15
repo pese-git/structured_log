@@ -49,6 +49,90 @@ void main() {
     expect(response.statusCode, 401);
   });
 
+  test('a revoked project key stops authenticating ingestion', () async {
+    // The one leg the key lifecycle tests don't reach on their own: revoking
+    // is a management action, but its whole point is what happens on the
+    // ingestion path afterwards.
+    final userId = await db.into(db.users).insert(
+          UsersCompanion.insert(
+              username: 'root', passwordHash: hashPassword('s3cret')),
+        );
+    await db.into(db.roleAssignments).insert(
+          RoleAssignmentsCompanion.insert(
+            subjectType: 'user',
+            subjectId: userId,
+            role: 'admin',
+            scopeType: 'global',
+          ),
+        );
+
+    final tokenResponse = await handler(
+      Request(
+        'POST',
+        Uri.parse('http://x/v1/auth/token'),
+        body: 'grant_type=password&username=root&password=s3cret',
+        headers: {'content-type': 'application/x-www-form-urlencoded'},
+      ),
+    );
+    final accessToken = (await body(tokenResponse))['access_token'] as String;
+    Map<String, String> bearer() => {'authorization': 'Bearer $accessToken'};
+
+    final group = await handler(
+      Request('POST', Uri.parse('http://x/v1/groups'),
+          body: jsonEncode({'name': 'g'}), headers: bearer()),
+    );
+    final groupId = (await body(group))['id'] as int;
+    final project = await handler(
+      Request(
+        'POST',
+        Uri.parse('http://x/v1/groups/$groupId/projects'),
+        body: jsonEncode({'name': 'p', 'retention_days': 7}),
+        headers: bearer(),
+      ),
+    );
+    final projectId = (await body(project))['id'] as int;
+    final key = await handler(
+      Request(
+        'POST',
+        Uri.parse('http://x/v1/projects/$projectId/secret-keys'),
+        body: jsonEncode(<String, Object?>{}),
+        headers: bearer(),
+      ),
+    );
+    final keyBody = await body(key);
+    final secret = keyBody['secret'] as String;
+    final keyId = keyBody['id'] as int;
+
+    Future<Response> ingest() async => handler(
+          Request(
+            'POST',
+            Uri.parse('http://x/v1/logs'),
+            body: jsonEncode([
+              {
+                'event': 'e',
+                'level': 'info',
+                'timestamp': DateTime.now().toUtc().toIso8601String(),
+              }
+            ]),
+            headers: {'authorization': 'Bearer $secret'},
+          ),
+        );
+
+    expect((await ingest()).statusCode, 202);
+
+    final revoked = await handler(
+      Request(
+        'DELETE',
+        Uri.parse('http://x/v1/projects/$projectId/secret-keys/$keyId'),
+        headers: bearer(),
+      ),
+    );
+    expect(revoked.statusCode, 204);
+
+    expect((await ingest()).statusCode, 401,
+        reason: 'the revoked key must stop authenticating immediately');
+  });
+
   test('a full admin flow: login, create group/project/key, ingest, query',
       () async {
     // Seed a user with global admin, the way section 34's bootstrap will.

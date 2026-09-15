@@ -172,6 +172,53 @@ void main() {
       return body['id'] as int;
     }
 
+    test('an unknown key id is rejected with 404', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/projects/$projectId/secret-keys/999999',
+            roles: _admin,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+    });
+
+    test('a key belonging to another project is 404, not revoked', () async {
+      // The key id alone must not address a key: an owner of one project
+      // could otherwise revoke another project's key by guessing its id.
+      final otherProject = await db.into(db.projects).insert(
+            ProjectsCompanion.insert(
+              groupId: groupId,
+              name: 'other',
+              retentionDays: 30,
+            ),
+          );
+      final foreignKey = await db.into(db.projectSecretKeys).insert(
+            ProjectSecretKeysCompanion.insert(
+              projectId: otherProject,
+              keyHash: 'hash',
+            ),
+          );
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/projects/$projectId/secret-keys/$foreignKey',
+            roles: _admin,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+
+      final row = await (db.select(db.projectSecretKeys)
+            ..where((t) => t.id.equals(foreignKey)))
+          .getSingle();
+      expect(row.revokedAt, isNull);
+    });
+
     test('revoking sets revoked_at and returns 204', () async {
       final keyId = await createTestKey();
 
