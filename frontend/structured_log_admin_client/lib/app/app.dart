@@ -10,6 +10,7 @@ import '../features/auth/presentation/login_cubit.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/auth/presentation/login_state.dart';
 import '../shared/auth/session_controller.dart';
+import 'home_shell.dart';
 import '../shared/config/app_config.dart';
 
 /// The application shell.
@@ -105,7 +106,7 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
-    return const _PlaceholderHome();
+    return HomeShell(scope: widget.scope, session: widget.session);
   }
 
   /// Host and port of the deployment this window talks to, or `null` when
@@ -122,26 +123,5 @@ class _AuthGateState extends State<AuthGate> {
         ? Uri.base.authority
         : (Uri.tryParse(configured)?.authority ?? configured);
     return authority.isEmpty ? null : authority;
-  }
-}
-
-/// Stands in until section 13/14 put real screens behind sign-in.
-///
-/// Deliberately not blank: a build that came up with nothing on screen looks
-/// identical to one that failed to start.
-class _PlaceholderHome extends StatelessWidget {
-  const _PlaceholderHome();
-
-  @override
-  Widget build(BuildContext context) {
-    return const ScaffoldPage(
-      content: AdminEmptyState(
-        icon: FluentIcons.completed,
-        title: 'Вход выполнен',
-        description:
-            'Экраны проектов и логов — разделы 13 и 14 '
-            'add-structured-log-server.',
-      ),
-    );
   }
 }

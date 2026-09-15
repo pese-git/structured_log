@@ -255,4 +255,58 @@ void main() {
       expect(find.text('Администрирование'), findsNothing);
     });
   });
+
+  group('AdminLogEntryRow', () {
+    testWidgets('shows level, time, event and category', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const AdminLogEntryRow(
+            level: AdminLogLevel.error,
+            time: '09:12:55',
+            event: 'Webhook delivery failed after 3 attempts',
+            category: 'webhooks',
+          ),
+        ),
+      );
+
+      expect(find.text('ERR'), findsOneWidget);
+      expect(find.text('09:12:55'), findsOneWidget);
+      expect(
+        find.text('Webhook delivery failed after 3 attempts'),
+        findsOneWidget,
+      );
+      expect(find.text('webhooks'), findsOneWidget);
+    });
+
+    testWidgets('an entry without a category shows no chip', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const AdminLogEntryRow(
+            level: AdminLogLevel.info,
+            time: '09:10:58',
+            event: 'Refund processed',
+          ),
+        ),
+      );
+      expect(find.byType(AdminTag), findsNothing);
+    });
+
+    testWidgets('reports a tap', (tester) async {
+      var opened = 0;
+      await tester.pumpWidget(
+        _host(
+          AdminLogEntryRow(
+            level: AdminLogLevel.info,
+            time: '09:10:58',
+            event: 'Refund processed',
+            onPressed: () => opened++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Refund processed'));
+      await tester.pumpAndSettle();
+      expect(opened, 1);
+    });
+  });
 }

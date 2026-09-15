@@ -30,6 +30,15 @@ abstract class GroupsApi {
 abstract class ProjectsApi {
   factory ProjectsApi(Dio dio, {String baseUrl}) = _ProjectsApi;
 
+  /// Every project the caller may read, flat: a role granted on one project
+  /// does not cover its group, so such a user sees no groups at all and this
+  /// is their only way to find it.
+  ///
+  /// Carries no usage counters — those come from [get], one project at a
+  /// time.
+  @GET('/v1/projects')
+  Future<List<ProjectDto>> list({@Query('group_id') int? groupId});
+
   /// The only endpoint that reports usage: `entry_count` and `total_bytes`
   /// come back here and nowhere else.
   @GET('/v1/projects/{id}')
