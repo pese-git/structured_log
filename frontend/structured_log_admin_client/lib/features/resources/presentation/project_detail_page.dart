@@ -340,6 +340,7 @@ class _SecretKeys extends StatelessWidget {
 
   Future<void> _create(BuildContext context) async {
     final cubit = context.read<ProjectDetailCubit>();
+    var closing = false;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => BlocProvider.value(
@@ -348,7 +349,19 @@ class _SecretKeys extends StatelessWidget {
           builder: (builderContext, state) {
             // As soon as the key exists, this dialog is replaced by the one
             // that shows it — the value is in memory and nowhere else.
-            if (state.revealedKey != null) {
+            //
+            // `closing` is not belt and braces. This builder runs on every
+            // state change while the dialog is up, and creating a key emits
+            // twice: once with the key, then again when the list behind it
+            // reloads. Without the flag both builds queue a pop, the route is
+            // still mounted through its exit animation so the second one is
+            // not skipped either, and it pops whatever is on top by then —
+            // which is the dialog showing the key. The value is answered once
+            // by the server and kept nowhere, so that pop loses it for good.
+            // Seen in a browser (2026-09-15); a widget test's clock does not
+            // reproduce the interleaving.
+            if (state.revealedKey != null && !closing) {
+              closing = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               });

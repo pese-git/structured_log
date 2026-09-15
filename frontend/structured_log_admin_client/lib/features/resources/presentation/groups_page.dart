@@ -119,6 +119,7 @@ class GroupsPage extends StatelessWidget {
 
   Future<void> _create(BuildContext context) async {
     final cubit = context.read<GroupsCubit>();
+    var closing = false;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => BlocProvider.value(
@@ -128,7 +129,15 @@ class GroupsPage extends StatelessWidget {
             // Closing is driven by the state rather than by the caller of
             // `create`: the cubit reloads the list after a success, and the
             // dialog should be gone before that finishes.
-            if (state.created) {
+            //
+            // Once, though — `closing` is what makes it once. This builder
+            // runs on every state change while the dialog is up, and that
+            // reload is itself a second change, so without the flag two pops
+            // are queued and the second one takes whatever is on top by then.
+            // The same shape cost the secret-key dialog the only copy of a
+            // key it will ever show (`project_detail_page.dart`).
+            if (state.created && !closing) {
+              closing = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               });

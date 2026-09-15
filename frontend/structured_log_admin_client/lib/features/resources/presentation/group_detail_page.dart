@@ -142,13 +142,19 @@ class GroupDetailPage extends StatelessWidget {
 
   Future<void> _create(BuildContext context) async {
     final cubit = context.read<GroupDetailCubit>();
+    var closing = false;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => BlocProvider.value(
         value: cubit,
         child: BlocBuilder<GroupDetailCubit, GroupDetailState>(
           builder: (builderContext, state) {
-            if (state.created) {
+            // Once only: the cubit reloads the project list after a
+            // success, and a builder that queued a pop on every state change
+            // would queue a second one for whatever is on top by then. See
+            // `project_detail_page.dart`, where that cost a secret key.
+            if (state.created && !closing) {
+              closing = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               });

@@ -56,6 +56,21 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # Drives the app as an app: a real engine, a real renderer, a real keyboard.
+  # `flutter test` cannot do that — its binding synthesises the text input and
+  # answers 400 to every HTTP request — so the operator's path through the UI
+  # lives in `integration_test/` and runs through `flutter drive` on Chrome,
+  # the only platform this client is built for.
+  integration_test:
+    sdk: flutter
+
+  # `test_driver/app.dart` enables the driver extension so the running app can
+  # be inspected and driven from outside — which is how a question about what
+  # the app really does gets answered, rather than argued about.
+  flutter_driver:
+    sdk: flutter
+
   flutter_lints: ^6.0.0
 
   build_runner: ^2.4.13
