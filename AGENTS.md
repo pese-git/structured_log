@@ -481,6 +481,17 @@ dart run example/main.dart
   кодогенерации, и матрица тянула бы за собой шаг `build_runner` впустую.
   Как и джоба сервера, сама пишет `pubspec_overrides.yaml` на
   `emb/structured_log`.
+- `admin-client-flow` — браузерный прогон пути оператора для
+  `frontend/structured_log_admin_client`: `flutter pub get`, `build_runner`,
+  поднятие `chromedriver` на 4444 (ждёт, пока тот ответит, иначе следующий шаг
+  гонится с ещё не занятым портом), затем `flutter drive` по
+  `integration_test/user_flow_test.dart`. Отдельной джобой, а не строкой
+  матрицы ниже: это **не** `flutter test` — тот биндинг подменяет ввод и
+  отвечает 400 на любой HTTP, и дефект, который эта джоба стережёт (диалог,
+  закрывавший себя дважды и уносивший единственный показ секретного ключа),
+  под ним не воспроизводится вовсе. `-d web-server`, **не** `-d chrome`: со
+  вторым Flutter поднимает браузер сам, драйвер не получает WebDriver-сессию и
+  прогон висит, ничего не сообщая. Headless — по умолчанию для этой команды.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
   (+`example/`), `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному

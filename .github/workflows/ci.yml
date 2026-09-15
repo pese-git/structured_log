@@ -227,6 +227,77 @@ jobs:
       - name: Run tests
         run: dart test
 
+  admin-client-flow:
+    name: Drive the admin client in a browser
+    runs-on: ubuntu-latest
+    # Its own job rather than a row in the matrix below, because it is not
+    # `flutter test`. `flutter test` runs on a binding that stands in for the
+    # user — it registers a fake text input and answers 400 to every HTTP
+    # request — and the defect this guards against (a dialog that closed
+    # itself twice and took the one and only view of a new secret key with it)
+    # reproduces only on a real renderer with real frames. The widget suite
+    # passed with it present.
+    defaults:
+      run:
+        working-directory: frontend/structured_log_admin_client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: >-
+            ${{ runner.os }}-pub-${{
+              hashFiles('frontend/structured_log_admin_client/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Same rule as everywhere else this package is built: *.g.dart and
+      # *.freezed.dart are not committed, so nothing compiles without this.
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # `flutter drive` on web talks to a WebDriver server rather than
+      # launching the browser itself. The runner image ships ChromeDriver
+      # alongside Chrome, but only promises it under $CHROMEWEBDRIVER rather
+      # than on PATH, so take either. Waiting for it to answer keeps the step
+      # below from racing a process that has not bound its port yet.
+      - name: Start chromedriver
+        run: |
+          driver="$(command -v chromedriver || echo "$CHROMEWEBDRIVER/chromedriver")"
+          echo "using $driver"
+          nohup "$driver" --port=4444 > /tmp/chromedriver.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:4444/status > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/chromedriver.log
+          exit 1
+
+      # `-d web-server`, never `-d chrome`: with the latter Flutter launches a
+      # browser of its own, the driver never gets a WebDriver session, and the
+      # run hangs until it is killed rather than reporting anything. Headless
+      # is the default for this command.
+      - name: Drive the operator's path
+        run: >-
+          flutter drive
+          --driver=test_driver/integration_test.dart
+          --target=integration_test/user_flow_test.dart
+          -d web-server
+          --browser-name=chrome
+
   flutter:
     name: Analyze & test Flutter (${{ matrix.package }})
     runs-on: ubuntu-latest
