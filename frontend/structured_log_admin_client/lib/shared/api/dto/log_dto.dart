@@ -1,11 +1,19 @@
 /// One entry as `GET /v1/logs` returns it.
 ///
-/// **Hand-written, not generated.** The server spreads the stored context
-/// across the top level of the object — `{...context, id, project_id,
-/// received_at}` — so an entry's own fields sit beside arbitrary ones the
-/// application logged. `json_serializable` has no way to express "these keys
-/// are mine, keep the rest", and dropping the rest would throw away exactly
-/// what the detail pane exists to show (`specs/admin-client-log-browser`).
+/// **Hand-written, not generated, and permanently so.** The server spreads the
+/// stored context across the top level of the object — `{...context, id,
+/// project_id, received_at}` — so an entry's own fields sit beside arbitrary
+/// ones the application logged. `json_serializable` has no way to express
+/// "these keys are mine, keep the rest", and dropping the rest would throw
+/// away exactly what the detail pane exists to show
+/// (`specs/admin-client-log-browser`).
+///
+/// A nested `context` in the response would have made this generated code —
+/// and would have removed the shadowing recorded in `tasks.md` 6.6 — but the
+/// flat shape is the settled contract (maintainer's decision, 2026-09-15), so
+/// [_ownKeys] is where the split lives. Adding a field to this class means
+/// adding its wire key there too, or it will arrive twice: once named, once
+/// inside [context].
 class LogEntryDto {
   final int id;
   final int projectId;
