@@ -1,0 +1,32 @@
+name: structured_log_admin_ui
+description: >-
+  Atomic Design component library for structured_log_admin_client — design
+  tokens, atoms, molecules and organisms built on Fluent UI.
+version: 0.1.0-dev.0
+repository: https://github.com/pese-git/structured_log.git
+# Tied to one client's aesthetic and vocabulary, not a general-purpose UI kit
+# (design.md decision 39).
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+  # Same floor as structured_log_fluent: fluent_ui 4.16.0+ needs Flutter
+  # 3.44.0+ while its own constraint still says >=3.32.0.
+  flutter: ">=3.44.0"
+
+dependencies:
+  # The only two dependencies this package is allowed (design.md decision 39):
+  # no fpdart/freezed/cherrypick/flutter_bloc/dio/retrofit, and never
+  # structured_log_admin_client. The boundary is enforced by `pub get`, not by
+  # convention.
+  fluent_ui: ^4.16.1
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

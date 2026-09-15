@@ -1,0 +1,48 @@
+name: structured_log_e2e
+description: >-
+  End-to-end tests across the whole system: the logging library, the HTTP
+  sender that ships its entries, the server that stores them, and the admin
+  client's data layer that reads them back.
+publish_to: none
+version: 0.1.0-dev.0
+
+environment:
+  sdk: ^3.8.0
+  # A Flutter package, and not by choice: the admin client is one, and the
+  # point of this package is to exercise *its* data layer rather than a
+  # reimplementation of it. `flutter test` runs these on the VM, where
+  # `dart:io` — and so starting the server as a real process — works.
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The three sides of the system under test. The server is not among them: it
+  # is started as a real OS process, not imported, which is the only way to
+  # prove it resolves its own configuration and serves over a real socket.
+  structured_log: ^0.2.0-dev.0+1
+  structured_log_http: ^0.1.0-dev.0
+  structured_log_admin_client:
+    path: ../../frontend/structured_log_admin_client
+
+  dio: ^5.7.0
+  fpdart: ^1.1.1
+
+# Paths, spelled here rather than left to `melos bootstrap`, because CI runs
+# this package without melos (`sdkPath` points at an FVM SDK that CI does not
+# have) and a hosted `structured_log` resolved from pub.dev would test the
+# published version instead of the one in this branch — the same trap the
+# server's CI job works around by writing overrides by hand.
+dependency_overrides:
+  structured_log:
+    path: ../../emb/structured_log
+  structured_log_http:
+    path: ../../emb/structured_log_http
+  structured_log_admin_ui:
+    path: ../../frontend/structured_log_admin_ui
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

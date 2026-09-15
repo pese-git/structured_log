@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        working-directory: structured_log
+        working-directory: emb/structured_log
     strategy:
       fail-fast: false
       matrix:
@@ -37,7 +37,7 @@ jobs:
           path: |
             ~/.pub-cache
             %LOCALAPPDATA%\Pub\Cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('structured_log/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
@@ -56,6 +56,248 @@ jobs:
       - name: Run example
         run: dart run example/main.dart
 
+  server:
+    name: Analyze & test (structured_log_server)
+    runs-on: ubuntu-latest
+    # Single OS, like the Flutter job: this package doesn't do the
+    # OS-sensitive file rotation that makes the structured_log job run on
+    # three, and it's a self-hosted service that only ever runs on Linux.
+    defaults:
+      run:
+        working-directory: backend/structured_log_server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dart-only: the server doesn't depend on Flutter, so no FVM either.
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('backend/structured_log_server/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # `melos bootstrap` would do this, but melos.yaml pins sdkPath to the
+      # FVM Flutter SDK, which CI doesn't have. Written out by hand instead,
+      # mirroring the pubspec_overrides.yaml melos generates locally: without
+      # it pub resolves the published structured_log and a breaking change
+      # made to emb/structured_log in the same PR would go unnoticed here.
+      - name: Link the workspace copy of structured_log
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../../emb/structured_log
+          EOF
+
+      - name: Install dependencies
+        run: dart pub get
+
+      # Must precede analyze and test: drift, freezed, json_serializable and
+      # shelf_router_generator all produce code the package does not compile
+      # without (the route table among it), and *.g.dart is not committed.
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      # Split from the integration run below only so the log says which of
+      # the two failed: `integration` is declared in dart_test.yaml but not
+      # excluded, so a plain `dart test` would run both anyway.
+      - name: Run tests
+        run: dart test --exclude-tags integration
+
+      # These spawn bin/server.dart as a real OS process. They are the only
+      # tests that exercise anything the in-process handler can't show —
+      # config resolved from a separate process's environment, SSE actually
+      # reaching a socket, and shutdown behaviour on a signal.
+      - name: Run integration tests
+        run: dart test --tags integration
+
+  e2e:
+    name: End-to-end (packages/e2e)
+    runs-on: ubuntu-latest
+    # The whole system in one process tree: bin/server.dart started for real,
+    # the logging library and its HTTP sender shipping into it, and the admin
+    # client's data layer reading back out. Its own job because it is the only
+    # one that needs two packages' generated code and a Flutter SDK at the
+    # same time.
+    defaults:
+      run:
+        working-directory: packages/e2e
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # A Flutter package, because the admin client is one and this suite
+      # exercises that client rather than a stand-in for it.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-e2e-${{ hashFiles('packages/e2e/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # Both halves generate code that is not committed, and both are needed
+      # before anything here compiles or runs: the client because this package
+      # imports it, the server because the harness starts it.
+      - name: Generate the server's code
+        working-directory: backend/structured_log_server
+        run: |
+          dart pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Generate the client's code
+        working-directory: frontend/structured_log_admin_client
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run end-to-end tests
+        run: flutter test
+
+  http-sender:
+    name: Analyze & test (structured_log_http)
+    runs-on: ubuntu-latest
+    # Pure Dart, no code generation and no OS-sensitive behaviour: its own
+    # job rather than a matrix entry beside structured_log_server, which
+    # would drag the build_runner step along for nothing.
+    defaults:
+      run:
+        working-directory: emb/structured_log_http
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log_http/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # Same reason as the server job: without the override pub resolves the
+      # published structured_log, and a breaking change to it in the same PR
+      # would go unnoticed here.
+      - name: Link the workspace copy of structured_log
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../structured_log
+          EOF
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      - name: Run tests
+        run: dart test
+
+  admin-client-flow:
+    name: Drive the admin client in a browser
+    runs-on: ubuntu-latest
+    # Its own job rather than a row in the matrix below, because it is not
+    # `flutter test`. `flutter test` runs on a binding that stands in for the
+    # user — it registers a fake text input and answers 400 to every HTTP
+    # request — and the defect this guards against (a dialog that closed
+    # itself twice and took the one and only view of a new secret key with it)
+    # reproduces only on a real renderer with real frames. The widget suite
+    # passed with it present.
+    defaults:
+      run:
+        working-directory: frontend/structured_log_admin_client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: >-
+            ${{ runner.os }}-pub-${{
+              hashFiles('frontend/structured_log_admin_client/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Same rule as everywhere else this package is built: *.g.dart and
+      # *.freezed.dart are not committed, so nothing compiles without this.
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # `flutter drive` on web talks to a WebDriver server rather than
+      # launching the browser itself. The runner image ships ChromeDriver
+      # alongside Chrome, but only promises it under $CHROMEWEBDRIVER rather
+      # than on PATH, so take either. Waiting for it to answer keeps the step
+      # below from racing a process that has not bound its port yet.
+      - name: Start chromedriver
+        run: |
+          driver="$(command -v chromedriver || echo "$CHROMEWEBDRIVER/chromedriver")"
+          echo "using $driver"
+          nohup "$driver" --port=4444 > /tmp/chromedriver.log 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:4444/status > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/chromedriver.log
+          exit 1
+
+      # `-d web-server`, never `-d chrome`: with the latter Flutter launches a
+      # browser of its own, the driver never gets a WebDriver session, and the
+      # run hangs until it is killed rather than reporting anything. Headless
+      # is the default for this command.
+      - name: Drive the operator's path
+        run: >-
+          flutter drive
+          --driver=test_driver/integration_test.dart
+          --target=integration_test/user_flow_test.dart
+          -d web-server
+          --browser-name=chrome
+
   flutter:
     name: Analyze & test Flutter (${{ matrix.package }})
     runs-on: ubuntu-latest
@@ -69,13 +311,16 @@ jobs:
       fail-fast: false
       matrix:
         package:
-          - structured_log_flutter
-          - structured_log_material
-          - structured_log_material/example
-          - structured_log_fluent
-          - structured_log_fluent/example
-          - structured_log_cupertino
-          - structured_log_cupertino/example
+          - emb/structured_log_flutter
+          - emb/structured_log_material
+          - emb/structured_log_material/example
+          - emb/structured_log_fluent
+          - emb/structured_log_fluent/example
+          - emb/structured_log_cupertino
+          - emb/structured_log_cupertino/example
+          - frontend/structured_log_admin_ui
+          - frontend/structured_log_admin_ui/example
+          - frontend/structured_log_admin_client
 
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +340,14 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      # Only structured_log_admin_client uses build_runner (freezed /
+      # json_serializable / retrofit). It must run before analyze and test:
+      # *.g.dart and *.freezed.dart are not committed, so without it the
+      # package does not compile — same rule as the server job.
+      - name: Generate code
+        if: matrix.package == 'frontend/structured_log_admin_client'
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Verify formatting
         run: dart format --set-exit-if-changed .

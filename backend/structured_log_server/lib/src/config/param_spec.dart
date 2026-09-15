@@ -1,0 +1,55 @@
+/// How a configuration parameter's value is typed and parsed
+/// (`log-server-config`). Kept deliberately small — every Stage 1 field
+/// fits `string`/`int`/`bool`; a wider type would need a new case here.
+enum ParamType { string, int, bool }
+
+/// One configuration parameter's full declaration — name, type, default,
+/// and whether it's a secret. A single [ParamSpec] list is the one source
+/// [ConfigResolver] builds the CLI parser, env var names, and `--help`
+/// text from, so they can't drift apart (`log-server-config`: "справка
+/// порождена из тех же описаний параметров, что используются при
+/// разборе").
+///
+/// Non-secret params get both a `--kebab-case` CLI flag and a
+/// `STRUCTURED_LOG_KEBAB_CASE` env var, mechanically derived from [name].
+/// Secret params ([isSecret]) get no CLI flag at all — only the env var and
+/// its `_FILE` sibling (`SecretSource`).
+class ParamSpec {
+  /// kebab-case, e.g. `http-port`. The env var name is derived from this:
+  /// `STRUCTURED_LOG_` + this name uppercased with `-` replaced by `_`.
+  final String name;
+  final ParamType type;
+  final String description;
+
+  /// `null` means "no default" — the param is either required (see
+  /// [requiredForCommands]) or intentionally optional-with-no-fallback
+  /// (e.g. `bootstrapAdminPassword`, which means "generate one" when unset,
+  /// not "use this literal default").
+  final Object? defaultValue;
+
+  final bool isSecret;
+
+  /// Commands for which a missing value (no CLI/env, no [defaultValue]) is
+  /// a configuration error. A command not in this set treats a missing
+  /// value as simply absent — read by whatever code path only needs it
+  /// conditionally (`log-server-config`: "набор обязательных параметров
+  /// зависит от выполняемой команды").
+  final Set<String> requiredForCommands;
+
+  /// For a string param with a closed set of valid values (e.g.
+  /// `logLevel`, `logFormat`) — any other value is a config error.
+  final Set<String>? allowedValues;
+
+  const ParamSpec({
+    required this.name,
+    required this.type,
+    required this.description,
+    this.defaultValue,
+    this.isSecret = false,
+    this.requiredForCommands = const {},
+    this.allowedValues,
+  });
+
+  String get envVarName =>
+      'STRUCTURED_LOG_${name.toUpperCase().replaceAll('-', '_')}';
+}

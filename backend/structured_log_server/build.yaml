@@ -1,0 +1,9 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # Preserve full DateTime precision (structured_log timestamps carry
+          # fractional seconds) instead of drift's default lossy unix-seconds
+          # storage.
+          store_date_time_values_as_text: true
