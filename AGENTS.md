@@ -8,8 +8,8 @@
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
 (`structured_log`, скины просмотрщика логов, `structured_log_http`), [backend/](backend/) —
-самостоятельные серверные приложения (`structured_log_server`), [frontend/](frontend/) —
-самостоятельные клиентские приложения с UI (`structured_log_admin_client`), [packages/](packages/) —
+самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
+самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
 пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (пока пусто, без записи
 в `melos.yaml`). Первоначально раскладка была полностью плоской, без категорий — по образцу
 [cherrypick](https://github.com/pese-git/cherrypick) того же автора; категории введены при
@@ -53,8 +53,11 @@ decision 23) — с появлением пакетов другой приро�
 Плюс один пакет в `backend/`:
 
 - [backend/structured_log_server/](backend/structured_log_server/) — self-hosted сервер приёма/
-  хранения/поиска/живой трансляции логов (`shelf`+`shelf_router`, `drift`/SQLite). Скаффолдинг
-  (Этап 0, пустой публичный API); реализация — разделы 2–8/21/26/28/33/34 `tasks.md` в
+  хранения/поиска/живой трансляции логов (`shelf`+`shelf_router`, `drift`/SQLite). Реализованы
+  приём и запрос логов, живой поток (SSE), группы/проекты/секретные ключи, аутентификация и RBAC,
+  ограничение частоты, очистка по retention и собственное логирование; не реализованы управление
+  пользователями, команды, выдача ролей, аудит, восстановление пароля и подтверждение email —
+  разделы 2–9/21/26/28/33/34 `tasks.md` в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
   `publish_to: none` — самостоятельный сервис, не библиотека для встраивания.
 
@@ -86,8 +89,8 @@ decision 23) — с появлением пакетов другой приро�
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
-- [frontend/](frontend/) — пока пусто; здесь появится `structured_log_admin_client`.
-- [packages/](packages/) — пока пусто; резерв под пакеты вне категорий `emb`/`backend`/`frontend`.
+- `frontend/` — директории ещё нет (git не хранит пустые); появится вместе с `structured_log_admin_client`/`structured_log_admin_ui`, разделы 11 и 23 `tasks.md`.
+- `packages/` — директории ещё нет; резерв под пакеты вне категорий `emb`/`backend`/`frontend`.
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
   только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
@@ -169,17 +172,19 @@ decision 23) — с появлением пакетов другой приро�
 - [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
 - `cupertino_icons` — обычная зависимость (иконки `CupertinoIcons` не бандлятся во Flutter SDK сами по себе); `uses-material-design: false` — пакет не тянет Material-иконки/шрифты.
 
-Внутри [emb/structured_log_http/](emb/structured_log_http/) (скаффолдинг, Этап 0 — публичный API пока пуст):
+Внутри [emb/structured_log_http/](emb/structured_log_http/):
 
 - [emb/structured_log_http/lib/structured_log_http.dart](emb/structured_log_http/lib/structured_log_http.dart) — barrel-файл экспорта.
-- `lib/src/http_output.dart` (раздел 9 `tasks.md`) — `HttpLogOutput` по паттерну `_SerializedAsyncOutput`/`AsyncFileOutput` из `structured_log` (сериализованная очередь, `catchError` на каждом шаге, публичный `flushed`), плюс батчинг по размеру/таймауту и retry с backoff на сетевых ошибках/5xx (не на 4xx).
-- Зависимость — только `structured_log` (чистый Dart, без `dio`/`http`; `dart:io`'s `HttpClient`, как и в `async_file_output.dart` самого `structured_log`).
+- [emb/structured_log_http/lib/src/http_output.dart](emb/structured_log_http/lib/src/http_output.dart) — `HttpLogOutput`: батчинг по размеру/таймауту, retry с backoff на сетевых ошибках/таймаутах/5xx (на 4xx — нет, кроме `408`/`429`), ограниченный буфер с вытеснением самых старых, публичный `flushed`. **Все неотправленные записи лежат в одной очереди, из которой насос забирает по `batchSize`** — первая версия выстраивала батчи цепочкой futures, и лимит буфера тогда не ограничивал память (см. 9.4 в `tasks.md`).
+- Транспорт — `dart:io`'s `HttpClient`, зависимость только `structured_log` (без `dio`/`http`). Шов `BatchSender` позволяет тестировать батчинг/retry/вытеснение без сокета; отдельная группа тестов работает против настоящего `HttpServer`.
+- `README.md`/`README.ru.md` — билингвальная пара, как у остальных пакетов.
 
-Внутри [backend/structured_log_server/](backend/structured_log_server/) (скаффолдинг, Этап 0 — публичный API пока пуст, файловая раскладка внутри фичи намеренно не зафиксирована заранее, decision 32 `design.md`):
+Внутри [backend/structured_log_server/](backend/structured_log_server/) (файловая раскладка внутри фичи намеренно не фиксировалась заранее, decision 32 `design.md`):
 
 - [backend/structured_log_server/lib/structured_log_server.dart](backend/structured_log_server/lib/structured_log_server.dart) — barrel-файл экспорта.
-- `lib/src/` — по фиче (`auth/`, `users/`, `projects/`, `logs/`, `live_stream/`, `audit/`, ...), плюс `shared`/`common`-слой для сквозных таблиц хранения (`drift`, раздел 2 `tasks.md`) и HTTP-инфраструктуры (`shelf`/`shelf_router`, раздел 6).
-- `bin/` — CLI entrypoint (`bin/server.dart`, раздел 8 `tasks.md`), пока не создан.
+- `lib/src/` — по фиче: `auth/` (токены, пароли, принципал), `rbac/`, `storage/` (`drift`-схема, `LogStore`, `LogFilter`), `ingest/`, `live/` (broadcast живого потока), `retention/` (purge job), `config/`, `logging/`, `http/` (middleware + `routes/`).
+- `bin/server.dart` — CLI entrypoint: команды `serve`/`create-admin`, резолвер конфигурации, автосоздание первого администратора, таймер очистки, graceful shutdown по SIGINT/SIGTERM.
+- `README.md`/`README.ru.md` — путь от пустой БД до прочитанного лога; команды в нём проверены прогоном против запущенной сборки (10.8 в `tasks.md`).
 - Кодогенерация: `drift_dev`/`freezed`/`json_serializable`/`shelf_router_generator` через `build_runner` — `dart run melos run generate` (скоуп `structured_log_server`) или `dart run build_runner build --delete-conflicting-outputs` из директории пакета; `*.g.dart`/`*.freezed.dart` — в `.gitignore` пакета, не коммитятся.
 - Периодическая очистка по `retention_days` (`lib/src/retention/purge_job.dart`)
   живёт таймером в `bin/server.dart` и останавливается в shutdown до закрытия БД.

@@ -5,8 +5,9 @@
 # structured_log Workspace
 
 A Melos + FVM monorepo for structured logging in Dart, inspired by
-[Python's structlog](https://www.structlog.org/), plus an in-app log
-viewer ecosystem for Flutter built on top of it.
+[Python's structlog](https://www.structlog.org/) — the core library, an
+in-app log viewer ecosystem for Flutter built on top of it, and a
+self-hosted server for shipping logs off the device and reading them back.
 
 ## Packages
 
@@ -45,13 +46,18 @@ viewer ecosystem for Flutter built on top of it.
 
 - **[`structured_log_http`](emb/structured_log_http/)** — an `HttpLogOutput`
   sink that ships log entries to a `structured_log_server` instance over
-  HTTP, with batching and retry/backoff. Only dependency is `structured_log`
-  itself. *Scaffolding stage — implementation in progress.*
+  HTTP: batching by size or timeout, retry with backoff, a bounded buffer,
+  and `flushed` to await delivery before exit. Never blocks the code that
+  logged. Only dependency is `structured_log` itself. *Not yet published.*
 
 - **[`structured_log_server`](backend/structured_log_server/)** — a
   self-hosted, multi-tenant server for log ingestion, storage, query and
-  live streaming (`shelf`/`shelf_router` + `drift`/SQLite). *Scaffolding
-  stage — implementation in progress.*
+  live streaming (`shelf`/`shelf_router` + `drift`/SQLite). Ingestion,
+  querying, SSE live streaming, groups/projects/secret keys,
+  authentication, RBAC, quotas, retention and rate limiting work today;
+  user management, teams, role assignment, the audit log and the email
+  flows are specified but not built yet. Not published — it is a service
+  you run, not a library you depend on.
 
 ## Repository Layout
 
@@ -65,6 +71,11 @@ fit the three categories above (currently empty). See [AGENTS.md](AGENTS.md)
 for the full toolchain reference (commands, conventions, versioning, CI) if
 you're contributing.
 
+[docs/](docs/) holds the cross-package design documentation for the server
+system — HTTP API and JSON models, authentication and RBAC, storage, live
+streaming, quotas, and operational configuration — in bilingual pairs; see
+[docs/README.md](docs/README.md) for the table of contents.
+
 Design and planning history for the Flutter log-viewer packages lives in
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/),
@@ -77,6 +88,8 @@ staged Stage 0/Stage 1/... delivery plan).
 
 ## Quick Start
 
+Logging, with the core library alone:
+
 ```dart
 import 'package:structured_log/structured_log.dart';
 
@@ -84,6 +97,27 @@ void main() {
   final log = getLogger();
   log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
 }
+```
+
+Shipping those entries to a server instead of (or alongside) the console:
+
+```dart
+final output = HttpLogOutput(
+  serverUrl: 'https://logs.example.com',
+  projectSecretKey: 'slk_...',
+);
+StructlogConfiguration.configure(
+  sinks: [LogSink(name: 'server', output: output)],
+);
+```
+
+Running that server — see
+[backend/structured_log_server/README.md](backend/structured_log_server/README.md)
+for the path from an empty database to a queried log entry:
+
+```bash
+export STRUCTURED_LOG_JWT_SIGNING_SECRET='a-long-random-string'
+dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 
 See each package's own README for installation and full API reference.

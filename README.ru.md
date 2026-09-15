@@ -5,8 +5,9 @@
 # structured_log Workspace
 
 Monorepo на Melos + FVM для структурированного логирования в Dart,
-вдохновлённого Python [`structlog`](https://www.structlog.org/), плюс
-экосистема in-app просмотра логов для Flutter поверх него.
+вдохновлённого Python [`structlog`](https://www.structlog.org/): само ядро,
+экосистема in-app просмотра логов для Flutter поверх него и self-hosted
+сервер, чтобы отправлять логи с устройства и читать их обратно.
 
 ## Пакеты
 
@@ -48,13 +49,19 @@ Monorepo на Melos + FVM для структурированного логир
 
 - **[`structured_log_http`](emb/structured_log_http/)** — синк
   `HttpLogOutput`, отправляющий записи лога на сервер `structured_log_server`
-  по HTTP, с батчингом и retry/backoff. Единственная зависимость —
-  `structured_log`. *Стадия скаффолдинга — реализация в процессе.*
+  по HTTP: батчинг по размеру или таймауту, retry с backoff, ограниченный
+  буфер и `flushed`, чтобы дождаться доставки перед выходом. Никогда не
+  блокирует того, кто логировал. Единственная зависимость —
+  `structured_log`. *Пока не опубликован.*
 
 - **[`structured_log_server`](backend/structured_log_server/)** —
   self-hosted мультитенантный сервер приёма, хранения, поиска и живой
-  трансляции логов (`shelf`/`shelf_router` + `drift`/SQLite). *Стадия
-  скаффолдинга — реализация в процессе.*
+  трансляции логов (`shelf`/`shelf_router` + `drift`/SQLite). Работают приём
+  и запрос логов, живой поток (SSE), группы/проекты/секретные ключи,
+  аутентификация, RBAC, квоты, очистка по retention и ограничение частоты;
+  управление пользователями, команды, выдача ролей, аудит и email-флоу
+  специфицированы, но не реализованы. Не публикуется — это сервис, который
+  запускают, а не библиотека, от которой зависят.
 
 ## Структура репозитория
 
@@ -69,6 +76,11 @@ Monorepo на Melos + FVM для структурированного логир
 (команды, соглашения, версионирование, CI) для контрибьюторов — в
 [AGENTS.md](AGENTS.md).
 
+В [docs/](docs/) лежит сквозная (не per-package) документация серверной
+системы — HTTP API и JSON-модели, аутентификация и RBAC, хранилище, живая
+трансляция, квоты и эксплуатационная конфигурация — билингвальными парами;
+оглавление в [docs/README.md](docs/README.md).
+
 История дизайна и планирования Flutter-пакетов просмотра логов — в
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
@@ -81,6 +93,8 @@ Monorepo на Melos + FVM для структурированного логир
 
 ## Быстрый старт
 
+Логирование — одним лишь ядром:
+
 ```dart
 import 'package:structured_log/structured_log.dart';
 
@@ -88,6 +102,26 @@ void main() {
   final log = getLogger();
   log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
 }
+```
+
+Отправка этих записей на сервер — вместо консоли или вместе с ней:
+
+```dart
+final output = HttpLogOutput(
+  serverUrl: 'https://logs.example.com',
+  projectSecretKey: 'slk_...',
+);
+StructlogConfiguration.configure(
+  sinks: [LogSink(name: 'server', output: output)],
+);
+```
+
+Запуск самого сервера — путь от пустой БД до прочитанного лога описан в
+[backend/structured_log_server/README.ru.md](backend/structured_log_server/README.ru.md):
+
+```bash
+export STRUCTURED_LOG_JWT_SIGNING_SECRET='длинная-случайная-строка'
+dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 
 Установку и полный справочник API смотрите в README каждого пакета.
