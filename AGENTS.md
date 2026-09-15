@@ -287,6 +287,14 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `test/testing_boundary_test.dart`. Есть и `test_driver/app.dart` — то же приложение с включённым
   driver-расширением, чтобы водить его руками через dart MCP (`flutter run --print-dtd` →
   `connect_dart_tooling_daemon`); именно так был найден дефект ниже.
+- **Содержимое `ContentDialog` не пишется голой `Column`.** Диалог отдаёт `content` в **loose**
+  `Flexible` — это максимум высоты, а не жёсткая высота, — а `Column` по умолчанию
+  `MainAxisSize.max` и забирает её целиком: диалог с одним полем и фразой стоял 876 при экране 900.
+  Либо `SingleChildScrollView` (так во всех диалогах `resource_dialogs.dart` и в настройках
+  аккаунта — заодно короткое окно прокручивается, а не переполняется), либо
+  `mainAxisSize: MainAxisSize.min` (так в `AdminConfirmDialog`). Держит
+  `test/features/resources/dialog_layout_test.dart`, меряющий **видимую** коробку: сам
+  `ContentDialog` растягивается на всю область и о размере диалога не говорит ничего.
 - **Диалог, закрывающий сам себя, обязан делать это один раз.** `GroupsPage`, `GroupDetailPage` и
   `ProjectDetailPage` закрывают свой диалог из `addPostFrameCallback`, когда состояние говорит
   «готово». Билдер выполняется на **каждом** изменении состояния, а создание сущности эмитит дважды —
