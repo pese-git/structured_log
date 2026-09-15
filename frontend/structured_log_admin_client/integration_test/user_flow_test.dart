@@ -365,8 +365,17 @@ Future<void> _waitFor(
   Duration timeout = const Duration(seconds: 15),
 }) async {
   final deadline = DateTime.now().add(timeout);
-  while (DateTime.now().isBefore(deadline) && finder.evaluate().isEmpty) {
+  while (DateTime.now().isBefore(deadline) && !_matches(finder)) {
     await tester.pump(const Duration(milliseconds: 50));
+  }
+  if (!_matches(finder)) {
+    fail(
+      [
+        ?reason,
+        'gave up waiting for $finder',
+        'on screen: ${_visibleText(tester)}',
+      ].join('\n'),
+    );
   }
   expect(
     finder,
@@ -376,6 +385,22 @@ Future<void> _waitFor(
     // nothing about which screen the flow actually ended up on.
     reason: [?reason, 'on screen: ${_visibleText(tester)}'].join('\n'),
   );
+}
+
+/// Whether the finder has anything, without throwing when it does not.
+///
+/// `.first` and `.last` raise `StateError` when the finder they wrap matched
+/// nothing, rather than reporting no match — so "is it on screen yet" cannot be
+/// asked with `evaluate().isNotEmpty` alone. Asking it that way turned a screen
+/// that was merely slow into an immediate failure that never waited at all, and
+/// reported it as `Bad state: No element`, which says nothing about what the
+/// test was looking for.
+bool _matches(Finder finder) {
+  try {
+    return finder.evaluate().isNotEmpty;
+  } on StateError {
+    return false;
+  }
 }
 
 /// Every piece of text the app is currently showing, deduplicated and
