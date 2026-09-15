@@ -9,6 +9,15 @@ import 'fake_adapter.dart';
 
 const _config = AppConfig(baseUrl: 'https://logs.example.test');
 
+/// What the server actually answers to a collection endpoint.
+///
+/// A bare `[]` stood here until 2026-09-15, and that is what let
+/// `GroupsApi.list()` be declared as returning a bare list: the fixture agreed
+/// with the mistake, so the suite was green while the real client reported
+/// every scope lookup as "the server is unreachable". The shape belongs to
+/// `resources_api_test.dart` now; here it only has to be right.
+const _emptyCollection = {'items': <Object?>[]};
+
 const _session = TokenPair(accessToken: 'access-1', refreshToken: 'refresh-1');
 
 Map<String, Object?> _tokenBody(String access, String refresh) => {
@@ -21,7 +30,7 @@ Map<String, Object?> _tokenBody(String access, String refresh) => {
 void main() {
   test('attaches the access token to an ordinary request', () async {
     final adapter = FakeAdapter(
-      (options) => const FakeReply(200, body: <Object?>[]),
+      (options) => const FakeReply(200, body: _emptyCollection),
     );
     final client = ApiClient(
       config: _config,
@@ -36,7 +45,7 @@ void main() {
 
   test('sends no token when there is no session', () async {
     final adapter = FakeAdapter(
-      (options) => const FakeReply(200, body: <Object?>[]),
+      (options) => const FakeReply(200, body: _emptyCollection),
     );
     final client = ApiClient(
       config: _config,
@@ -63,7 +72,7 @@ void main() {
       groupsCalls++;
       // Refused while the old token is presented, accepted once it is new.
       return options.headers['Authorization'] == 'Bearer access-2'
-          ? const FakeReply(200, body: <Object?>[])
+          ? const FakeReply(200, body: _emptyCollection)
           : const FakeReply(401, body: {'error': 'invalid_token'});
     });
 
@@ -75,7 +84,7 @@ void main() {
 
     final groups = await client.groups.list();
 
-    expect(groups, isEmpty);
+    expect(groups.items, isEmpty);
     expect(groupsCalls, 2, reason: 'the original request, then one replay');
     expect(
       await storage.read(),
@@ -161,7 +170,7 @@ void main() {
         return FakeReply(200, body: _tokenBody('access-2', 'refresh-2'));
       }
       return options.headers['Authorization'] == 'Bearer access-2'
-          ? const FakeReply(200, body: <Object?>[])
+          ? const FakeReply(200, body: _emptyCollection)
           : const FakeReply(401, body: {'error': 'invalid_token'});
     });
 

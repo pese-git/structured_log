@@ -20,8 +20,8 @@ class LogBrowserRepositoryImpl implements LogBrowserRepository {
       // Both lists, because a role can be granted on either level and
       // neither list implies the other: a project-scoped user sees no groups
       // at all, a group-scoped one sees the group and its projects.
-      final groups = await _api.groups.list();
-      final projects = await _api.projects.list();
+      final groups = (await _api.groups.list()).items;
+      final projects = (await _api.projects.list()).items;
 
       return right(
         ScopeOptions(

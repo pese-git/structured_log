@@ -3,6 +3,22 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'resource_dto.freezed.dart';
 part 'resource_dto.g.dart';
 
+/// Every collection the server returns arrives wrapped: `{"items": [...]}`,
+/// never a bare array (`groups_route.dart`, `projects_route.dart`,
+/// `secret_keys_route.dart`, and `GET /v1/logs`, which adds `next_cursor` to
+/// the same shape).
+///
+/// One envelope class per collection rather than a generic `Items<T>`:
+/// `retrofit` needs a concrete `fromJson` per method, and a generic one costs
+/// `genericArgumentFactories` plumbing on every call site to save three
+/// four-line classes.
+///
+/// These exist because their absence was a real defect: the list methods were
+/// declared as `Future<List<GroupDto>>`, dio's cast of a `Map` to a `List`
+/// threw, and the client reported it as "the server is unreachable" — with
+/// the server answering 200. Nothing caught it because no test put the
+/// server's actual body through this layer.
+
 @freezed
 abstract class GroupDto with _$GroupDto {
   const factory GroupDto({
@@ -93,4 +109,33 @@ abstract class CreateSecretKeyRequestDto with _$CreateSecretKeyRequestDto {
 
   factory CreateSecretKeyRequestDto.fromJson(Map<String, dynamic> json) =>
       _$CreateSecretKeyRequestDtoFromJson(json);
+}
+
+@freezed
+abstract class GroupListDto with _$GroupListDto {
+  const factory GroupListDto({@Default(<GroupDto>[]) List<GroupDto> items}) =
+      _GroupListDto;
+
+  factory GroupListDto.fromJson(Map<String, dynamic> json) =>
+      _$GroupListDtoFromJson(json);
+}
+
+@freezed
+abstract class ProjectListDto with _$ProjectListDto {
+  const factory ProjectListDto({
+    @Default(<ProjectDto>[]) List<ProjectDto> items,
+  }) = _ProjectListDto;
+
+  factory ProjectListDto.fromJson(Map<String, dynamic> json) =>
+      _$ProjectListDtoFromJson(json);
+}
+
+@freezed
+abstract class SecretKeyListDto with _$SecretKeyListDto {
+  const factory SecretKeyListDto({
+    @Default(<SecretKeyDto>[]) List<SecretKeyDto> items,
+  }) = _SecretKeyListDto;
+
+  factory SecretKeyListDto.fromJson(Map<String, dynamic> json) =>
+      _$SecretKeyListDtoFromJson(json);
 }

@@ -11,8 +11,12 @@ abstract class GroupsApi {
   factory GroupsApi(Dio dio, {String baseUrl}) = _GroupsApi;
 
   /// Returns only the groups the caller can see; an administrator sees all.
+  ///
+  /// Wrapped in [GroupListDto], not a bare list — the server envelopes every
+  /// collection as `{"items": [...]}`, and declaring the bare form here made
+  /// dio throw on the cast and the screen say the server was unreachable.
   @GET('/v1/groups')
-  Future<List<GroupDto>> list();
+  Future<GroupListDto> list();
 
   /// Administrators only — the server answers 403 to anyone else.
   @POST('/v1/groups')
@@ -37,7 +41,7 @@ abstract class ProjectsApi {
   /// Carries no usage counters — those come from [get], one project at a
   /// time.
   @GET('/v1/projects')
-  Future<List<ProjectDto>> list({@Query('group_id') int? groupId});
+  Future<ProjectListDto> list({@Query('group_id') int? groupId});
 
   /// The only endpoint that reports usage: `entry_count` and `total_bytes`
   /// come back here and nowhere else.
@@ -52,7 +56,7 @@ abstract class SecretKeysApi {
 
   /// Metadata only — no response here ever carries a key's value.
   @GET('/v1/projects/{id}/secret-keys')
-  Future<List<SecretKeyDto>> list(@Path('id') int projectId);
+  Future<SecretKeyListDto> list(@Path('id') int projectId);
 
   /// The one response that contains `secret`. It is not retrievable
   /// afterwards, so whatever calls this must show the value before it is
