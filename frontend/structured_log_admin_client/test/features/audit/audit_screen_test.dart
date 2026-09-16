@@ -472,6 +472,46 @@ void main() {
       );
     });
 
+    testWidgets('the journal opens at its newest record, not scrolled', (
+      tester,
+    ) async {
+      // Pins the invariant rather than reproducing a known bug: driving the
+      // app in Chrome showed the list opened past its headings and its newest
+      // record, but that could not be separated from the driver harness (which
+      // forces semantics on) or from a stale window frame, and it does not
+      // happen here. A journal must open at its newest record either way, and
+      // this is the cheapest place to keep saying so.
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final repository = _FakeRepository()
+        ..pages = [
+          AuditPageDto(
+            items: [for (var i = 20; i > 0; i--) _entry(id: i)],
+            auditRetentionDays: 365,
+            authEventRetentionDays: 90,
+          ),
+        ];
+      final cubit = AuditCubit(QueryAuditLog(repository));
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(host(cubit));
+      await cubit.load();
+      await tester.pumpAndSettle();
+
+      final position = tester
+          .state<ScrollableState>(find.byType(Scrollable).last)
+          .position;
+      expect(
+        position.pixels,
+        0,
+        reason:
+            'a journal that opens at its second-newest record, with no '
+            'column headings, is showing the wrong thing first',
+      );
+    });
+
     testWidgets('another page is offered only while there is one', (
       tester,
     ) async {
