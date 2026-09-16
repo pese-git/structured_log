@@ -34,7 +34,13 @@ class ChangePasswordRoutes {
     // Subject is the authenticated user, not a submitted string
     // (`log-server-rate-limit`).
     final attempt = request.rateLimitAttempt;
-    attempt.requireSubject('user:${identity.userId}');
+    // The actor is recorded here and not at the token endpoint, because this
+    // subject came out of an already-verified token — an id, not a string
+    // somebody submitted.
+    await attempt.requireSubject(
+      'user:${identity.userId}',
+      actorUserId: identity.userId,
+    );
 
     final body = await readJsonBody(request);
     final currentPassword = body['current_password'];

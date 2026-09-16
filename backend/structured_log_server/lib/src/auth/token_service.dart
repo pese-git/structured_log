@@ -2,11 +2,34 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:drift/drift.dart';
 import 'package:fpdart/fpdart.dart';
 
+import '../audit/audit_action.dart';
+import '../audit/audit_writer.dart';
 import '../storage/database.dart';
 import 'claims.dart';
 import 'hashing.dart';
 
 enum TokenErrorCode { invalidGrant, invalidRequest, unsupportedGrantType }
+
+/// Why a `grant_type=password` attempt was refused — for the audit record, and
+/// for nothing else.
+///
+/// **This never leaves the service.** Every one of these gets the same
+/// `invalid_grant` with the same description, because saying which applied
+/// would answer questions the caller did not earn the right to ask: whether an
+/// account exists, whether it is blocked, whether it was deleted.
+/// `TokenError.reason` is rendered onto the wire, so the reason deliberately
+/// does not travel in it — one careless line there turns this endpoint into an
+/// account-enumeration oracle.
+enum LoginFailure {
+  unknownUser('unknown_user'),
+  invalidPassword('invalid_password'),
+  blocked('blocked'),
+  deleted('deleted');
+
+  const LoginFailure(this.wire);
+
+  final String wire;
+}
 
 /// An RFC 6749 §5.2-shaped failure from `POST`/`DELETE /v1/auth/token`.
 /// [reason] carries the one non-standard extension this API defines on top
@@ -46,6 +69,7 @@ class TokenPair {
 class TokenService {
   final StructuredLogDatabase _db;
   final ClaimsResolver _claims;
+  final AuditWriter _audit;
   final SecretKey _signingKey;
   final String _issuer;
   final Duration accessTokenTtl;
@@ -53,7 +77,8 @@ class TokenService {
 
   TokenService(
     this._db,
-    this._claims, {
+    this._claims,
+    this._audit, {
     required String signingSecret,
     required String issuer,
     this.accessTokenTtl = const Duration(minutes: 15),
@@ -61,24 +86,77 @@ class TokenService {
   })  : _signingKey = SecretKey(signingSecret),
         _issuer = issuer;
 
+  /// The audit record is written here rather than by the route handler, and
+  /// that is why [clientIp]/[userAgent] are parameters: the handler has
+  /// neither the user id — the actor of a success and of a known-account
+  /// failure — nor the reason, and the only way to hand it the reason would be
+  /// through `TokenError`, which goes on the wire.
   Future<Either<TokenError, TokenPair>> passwordGrant({
     required String username,
     required String password,
+    required String clientIp,
+    String? userAgent,
   }) async {
     final user = await (_db.select(
       _db.users,
     )..where((t) => t.username.equals(username)))
         .getSingleOrNull();
 
-    if (user == null ||
-        !user.isActive ||
-        !verifyPassword(password, user.passwordHash)) {
+    final failure = _reasonToRefuse(user, password);
+    if (failure != null) {
+      await _audit.write(
+        action: AuditAction.authLoginFailed,
+        targetType: AuditTargetType.user,
+        // Null for an account that does not exist: the honest record of an
+        // attempt with nobody behind it.
+        actorUserId: user?.id,
+        targetId: user?.id,
+        metadata: {
+          'reason': failure.wire,
+          'client_ip': clientIp,
+          'user_agent': userAgent,
+          // The submitted string is never stored. A username matching no
+          // account is regularly a password typed into the wrong box, and the
+          // journal outlives the mistake (`specs/log-server-audit`).
+          if (failure == LoginFailure.unknownUser) 'unknown_user': true,
+        },
+      );
       return left(const TokenError(TokenErrorCode.invalidGrant));
     }
 
-    return right(await _issuePair(user.id, user.username));
+    final pair = await _issuePair(user!.id, user.username);
+    await _audit.write(
+      action: AuditAction.authLoginSucceeded,
+      targetType: AuditTargetType.user,
+      actorUserId: user.id,
+      targetId: user.id,
+      metadata: {'client_ip': clientIp, 'user_agent': userAgent},
+    );
+    return right(pair);
   }
 
+  /// Which refusal applies, or `null` when the credentials are good.
+  ///
+  /// Split out of the one collapsed condition this used to be, because the
+  /// audit record has to say which — and splitting it surfaced that
+  /// `deleted_at` was never consulted at all. Nothing sets that column yet, so
+  /// the branch is unreachable today. It is here because the alternative is
+  /// remembering to add it exactly when account deletion lands, at which point
+  /// a row with `deleted_at` set and `is_active` still true would
+  /// authenticate.
+  static LoginFailure? _reasonToRefuse(User? user, String password) {
+    if (user == null) return LoginFailure.unknownUser;
+    if (user.deletedAt != null) return LoginFailure.deleted;
+    if (!user.isActive) return LoginFailure.blocked;
+    if (!verifyPassword(password, user.passwordHash)) {
+      return LoginFailure.invalidPassword;
+    }
+    return null;
+  }
+
+  /// Deliberately silent in the audit log. A client renewing its session is
+  /// not an event — it is the same session continuing, and one record per
+  /// renewal would bury the logins that are (`specs/log-server-audit`).
   Future<Either<TokenError, TokenPair>> refreshTokenGrant(
     String presentedToken,
   ) async {
@@ -124,11 +202,34 @@ class TokenService {
   /// `DELETE /v1/auth/token` — always succeeds regardless of whether
   /// [presentedToken] was valid, already revoked, or never existed
   /// (RFC 7009 §2.2, anti-enumeration).
-  Future<void> revoke(String presentedToken) async {
+  /// The audit record does not follow the response: a token that was never
+  /// live is not someone logging out, and recording one would put an event in
+  /// the journal that never happened. What keeps a caller from learning which
+  /// case they hit is the sameness of the *response*, not of the journal
+  /// (`specs/log-server-audit`).
+  Future<void> revoke(
+    String presentedToken, {
+    required String clientIp,
+    String? userAgent,
+  }) async {
     final hash = hashToken(presentedToken);
-    await (_db.update(_db.refreshTokens)
+    final stored = await (_db.select(_db.refreshTokens)
           ..where((t) => t.tokenHash.equals(hash) & t.revokedAt.isNull()))
+        .getSingleOrNull();
+    if (stored == null) return;
+
+    await (_db.update(
+      _db.refreshTokens,
+    )..where((t) => t.id.equals(stored.id)))
         .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
+
+    await _audit.write(
+      action: AuditAction.authLoggedOut,
+      targetType: AuditTargetType.user,
+      actorUserId: stored.userId,
+      targetId: stored.userId,
+      metadata: {'client_ip': clientIp, 'user_agent': userAgent},
+    );
   }
 
   Future<void> _revokeAllForUser(int userId) {

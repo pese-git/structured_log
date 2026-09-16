@@ -1,6 +1,7 @@
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/claims.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/auth/local_identity_provider.dart';
@@ -20,6 +21,9 @@ StructuredLogDatabase openInMemory() {
   );
 }
 
+/// Any address will do; what matters is that one is recorded.
+const testClientIp = '203.0.113.9';
+
 void main() {
   late StructuredLogDatabase db;
   late TokenService tokenService;
@@ -30,6 +34,7 @@ void main() {
     tokenService = TokenService(
       db,
       ClaimsResolver(db, Authorizer(db)),
+      AuditWriter(db),
       signingSecret: _secret,
       issuer: _issuer,
     );
@@ -61,6 +66,7 @@ void main() {
         );
 
     final pair = (await tokenService.passwordGrant(
+      clientIp: testClientIp,
       username: 'alice',
       password: 's3cret',
     ))

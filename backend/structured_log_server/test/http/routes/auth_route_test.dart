@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:shelf/shelf.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/claims.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/auth/token_service.dart';
@@ -28,6 +29,10 @@ class _StubTokenService implements TokenService {
   Either<TokenError, TokenPair> refreshResult;
   final revoked = <String>[];
 
+  /// What the route resolved and handed over — the route's only new job.
+  String? seenClientIp;
+  String? seenUserAgent;
+
   _StubTokenService({
     required this.passwordResult,
     required this.refreshResult,
@@ -37,16 +42,27 @@ class _StubTokenService implements TokenService {
   Future<Either<TokenError, TokenPair>> passwordGrant({
     required String username,
     required String password,
-  }) async =>
-      passwordResult;
+    required String clientIp,
+    String? userAgent,
+  }) async {
+    seenClientIp = clientIp;
+    seenUserAgent = userAgent;
+    return passwordResult;
+  }
 
   @override
   Future<Either<TokenError, TokenPair>> refreshTokenGrant(String token) async =>
       refreshResult;
 
   @override
-  Future<void> revoke(String presentedToken) async =>
-      revoked.add(presentedToken);
+  Future<void> revoke(
+    String presentedToken, {
+    required String clientIp,
+    String? userAgent,
+  }) async {
+    seenClientIp = clientIp;
+    revoked.add(presentedToken);
+  }
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -272,6 +288,7 @@ void main() {
       final service = TokenService(
         db,
         ClaimsResolver(db, Authorizer(db)),
+        AuditWriter(db),
         signingSecret: 'test-secret',
         issuer: 'test',
       );

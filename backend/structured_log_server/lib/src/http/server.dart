@@ -69,6 +69,7 @@ Handler buildHandler(
   final tokenService = TokenService(
     db,
     claimsResolver,
+    audit,
     signingSecret: signingSecret,
     issuer: issuer,
   );
@@ -84,7 +85,10 @@ Handler buildHandler(
 
   final featureRouters = <Router>[
     AuditLogRoutes(db, authorizer).router,
-    AuthRoutes(tokenService).router,
+    AuthRoutes(
+      tokenService,
+      trustedProxyHops: config?.trustedProxyHops ?? 0,
+    ).router,
     ChangePasswordRoutes(db, audit).router,
     LogRoutes(db, authorizer, logStore, logBroadcast).router,
     LogStreamRoutes(
@@ -119,8 +123,9 @@ Handler buildHandler(
   // a bucket lookup. Skipped entirely when no config is supplied — route
   // tests build a handler without one.
   if (config != null) {
-    pipeline =
-        pipeline.addMiddleware(rateLimitMiddleware(config, clock: clock));
+    pipeline = pipeline.addMiddleware(
+      rateLimitMiddleware(config, clock: clock, audit: audit),
+    );
   }
 
   return pipeline
