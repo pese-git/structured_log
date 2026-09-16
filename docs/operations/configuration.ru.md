@@ -42,9 +42,9 @@ STRUCTURED_LOG_JWT_SECRET=...                      # напрямую
 STRUCTURED_LOG_JWT_SECRET_FILE=/run/secrets/jwt    # из смонтированного файла
 ```
 
-То же касается `STRUCTURED_LOG_SMTP_PASSWORD` и
-`STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` — пароля первого администратора
-на пустой базе.
+То же касается `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` — пароля первого
+администратора на пустой базе — и любого секрета, который появится
+позже, включая пароль SMTP.
 
 Аргументы процесса видны в `ps` любому пользователю машины, оседают в
 истории shell и в логах супервизора — поэтому флага нет вовсе, а не
@@ -82,8 +82,8 @@ STRUCTURED_LOG_JWT_SECRET_FILE=/run/secrets/jwt    # из смонтирован
 (без учёта регистра) и ничего больше — `…=off` это ошибка, а не тихий
 `false`, который выключил бы защиту, считавшуюся включённой. Длительности
 и размеры — целые числа с единицей **в имени**
-(`--access-token-ttl-seconds`, `--audit-retention-days`,
-`--max-batch-bytes`), а не строки вида `30m`/`10MB`: это ещё один
+(`--retention-purge-interval-seconds`, `--sse-heartbeat-interval-seconds`,
+`--max-ingest-body-bytes`), а не строки вида `30m`/`10MB`: это ещё один
 маленький язык со своими неоднозначностями.
 
 ## Как посмотреть, что сервер взял на самом деле
@@ -100,59 +100,90 @@ dart run bin/server.dart --print-config
 сервер работает не с теми настройками, которые я задал?*
 
 `--help` порождается из тех же описаний параметров, что использует
-парсер, поэтому разойтись с реальным набором опций он не может.
+парсер, поэтому разойтись с реальным набором опций он не может. Если эта
+страница и `--help` расходятся, прав `--help`, а расхождение — баг
+страницы, который и ловит
+[`test/config/configuration_docs_test.dart`](../../backend/structured_log_server/test/config/configuration_docs_test.dart).
 
 ## Какие настройки нужны какой команде
 
-Параметры автосоздания читает только обычный запуск сервера — `create-admin`
-их не использует, и ни один из них не обязателен: незаданный пароль
-означает «сгенерировать», а не «отказать». Обязательность проверяется применительно к команде. `create-admin`
+Параметры автосоздания читает и обычный запуск сервера, и `create-admin`,
+и ни один из них не обязателен: незаданный пароль означает
+«сгенерировать», а не «отказать». Обязательность проверяется
+применительно к команде. `create-admin`
 ([auth.md](../architecture/auth.ru.md)) нужен только путь к базе:
-требовать JWT-секрет и настройки SMTP от команды, которая пишет одну
-строку, означало бы упереть первичную настройку в почту, которая на этом
-шаге ещё не нужна.
+требовать JWT-секрет от команды, которая пишет одну строку, означало бы
+упереть первичную настройку в то, что на этом шаге ещё не нужно, — и то
+же правило будет действовать для почтовых настроек, когда они появятся.
 
 ## Справочник
 
-Дефолты, помеченные *TBD*, сознательно не зафиксированы дизайном — они
-определяются вместе с первой реализацией (см. Open Questions в
-design.md).
+Каждый флаг ниже объявлен в
+[`serverConfigParams`](../../backend/structured_log_server/lib/src/config/server_config.dart)
+— том же единственном источнике, из которого строятся парсер, имена
+переменных окружения и `--help`. Размеры — в байтах, интервалы — в
+секундах, как и сказано в именах.
+
+<!-- config-reference:implemented -->
 
 | Параметр | Флаг / переменная | По умолчанию | Примечания |
 |---|---|---|---|
 | HTTP host | `--http-host` | `0.0.0.0` | |
 | HTTP порт | `--http-port` | `8080` | |
 | Файл базы | `--db-path` | — | Обязателен для любой команды, включая `create-admin` |
-| JWT-секрет | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Обязателен**, флага нет, не генерируется |
-| Срок жизни access-токена | `--access-token-ttl-seconds` | TBD | |
-| Срок жизни refresh-токена | `--refresh-token-ttl-seconds` | TBD | |
-| Самостоятельная регистрация | `--registration-enabled` / `--no-registration-enabled` | `false` | В закрытых корпоративных установках остаётся выключенной ([auth.md](../architecture/auth.ru.md)) |
-| SMTP host / порт | `--smtp-host`, `--smtp-port` | — | Нужны только если используются email-сценарии |
-| SMTP пользователь | `--smtp-username` | — | |
-| SMTP пароль | `STRUCTURED_LOG_SMTP_PASSWORD` / `…_FILE` | — | Секрет: флага нет |
-| Адрес отправителя | `--smtp-from` | — | |
-| База ссылки восстановления | `--password-reset-base-url` | — | Только для web-сборки; код всегда можно ввести вручную |
-| Срок жизни токена восстановления | `--password-reset-ttl-seconds` | TBD | |
-| База ссылки подтверждения email | `--email-verification-base-url` | — | |
-| Срок жизни токена подтверждения | `--email-verification-ttl-seconds` | TBD | Может быть заметно больше, чем у восстановления |
-| Лимит тела приёма | `--max-batch-bytes` | TBD | Превышение — `413` на весь батч ([errors.md](../api/errors.ru.md)) |
-| Интервал очистки | `--purge-interval-seconds` | TBD | Один таймер и для retention логов, и для retention аудита |
+| JWT-секрет | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Обязателен для `serve`**, флага нет, не генерируется |
+| Издатель токенов | `--jwt-issuer` | `structured_log_server` | Claim `iss` в выпускаемых access-токенах |
+| Лимит тела приёма | `--max-ingest-body-bytes` | `10485760` (10 МиБ) | Превышение — `413` на весь батч ([errors.md](../api/errors.ru.md)) |
+| Интервал очистки | `--retention-purge-interval-seconds` | `3600` | Как часто запускается проход; *что* именно он удаляет, решает `retention_days` самого проекта ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | Ограничение частоты | `--rate-limit-enabled` / `--no-rate-limit-enabled` | `true` | Выключается, если впереди собственный шлюз ([auth.md](../architecture/auth.ru.md#ограничение-частоты-throttling-без-блокировки)) |
-| Ведро IP: ёмкость / пополнение | `--rate-limit-ip-capacity`, `--rate-limit-ip-refill-per-minute` | TBD | Списывается на каждом запросе к ограничиваемому пути |
-| Ведро субъекта: ёмкость / пополнение | `--rate-limit-subject-capacity`, `--rate-limit-subject-refill-per-minute` | TBD | Списывается только на неудачах, успех восстанавливает |
-| Предел числа ключей | `--rate-limit-max-keys` | TBD | Сверх него — LRU-вытеснение |
+| Ёмкость ведра | `--rate-limit-bucket-capacity` | `10` | Одно значение на обе половины ограничителя: ведро IP, списываемое на каждом запросе к ограничиваемому пути, и ведро субъекта, списываемое только на неудачах |
+| Пополнение ведра | `--rate-limit-refill-per-minute` | `10` | Тоже общее для обеих половин; успешный вход вдобавок восстанавливает ведро этого субъекта целиком |
+| Предел числа ключей | `--rate-limit-max-keys` | `10000` | На каждое хранилище вёдер; сверх него — LRU-вытеснение |
 | Доверенных прокси | `--trusted-proxy-hops` | `0` | `0` = `X-Forwarded-For` игнорируется полностью |
-| Хранение аудита | `--audit-retention-days` | не задано | Не задано = хранить вечно ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
-| Хранение auth-событий | `--auth-event-retention-days` | не задано | Отделено от предыдущего намеренно |
-| Порция очистки аудита | `--audit-purge-batch-size` | TBD | Удаление порциями не блокирует приём логов |
-| Heartbeat живого потока | `--stream-heartbeat-seconds` | TBD | Он же перепроверяет авторизацию ([live-streaming.md](../architecture/live-streaming.ru.md)) |
-| Уровень собственного лога | `--log-level` | `info` | Диагностика самого сервера, не принятые записи ([README.md](../architecture/README.ru.md#цепочка-middleware)) |
+| Heartbeat живого потока | `--sse-heartbeat-interval-seconds` | `25` | Он же перепроверяет авторизацию ([live-streaming.md](../architecture/live-streaming.ru.md)) |
+| Уровень собственного лога | `--log-level` | `info` | Одно из `trace`/`debug`/`info`/`warning`/`error`/`critical`. Диагностика самого сервера, не принятые записи ([README.md](../architecture/README.ru.md#цепочка-middleware)) |
 | Формат собственного лога | `--log-format` | `console` | `console` или `json` для машинного сбора |
 | Файл собственного лога | `--log-file` | не задан | Не задан = консоль. При заданном запись асинхронная, с ротацией, чтобы не блокировать единственный isolate |
-| Ротация файла лога | `--log-file-max-bytes`, `--log-file-max-files` | TBD | Имеют смысл только вместе с `--log-file` |
+| Размер ротации лога | `--log-max-file-bytes` | `10485760` (10 МиБ) | Имеет смысл только вместе с `--log-file` |
+| Число файлов ротации | `--log-max-files` | `5` | Так же |
 | Автосоздание администратора | `--bootstrap-admin-enabled` / `--no-bootstrap-admin-enabled` | `true` | Создаёт первого администратора, когда таблица `users` пуста ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md#bootstrap-два-пути-к-первому-администратору)) |
-| Логин первого администратора | `--bootstrap-admin-username` | `admin` | Используется только при пустой таблице |
-| Пароль первого администратора | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | генерируется | Секрет: флага нет. Не задан = генерируется случайный и однократно печатается с пометкой «временный» |
+| Логин первого администратора | `--bootstrap-admin-username` | `admin` | Имя, которое использует автосоздание, и то же имя создаёт `create-admin` |
+| Пароль первого администратора | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | генерируется | Секрет: флага нет. Не задан = генерируется случайный и однократно печатается с пометкой «временный» — одинаково для автосоздания и для `create-admin` |
+
+<!-- /config-reference -->
+
+### Ещё не настройки
+
+Они описаны в
+[design.md](../../openspec/changes/add-structured-log-server/design.md),
+но **сегодня у них нет ни флага, ни переменной окружения** —
+возможность, которой они управляют, ещё не реализована. Передать такой
+флаг — значит получить «неизвестный флаг» и остановленный запуск;
+выставить соответствующую переменную `STRUCTURED_LOG_*` — предупреждение
+«неизвестная переменная», и она будет проигнорирована. Они перечислены,
+чтобы имена, когда появятся, оказались теми самыми, на которые вы уже
+рассчитывали.
+
+<!-- config-reference:planned -->
+
+| Параметр | Планируемый флаг / переменная | Сегодня |
+|---|---|---|
+| Срок жизни access-токена | `--access-token-ttl-seconds` | Зафиксирован в коде: 15 минут |
+| Срок жизни refresh-токена | `--refresh-token-ttl-seconds` | Зафиксирован в коде: 30 дней |
+| Самостоятельная регистрация | `--registration-enabled` / `--no-registration-enabled` | Эндпоинта регистрации нет; единственный способ завести пользователя — администратор ([auth.md](../architecture/auth.ru.md)) |
+| SMTP host / порт | `--smtp-host`, `--smtp-port` | Сервер не отправляет писем вообще |
+| SMTP пользователь | `--smtp-username` | — |
+| SMTP пароль | `STRUCTURED_LOG_SMTP_PASSWORD` / `…_FILE` | — |
+| Адрес отправителя | `--smtp-from` | — |
+| База ссылки восстановления | `--password-reset-base-url` | Сценария восстановления пароля нет |
+| Срок жизни токена восстановления | `--password-reset-ttl-seconds` | — |
+| База ссылки подтверждения email | `--email-verification-base-url` | Сценария подтверждения email нет |
+| Срок жизни токена подтверждения | `--email-verification-ttl-seconds` | — |
+| Хранение аудита | `--audit-retention-days` | Аудит — Этап 2 ([design.md](../../openspec/changes/add-structured-log-server/design.md), «Delivery Phases»); хранить пока нечего |
+| Хранение auth-событий | `--auth-event-retention-days` | Так же |
+| Порция очистки аудита | `--audit-purge-batch-size` | Так же. Очистка записей логов уже идёт порциями, размер которых зафиксирован в коде |
+
+<!-- /config-reference -->
 
 ## Примеры
 
@@ -167,7 +198,7 @@ STRUCTURED_LOG_JWT_SECRET=$(openssl rand -hex 32) \
 ```bash
 # Разработка: всё флагами, секрет из окружения
 STRUCTURED_LOG_JWT_SECRET=dev-only-secret \
-  dart run bin/server.dart --db-path ./dev.db --http-port 8080 --registration-enabled
+  dart run bin/server.dart --db-path ./dev.db --http-port 8080 --log-level debug
 ```
 
 ```bash
@@ -176,7 +207,7 @@ docker run \
   -e STRUCTURED_LOG_DB_PATH=/data/logs.db \
   -e STRUCTURED_LOG_HTTP_PORT=8080 \
   -e STRUCTURED_LOG_JWT_SECRET_FILE=/run/secrets/jwt \
-  -e STRUCTURED_LOG_AUTH_EVENT_RETENTION_DAYS=90 \
+  -e STRUCTURED_LOG_LOG_FORMAT=json \
   -e STRUCTURED_LOG_TRUSTED_PROXY_HOPS=1 \
   -v /srv/logs:/data -v /srv/secrets/jwt:/run/secrets/jwt:ro \
   structured-log-server
@@ -189,16 +220,18 @@ dart run bin/server.dart --http-port 9090
 
 ```bash
 # Повторный bootstrap на непустой базе (автосоздание там не срабатывает);
-# этой команде не нужны ни JWT-секрет, ни SMTP
-dart run bin/server.dart create-admin --db-path /data/logs.db \
-  --username admin --password "$(read -rsp 'password: ' p; echo "$p")"
+# этой команде не нужен JWT-секрет. Пароль — секрет, поэтому приходит из
+# окружения; опустите его совсем, чтобы пароль сгенерировали
+STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD_FILE=/run/secrets/admin-password \
+  dart run bin/server.dart create-admin --db-path /data/logs.db \
+  --bootstrap-admin-username admin
 ```
 
 ## См. также
 
 - [auth.md](../architecture/auth.ru.md) — чем на самом деле управляют
-  JWT-секрет, переключатель регистрации и ограничитель частоты.
-- [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md) — две
-  настройки хранения и что именно они удаляют.
+  JWT-секрет и ограничитель частоты.
+- [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md) — что
+  удаляет проход очистки и какая настройка проекта это решает.
 - [http-api.md](../api/http-api.ru.md) — эндпоинты, форму которых задают
   эти настройки.

@@ -151,6 +151,8 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 имя флага в верхнем snake case) или значение по умолчанию, в таком порядке
 приоритета. Секреты — только через окружение.
 
+<!-- config-reference:implemented -->
+
 | Настройка | По умолчанию |
 |---|---|
 | `--db-path` | обязательна для `serve` |
@@ -162,6 +164,8 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 | `--rate-limit-*` | включено, 10 токенов, 10/мин, 10000 ключей |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` игнорируется |
 | `--sse-heartbeat-interval-seconds` | `25` |
+
+<!-- /config-reference -->
 
 Полный список с описаниями:
 [docs/operations/configuration.ru.md](../../docs/operations/configuration.ru.md).

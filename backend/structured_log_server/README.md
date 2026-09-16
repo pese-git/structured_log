@@ -150,6 +150,8 @@ Every setting is a CLI flag, an environment variable
 (`STRUCTURED_LOG_` + the flag in upper snake case), or a default — in that
 order of priority. Secrets are environment-only.
 
+<!-- config-reference:implemented -->
+
 | Setting | Default |
 |---|---|
 | `--db-path` | required for `serve` |
@@ -161,6 +163,8 @@ order of priority. Secrets are environment-only.
 | `--rate-limit-*` | enabled, 10 tokens, 10/min, 10000 keys |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` ignored |
 | `--sse-heartbeat-interval-seconds` | `25` |
+
+<!-- /config-reference -->
 
 Full list with descriptions:
 [docs/operations/configuration.md](../../docs/operations/configuration.md).
