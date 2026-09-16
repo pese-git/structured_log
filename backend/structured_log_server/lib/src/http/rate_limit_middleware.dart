@@ -1,6 +1,8 @@
 import 'package:shelf/shelf.dart';
 import 'package:structured_log/structured_log.dart';
 
+import '../audit/audit_action.dart';
+import '../audit/audit_writer.dart';
 import '../config/server_config.dart';
 import '../errors.dart';
 import 'rate_limit/bucket_store.dart';
@@ -47,15 +49,29 @@ const rateLimitedEndpoints = <({String method, String path})>[
 class RateLimitAttempt {
   final BucketStore? _subjects;
   final DateTime Function() _clock;
+  final AuditWriter? _audit;
+  final String _path;
+  final String _clientIp;
   TokenBucket? _bucket;
 
-  RateLimitAttempt._(this._subjects, this._clock);
+  RateLimitAttempt._(
+    this._subjects,
+    this._clock, {
+    required AuditWriter? audit,
+    required String path,
+    required String clientIp,
+  })  : _audit = audit,
+        _path = path,
+        _clientIp = clientIp;
 
   /// An attempt that does nothing — the limiter is off, or this endpoint
   /// isn't throttled. Handlers call the same methods either way.
   RateLimitAttempt.inactive()
       : _subjects = null,
-        _clock = DateTime.now;
+        _clock = DateTime.now,
+        _audit = null,
+        _path = '',
+        _clientIp = '';
 
   bool get isActive => _subjects != null;
 
@@ -71,7 +87,12 @@ class RateLimitAttempt {
   /// case-sensitive lookup there is nothing to bypass — a changed case is
   /// an attempt against a different account, which is the spraying case the
   /// IP bucket covers.)
-  void requireSubject(String subject) {
+  ///
+  /// Awaited rather than synchronous, because a refusal writes an audit record
+  /// and losing it would be losing the one entry in the journal that says an
+  /// account was being guessed at. It costs nothing in the ordinary case:
+  /// there is one write per episode, not per request.
+  Future<void> requireSubject(String subject, {int? actorUserId}) async {
     final subjects = _subjects;
     if (subjects == null) return;
 
@@ -79,6 +100,23 @@ class RateLimitAttempt {
     _bucket = bucket;
     final now = _clock();
     if (bucket.tokensAt(now) < 1) {
+      if (bucket.startEpisode(now)) {
+        // The subject itself is not recorded. For the token endpoint it is a
+        // submitted string, which is regularly a password typed into the wrong
+        // box; [actorUserId] is passed only where the subject came out of an
+        // already-verified token, and is an id rather than anything submitted
+        // (`specs/log-server-audit`).
+        await _audit?.write(
+          action: AuditAction.authThrottled,
+          targetType: AuditTargetType.auth,
+          actorUserId: actorUserId,
+          metadata: {
+            'key_kind': 'subject',
+            'path': _path,
+            'client_ip': _clientIp,
+          },
+        );
+      }
       throw ApiError.tooManyRequests(bucket.timeUntilNextToken(now));
     }
   }
@@ -113,6 +151,7 @@ Middleware rateLimitMiddleware(
   ServerConfig config, {
   DateTime Function()? clock,
   BoundLogger? logger,
+  AuditWriter? audit,
 }) {
   final now = clock ?? DateTime.now;
 
@@ -134,7 +173,7 @@ Middleware rateLimitMiddleware(
   );
 
   return (Handler innerHandler) {
-    return (Request request) {
+    return (Request request) async {
       final path = '/${request.url.path}';
       final throttled = rateLimitedEndpoints.any(
         (e) => e.method == request.method && e.path == path,
@@ -148,6 +187,13 @@ Middleware rateLimitMiddleware(
       final bucket = ips[ip];
       final at = now();
       if (!bucket.tryConsume(at)) {
+        if (bucket.startEpisode(at)) {
+          await audit?.write(
+            action: AuditAction.authThrottled,
+            targetType: AuditTargetType.auth,
+            metadata: {'key_kind': 'ip', 'path': path, 'client_ip': ip},
+          );
+        }
         // Before the body is even read: a request rejected on its address
         // should cost the server nothing but this lookup.
         final retryAfter = bucket.timeUntilNextToken(at);
@@ -165,7 +211,15 @@ Middleware rateLimitMiddleware(
 
       return innerHandler(
         request.change(
-          context: {_contextKey: RateLimitAttempt._(subjects, now)},
+          context: {
+            _contextKey: RateLimitAttempt._(
+              subjects,
+              now,
+              audit: audit,
+              path: path,
+              clientIp: ip,
+            ),
+          },
         ),
       );
     };

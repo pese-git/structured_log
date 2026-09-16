@@ -7,12 +7,12 @@ import 'param_spec.dart';
 const commandServe = 'serve';
 const commandCreateAdmin = 'create-admin';
 
-/// Every configuration parameter Stage 1 needs, declared once — the single
-/// source [ConfigResolver] builds the CLI parser, env var names, and
-/// `--help`/`--print-config` output from. Fields for capabilities not in
-/// Stage 1 (`registrationEnabled`, password-reset/email-verification
-/// base URLs, SMTP, audit retention — `design.md` "Delivery Phases") are
-/// added here alongside those capabilities, not before.
+/// Every configuration parameter the implemented capabilities need, declared
+/// once — the single source [ConfigResolver] builds the CLI parser, env var
+/// names, and `--help`/`--print-config` output from. Fields for capabilities
+/// not yet built (`registrationEnabled`, password-reset/email-verification
+/// base URLs, SMTP — `design.md` "Delivery Phases") are added here alongside
+/// those capabilities, not before.
 const serverConfigParams = <ParamSpec>[
   ParamSpec(
     name: 'db-path',
@@ -93,6 +93,29 @@ const serverConfigParams = <ParamSpec>[
       'error',
       'critical',
     },
+  ),
+  ParamSpec(
+    name: 'audit-retention-days',
+    type: ParamType.int,
+    description:
+        'Delete administrative audit records older than this many days. '
+        'Unset keeps them indefinitely.',
+    mustBePositive: true,
+  ),
+  ParamSpec(
+    name: 'auth-event-retention-days',
+    type: ParamType.int,
+    description:
+        'Delete authentication audit records (auth.*) older than this many '
+        'days. Unset keeps them indefinitely.',
+    mustBePositive: true,
+  ),
+  ParamSpec(
+    name: 'audit-purge-batch-size',
+    type: ParamType.int,
+    description: 'How many audit records one purge chunk deletes.',
+    defaultValue: 500,
+    mustBePositive: true,
   ),
   ParamSpec(
     name: 'log-file',
@@ -187,6 +210,15 @@ class ServerConfig {
   final int trustedProxyHops;
   final int sseHeartbeatIntervalSeconds;
 
+  /// Both `null` by default, meaning records are kept indefinitely — which is
+  /// the behaviour a server that predates this setting already had. Upgrading
+  /// SHALL not delete anything on its own: an operator who deployed a year ago
+  /// must not find that an upgrade quietly cleared their history
+  /// (`design.md` decision 46). Turning retention on is an explicit act.
+  final int? auditRetentionDays;
+  final int? authEventRetentionDays;
+  final int auditPurgeBatchSize;
+
   const ServerConfig({
     required this.dbPath,
     required this.httpHost,
@@ -209,6 +241,9 @@ class ServerConfig {
     required this.rateLimitMaxKeys,
     required this.trustedProxyHops,
     required this.sseHeartbeatIntervalSeconds,
+    this.auditRetentionDays,
+    this.authEventRetentionDays,
+    this.auditPurgeBatchSize = 500,
   });
 
   /// Builds a [ServerConfig] from [ConfigResolver.parse]'s resolved values
@@ -238,6 +273,9 @@ class ServerConfig {
       rateLimitMaxKeys: get('rate-limit-max-keys'),
       trustedProxyHops: get('trusted-proxy-hops'),
       sseHeartbeatIntervalSeconds: get('sse-heartbeat-interval-seconds'),
+      auditRetentionDays: get('audit-retention-days'),
+      authEventRetentionDays: get('auth-event-retention-days'),
+      auditPurgeBatchSize: get('audit-purge-batch-size'),
     );
   }
 }

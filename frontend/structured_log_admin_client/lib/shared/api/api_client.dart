@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../auth/token_pair.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
+import 'audit_api.dart';
 import 'auth_api.dart';
 import 'auth_interceptor.dart';
 import 'logs_api.dart';
@@ -36,6 +37,7 @@ class ApiClient {
   final Dio streamDio;
 
   final AuthApi auth;
+  final AuditApi audit;
   final GroupsApi groups;
   final ProjectsApi projects;
   final SecretKeysApi secretKeys;
@@ -45,6 +47,7 @@ class ApiClient {
     required this.dio,
     required this.streamDio,
     required this.auth,
+    required this.audit,
     required this.groups,
     required this.projects,
     required this.secretKeys,
@@ -131,6 +134,7 @@ class ApiClient {
       dio: dio,
       streamDio: streamDio,
       auth: AuthApi(dio),
+      audit: AuditApi(dio),
       groups: GroupsApi(dio),
       projects: ProjectsApi(dio),
       secretKeys: SecretKeysApi(dio),

@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
+import '../shared/api/dto/audit_dto.dart';
+
 /// A stand-in for `structured_log_server`, speaking its HTTP contract.
 ///
 /// **Under `lib/` rather than `test/`, and not by preference.** An
@@ -33,11 +35,27 @@ import 'package:dio/dio.dart';
 /// working server would not give on its own — a refusal, a limiter, a socket
 /// that never answers.
 class MockServer implements HttpClientAdapter {
-  MockServer({this.username = 'root', this.password = 'correct'});
+  MockServer({
+    this.username = 'root',
+    this.password = 'correct',
+    this.roles = const [
+      {'role': 'admin', 'scope_type': 'global', 'scope_id': null},
+    ],
+  });
 
   /// The one account. Users, teams and roles have no endpoints in this stage,
-  /// so a second account would have nothing to be different about.
+  /// so a second account would have nothing to be different about — except
+  /// what it is allowed to do, which [roles] covers.
   final String username;
+
+  /// What the access token claims this account may do, in the shape the server
+  /// signs into it.
+  ///
+  /// Global admin by default, because that is who every other flow in these
+  /// tests is. A test that needs someone else — to check that a section is not
+  /// offered to them — passes their roles instead, and there is no other way
+  /// to arrange that: no endpoint in this stage creates a second user.
+  final List<Map<String, Object?>> roles;
 
   /// Replaced by `POST /v1/auth/change-password`, which is what makes the
   /// forced-change flow testable end to end.
@@ -58,6 +76,14 @@ class MockServer implements HttpClientAdapter {
 
   /// Oldest first; `GET /v1/logs` reverses them, as the server does.
   final logEntries = <Map<String, dynamic>>[];
+
+  /// Oldest first, like [logEntries] — `GET /v1/audit-log` reverses them.
+  final auditEntries = <Map<String, dynamic>>[];
+
+  /// What the server would answer for its retention policy. Both `null` is the
+  /// default an operator sees until they turn retention on.
+  int? auditRetentionDays;
+  int? authEventRetentionDays;
 
   /// Secret keys in the form an application would present them, by id. Kept
   /// so [acceptEntry] can check the one it is handed.
@@ -122,16 +148,17 @@ class MockServer implements HttpClientAdapter {
     return {'access_token': access, 'refresh_token': refresh};
   }
 
-  /// A real-shaped JWT, unsigned. The client reads `preferred_username` out of
-  /// it to put a name on the screen and deliberately does not verify the
-  /// signature (`access_token_claims.dart`), so an unsigned one exercises the
-  /// same path a real one would.
+  /// A real-shaped JWT, unsigned. The client reads claims out of it without
+  /// verifying the signature — deliberately, and for one purpose each:
+  /// `preferred_username` puts a name on the screen, `roles` decides what to
+  /// offer (`access_token_claims.dart`). An unsigned token exercises the same
+  /// path a real one would, because the client has no key to check either.
   String _issueAccess() {
     String segment(Map<String, dynamic> claims) =>
         base64Url.encode(utf8.encode(jsonEncode(claims))).replaceAll('=', '');
     final token =
         '${segment({'alg': 'none', 'typ': 'JWT'})}.'
-        '${segment({'preferred_username': username, 'jti': ++_sequence})}.'
+        '${segment({'preferred_username': username, 'roles': roles, 'jti': ++_sequence})}.'
         'signature-is-never-checked-by-this-client';
     _liveAccess.add(token);
     return token;
@@ -241,6 +268,7 @@ class MockServer implements HttpClientAdapter {
         _revokeKey(request, int.parse(id), int.parse(keyId)),
 
       ('GET', ['v1', 'logs']) => _queryLogs(request),
+      ('GET', ['v1', 'audit-log']) => _queryAuditLog(request),
       ('GET', ['v1', 'logs', 'stream']) => _openStream(request, cancelFuture),
 
       _ => MockReply(
@@ -418,6 +446,77 @@ class MockServer implements HttpClientAdapter {
 
   /// Newest first, cursor walking backwards in time — the order and the paging
   /// the client's feed is built around.
+  /// Newest first, cursor walking backwards — the same shape as the log query,
+  /// because the reader pages both the same way.
+  ///
+  /// Admin only, and the refusal is a 403 rather than a 404: the client hides
+  /// the section from a caller whose token carries no global admin role, but
+  /// the server is the authority, and a test that could not get the refusal
+  /// could not check that the screen renders one.
+  MockReply _queryAuditLog(RecordedRequest request) {
+    _requireUser(request);
+    if (!roles.any(
+      (r) => r['role'] == 'admin' && r['scope_type'] == 'global',
+    )) {
+      throw _Refusal(const MockReply(403, body: {'error': 'forbidden'}));
+    }
+
+    final query = request.query;
+
+    // The closed set is the server's, and an unknown value is refused rather
+    // than answered with an empty page — a typo that reads as "nothing
+    // happened" is the one wrong answer this endpoint must not give.
+    final action = query['action'];
+    if (action != null && AuditAction.fromWire(action) == null) {
+      throw _Refusal(const MockReply(400, body: {'error': 'invalid_request'}));
+    }
+
+    var matching = auditEntries.reversed.where((entry) {
+      if (action != null && entry['action'] != action) return false;
+      if (query['actor_user_id'] != null &&
+          entry['actor_user_id'] != int.parse(query['actor_user_id']!)) {
+        return false;
+      }
+      if (query['target_type'] != null &&
+          entry['target_type'] != query['target_type']) {
+        return false;
+      }
+      if (query['target_id'] != null &&
+          entry['target_id'] != int.parse(query['target_id']!)) {
+        return false;
+      }
+      final createdAt = DateTime.parse(entry['created_at'] as String);
+      final from = query['from'];
+      if (from != null && createdAt.isBefore(DateTime.parse(from))) {
+        return false;
+      }
+      final to = query['to'];
+      if (to != null && createdAt.isAfter(DateTime.parse(to))) return false;
+      return true;
+    }).toList();
+
+    final cursor = query['cursor'];
+    if (cursor != null) {
+      matching = matching
+          .where((entry) => (entry['id'] as int) < int.parse(cursor))
+          .toList();
+    }
+
+    final limit = int.tryParse(query['limit'] ?? '') ?? 50;
+    final page = matching.take(limit).toList();
+    final more = matching.length > page.length;
+
+    return MockReply(
+      200,
+      body: {
+        'items': page,
+        'next_cursor': more ? '${page.last['id']}' : null,
+        'audit_retention_days': auditRetentionDays,
+        'auth_event_retention_days': authEventRetentionDays,
+      },
+    );
+  }
+
   MockReply _queryLogs(RecordedRequest request) {
     _requireUser(request);
     final query = request.query;
@@ -696,6 +795,32 @@ class MockLogStream {
     if (_controller.isClosed) return;
     _controller.add(Uint8List.fromList(utf8.encode(frame)));
   }
+}
+
+/// One audit record in the shape `GET /v1/audit-log` returns it.
+///
+/// [actorUserId] and [targetId] default to null on purpose: an event with
+/// nobody behind it — a login under a username that does not exist, a throttled
+/// request, a purge pass — is the case most worth writing a test for, and a
+/// helper that made an actor mandatory would quietly discourage it.
+Map<String, dynamic> mockAuditEntry({
+  required int id,
+  required String action,
+  String targetType = 'user',
+  int? actorUserId,
+  int? targetId,
+  DateTime? createdAt,
+  Map<String, dynamic> metadata = const {},
+}) {
+  return {
+    'id': id,
+    'actor_user_id': actorUserId,
+    'action': action,
+    'target_type': targetType,
+    'target_id': targetId,
+    'metadata': metadata,
+    'created_at': (createdAt ?? DateTime.utc(2026, 9, 16, 8)).toIso8601String(),
+  };
 }
 
 /// One log entry in the shape the server puts on the wire: the stored context

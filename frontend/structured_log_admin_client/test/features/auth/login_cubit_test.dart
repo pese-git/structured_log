@@ -33,6 +33,9 @@ class _FakeRepository implements AuthRepository {
 
   @override
   Future<String?> currentUsername() async => null;
+
+  @override
+  Future<bool> isGlobalAdmin() async => false;
 }
 
 void main() {

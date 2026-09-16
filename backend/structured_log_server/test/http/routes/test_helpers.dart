@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/auth/principal.dart';
+import 'package:structured_log_server/src/storage/database.dart';
 
 /// Builds a [Request] as if it had already passed `principalMiddleware`
 /// (`lib/src/http/principal_middleware.dart`) as a user.
@@ -58,3 +59,16 @@ Future<Map<String, Object?>> decodeJson(Response response) async {
   final body = await response.readAsString();
   return jsonDecode(body) as Map<String, Object?>;
 }
+
+/// Every audit record a route wrote, oldest first.
+///
+/// Route tests assert on these as well as on the response, because the two can
+/// disagree in both directions and each way is a defect: a mutation that
+/// answered 201 without leaving a record, and a record left behind by a request
+/// that was refused.
+Future<List<AuditLogEntry>> auditRows(StructuredLogDatabase db) =>
+    db.select(db.auditLogEntries).get();
+
+/// The `metadata` of one audit record, decoded.
+Map<String, Object?> auditMetadata(AuditLogEntry row) =>
+    jsonDecode(row.metadata) as Map<String, Object?>;

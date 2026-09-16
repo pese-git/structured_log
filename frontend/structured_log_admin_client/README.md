@@ -2,15 +2,48 @@
 
 Self-hosted admin client for
 [`structured_log_server`](../../backend/structured_log_server): sign-in,
-projects and their secret keys, and the log browser.
+groups and projects and their secret keys, the log browser, and the audit log.
 
 Not published — it is an application, not a library.
 
 ## State
 
-The data layer is in place; the screens are not. Sections 12–14 and 22 of the
-`add-structured-log-server` change build sign-in, resource management and the
-log browser on top of what is here. Running it today shows a placeholder.
+Working today: sign-in (including the forced first-login password change),
+groups, projects and their quotas, secret keys, the log browser with its live
+feed, account settings, and the audit log.
+
+Not here: users, teams, role assignment, password recovery and email
+verification. The server has no endpoints behind them yet, and a screen that
+opens onto nothing is worse than one that is not offered —
+[tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) says
+exactly what is and isn't done.
+
+**One thing to know before running it against a server on another host: you
+cannot.** The server sends no CORS headers at all, so a browser refuses the
+request before it leaves the page. The client is served beside the API behind
+one origin ([deploy/](../../deploy/)), and its bundle is built with an empty
+base URL. Opening the API up is a change to the server, not a proxy setting.
+
+### The audit screen
+
+Administrative acts and authentication events in one table under one set of
+filters — an operator investigating an incident is asking a single question,
+and the login that preceded a change is part of the answer.
+
+The nav item appears only for a token whose `roles` claim carries `admin` at
+global scope. That claim is read without checking the signature, which is
+legitimate for exactly one reason: it decides what to **offer**, never what to
+allow. The server re-derives roles on every request and answers 403 regardless,
+and the screen renders that as a refusal. A forged token buys a menu item and
+an error message. One consequence worth stating: the claim is a snapshot from
+when the token was issued, so a role revoked mid-session leaves the item in
+place until the token is renewed.
+
+A record with no actor says which kind of nobody it was — an attempt under a
+username that does not exist, or the server itself — and no request goes out to
+resolve a name, because there is no account to resolve. The action tag shows the
+wire value (`project.quota_updated`), which is what you filter by and what the
+API documents; the Russian name is the tooltip.
 
 ## Architecture
 

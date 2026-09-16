@@ -980,4 +980,235 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );
+
+  test(
+    'over a real process: the audit log records what was done and who tried '
+    'to get in',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('server_audit_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+        // Small enough to exhaust deliberately, and refilling slowly enough
+        // that recovery cannot happen mid-test by accident.
+        '--rate-limit-bucket-capacity=5',
+        '--rate-limit-refill-per-minute=1',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen((_) {});
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      final client = HttpClient();
+      addTearDown(client.close);
+
+      Future<({int status, Map<String, Object?> body})> call(
+        String method,
+        String path, {
+        Object? json,
+        String? bearer,
+        String? form,
+      }) async {
+        final request = await client.open(method, 'localhost', port, path);
+        if (bearer != null) {
+          request.headers
+              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+        }
+        if (form != null) {
+          request.headers.contentType =
+              ContentType('application', 'x-www-form-urlencoded');
+          request.write(form);
+        } else if (json != null) {
+          request.headers.contentType = ContentType.json;
+          request.write(jsonEncode(json));
+        }
+        final response = await request.close();
+        final text = await response.transform(utf8.decoder).join();
+        return (
+          status: response.statusCode,
+          body: text.isEmpty
+              ? const <String, Object?>{}
+              : jsonDecode(text) as Map<String, Object?>,
+        );
+      }
+
+      // One session first, before anything spends the address bucket: the
+      // audit log is not a throttled endpoint, so this token keeps working
+      // once the limiter has shut the door on logging in.
+      var tokens = await (() async {
+        final response = await call(
+          'POST',
+          '/v1/auth/token',
+          form: 'grant_type=password&username=root&password=bootstrap-pw',
+        );
+        expect(response.status, 200, reason: '${response.body}');
+        return response.body['access_token']! as String;
+      })();
+
+      await call(
+        'POST',
+        '/v1/auth/change-password',
+        bearer: tokens,
+        json: {'current_password': 'bootstrap-pw', 'new_password': 'real-pw'},
+      );
+      final relogin = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=password&username=root&password=real-pw',
+      );
+      expect(relogin.status, 200, reason: '${relogin.body}');
+      tokens = relogin.body['access_token']! as String;
+
+      // --- what an administrator did -------------------------------------
+      final group = await call(
+        'POST',
+        '/v1/groups',
+        bearer: tokens,
+        json: {'name': 'payments'},
+      );
+      expect(group.status, 201);
+      final groupId = group.body['id'];
+
+      final project = await call(
+        'POST',
+        '/v1/groups/$groupId/projects',
+        bearer: tokens,
+        json: {'name': 'checkout', 'retention_days': 30},
+      );
+      expect(project.status, 201);
+      final projectId = project.body['id'];
+
+      final key = await call(
+        'POST',
+        '/v1/projects/$projectId/secret-keys',
+        bearer: tokens,
+        json: {'label': 'ci'},
+      );
+      expect(key.status, 201);
+      final secret = key.body['secret']! as String;
+
+      expect(
+        (await call(
+          'DELETE',
+          '/v1/projects/$projectId/secret-keys/${key.body['id']}',
+          bearer: tokens,
+        ))
+            .status,
+        204,
+      );
+
+      Future<List<Map<String, Object?>>> auditLog([String query = '']) async {
+        final response =
+            await call('GET', '/v1/audit-log$query', bearer: tokens);
+        expect(response.status, 200, reason: '${response.body}');
+        return (response.body['items']! as List<Object?>)
+            .cast<Map<String, Object?>>();
+      }
+
+      final actions = (await auditLog()).map((e) => e['action']).toSet();
+      expect(
+        actions,
+        containsAll(<String>[
+          'password.changed',
+          'group.created',
+          'project.created',
+          'secret_key.created',
+          'secret_key.revoked',
+          'auth.login_succeeded',
+        ]),
+        reason: 'the five mutations plus the sessions that made them',
+      );
+
+      final creations = await auditLog('?action=secret_key.created');
+      expect(creations, hasLength(1));
+      expect(creations.single['target_id'], key.body['id']);
+
+      // The key was answered once, to one caller. The journal is read by more
+      // people and for far longer.
+      for (final record in await auditLog('?limit=200')) {
+        expect(jsonEncode(record), isNot(contains(secret)));
+      }
+
+      expect(
+        (await call('GET', '/v1/audit-log')).status,
+        401,
+        reason: 'no credential at all',
+      );
+      // A project key authenticates ingestion, not administration. There is
+      // no way to make a non-admin *user* in this stage — no endpoint creates
+      // one — so the 403 for an owner stays covered by the route tests, and
+      // what a live process can show is that the wrong kind of credential
+      // does not open this door either.
+      expect(
+        (await call('GET', '/v1/audit-log', bearer: secret)).status,
+        401,
+      );
+
+      // --- who tried to get in --------------------------------------------
+      var throttled = false;
+      for (var attempt = 0; attempt < 10 && !throttled; attempt++) {
+        final refused = await call(
+          'POST',
+          '/v1/auth/token',
+          form: 'grant_type=password&username=root&password=Pa55word-typo',
+        );
+        throttled = refused.status == 429;
+        if (!throttled) expect(refused.status, 400);
+      }
+      expect(throttled, isTrue, reason: 'the limiter closed the door');
+
+      final failures = await auditLog('?action=auth.login_failed');
+      expect(failures, isNotEmpty);
+      expect(
+        (failures.first['metadata']! as Map)['reason'],
+        'invalid_password',
+        reason: 'the account exists; only the password was wrong',
+      );
+
+      final episodes = await auditLog('?action=auth.throttled');
+      expect(
+        episodes,
+        hasLength(1),
+        reason: 'a burst is one episode, however many requests it took',
+      );
+      expect((episodes.single['metadata']! as Map)['key_kind'], 'ip');
+
+      // Neither the typed password nor anything resembling it survives.
+      for (final record in await auditLog('?limit=200')) {
+        expect(jsonEncode(record), isNot(contains('Pa55word-typo')));
+        expect(jsonEncode(record), isNot(contains('real-pw')));
+      }
+
+      process.kill(ProcessSignal.sigterm);
+      expect(
+        await process.exitCode.timeout(const Duration(seconds: 15)),
+        0,
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
 }

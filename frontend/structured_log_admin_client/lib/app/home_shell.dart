@@ -8,6 +8,9 @@ import '../features/auth/application/sign_out.dart';
 import '../features/auth/di/auth_module.dart';
 import '../features/auth/presentation/change_password_cubit.dart';
 import '../features/auth/presentation/change_password_form.dart';
+import '../features/audit/di/audit_module.dart';
+import '../features/audit/presentation/audit_cubit.dart';
+import '../features/audit/presentation/audit_page.dart';
 import '../features/log_browser/di/log_browser_module.dart';
 import '../features/log_browser/presentation/log_browser_page.dart';
 import '../features/log_browser/presentation/log_feed_bloc.dart';
@@ -15,13 +18,31 @@ import '../features/resources/di/resources_module.dart';
 import '../features/resources/presentation/resources_section.dart';
 import '../shared/auth/session_controller.dart';
 
+/// The destinations the nav can offer, in the order it offers them.
+///
+/// An enum rather than bare indices, because [AdminAppShell.selectedIndex]
+/// counts across every section's items flattened together — so a conditionally
+/// present item silently shifts the ones after it. Keeping the destination and
+/// its position in one list (see `_entries`) makes that impossible to get
+/// wrong rather than merely documented.
+enum _Destination { groups, audit, logs }
+
+/// One nav item: which section it belongs to, how it is drawn, and where it
+/// goes.
+typedef _NavEntry = ({
+  String section,
+  AdminNavItem item,
+  _Destination destination,
+});
+
 /// What the application is once someone is signed in.
 ///
 /// Two sections, as the artboards group them: administration (groups, and
-/// through them projects and their keys) and logs. Users, teams, the audit
-/// log and the dashboard appear on the artboards' nav and are not here — the
-/// server has no endpoints behind them in this stage, and a nav item that
-/// opens an empty screen is worse than one that is not offered.
+/// through them projects and their keys — plus the audit log for an
+/// administrator) and logs. Users, teams and the dashboard appear on the
+/// artboards' nav and are not here — the server has no endpoints behind them
+/// in this stage, and a nav item that opens an empty screen is worse than one
+/// that is not offered.
 class HomeShell extends StatefulWidget {
   final Scope scope;
   final SessionController session;
@@ -35,16 +56,73 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late final Scope _logScope = openLogBrowserScope(widget.scope);
   late final Scope _resourcesScope = openResourcesScope(widget.scope);
+  late final Scope _auditScope = openAuditScope(widget.scope);
   late final Scope _authScope = openAuthScope(widget.scope);
 
-  static const _groupsIndex = 0;
-  static const _logsIndex = 1;
+  var _destination = _Destination.groups;
 
-  var _navIndex = _groupsIndex;
+  /// Whether to offer the audit section.
+  ///
+  /// Read once, from the access token in hand — there is no endpoint that
+  /// reports the caller's own roles. It decides what is offered, never what is
+  /// allowed; the screen behind it still gets whatever the server says
+  /// (`shared/auth/access_token_claims.dart`).
+  ///
+  /// Starts `false` so the nav never flashes an item the reader may not have:
+  /// appearing a frame later is better than appearing and vanishing.
+  var _isAdmin = false;
 
   /// Changed when the log browser is opened from a project, which rebuilds it
   /// so it starts fresh rather than on whatever it was last showing.
   Key _logsKey = const ValueKey('logs');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final isAdmin = await _authScope.resolve<IsGlobalAdmin>()();
+    if (!mounted) return;
+    setState(() => _isAdmin = isAdmin);
+  }
+
+  /// The nav, flattened — the single list both the sections and the selected
+  /// index are derived from.
+  List<_NavEntry> get _entries => [
+    const (
+      section: 'Администрирование',
+      item: AdminNavItem(icon: FluentIcons.group, label: 'Группы'),
+      destination: _Destination.groups,
+    ),
+    if (_isAdmin)
+      const (
+        section: 'Администрирование',
+        item: AdminNavItem(icon: FluentIcons.text_document, label: 'Аудит'),
+        destination: _Destination.audit,
+      ),
+    const (
+      section: 'Логи',
+      item: AdminNavItem(icon: FluentIcons.search, label: 'Поиск логов'),
+      destination: _Destination.logs,
+    ),
+  ];
+
+  /// Consecutive entries sharing a title become one section, which is what
+  /// keeps the flattened order and the drawn order the same list.
+  List<AdminNavSection> _sectionsOf(List<_NavEntry> entries) {
+    final titles = <String>[];
+    final items = <String, List<AdminNavItem>>{};
+    for (final entry in entries) {
+      if (!items.containsKey(entry.section)) titles.add(entry.section);
+      items.putIfAbsent(entry.section, () => []).add(entry.item);
+    }
+    return [
+      for (final title in titles)
+        AdminNavSection(title: title, items: items[title]!),
+    ];
+  }
 
   Future<void> _signOut() async {
     // The local session ends whatever the server answers, including when it
@@ -56,13 +134,16 @@ class _HomeShellState extends State<HomeShell> {
 
   void _openLogsFor(int projectId, String projectName) {
     setState(() {
-      _navIndex = _logsIndex;
+      _destination = _Destination.logs;
       _logsKey = ValueKey('logs-$projectId');
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final entries = _entries;
+    final selected = entries.indexWhere((e) => e.destination == _destination);
+
     return AdminAppShell(
       // No title here: every screen behind this shell draws its own, with
       // its primary action on the same line — the artboards put "Создать
@@ -71,25 +152,28 @@ class _HomeShellState extends State<HomeShell> {
       accountName: 'Аккаунт',
       accountRole: 'Настройки',
       onAccountPressed: () => _openAccountSettings(context),
-      selectedIndex: _navIndex,
-      onSelected: (index) => setState(() => _navIndex = index),
-      sections: const [
-        AdminNavSection(
-          title: 'Администрирование',
-          items: [AdminNavItem(icon: FluentIcons.group, label: 'Группы')],
+      // -1 cannot happen while every destination has an entry, but a
+      // destination whose item has gone away must not read as "none selected"
+      // in a widget that takes a plain int.
+      selectedIndex: selected < 0 ? 0 : selected,
+      onSelected: (index) =>
+          setState(() => _destination = entries[index].destination),
+      sections: _sectionsOf(entries),
+      content: switch (_destination) {
+        _Destination.groups => ResourcesSection(
+          scope: _resourcesScope,
+          onOpenLogs: _openLogsFor,
         ),
-        AdminNavSection(
-          title: 'Логи',
-          items: [AdminNavItem(icon: FluentIcons.search, label: 'Поиск логов')],
+        _Destination.audit => BlocProvider(
+          create: (_) => _auditScope.resolve<AuditCubit>()..load(),
+          child: const AuditPage(),
         ),
-      ],
-      content: _navIndex == _groupsIndex
-          ? ResourcesSection(scope: _resourcesScope, onOpenLogs: _openLogsFor)
-          : BlocProvider(
-              key: _logsKey,
-              create: (_) => _logScope.resolve<LogFeedBloc>(),
-              child: const LogBrowserPage(),
-            ),
+        _Destination.logs => BlocProvider(
+          key: _logsKey,
+          create: (_) => _logScope.resolve<LogFeedBloc>(),
+          child: const LogBrowserPage(),
+        ),
+      },
     );
   }
 

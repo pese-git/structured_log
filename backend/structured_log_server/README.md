@@ -13,8 +13,8 @@ Not published to pub.dev — this is a service you run, not a library you
 depend on.
 
 > **Status: in development.** Log ingestion, querying, the live stream,
-> groups, projects, secret keys, authentication and RBAC work today. User
-> management, teams, role assignment, the audit log, password recovery and
+> groups, projects, secret keys, authentication, RBAC and the audit log work
+> today. User management, teams, role assignment, password recovery and
 > email verification are specified but not implemented — see
 > [tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) for
 > exactly what is and isn't there.
@@ -27,6 +27,8 @@ depend on.
 - **Multi-tenancy** — groups own projects; roles are granted per scope
 - **Quotas** — per-project entry/byte limits and a retention window
 - **Rate limiting** — token buckets on the auth endpoints, by address and by subject
+- **Audit log** — `GET /v1/audit-log`, administrators only: who changed what,
+  and who tried to sign in
 - **SQLite storage** — one file, no external services
 
 ## Requirements
@@ -117,6 +119,34 @@ From an application, use
 [`structured_log_http`](../../emb/structured_log_http) rather than `curl`:
 it batches, retries and never blocks the code that logged.
 
+## Reading the audit log
+
+Every administrative act and every authentication attempt is recorded, and
+`GET /v1/audit-log` is the only way to read them back. It is global-admin
+only: the journal spans every tenant, so there is no filtered view of it that
+would be safe to offer an owner, and there is none.
+
+```bash
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  'http://localhost:8080/v1/audit-log?action=auth.login_failed&limit=50'
+```
+
+Filters (`actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`)
+combine, and paging is by `cursor` — pass back the `next_cursor` of the
+previous page. An `action` outside the published set is refused with 400
+rather than answered with an empty page: in a journal whose job is answering
+"did this happen", a typo that reads as "nothing happened" is the one wrong
+answer that matters.
+
+Two things the journal never contains: the value of a secret key, and the
+username submitted in a failed login under an account that does not exist —
+that attempt is recorded as `unknown_user` with no actor, because the string
+is regularly a password typed into the wrong box and the journal outlives the
+mistake.
+
+Nothing deletes from it but retention. There is no endpoint that edits or
+removes a record, and a test refuses to let one appear.
+
 ## Two credentials, one header
 
 Both arrive as `Authorization: Bearer <...>`, and the server tells them
@@ -161,6 +191,9 @@ order of priority. Secrets are environment-only.
 | `--rate-limit-*` | enabled, 10 tokens, 10/min, 10000 keys |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` ignored |
 | `--sse-heartbeat-interval-seconds` | `25` |
+| `--audit-retention-days` | unset — audit records are kept indefinitely |
+| `--auth-event-retention-days` | unset — `auth.*` records are kept indefinitely |
+| `--audit-purge-batch-size` | `500` |
 
 Full list with descriptions:
 [docs/operations/configuration.md](../../docs/operations/configuration.md).

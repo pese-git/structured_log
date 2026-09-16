@@ -463,4 +463,124 @@ void main() {
       expect(find.byType(HyperlinkButton), findsNothing);
     });
   });
+
+  group('AdminTable', () {
+    const columns = [
+      AdminColumn('Время', width: 120),
+      AdminColumn('Инициатор', width: 100),
+      AdminColumn.flexible('Детали'),
+    ];
+
+    testWidgets('renders the headings and every cell', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const AdminTable(
+            columns: columns,
+            rows: [
+              AdminTableRow(
+                cells: [
+                  Text('13.09 14:02'),
+                  Text('admin'),
+                  Text('retention_days 30 → 7'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.text('Время'), findsOneWidget);
+      expect(find.text('Инициатор'), findsOneWidget);
+      expect(find.text('Детали'), findsOneWidget);
+      expect(find.text('13.09 14:02'), findsOneWidget);
+      expect(find.text('retention_days 30 → 7'), findsOneWidget);
+    });
+
+    testWidgets(
+        'a fixed column is the width it asked for, and the flexible '
+        'one takes what is left', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const SizedBox(
+            width: 600,
+            child: AdminTable(
+              columns: columns,
+              rows: [
+                AdminTableRow(
+                  cells: [Text('время'), Text('актор'), Text('детали')],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Measured through the cells rather than through the widget tree: what
+      // matters is that a timestamp and the one below it start at the same x,
+      // which is the whole reason this is a table and not a list of rows.
+      final time = tester.getSize(find.text('время'));
+      expect(time.width, lessThanOrEqualTo(120));
+
+      expect(
+        tester.getSize(find.text('детали')).width,
+        greaterThan(120),
+        reason: 'the flexible column absorbs the remaining room',
+      );
+      expect(
+        tester.getTopLeft(find.text('детали')).dx,
+        tester.getTopLeft(find.text('Детали')).dx,
+        reason: 'a cell starts where its heading does — that alignment is the '
+            'only thing this widget exists to provide',
+      );
+    });
+
+    testWidgets('a row shorter than the columns leaves the tail empty',
+        (tester) async {
+      // Heterogeneous records are the norm in an audit log — an event with no
+      // target has nothing to put in that column, and padding the list by hand
+      // at every call site would be ceremony.
+      await tester.pumpWidget(
+        _host(
+          const AdminTable(
+            columns: columns,
+            rows: [
+              AdminTableRow(cells: [Text('13.09 14:02')]),
+            ],
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('13.09 14:02'), findsOneWidget);
+    });
+
+    testWidgets('a tinted row paints its own background', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const AdminTable(
+            columns: columns,
+            rows: [
+              AdminTableRow(cells: [Text('обычная')]),
+              AdminTableRow(
+                cells: [Text('системная')],
+                background: Color(0xFFFFF4CE),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      Color? backgroundOf(String text) {
+        final container = tester.widget<Container>(
+          find
+              .ancestor(of: find.text(text), matching: find.byType(Container))
+              .first,
+        );
+        return (container.decoration! as BoxDecoration).color;
+      }
+
+      expect(backgroundOf('обычная'), isNull);
+      expect(backgroundOf('системная'), const Color(0xFFFFF4CE));
+    });
+  });
 }

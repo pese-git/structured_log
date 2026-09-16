@@ -31,6 +31,12 @@ services:
       STRUCTURED_LOG_TRUSTED_PROXY_HOPS: 1
       STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED: ${STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED:-true}
       STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME: ${STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      # Unset by default, which keeps audit records indefinitely — the safe
+      # default for a journal, and the one an upgrade must not silently
+      # change. Both periods are shown on the audit screen, so an operator who
+      # sets one can see it took effect.
+      STRUCTURED_LOG_AUDIT_RETENTION_DAYS: ${STRUCTURED_LOG_AUDIT_RETENTION_DAYS:-}
+      STRUCTURED_LOG_AUTH_EVENT_RETENTION_DAYS: ${STRUCTURED_LOG_AUTH_EVENT_RETENTION_DAYS:-}
     volumes:
       - data:/data
       - ./secrets/jwt_secret:/run/secrets/jwt_secret:ro

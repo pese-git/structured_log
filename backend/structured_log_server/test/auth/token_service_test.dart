@@ -1,6 +1,7 @@
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/claims.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/auth/token_service.dart';
@@ -19,6 +20,9 @@ StructuredLogDatabase openInMemory() {
   );
 }
 
+/// Any address will do; what matters is that one is recorded.
+const testClientIp = '203.0.113.9';
+
 void main() {
   late StructuredLogDatabase db;
   late TokenService service;
@@ -28,6 +32,7 @@ void main() {
     service = TokenService(
       db,
       ClaimsResolver(db, Authorizer(db)),
+      AuditWriter(db),
       signingSecret: _secret,
       issuer: _issuer,
       accessTokenTtl: const Duration(minutes: 15),
@@ -55,6 +60,7 @@ void main() {
         () async {
       await insertUser();
       final result = await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       );
@@ -77,6 +83,7 @@ void main() {
     test('wrong password is rejected as invalid_grant', () async {
       await insertUser();
       final result = await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 'wrong',
       );
@@ -88,6 +95,7 @@ void main() {
 
     test('unknown username is rejected as invalid_grant', () async {
       final result = await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'nobody',
         password: 'irrelevant',
       );
@@ -101,6 +109,7 @@ void main() {
         () async {
       await insertUser(isActive: false);
       final result = await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       );
@@ -122,6 +131,7 @@ void main() {
           );
 
       final result = await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       );
@@ -139,6 +149,7 @@ void main() {
     test('a valid refresh token rotates and returns a new pair', () async {
       await insertUser();
       final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
@@ -154,6 +165,7 @@ void main() {
     test('the rotated-away token is rejected on reuse', () async {
       await insertUser();
       final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
@@ -169,6 +181,7 @@ void main() {
         () async {
       await insertUser();
       final first = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
@@ -215,6 +228,7 @@ void main() {
     test('a refresh token for a now-inactive user is rejected', () async {
       final userId = await insertUser();
       final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
@@ -232,6 +246,7 @@ void main() {
     test('a refreshed token carries freshly resolved roles and tv', () async {
       final userId = await insertUser();
       final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
@@ -268,32 +283,37 @@ void main() {
         () async {
       await insertUser();
       final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
           .getRight()
           .toNullable()!;
 
-      await service.revoke(issued.refreshToken);
+      await service.revoke(issued.refreshToken, clientIp: testClientIp);
 
       final result = await service.refreshTokenGrant(issued.refreshToken);
       expect(result.getLeft().toNullable()?.code, TokenErrorCode.invalidGrant);
     });
 
     test('revoking an unknown token does not throw', () async {
-      await expectLater(service.revoke('never-issued'), completes);
+      await expectLater(
+          service.revoke('never-issued', clientIp: testClientIp), completes);
     });
 
     test('revoking an already-revoked token does not throw', () async {
       await insertUser();
       final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
       ))
           .getRight()
           .toNullable()!;
-      await service.revoke(issued.refreshToken);
-      await expectLater(service.revoke(issued.refreshToken), completes);
+      await service.revoke(issued.refreshToken, clientIp: testClientIp);
+      await expectLater(
+          service.revoke(issued.refreshToken, clientIp: testClientIp),
+          completes);
     });
   });
 }

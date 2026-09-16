@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/projects_route.dart';
@@ -29,7 +30,7 @@ void main() {
   setUp(() async {
     db = openInMemory();
     authorizer = Authorizer(db);
-    routes = ProjectRoutes(db, authorizer);
+    routes = ProjectRoutes(db, authorizer, AuditWriter(db));
     groupId =
         await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
   });
@@ -430,6 +431,104 @@ void main() {
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
       );
+    });
+  });
+
+  group('the audit record', () {
+    Future<int> createTestProject() async {
+      final id = await db.into(db.projects).insert(
+            ProjectsCompanion.insert(
+                groupId: groupId, name: 'p', retentionDays: 30),
+          );
+      await db.into(db.projectUsage).insert(
+            ProjectUsageCompanion.insert(projectId: Value(id)),
+          );
+      return id;
+    }
+
+    test('a created project leaves one, inside its own transaction', () async {
+      await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/groups/$groupId/projects',
+          roles: ownerOf(groupId),
+          userId: 4,
+          jsonBody: {'name': 'checkout', 'retention_days': 14},
+        ),
+      );
+
+      final row = (await auditRows(db)).single;
+      expect(row.action, 'project.created');
+      expect(row.targetType, 'project');
+      expect(row.actorUserId, 4);
+      expect(auditMetadata(row), {
+        'name': 'checkout',
+        'group_id': groupId,
+        'retention_days': 14,
+      });
+    });
+
+    test('a changed quota records both halves of the change', () async {
+      // The pair is the whole value of the record: "max_entries is now 500"
+      // says nothing without what it was. `before` therefore has to be read
+      // ahead of the write, not after it.
+      final projectId = await createTestProject();
+
+      await routes.router.call(
+        authenticatedRequest(
+          'PATCH',
+          'http://x/v1/projects/$projectId',
+          roles: ownerOf(groupId),
+          jsonBody: {'max_entries': 500},
+        ),
+      );
+
+      final metadata = auditMetadata((await auditRows(db)).single);
+      expect(metadata['before'], {
+        'retention_days': 30,
+        'max_entries': null,
+        'max_bytes': null,
+      });
+      expect(metadata['after'], {
+        'retention_days': 30,
+        'max_entries': 500,
+        'max_bytes': null,
+      });
+    });
+
+    test('a refused quota change leaves none', () async {
+      final projectId = await createTestProject();
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/projects/$projectId',
+            roles: const <EffectiveRole>[],
+            jsonBody: {'max_entries': 500},
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(await auditRows(db), isEmpty);
+    });
+
+    test('a refused project creation leaves none', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/groups/$groupId/projects',
+            roles: const <EffectiveRole>[],
+            jsonBody: {'name': 'x', 'retention_days': 1},
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(await auditRows(db), isEmpty);
+      expect(await db.select(db.projects).get(), isEmpty);
     });
   });
 }

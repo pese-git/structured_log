@@ -487,4 +487,120 @@ void main() {
       expect((await login(handler)).statusCode, 200);
     });
   });
+
+  group('the audit record of an episode', () {
+    Future<List<AuditLogEntry>> throttleRecords() async {
+      final rows = await db.select(db.auditLogEntries).get();
+      return rows.where((r) => r.action == 'auth.throttled').toList();
+    }
+
+    Map<String, Object?> metaOf(AuditLogEntry row) =>
+        jsonDecode(row.metadata) as Map<String, Object?>;
+
+    test('a burst against one address records once, not once per request',
+        () async {
+      // An attack is a burst by definition. One record per refused request
+      // would bury the journal under the very traffic it is reporting.
+      final handler = handlerWith(configWith(capacity: 2));
+
+      for (var i = 0; i < 8; i++) {
+        await login(handler, password: 'wrong');
+      }
+
+      final records = await throttleRecords();
+      expect(records, hasLength(1));
+      expect(metaOf(records.single), {
+        'key_kind': 'ip',
+        'path': '/v1/auth/token',
+        'client_ip': isA<String>(),
+      });
+      expect(records.single.actorUserId, isNull);
+      expect(records.single.targetType, 'auth');
+    });
+
+    test('the record is written on the first refusal, not on the last token',
+        () async {
+      // The request that empties the bucket is one the limiter *allowed*. A
+      // record for it would say an attempt was throttled when it was served.
+      final handler = handlerWith(configWith(capacity: 2));
+
+      await login(handler, password: 'wrong');
+      await login(handler, password: 'wrong');
+      expect(
+        await throttleRecords(),
+        isEmpty,
+        reason: 'two requests, two tokens, both served',
+      );
+
+      final refused = await login(handler, password: 'wrong');
+      expect(refused.statusCode, 429);
+      expect(await throttleRecords(), hasLength(1));
+    });
+
+    test('a later burst after recovery is a second episode', () async {
+      final handler = handlerWith(configWith(capacity: 2, refillPerMinute: 60));
+
+      for (var i = 0; i < 4; i++) {
+        await login(handler, password: 'wrong');
+      }
+      expect(await throttleRecords(), hasLength(1));
+
+      // Long enough for the bucket to refill completely.
+      now = now.add(const Duration(minutes: 5));
+      for (var i = 0; i < 4; i++) {
+        await login(handler, password: 'wrong');
+      }
+
+      expect(
+        await throttleRecords(),
+        hasLength(2),
+        reason: 'a fresh stretch of being empty is a fresh thing to report',
+      );
+    });
+
+    test('the two key kinds are counted apart', () async {
+      // Spraying one account from many addresses never exhausts an address
+      // bucket, which is exactly what the subject half exists for — and it
+      // gets its own episode. A test asserting "exactly one record" without
+      // saying per what would be wrong for this case.
+      final handler = handlerWith(configWith(capacity: 2, trustedProxyHops: 1));
+
+      for (var i = 0; i < 6; i++) {
+        await login(
+          handler,
+          password: 'wrong',
+          headers: {'x-forwarded-for': '198.51.100.$i'},
+        );
+      }
+
+      final records = await throttleRecords();
+      expect(records, hasLength(1));
+      expect(metaOf(records.single)['key_kind'], 'subject');
+      expect(
+        metaOf(records.single)['client_ip'],
+        isNot('198.51.100.0'),
+        reason: 'the address of the refused request, not of the first attempt',
+      );
+    });
+
+    test('the throttled subject is not stored for the token endpoint',
+        () async {
+      // It is a submitted string — regularly a password typed into the
+      // username box.
+      final handler = handlerWith(configWith(capacity: 1, trustedProxyHops: 1));
+
+      for (var i = 0; i < 3; i++) {
+        await login(
+          handler,
+          username: 'Pa55word!',
+          password: 'x',
+          headers: {'x-forwarded-for': '198.51.100.$i'},
+        );
+      }
+
+      for (final row in await db.select(db.auditLogEntries).get()) {
+        expect(row.metadata, isNot(contains('Pa55word!')));
+      }
+    });
+  });
 }

@@ -4,6 +4,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../../auth/token_service.dart';
+import '../rate_limit/client_ip.dart';
 import '../request_helpers.dart';
 import '../rate_limit_middleware.dart';
 
@@ -60,7 +61,14 @@ Map<String, Object?> _pairJson(TokenPair pair) => {
 class AuthRoutes {
   final TokenService _tokenService;
 
-  AuthRoutes(this._tokenService);
+  /// How many proxies sit in front, so the address in the audit record is the
+  /// caller's rather than the last hop's. Same count the rate limiter uses —
+  /// getting it wrong there lets an address be forged, and getting it wrong
+  /// here writes a forged address into a journal kept for years.
+  final int _trustedProxyHops;
+
+  AuthRoutes(this._tokenService, {int trustedProxyHops = 0})
+      : _trustedProxyHops = trustedProxyHops;
 
   Router get router => _$AuthRoutesRouter(this);
 
@@ -89,11 +97,16 @@ class AuthRoutes {
         // a throttled attempt must not verify credentials at all, even
         // correct ones (`log-server-rate-limit`).
         final attempt = request.rateLimitAttempt;
-        attempt.requireSubject(username);
+        await attempt.requireSubject(username);
 
         final result = await _tokenService.passwordGrant(
           username: username,
           password: password,
+          clientIp: resolveClientIp(
+            request,
+            trustedProxyHops: _trustedProxyHops,
+          ),
+          userAgent: request.headers['user-agent'],
         );
         return result.match(
           (error) {
@@ -150,7 +163,11 @@ class AuthRoutes {
       return _rfc6749Error(
           400, const TokenError(TokenErrorCode.invalidRequest));
     }
-    await _tokenService.revoke(refreshToken);
+    await _tokenService.revoke(
+      refreshToken,
+      clientIp: resolveClientIp(request, trustedProxyHops: _trustedProxyHops),
+      userAgent: request.headers['user-agent'],
+    );
     return Response(200, body: '');
   }
 }

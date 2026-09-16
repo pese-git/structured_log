@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/bootstrap_admin.dart';
 import 'package:structured_log_server/src/auth/create_admin.dart';
 import 'package:structured_log_server/src/config/config_resolver.dart';
@@ -167,6 +168,10 @@ Future<void> _runServe(
     db,
     interval: Duration(seconds: config.retentionPurgeIntervalSeconds),
     logger: log,
+    audit: AuditWriter(db),
+    auditRetentionDays: config.auditRetentionDays,
+    authEventRetentionDays: config.authEventRetentionDays,
+    auditChunkSize: config.auditPurgeBatchSize,
   )..start();
 
   final server =

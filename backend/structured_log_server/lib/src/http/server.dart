@@ -2,6 +2,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:structured_log/structured_log.dart';
 
+import '../audit/audit_writer.dart';
 import '../auth/claims.dart';
 import '../auth/local_identity_provider.dart';
 import '../auth/token_service.dart';
@@ -14,6 +15,7 @@ import '../storage/log_store.dart';
 import 'logging_middleware.dart';
 import 'principal_middleware.dart';
 import 'rate_limit_middleware.dart';
+import 'routes/audit_log_route.dart';
 import 'routes/auth_route.dart';
 import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
@@ -58,10 +60,16 @@ Handler buildHandler(
   BoundLogger? logger,
 }) {
   final authorizer = Authorizer(db);
+  // One writer, handed to every route that mutates something. It holds no
+  // state of its own — what makes a record atomic with its mutation is the
+  // transaction the caller is already inside, not the writer
+  // (`audit_writer.dart`).
+  final audit = AuditWriter(db);
   final claimsResolver = ClaimsResolver(db, authorizer);
   final tokenService = TokenService(
     db,
     claimsResolver,
+    audit,
     signingSecret: signingSecret,
     issuer: issuer,
   );
@@ -76,8 +84,19 @@ Handler buildHandler(
   final logBroadcast = broadcast ?? LogBroadcast();
 
   final featureRouters = <Router>[
-    AuthRoutes(tokenService).router,
-    ChangePasswordRoutes(db).router,
+    AuditLogRoutes(
+      db,
+      authorizer,
+      retention: AuditRetention(
+        auditRetentionDays: config?.auditRetentionDays,
+        authEventRetentionDays: config?.authEventRetentionDays,
+      ),
+    ).router,
+    AuthRoutes(
+      tokenService,
+      trustedProxyHops: config?.trustedProxyHops ?? 0,
+    ).router,
+    ChangePasswordRoutes(db, audit).router,
     LogRoutes(db, authorizer, logStore, logBroadcast).router,
     LogStreamRoutes(
       db,
@@ -87,9 +106,9 @@ Handler buildHandler(
       identityProvider,
       heartbeatInterval: sseHeartbeatInterval,
     ).router,
-    GroupRoutes(db, authorizer).router,
-    ProjectRoutes(db, authorizer).router,
-    SecretKeyRoutes(db, authorizer).router,
+    GroupRoutes(db, authorizer, audit).router,
+    ProjectRoutes(db, authorizer, audit).router,
+    SecretKeyRoutes(db, authorizer, audit).router,
   ];
 
   final router = Router();
@@ -111,8 +130,9 @@ Handler buildHandler(
   // a bucket lookup. Skipped entirely when no config is supplied — route
   // tests build a handler without one.
   if (config != null) {
-    pipeline =
-        pipeline.addMiddleware(rateLimitMiddleware(config, clock: clock));
+    pipeline = pipeline.addMiddleware(
+      rateLimitMiddleware(config, clock: clock, audit: audit),
+    );
   }
 
   return pipeline

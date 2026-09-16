@@ -263,6 +263,9 @@ _Coerced _coerce(ParamSpec spec, String raw) {
       if (parsed == null) {
         return _Coerced.err('${spec.name}: must be an integer, got "$raw"');
       }
+      if (spec.mustBePositive && parsed < 1) {
+        return _Coerced.err('${spec.name}: must be at least 1, got "$raw"');
+      }
       return _Coerced.ok(parsed);
     case ParamType.bool:
       final normalized = raw.toLowerCase();

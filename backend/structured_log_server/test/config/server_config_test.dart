@@ -31,6 +31,9 @@ const _expectedParamNames = {
   'rate-limit-max-keys',
   'trusted-proxy-hops',
   'sse-heartbeat-interval-seconds',
+  'audit-retention-days',
+  'auth-event-retention-days',
+  'audit-purge-batch-size',
 };
 
 void main() {
@@ -98,5 +101,74 @@ void main() {
     expect(result.outcome, ConfigParseOutcome.success);
     final config = ServerConfig.fromResolved(result.values!);
     expect(config.jwtSecret, isNull);
+  });
+
+  group('audit retention', () {
+    ({ConfigParseOutcome outcome, ServerConfig? config}) resolve(
+      List<String> args,
+    ) {
+      final result = ConfigResolver(serverConfigParams).parse(
+        args,
+        {
+          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+          'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+        },
+        command: commandServe,
+      );
+      return (
+        outcome: result.outcome,
+        config: result.values == null
+            ? null
+            : ServerConfig.fromResolved(result.values!),
+      );
+    }
+
+    test('both periods are unset by default', () {
+      final config = resolve([]).config!;
+
+      expect(config.auditRetentionDays, isNull);
+      expect(config.authEventRetentionDays, isNull);
+      expect(
+        config.auditPurgeBatchSize,
+        500,
+        reason: 'the chunk has a default; the periods deliberately do not',
+      );
+    });
+
+    test('the flags are the ones the operations guide documents', () {
+      final config = resolve([
+        '--audit-retention-days=365',
+        '--auth-event-retention-days=30',
+        '--audit-purge-batch-size=100',
+      ]).config!;
+
+      expect(config.auditRetentionDays, 365);
+      expect(config.authEventRetentionDays, 30);
+      expect(config.auditPurgeBatchSize, 100);
+    });
+
+    test('a period of zero is a configuration error, not a setting', () {
+      // Zero days means "delete everything on the next pass", which is never
+      // what someone typing a retention meant. Refused with the rest of the
+      // configuration, before the port opens.
+      expect(
+        resolve(['--audit-retention-days=0']).outcome,
+        ConfigParseOutcome.errors,
+      );
+    });
+
+    test('a negative period is refused too', () {
+      expect(
+        resolve(['--auth-event-retention-days=-1']).outcome,
+        ConfigParseOutcome.errors,
+      );
+    });
+
+    test('a chunk size of zero is refused, rather than looping forever', () {
+      expect(
+        resolve(['--audit-purge-batch-size=0']).outcome,
+        ConfigParseOutcome.errors,
+      );
+    });
   });
 }

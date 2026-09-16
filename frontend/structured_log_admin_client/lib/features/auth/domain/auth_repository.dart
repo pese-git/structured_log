@@ -49,4 +49,13 @@ abstract interface class AuthRepository {
   /// is no `GET /v1/users/me` in this stage, and the screens that show who is
   /// signed in have nowhere else to get it.
   Future<String?> currentUsername();
+
+  /// Whether the access token in hand claims `admin` at global scope.
+  ///
+  /// Read from the token rather than asked of the server, because no endpoint
+  /// in this stage reports the caller's own roles. It decides what the
+  /// application **offers**, never what it allows: the server re-derives roles
+  /// on every request and refuses regardless
+  /// (`shared/auth/access_token_claims.dart`).
+  Future<bool> isGlobalAdmin();
 }

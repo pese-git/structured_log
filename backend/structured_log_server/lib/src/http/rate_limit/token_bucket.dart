@@ -18,6 +18,7 @@ class TokenBucket {
 
   double _tokens;
   DateTime _lastRefill;
+  bool _episodeRecorded = false;
 
   TokenBucket({
     required this.capacity,
@@ -56,6 +57,26 @@ class TokenBucket {
     return true;
   }
 
+  /// Whether this refusal is the first of an episode — and marks it so the
+  /// next ones are not.
+  ///
+  /// An episode is one continuous stretch of being empty, and it deserves one
+  /// audit record, not one per refused request: an attack is a burst by
+  /// definition, and a record per attempt would bury the log it is written in
+  /// under the very traffic it is reporting (`specs/log-server-audit`).
+  ///
+  /// The flag is raised on the first **refusal**, not when the last token is
+  /// spent. The request that empties the bucket is one the limiter *allowed*,
+  /// and an `auth.throttled` record for a request that was served would be
+  /// false. It clears in [_refill], the moment a token is available again, so
+  /// a later burst is a new episode.
+  bool startEpisode(DateTime now) {
+    _refill(now);
+    if (_episodeRecorded) return false;
+    _episodeRecorded = true;
+    return true;
+  }
+
   /// Refills to capacity — what a successful authentication does to its
   /// subject's bucket, so that a legitimate user's own failures never
   /// accumulate against them across successful sessions
@@ -63,6 +84,7 @@ class TokenBucket {
   void restore(DateTime now) {
     _lastRefill = now;
     _tokens = capacity.toDouble();
+    _episodeRecorded = false;
   }
 
   /// How long until at least one token is available, for `Retry-After`.
@@ -90,5 +112,7 @@ class TokenBucket {
         const Duration(minutes: 1).inMicroseconds;
     _tokens = (_tokens + earned).clamp(0, capacity.toDouble());
     _lastRefill = now;
+    // Out of the empty state: whatever comes next is a new episode.
+    if (_tokens >= 1) _episodeRecorded = false;
   }
 }

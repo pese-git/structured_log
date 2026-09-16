@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:structured_log/structured_log.dart';
 
+import '../audit/action_classes.dart';
+import '../audit/audit_action.dart';
+import '../audit/audit_writer.dart';
 import '../storage/database.dart';
 
 /// What one purge pass removed.
@@ -20,14 +23,24 @@ class PurgeOutcome {
     required this.deletedEntries,
     required this.freedBytes,
     required this.affectedProjects,
+    this.deletedAdminAudit = 0,
+    this.deletedAuthAudit = 0,
   });
 
-  bool get isEmpty => deletedEntries == 0;
+  /// Audit records removed, by class. Absent when audit retention is unset,
+  /// which is the default.
+  final int deletedAdminAudit;
+  final int deletedAuthAudit;
+
+  bool get isEmpty =>
+      deletedEntries == 0 && deletedAdminAudit == 0 && deletedAuthAudit == 0;
 
   Map<String, Object?> toContext() => {
         'deleted_entries': deletedEntries,
         'freed_bytes': freedBytes,
         'affected_projects': affectedProjects,
+        'deleted_admin_audit': deletedAdminAudit,
+        'deleted_auth_audit': deletedAuthAudit,
       };
 }
 
@@ -110,6 +123,96 @@ Future<PurgeOutcome> purgeExpiredEntries(
   );
 }
 
+/// Deletes audit records past their retention, each class by its own period
+/// (`design.md` decision 46).
+///
+/// A class whose period is `null` is not swept at all — not swept with an
+/// infinite horizon, not swept: keeping records indefinitely is the default,
+/// and an upgrade must not delete an operator's history on its own.
+///
+/// Chunked like the log purge and for the same reason — one statement removing
+/// a year of authentication events would stall every connection on the single
+/// isolate until it finished. Each chunk is its own transaction; a pass
+/// interrupted halfway has simply deleted less.
+///
+/// The pass accounts for itself: one `audit.purged` per class that removed
+/// anything, written outside a transaction because a deletion pass has no
+/// mutation to be atomic with (`action_classes.dart`). A pass that deleted
+/// nothing writes nothing — otherwise the journal would fill with hourly
+/// reports of having done nothing, which is the traffic it exists to stay
+/// readable above.
+Future<({int admin, int auth})> purgeExpiredAuditEntries(
+  StructuredLogDatabase db,
+  AuditWriter audit, {
+  int? auditRetentionDays,
+  int? authEventRetentionDays,
+  DateTime Function()? clock,
+  int chunkSize = 500,
+}) async {
+  if (chunkSize < 1) {
+    throw ArgumentError.value(chunkSize, 'chunkSize', 'must be at least 1');
+  }
+  final now = (clock ?? DateTime.now)();
+
+  final authWire = authEventActions.map((a) => a.wire).toList(growable: false);
+
+  Future<int> sweep({
+    required int retentionDays,
+    required bool authEvents,
+  }) async {
+    final cutoff = now.subtract(Duration(days: retentionDays));
+    var removed = 0;
+
+    while (true) {
+      final chunk = await (db.select(db.auditLogEntries)
+            ..where(
+              (t) => authEvents
+                  ? t.action.isIn(authWire) &
+                      t.createdAt.isSmallerThanValue(cutoff)
+                  : t.action.isNotIn(authWire) &
+                      t.createdAt.isSmallerThanValue(cutoff),
+            )
+            ..limit(chunkSize))
+          .get();
+      if (chunk.isEmpty) break;
+
+      final ids = chunk.map((e) => e.id).toList();
+      await db.transaction(() async {
+        await (db.delete(db.auditLogEntries)..where((t) => t.id.isIn(ids)))
+            .go();
+      });
+      removed += ids.length;
+
+      if (chunk.length < chunkSize) break;
+    }
+
+    if (removed > 0) {
+      await audit.write(
+        action: AuditAction.auditPurged,
+        targetType: AuditTargetType.audit,
+        metadata: {
+          'scope': authEvents ? 'auth' : 'admin',
+          'deleted_count': removed,
+          'older_than': cutoff.toUtc().toIso8601String(),
+        },
+      );
+    }
+    return removed;
+  }
+
+  // Administrative first, so that the `audit.purged` the admin sweep writes
+  // is younger than the auth cutoff and cannot be removed by the sweep that
+  // follows it in the same pass.
+  final admin = auditRetentionDays == null
+      ? 0
+      : await sweep(retentionDays: auditRetentionDays, authEvents: false);
+  final auth = authEventRetentionDays == null
+      ? 0
+      : await sweep(retentionDays: authEventRetentionDays, authEvents: true);
+
+  return (admin: admin, auth: auth);
+}
+
 Expression<int> _atLeastZero(Expression<int> value) =>
     CaseWhenExpression<int>(cases: [
       CaseWhen(value.isSmallerThanValue(0), then: const Constant(0)),
@@ -131,6 +234,14 @@ class PurgeScheduler {
   final DateTime Function()? _clock;
   final int chunkSize;
 
+  /// One timer for both journals (`docs/operations/configuration.md`): the log
+  /// sweep and the audit sweep run in the same pass, so an operator has one
+  /// interval to reason about rather than two that can interleave.
+  final AuditWriter? _audit;
+  final int? auditRetentionDays;
+  final int? authEventRetentionDays;
+  final int auditChunkSize;
+
   Timer? _timer;
   var _running = false;
 
@@ -140,8 +251,13 @@ class PurgeScheduler {
     BoundLogger? logger,
     DateTime Function()? clock,
     this.chunkSize = 500,
+    AuditWriter? audit,
+    this.auditRetentionDays,
+    this.authEventRetentionDays,
+    this.auditChunkSize = 500,
   })  : _logger = logger,
-        _clock = clock;
+        _clock = clock,
+        _audit = audit;
 
   void start() {
     _timer ??= Timer.periodic(interval, (_) => unawaited(runOnce()));
@@ -158,10 +274,30 @@ class PurgeScheduler {
     if (_running) return null;
     _running = true;
     try {
-      final outcome = await purgeExpiredEntries(
+      final logs = await purgeExpiredEntries(
         _db,
         clock: _clock,
         chunkSize: chunkSize,
+      );
+
+      final audit = _audit;
+      final removedAudit = audit == null
+          ? (admin: 0, auth: 0)
+          : await purgeExpiredAuditEntries(
+              _db,
+              audit,
+              auditRetentionDays: auditRetentionDays,
+              authEventRetentionDays: authEventRetentionDays,
+              clock: _clock,
+              chunkSize: auditChunkSize,
+            );
+
+      final outcome = PurgeOutcome(
+        deletedEntries: logs.deletedEntries,
+        freedBytes: logs.freedBytes,
+        affectedProjects: logs.affectedProjects,
+        deletedAdminAudit: removedAudit.admin,
+        deletedAuthAudit: removedAudit.auth,
       );
       if (outcome.isEmpty) {
         // At debug, because a server whose projects are all within

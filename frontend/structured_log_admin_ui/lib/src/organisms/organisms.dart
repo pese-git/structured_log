@@ -4,3 +4,4 @@ export 'admin_feed_status_strip.dart';
 export 'admin_filter_bar.dart';
 export 'admin_log_entry_row.dart';
 export 'admin_resource_row.dart';
+export 'admin_table.dart';

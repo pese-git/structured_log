@@ -50,6 +50,9 @@ class AuthModule extends Module {
     bind<CurrentUsername>().toProvide(
       () => CurrentUsername(currentScope.resolve<AuthRepository>()),
     );
+    bind<IsGlobalAdmin>().toProvide(
+      () => IsGlobalAdmin(currentScope.resolve<AuthRepository>()),
+    );
   }
 }
 
