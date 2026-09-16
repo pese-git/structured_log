@@ -10,8 +10,12 @@ import '../../../shared/api/dto/resource_dto.dart';
 /// values that mirror the wire, and a second identical set of domain classes
 /// would be ceremony rather than insulation.
 ///
-/// Users, teams and role assignments are deliberately absent — the server has
-/// no endpoints for them in this stage (design.md «Delivery Phases»).
+/// Users and role assignments live in their own feature
+/// (`lib/features/users/`), not here — they are a different resource family
+/// with their own screen, even though `blockProject`/`unblockProject` below
+/// share the same admin-only authorization rule as blocking a user. Teams
+/// are still absent — the server has no endpoints for them in this stage
+/// (design.md «Delivery Phases»).
 abstract interface class ResourcesRepository {
   /// Groups the caller can see. An administrator sees all of them.
   Future<Either<ApiFailure, List<GroupDto>>> groups();
@@ -61,4 +65,11 @@ abstract interface class ResourcesRepository {
     required int projectId,
     required int keyId,
   });
+
+  /// `admin` only — not even `owner` of the project's own group. Does not
+  /// revoke the project's secret keys, which stays a separate, irreversible
+  /// action.
+  Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId);
+
+  Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId);
 }

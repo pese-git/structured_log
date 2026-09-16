@@ -9,6 +9,7 @@ import 'auth_interceptor.dart';
 import 'logs_api.dart';
 import 'resources_api.dart';
 import 'streaming/streaming_adapter.dart';
+import 'users_api.dart';
 
 /// Everything this client uses to talk to `structured_log_server`, built once
 /// and handed out by the DI root.
@@ -42,6 +43,8 @@ class ApiClient {
   final ProjectsApi projects;
   final SecretKeysApi secretKeys;
   final LogsApi logs;
+  final UsersApi users;
+  final RoleAssignmentsApi roleAssignments;
 
   ApiClient._({
     required this.dio,
@@ -52,6 +55,8 @@ class ApiClient {
     required this.projects,
     required this.secretKeys,
     required this.logs,
+    required this.users,
+    required this.roleAssignments,
   });
 
   factory ApiClient({
@@ -139,6 +144,8 @@ class ApiClient {
       projects: ProjectsApi(dio),
       secretKeys: SecretKeysApi(dio),
       logs: LogsApi(dio),
+      users: UsersApi(dio),
+      roleAssignments: RoleAssignmentsApi(dio),
     );
   }
 }

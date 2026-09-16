@@ -138,3 +138,10 @@ Future<void> openAudit(WidgetTester tester) async {
   await tester.tap(find.text('Аудит'));
   await tester.pumpAndSettle();
 }
+
+/// Moves the shell to the users section. Same admin-only caveat as
+/// [openAudit].
+Future<void> openUsers(WidgetTester tester) async {
+  await tester.tap(find.text('Пользователи'));
+  await tester.pumpAndSettle();
+}

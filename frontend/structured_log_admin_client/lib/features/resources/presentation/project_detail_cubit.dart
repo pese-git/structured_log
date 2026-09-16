@@ -137,6 +137,30 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     );
   }
 
+  Future<void> setBlocked(bool blocked) async {
+    if (state.saving) return;
+    emit(state.copyWith(saving: true, actionFailure: null));
+    final result = blocked
+        ? await _projects.block(projectId)
+        : await _projects.unblock(projectId);
+    if (isClosed) return;
+
+    result.match(
+      (failure) => emit(state.copyWith(saving: false, actionFailure: failure)),
+      // Same reasoning as `updateQuota`: the answer carries `is_blocked` but
+      // not the usage counters, which only `GET /v1/projects/{id}` computes.
+      (saved) => emit(
+        state.copyWith(
+          saving: false,
+          project: saved.copyWith(
+            entryCount: state.project?.entryCount,
+            totalBytes: state.project?.totalBytes,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _reloadKeys() async {
     final keys = await _keys.list(projectId);
     if (isClosed) return;

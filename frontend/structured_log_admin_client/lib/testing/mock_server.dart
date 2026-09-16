@@ -43,9 +43,11 @@ class MockServer implements HttpClientAdapter {
     ],
   });
 
-  /// The one account. Users, teams and roles have no endpoints in this stage,
-  /// so a second account would have nothing to be different about — except
-  /// what it is allowed to do, which [roles] covers.
+  /// The signed-in account. A second one can now exist in [users] — created
+  /// through `POST /v1/users` like the server does it — but only this one can
+  /// ever sign in: teams and a way to issue a session for someone else still
+  /// have no endpoints in this stage, so a row in [users] is a subject to
+  /// manage, never a session to become.
   final String username;
 
   /// What the access token claims this account may do, in the shape the server
@@ -74,6 +76,17 @@ class MockServer implements HttpClientAdapter {
   final projects = <Map<String, dynamic>>[];
   final secretKeys = <Map<String, dynamic>>[];
 
+  /// Accounts other than the signed-in one — `is_active`/`deleted_at` follow
+  /// the same field names the server uses, so `UserDto.isBlocked`/`isDeleted`
+  /// exercise the real wire values rather than a mock-only shorthand.
+  final users = <Map<String, dynamic>>[];
+
+  /// `subject_type`/`subject_id`/`role`/`scope_type`/`scope_id`, exactly as
+  /// `POST /v1/role-assignments` stores them. There is no listing endpoint on
+  /// the real server in this stage, so nothing reads this back except
+  /// `_deleteRoleAssignment` and a test asserting on it directly.
+  final roleAssignments = <Map<String, dynamic>>[];
+
   /// Oldest first; `GET /v1/logs` reverses them, as the server does.
   final logEntries = <Map<String, dynamic>>[];
 
@@ -88,6 +101,23 @@ class MockServer implements HttpClientAdapter {
   /// Secret keys in the form an application would present them, by id. Kept
   /// so [acceptEntry] can check the one it is handed.
   final _issuedSecrets = <String>{};
+
+  /// User id → the groups `DELETE /v1/users/{id}` should refuse over, set by
+  /// [simulateSoleGroupOwner]. A test hook rather than something derived from
+  /// [groups]: the real check walks `role_assignments`, which this mock does
+  /// not model relationships over, and a test asserting on the 409 only needs
+  /// the server's answer to be shaped right, not the query that produced it.
+  final _soleOwnerBlocks = <int, List<Map<String, dynamic>>>{};
+
+  /// Makes `DELETE /v1/users/{id}` answer `409 sole_group_owner` naming
+  /// [blockingGroups] — each `{"id": ..., "name": ...}` — until the target is
+  /// deleted successfully or this is called again with an empty list.
+  void simulateSoleGroupOwner(
+    int userId,
+    List<Map<String, dynamic>> blockingGroups,
+  ) {
+    _soleOwnerBlocks[userId] = blockingGroups;
+  }
 
   /// Every request that reached the adapter, in order.
   final requests = <RecordedRequest>[];
@@ -255,6 +285,43 @@ class MockServer implements HttpClientAdapter {
         request,
         int.parse(id),
       ),
+      ('POST', ['v1', 'projects', final id, 'block']) => _setProjectBlocked(
+        request,
+        int.parse(id),
+        true,
+      ),
+      ('POST', ['v1', 'projects', final id, 'unblock']) => _setProjectBlocked(
+        request,
+        int.parse(id),
+        false,
+      ),
+
+      ('GET', ['v1', 'users']) => _listUsers(request),
+      ('POST', ['v1', 'users']) => _createUser(request),
+      ('PATCH', ['v1', 'users', final id]) => _patchUser(
+        request,
+        int.parse(id),
+      ),
+      ('POST', ['v1', 'users', final id, 'block']) => _setUserBlocked(
+        request,
+        int.parse(id),
+        true,
+      ),
+      ('POST', ['v1', 'users', final id, 'unblock']) => _setUserBlocked(
+        request,
+        int.parse(id),
+        false,
+      ),
+      ('DELETE', ['v1', 'users', final id]) => _deleteUser(
+        request,
+        int.parse(id),
+      ),
+
+      ('POST', ['v1', 'role-assignments']) => _createRoleAssignment(request),
+      ('DELETE', ['v1', 'role-assignments', final id]) => _deleteRoleAssignment(
+        request,
+        int.parse(id),
+      ),
 
       ('GET', ['v1', 'projects', final id, 'secret-keys']) => _listKeys(
         request,
@@ -402,6 +469,15 @@ class MockServer implements HttpClientAdapter {
     return MockReply(200, body: _withoutUsage(project));
   }
 
+  /// `admin` only — not even `owner` of the project's own group, the same
+  /// rule blocking a user follows (`docs/architecture/rbac-and-lifecycle.md`).
+  MockReply _setProjectBlocked(RecordedRequest request, int id, bool blocked) {
+    _requireAdmin(request);
+    final project = _project(id);
+    project['is_blocked'] = blocked;
+    return MockReply(200, body: _withoutUsage(project));
+  }
+
   MockReply _listKeys(RecordedRequest request, int projectId) {
     _requireUser(request);
     final mine = secretKeys.where((k) => k['project_id'] == projectId);
@@ -430,6 +506,149 @@ class MockServer implements HttpClientAdapter {
     final secret = 'slk_live_$id';
     _issuedSecrets.add(secret);
     return MockReply(201, body: {...key, 'secret': secret});
+  }
+
+  MockReply _listUsers(RecordedRequest request) {
+    _requireAdmin(request);
+    final query = request.query;
+    var matching = users.reversed.toList();
+
+    final cursor = query['cursor'];
+    if (cursor != null) {
+      matching = matching
+          .where((user) => (user['id'] as int) < int.parse(cursor))
+          .toList();
+    }
+
+    final limit = int.tryParse(query['limit'] ?? '') ?? 50;
+    final page = matching.take(limit).toList();
+    final more = matching.length > page.length;
+
+    return MockReply(
+      200,
+      body: {'items': page, 'next_cursor': more ? '${page.last['id']}' : null},
+    );
+  }
+
+  MockReply _createUser(RecordedRequest request) {
+    _requireAdmin(request);
+    final body = request.json;
+    final username = body['username'];
+    if (username is! String || username.isEmpty) {
+      return const MockReply(400, body: {'error': 'invalid_request'});
+    }
+    if (users.any((u) => u['username'] == username)) {
+      return const MockReply(409, body: {'error': 'username_taken'});
+    }
+
+    final user = {
+      'id': _nextId(users),
+      'username': username,
+      'display_name': body['display_name'],
+      // Never accepted from the client in this stage — see `UserDto`.
+      'email': null,
+      'email_verified_at': null,
+      'must_change_password': true,
+      'is_active': true,
+      'deleted_at': null,
+      'is_primary_admin': false,
+      'created_at': _now(),
+    };
+    users.add(user);
+    return MockReply(201, body: user);
+  }
+
+  MockReply _patchUser(RecordedRequest request, int id) {
+    _requireAdmin(request);
+    final user = _user(id);
+    final body = request.json;
+    // `containsKey`, not a null check — same reasoning as `_patchProject`:
+    // an explicit `null` clears the display name, an absent key leaves it.
+    if (body.containsKey('display_name')) {
+      user['display_name'] = body['display_name'];
+    }
+    if (body['password'] != null) {
+      user['must_change_password'] = true;
+    }
+    return MockReply(200, body: user);
+  }
+
+  MockReply _setUserBlocked(RecordedRequest request, int id, bool blocked) {
+    _requireAdmin(request);
+    final user = _user(id);
+    if (!blocked && user['deleted_at'] != null) {
+      return const MockReply(409, body: {'error': 'deleted_account'});
+    }
+    // Inverse of `blocked`: `is_active` is the server's field name, and
+    // blocking sets it to `false` — unlike a project's `is_blocked`, which
+    // matches `blocked` directly (`_setProjectBlocked`).
+    user['is_active'] = !blocked;
+    return MockReply(200, body: user);
+  }
+
+  MockReply _deleteUser(RecordedRequest request, int id) {
+    _requireAdmin(request);
+    final user = _user(id);
+    if (user['is_primary_admin'] == true) {
+      return const MockReply(
+        403,
+        body: {'error': 'cannot_delete_primary_admin'},
+      );
+    }
+    final blocking = _soleOwnerBlocks[id];
+    if (blocking != null && blocking.isNotEmpty) {
+      return MockReply(
+        409,
+        body: {
+          'error': 'sole_group_owner',
+          'details': {'blocking_groups': blocking},
+        },
+      );
+    }
+
+    user['deleted_at'] = _now();
+    user['is_active'] = false;
+    return const MockReply(204);
+  }
+
+  MockReply _createRoleAssignment(RecordedRequest request) {
+    _requireAdmin(request);
+    final body = request.json;
+    if (body['subject_type'] != 'user') {
+      return const MockReply(400, body: {'error': 'invalid_request'});
+    }
+    final subjectId = body['subject_id'];
+    if (subjectId is! int || !users.any((u) => u['id'] == subjectId)) {
+      return const MockReply(404, body: {'error': 'not_found'});
+    }
+    final scopeType = body['scope_type'];
+    final scopeId = body['scope_id'];
+    if (scopeType != 'global' && scopeId == null) {
+      return const MockReply(400, body: {'error': 'invalid_request'});
+    }
+
+    final assignment = {
+      'id': _nextId(roleAssignments),
+      'subject_type': 'user',
+      'subject_id': subjectId,
+      'role': body['role'],
+      'scope_type': scopeType,
+      'scope_id': scopeId,
+      'created_at': _now(),
+    };
+    roleAssignments.add(assignment);
+    return MockReply(201, body: assignment);
+  }
+
+  MockReply _deleteRoleAssignment(RecordedRequest request, int id) {
+    _requireAdmin(request);
+    final assignment = roleAssignments.firstWhere(
+      (a) => a['id'] == id,
+      orElse: () =>
+          throw _Refusal(const MockReply(404, body: {'error': 'not_found'})),
+    );
+    roleAssignments.remove(assignment);
+    return const MockReply(204);
   }
 
   MockReply _revokeKey(RecordedRequest request, int projectId, int keyId) {
@@ -612,8 +831,26 @@ class MockServer implements HttpClientAdapter {
     }
   }
 
+  /// [_requireUser], plus the global-admin check every users/role-assignment
+  /// route in this stage needs — the same rule `_queryAuditLog` applies for
+  /// the audit log.
+  void _requireAdmin(RecordedRequest request) {
+    _requireUser(request);
+    if (!roles.any(
+      (r) => r['role'] == 'admin' && r['scope_type'] == 'global',
+    )) {
+      throw _Refusal(const MockReply(403, body: {'error': 'forbidden'}));
+    }
+  }
+
   Map<String, dynamic> _project(int id) => projects.firstWhere(
     (p) => p['id'] == id,
+    orElse: () =>
+        throw _Refusal(const MockReply(404, body: {'error': 'not_found'})),
+  );
+
+  Map<String, dynamic> _user(int id) => users.firstWhere(
+    (u) => u['id'] == id,
     orElse: () =>
         throw _Refusal(const MockReply(404, body: {'error': 'not_found'})),
   );

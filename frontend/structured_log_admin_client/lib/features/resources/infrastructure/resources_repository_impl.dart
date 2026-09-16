@@ -96,6 +96,14 @@ class ResourcesRepositoryImpl implements ResourcesRepository {
     });
   }
 
+  @override
+  Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId) =>
+      _attempt(() => _api.projects.block(projectId));
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId) =>
+      _attempt(() => _api.projects.unblock(projectId));
+
   /// Every call in this repository has the same two outcomes, and the same
   /// one way of telling them apart.
   Future<Either<ApiFailure, T>> _attempt<T>(Future<T> Function() call) async {

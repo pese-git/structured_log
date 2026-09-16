@@ -177,6 +177,18 @@ class _FakeRepository implements ResourcesRepository {
     }
     return _answer(unit, write: true);
   }
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId) async {
+    calls.add('blockProject:$projectId');
+    return _answer(one.copyWith(isBlocked: true), write: true);
+  }
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId) async {
+    calls.add('unblockProject:$projectId');
+    return _answer(one.copyWith(isBlocked: false), write: true);
+  }
 }
 
 void main() {

@@ -113,6 +113,14 @@ class _FakeRepository implements ResourcesRepository {
     required int projectId,
     required int keyId,
   }) async => right(unit);
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId) async =>
+      right(one.copyWith(isBlocked: true));
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId) async =>
+      right(one.copyWith(isBlocked: false));
 }
 
 Widget _host(Widget child) => FluentApp(

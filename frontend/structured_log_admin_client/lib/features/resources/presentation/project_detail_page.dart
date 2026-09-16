@@ -11,11 +11,10 @@ import 'resources_section.dart';
 /// One project: what it may hold, how much of that it is holding, and the
 /// keys that let an application add to it (`ProjectDetail.dc.html`).
 ///
-/// The artboard's block/unblock button is not here. It needs
-/// `POST /v1/projects/:id/block`, which this stage's server does not have —
-/// but the *indicator* is, because a blocked project has to look blocked to
-/// everyone who can see it (`specs/admin-client-resource-management`).
-/// Role assignments are absent for the same reason as the endpoint.
+/// Role assignments for a project are managed from the target user's screen
+/// (`lib/features/users/`), not here — the reduced grant UI (13.5a) fixes
+/// the subject and lets the admin pick the scope, rather than the other way
+/// round.
 class ProjectDetailPage extends StatelessWidget {
   final String groupName;
   final VoidCallback onBackToGroups;
@@ -129,6 +128,12 @@ class _Header extends StatelessWidget {
             ],
             const Spacer(),
             AdminButton(
+              label: project.isBlocked ? 'Разблокировать' : 'Заблокировать',
+              size: AdminButtonSize.dialog,
+              onPressed: () => _toggleBlocked(context, project),
+            ),
+            const SizedBox(width: AdminSpacing.x10),
+            AdminButton(
               label: 'Открыть логи',
               icon: FluentIcons.search,
               variant: AdminButtonVariant.accent,
@@ -146,6 +151,32 @@ class _Header extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _toggleBlocked(BuildContext context, ProjectDto project) async {
+    final cubit = context.read<ProjectDetailCubit>();
+    if (project.isBlocked) {
+      // Reversible and non-disruptive to confirm again — unblocking only
+      // restores what blocking took away.
+      await cubit.setBlocked(false);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AdminConfirmDialog(
+        title: 'Заблокировать проект «${project.name}»?',
+        message:
+            'Приём новых логов и запрос уже сохранённых логов этого проекта '
+            'будут отключены до разблокировки. Секретные ключи проекта не '
+            'отзываются.',
+        confirmLabel: 'Заблокировать',
+        destructive: true,
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+      ),
+    );
+    if (confirmed ?? false) await cubit.setBlocked(true);
   }
 }
 

@@ -55,6 +55,15 @@ abstract class ProjectsApi {
     @Path('id') int id,
     @Body() UpdateProjectQuotaRequestDto body,
   );
+
+  /// `admin` only — not even `owner` of the project's own group
+  /// (`docs/architecture/rbac-and-lifecycle.md`). Halts ingestion and direct
+  /// reads of this project; does not revoke its secret keys.
+  @POST('/v1/projects/{id}/block')
+  Future<ProjectDto> block(@Path('id') int id);
+
+  @POST('/v1/projects/{id}/unblock')
+  Future<ProjectDto> unblock(@Path('id') int id);
 }
 
 /// `/v1/projects/{id}/secret-keys`.

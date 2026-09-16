@@ -2,7 +2,8 @@
 
 Self-hosted admin client for
 [`structured_log_server`](../../backend/structured_log_server): sign-in,
-groups and projects and their secret keys, the log browser, and the audit log.
+groups and projects and their secret keys, users, the log browser, and the
+audit log.
 
 Not published — it is an application, not a library.
 
@@ -10,9 +11,13 @@ Not published — it is an application, not a library.
 
 Working today: sign-in (including the forced first-login password change),
 groups, projects and their quotas, secret keys, the log browser with its live
-feed, account settings, and the audit log.
+feed, account settings, the audit log, and user management — create, edit,
+block/unblock, delete, plus a reduced role-grant form (`admin` only,
+one user at a time; there is no endpoint yet to list a user's existing
+grants).
 
-Not here: users, teams, role assignment, password recovery and email
+Not here: teams, the full role-assignment rule (an `owner` granting roles
+within their own group), self-registration, password recovery and email
 verification. The server has no endpoints behind them yet, and a screen that
 opens onto nothing is worse than one that is not offered —
 [tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) says
