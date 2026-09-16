@@ -1,3 +1,7 @@
+## 0.1.0
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
 ## 0.1.0-dev.4
 
  - **DOCS**(structured_log_fluent): record that fluent_ui 4.16.1 is still incompatible.

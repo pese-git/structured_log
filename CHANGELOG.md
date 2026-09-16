@@ -3,6 +3,45 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-09-16
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.2.0+1`](#structured_log---v0201)
+ - [`structured_log_cupertino` - `v0.1.0`](#structured_log_cupertino---v010)
+ - [`structured_log_fluent` - `v0.1.0`](#structured_log_fluent---v010)
+ - [`structured_log_flutter` - `v0.1.0`](#structured_log_flutter---v010)
+ - [`structured_log_material` - `v0.1.0`](#structured_log_material---v010)
+
+Packages graduated to a stable release (see pre-releases prior to the stable version for changelog entries):
+
+ - `structured_log` - `v0.2.0+1`
+ - `structured_log_cupertino` - `v0.1.0`
+ - `structured_log_fluent` - `v0.1.0`
+ - `structured_log_flutter` - `v0.1.0`
+ - `structured_log_material` - `v0.1.0`
+
+---
+
+#### `structured_log` - `v0.2.0+1`
+
+#### `structured_log_cupertino` - `v0.1.0`
+
+#### `structured_log_fluent` - `v0.1.0`
+
+#### `structured_log_flutter` - `v0.1.0`
+
+#### `structured_log_material` - `v0.1.0`
+
+
 ## 2026-09-11
 
 ### Changes
