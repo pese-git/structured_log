@@ -145,7 +145,7 @@ Questions).
 | Trusted proxy hops | `--trusted-proxy-hops` | `0` | `0` = ignore `X-Forwarded-For` entirely |
 | Audit retention | `--audit-retention-days` | unset | Unset = keep forever ([quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
-| Audit purge chunk | `--audit-purge-batch-size` | TBD | Deleting in chunks keeps ingestion unblocked |
+| Audit purge chunk | `--audit-purge-batch-size` | `500` | Deleting in chunks keeps ingestion unblocked |
 | Live-stream heartbeat | `--stream-heartbeat-seconds` | TBD | Also re-validates authorization ([live-streaming.md](../architecture/live-streaming.md)) |
 | Own-log level | `--log-level` | `info` | The server's own diagnostics, not ingested entries ([README.md](../architecture/README.md#the-middleware-chain)) |
 | Own-log format | `--log-format` | `console` | `console` or `json` for machine collection |
