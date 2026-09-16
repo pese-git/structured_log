@@ -110,6 +110,12 @@ class AuthRepositoryImpl implements AuthRepository {
     return tokens == null ? null : usernameFromAccessToken(tokens.accessToken);
   }
 
+  @override
+  Future<bool> isGlobalAdmin() async {
+    final tokens = await _storage.read();
+    return tokens != null && isGlobalAdminFromAccessToken(tokens.accessToken);
+  }
+
   /// `POST /v1/auth/change-password` answers in the API's general envelope,
   /// not the RFC 6749 one — but it reuses `invalid_grant` for the one refusal
   /// the screen must name: the current password was wrong.

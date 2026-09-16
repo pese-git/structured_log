@@ -128,3 +128,13 @@ Future<void> openLogs(WidgetTester tester) async {
   await tester.tap(find.text('Поиск логов'));
   await tester.pumpAndSettle();
 }
+
+/// Moves the shell to the audit section.
+///
+/// Only offered to a reader whose access token claims global admin, which the
+/// mock server grants by default — a test about a reader without it asserts the
+/// item is absent rather than calling this.
+Future<void> openAudit(WidgetTester tester) async {
+  await tester.tap(find.text('Аудит'));
+  await tester.pumpAndSettle();
+}

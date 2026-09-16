@@ -23,6 +23,9 @@ class _FakeRepository implements AuthRepository {
   Future<String?> currentUsername() async => username;
 
   @override
+  Future<bool> isGlobalAdmin() async => false;
+
+  @override
   Future<Either<AuthFailure, Unit>> signIn({
     required String username,
     required String password,

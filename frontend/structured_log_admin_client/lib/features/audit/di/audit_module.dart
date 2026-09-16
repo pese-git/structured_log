@@ -4,6 +4,7 @@ import '../../../shared/api/api_client.dart';
 import '../application/query_audit_log.dart';
 import '../domain/audit_repository.dart';
 import '../infrastructure/audit_repository_impl.dart';
+import '../presentation/audit_cubit.dart';
 
 /// The audit log, in its own subscope (design.md decision 35).
 ///
@@ -19,6 +20,13 @@ class AuditModule extends Module {
 
     bind<QueryAuditLog>().toProvide(
       () => QueryAuditLog(currentScope.resolve<AuditRepository>()),
+    );
+
+    // Not a singleton: a cubit belongs to the screen that opened it and is
+    // closed with it, so a second visit must get a fresh one rather than a
+    // closed one — the same rule as `LogFeedBloc` next door.
+    bind<AuditCubit>().toProvide(
+      () => AuditCubit(currentScope.resolve<QueryAuditLog>()),
     );
   }
 }
