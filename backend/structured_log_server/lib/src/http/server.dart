@@ -15,6 +15,7 @@ import '../storage/log_store.dart';
 import 'logging_middleware.dart';
 import 'principal_middleware.dart';
 import 'rate_limit_middleware.dart';
+import 'routes/audit_log_route.dart';
 import 'routes/auth_route.dart';
 import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
@@ -82,6 +83,7 @@ Handler buildHandler(
   final logBroadcast = broadcast ?? LogBroadcast();
 
   final featureRouters = <Router>[
+    AuditLogRoutes(db, authorizer).router,
     AuthRoutes(tokenService).router,
     ChangePasswordRoutes(db, audit).router,
     LogRoutes(db, authorizer, logStore, logBroadcast).router,
