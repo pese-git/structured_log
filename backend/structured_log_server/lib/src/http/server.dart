@@ -2,6 +2,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:structured_log/structured_log.dart';
 
+import '../audit/audit_writer.dart';
 import '../auth/claims.dart';
 import '../auth/local_identity_provider.dart';
 import '../auth/token_service.dart';
@@ -58,6 +59,11 @@ Handler buildHandler(
   BoundLogger? logger,
 }) {
   final authorizer = Authorizer(db);
+  // One writer, handed to every route that mutates something. It holds no
+  // state of its own — what makes a record atomic with its mutation is the
+  // transaction the caller is already inside, not the writer
+  // (`audit_writer.dart`).
+  final audit = AuditWriter(db);
   final claimsResolver = ClaimsResolver(db, authorizer);
   final tokenService = TokenService(
     db,
@@ -77,7 +83,7 @@ Handler buildHandler(
 
   final featureRouters = <Router>[
     AuthRoutes(tokenService).router,
-    ChangePasswordRoutes(db).router,
+    ChangePasswordRoutes(db, audit).router,
     LogRoutes(db, authorizer, logStore, logBroadcast).router,
     LogStreamRoutes(
       db,
@@ -87,9 +93,9 @@ Handler buildHandler(
       identityProvider,
       heartbeatInterval: sseHeartbeatInterval,
     ).router,
-    GroupRoutes(db, authorizer).router,
-    ProjectRoutes(db, authorizer).router,
-    SecretKeyRoutes(db, authorizer).router,
+    GroupRoutes(db, authorizer, audit).router,
+    ProjectRoutes(db, authorizer, audit).router,
+    SecretKeyRoutes(db, authorizer, audit).router,
   ];
 
   final router = Router();

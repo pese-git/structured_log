@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../../audit/audit_action.dart';
+import '../../audit/audit_writer.dart';
 import '../../auth/hashing.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
@@ -38,8 +40,9 @@ Future<Project> _requireProject(StructuredLogDatabase db, int projectId) async {
 class SecretKeyRoutes {
   final StructuredLogDatabase _db;
   final Authorizer _authorizer;
+  final AuditWriter _audit;
 
-  SecretKeyRoutes(this._db, this._authorizer);
+  SecretKeyRoutes(this._db, this._authorizer, this._audit);
 
   Router get router => _$SecretKeyRoutesRouter(this);
 
@@ -71,13 +74,27 @@ class SecretKeyRoutes {
     }
 
     final plainKey = generateProjectSecretKey();
-    final keyId = await _db.into(_db.projectSecretKeys).insert(
-          ProjectSecretKeysCompanion.insert(
-            projectId: projectId,
-            keyHash: hashToken(plainKey),
-            label: Value(label as String?),
-          ),
-        );
+    final keyId = await _db.transaction(() async {
+      final keyId = await _db.into(_db.projectSecretKeys).insert(
+            ProjectSecretKeysCompanion.insert(
+              projectId: projectId,
+              keyHash: hashToken(plainKey),
+              label: Value(label as String?),
+            ),
+          );
+      // The label and the project, and nothing else. Neither the key nor its
+      // hash goes in an audit record: the journal is read by more people, and
+      // for longer, than the response that carries the key once
+      // (`specs/log-server-audit`).
+      await _audit.write(
+        action: AuditAction.secretKeyCreated,
+        targetType: AuditTargetType.secretKey,
+        actorUserId: identity.userId,
+        targetId: keyId,
+        metadata: {'project_id': projectId, 'label': label},
+      );
+      return keyId;
+    });
 
     final row = await (_db.select(
       _db.projectSecretKeys,
@@ -139,12 +156,21 @@ class SecretKeyRoutes {
         .getSingleOrNull();
     if (key == null) throw ApiError.notFound('Secret key not found.');
 
-    await (_db.update(
-      _db.projectSecretKeys,
-    )..where((t) => t.id.equals(secretKeyId)))
-        .write(
-      ProjectSecretKeysCompanion(revokedAt: Value(DateTime.now())),
-    );
+    await _db.transaction(() async {
+      await (_db.update(
+        _db.projectSecretKeys,
+      )..where((t) => t.id.equals(secretKeyId)))
+          .write(
+        ProjectSecretKeysCompanion(revokedAt: Value(DateTime.now())),
+      );
+      await _audit.write(
+        action: AuditAction.secretKeyRevoked,
+        targetType: AuditTargetType.secretKey,
+        actorUserId: identity.userId,
+        targetId: secretKeyId,
+        metadata: {'project_id': projectId, 'label': key.label},
+      );
+    });
 
     return Response(204);
   }

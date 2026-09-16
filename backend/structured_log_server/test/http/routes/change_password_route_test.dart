@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/change_password_route.dart';
@@ -25,7 +26,7 @@ void main() {
 
   setUp(() async {
     db = openInMemory();
-    routes = ChangePasswordRoutes(db);
+    routes = ChangePasswordRoutes(db, AuditWriter(db));
     userId = await db.into(db.users).insert(
           UsersCompanion.insert(
             username: 'alice',
@@ -131,5 +132,65 @@ void main() {
       ),
       throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
     );
+  });
+
+  group('the audit record', () {
+    Future<void> change({
+      String current = 'old-pass',
+      String next = 'new-pass',
+    }) async {
+      await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/auth/change-password',
+          roles: const [],
+          userId: userId,
+          jsonBody: {'current_password': current, 'new_password': next},
+        ),
+      );
+    }
+
+    test('a changed password leaves one, carrying neither password', () async {
+      await change();
+
+      final row = (await auditRows(db)).single;
+      expect(row.action, 'password.changed');
+      expect(row.targetType, 'user');
+      expect(row.actorUserId, userId);
+      expect(
+        row.targetId,
+        userId,
+        reason: 'actor and target are the same account — this endpoint only '
+            'ever changes your own',
+      );
+      expect(auditMetadata(row), isEmpty);
+      expect(row.metadata, isNot(contains('old-pass')));
+      expect(row.metadata, isNot(contains('new-pass')));
+    });
+
+    test('a wrong current password leaves none', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/auth/change-password',
+            roles: const [],
+            userId: userId,
+            jsonBody: {
+              'current_password': 'wrong',
+              'new_password': 'new-pass',
+            },
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(
+        await auditRows(db),
+        isEmpty,
+        reason: 'a refused attempt is an authentication event, not a password '
+            'change — and this endpoint does not record those',
+      );
+    });
   });
 }

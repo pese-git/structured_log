@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../../audit/audit_action.dart';
+import '../../audit/audit_writer.dart';
 import '../../auth/hashing.dart';
 import '../../errors.dart';
 import '../../rbac/token_version.dart';
@@ -15,8 +17,9 @@ part 'change_password_route.g.dart';
 
 class ChangePasswordRoutes {
   final StructuredLogDatabase _db;
+  final AuditWriter _audit;
 
-  ChangePasswordRoutes(this._db);
+  ChangePasswordRoutes(this._db, this._audit);
 
   Router get router => _$ChangePasswordRoutesRouter(this);
 
@@ -64,6 +67,15 @@ class ChangePasswordRoutes {
         ),
       );
       await incrementTokenVersion(_db, identity.userId);
+      // Neither password appears, here or anywhere. The fact that this account
+      // changed its own password at this time is the whole of what the journal
+      // is entitled to.
+      await _audit.write(
+        action: AuditAction.passwordChanged,
+        targetType: AuditTargetType.user,
+        actorUserId: identity.userId,
+        targetId: identity.userId,
+      );
     });
 
     return jsonOk(<String, Object?>{});

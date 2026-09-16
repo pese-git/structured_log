@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../../audit/audit_action.dart';
+import '../../audit/audit_writer.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../rbac/access_check.dart';
@@ -54,8 +56,9 @@ Future<Project> _requireProject(StructuredLogDatabase db, int projectId) async {
 class ProjectRoutes {
   final StructuredLogDatabase _db;
   final Authorizer _authorizer;
+  final AuditWriter _audit;
 
-  ProjectRoutes(this._db, this._authorizer);
+  ProjectRoutes(this._db, this._authorizer, this._audit);
 
   Router get router => _$ProjectRoutesRouter(this);
 
@@ -161,6 +164,17 @@ class ProjectRoutes {
       await _db
           .into(_db.projectUsage)
           .insert(ProjectUsageCompanion.insert(projectId: Value(id)));
+      await _audit.write(
+        action: AuditAction.projectCreated,
+        targetType: AuditTargetType.project,
+        actorUserId: identity.userId,
+        targetId: id,
+        metadata: {
+          'name': name,
+          'group_id': group.id,
+          'retention_days': retentionDays,
+        },
+      );
       return id;
     });
 
@@ -201,12 +215,32 @@ class ProjectRoutes {
           : const Value.absent(),
     );
 
-    await (_db.update(
-      _db.projects,
-    )..where((t) => t.id.equals(projectId)))
-        .write(companion);
+    // `before` comes from the row read above, before anything is written —
+    // the whole value of a quota record is the pair, and reading it afterwards
+    // would give the same numbers twice (`docs/api/models.md`).
+    final quotaOf = (Project p) => {
+          'retention_days': p.retentionDays,
+          'max_entries': p.maxEntries,
+          'max_bytes': p.maxBytes,
+        };
 
-    final updated = await _requireProject(_db, projectId);
+    final updated = await _db.transaction(() async {
+      await (_db.update(
+        _db.projects,
+      )..where((t) => t.id.equals(projectId)))
+          .write(companion);
+
+      final updated = await _requireProject(_db, projectId);
+      await _audit.write(
+        action: AuditAction.projectQuotaUpdated,
+        targetType: AuditTargetType.project,
+        actorUserId: identity.userId,
+        targetId: projectId,
+        metadata: {'before': quotaOf(project), 'after': quotaOf(updated)},
+      );
+      return updated;
+    });
+
     return jsonOk(projectJson(updated));
   }
 

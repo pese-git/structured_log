@@ -1,6 +1,8 @@
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../../audit/audit_action.dart';
+import '../../audit/audit_writer.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../rbac/access_check.dart';
@@ -23,8 +25,9 @@ Map<String, Object?> groupJson(Group group) {
 class GroupRoutes {
   final StructuredLogDatabase _db;
   final Authorizer _authorizer;
+  final AuditWriter _audit;
 
-  GroupRoutes(this._db, this._authorizer);
+  GroupRoutes(this._db, this._authorizer, this._audit);
 
   Router get router => _$GroupRoutesRouter(this);
 
@@ -43,8 +46,23 @@ class GroupRoutes {
       );
     }
 
-    final id =
-        await _db.into(_db.groups).insert(GroupsCompanion.insert(name: name));
+    // A transaction for one insert, because the audit record has to be in it:
+    // a group that exists without a record of who made it, or a record of a
+    // group that does not, are both worse than the request failing
+    // (`specs/log-server-audit`).
+    final id = await _db.transaction(() async {
+      final id =
+          await _db.into(_db.groups).insert(GroupsCompanion.insert(name: name));
+      await _audit.write(
+        action: AuditAction.groupCreated,
+        targetType: AuditTargetType.group,
+        actorUserId: request.requireUser().userId,
+        targetId: id,
+        metadata: {'name': name},
+      );
+      return id;
+    });
+
     final group = await (_db.select(
       _db.groups,
     )..where((t) => t.id.equals(id)))

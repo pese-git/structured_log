@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/secret_keys_route.dart';
@@ -29,7 +30,7 @@ void main() {
   setUp(() async {
     db = openInMemory();
     authorizer = Authorizer(db);
-    routes = SecretKeyRoutes(db, authorizer);
+    routes = SecretKeyRoutes(db, authorizer, AuditWriter(db));
     groupId =
         await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
     projectId = await db.into(db.projects).insert(
@@ -283,6 +284,113 @@ void main() {
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
       );
+    });
+  });
+
+  group('the audit record', () {
+    Future<Map<String, Object?>> createKey({String? label}) async {
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/projects/$projectId/secret-keys',
+          roles: _admin,
+          userId: 5,
+          jsonBody: label == null ? <String, Object?>{} : {'label': label},
+        ),
+      );
+      return decodeJson(response);
+    }
+
+    test('a created key leaves one, and it carries no key', () async {
+      final created = await createKey(label: 'ci');
+      final secret = created['secret'] as String;
+
+      final row = (await auditRows(db)).single;
+      expect(row.action, 'secret_key.created');
+      expect(row.targetType, 'secret_key');
+      expect(row.actorUserId, 5);
+      expect(row.targetId, created['id']);
+      expect(auditMetadata(row), {'project_id': projectId, 'label': 'ci'});
+
+      // The point of the record is that a key was issued and by whom. The key
+      // itself is answered once, to one caller; the journal is read by more
+      // people and for far longer.
+      expect(row.metadata, isNot(contains(secret)));
+      expect(
+        row.metadata,
+        isNot(contains('slk_')),
+        reason: 'not even a prefix that would let a reader recognise one',
+      );
+    });
+
+    test('a revoked key leaves one naming the key, not its value', () async {
+      final created = await createKey(label: 'ci');
+
+      await routes.router.call(
+        authenticatedRequest(
+          'DELETE',
+          'http://x/v1/projects/$projectId/secret-keys/${created['id']}',
+          roles: _admin,
+          userId: 5,
+        ),
+      );
+
+      final row = (await auditRows(db)).last;
+      expect(row.action, 'secret_key.revoked');
+      expect(row.targetId, created['id']);
+      expect(auditMetadata(row), {'project_id': projectId, 'label': 'ci'});
+      expect(row.metadata, isNot(contains(created['secret'] as String)));
+    });
+
+    test('a refused creation leaves none', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/projects/$projectId/secret-keys',
+            roles: _noRoles,
+            jsonBody: const <String, Object?>{},
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(await auditRows(db), isEmpty);
+      expect(await db.select(db.projectSecretKeys).get(), isEmpty);
+    });
+
+    test('a refused revocation leaves none', () async {
+      final created = await createKey();
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/projects/$projectId/secret-keys/${created['id']}',
+            roles: _noRoles,
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(
+        await auditRows(db),
+        hasLength(1),
+        reason: 'the creation above, and nothing from the refusal',
+      );
+    });
+
+    test('listing keys writes nothing', () async {
+      await createKey();
+      await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects/$projectId/secret-keys',
+          roles: _admin,
+        ),
+      );
+
+      expect(await auditRows(db), hasLength(1));
     });
   });
 }

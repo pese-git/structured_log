@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/groups_route.dart';
@@ -27,7 +28,7 @@ void main() {
   setUp(() {
     db = openInMemory();
     authorizer = Authorizer(db);
-    routes = GroupRoutes(db, authorizer);
+    routes = GroupRoutes(db, authorizer, AuditWriter(db));
   });
   tearDown(() => db.close());
 
@@ -123,6 +124,75 @@ void main() {
       );
       final body = await decodeJson(response);
       expect(body['items'], isEmpty);
+    });
+  });
+
+  group('the audit record', () {
+    test('a created group leaves one, naming who made it', () async {
+      await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/groups',
+          roles: _admin,
+          userId: 9,
+          jsonBody: {'name': 'payments-team'},
+        ),
+      );
+
+      final row = (await auditRows(db)).single;
+      expect(row.action, 'group.created');
+      expect(row.targetType, 'group');
+      expect(row.actorUserId, 9);
+      expect(row.targetId, isNotNull);
+      expect(auditMetadata(row)['name'], 'payments-team');
+    });
+
+    test('a refused attempt leaves none', () async {
+      // The record answers "who did this", so a request that did nothing must
+      // not produce one — an audit log carrying attempts alongside acts cannot
+      // be read as either (`specs/log-server-audit`).
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/groups',
+            roles: _noRoles,
+            jsonBody: {'name': 'x'},
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(await auditRows(db), isEmpty);
+    });
+
+    test('a rejected body leaves none either', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/groups',
+            roles: _admin,
+            jsonBody: {'name': ''},
+          ),
+        ),
+        throwsA(isA<ApiError>()),
+      );
+
+      expect(await auditRows(db), isEmpty);
+      expect(await db.select(db.groups).get(), isEmpty);
+    });
+
+    test('reading the list writes nothing', () async {
+      await routes.router.call(
+        authenticatedRequest('GET', 'http://x/v1/groups', roles: _admin),
+      );
+
+      expect(
+        await auditRows(db),
+        isEmpty,
+        reason: 'the journal records acts, not queries',
+      );
     });
   });
 }
