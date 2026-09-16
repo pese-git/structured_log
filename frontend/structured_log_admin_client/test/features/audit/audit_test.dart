@@ -63,8 +63,14 @@ void main() {
       // happened yet" by this flag alone, so a field that does not count here
       // would give a reader the wrong explanation for an empty page.
       expect(const AuditFilter(actorUserId: 1).isActive, isTrue);
-      expect(const AuditFilter(action: 'group.created').isActive, isTrue);
-      expect(const AuditFilter(targetType: 'group').isActive, isTrue);
+      expect(
+        const AuditFilter(action: AuditAction.groupCreated).isActive,
+        isTrue,
+      );
+      expect(
+        const AuditFilter(targetType: AuditTargetType.group).isActive,
+        isTrue,
+      );
       expect(const AuditFilter(targetId: 7).isActive, isTrue);
       expect(AuditFilter(from: DateTime.utc(2026, 9, 1)).isActive, isTrue);
       expect(AuditFilter(to: DateTime.utc(2026, 9, 16)).isActive, isTrue);
@@ -92,8 +98,8 @@ void main() {
       final result = await repository.query(
         filter: AuditFilter(
           actorUserId: 1,
-          action: 'project.quota_updated',
-          targetType: 'project',
+          action: AuditAction.projectQuotaUpdated,
+          targetType: AuditTargetType.project,
           targetId: 7,
           from: DateTime.utc(2026, 9, 1),
           to: DateTime.utc(2026, 9, 16),
@@ -160,10 +166,10 @@ void main() {
 
       await QueryAuditLog(
         repository,
-      ).first(filter: const AuditFilter(action: 'group.created'));
+      ).first(filter: const AuditFilter(action: AuditAction.groupCreated));
 
       expect(repository.calls.single.cursor, isNull);
-      expect(repository.calls.single.filter.action, 'group.created');
+      expect(repository.calls.single.filter.action, AuditAction.groupCreated);
     });
 
     test('a further page repeats the filter alongside the cursor', () async {
@@ -171,7 +177,7 @@ void main() {
       // but without the filter would widen the query halfway through, and the
       // reader would be shown records they had filtered out.
       final repository = _RecordingRepository();
-      const filter = AuditFilter(action: 'auth.login_failed');
+      const filter = AuditFilter(action: AuditAction.authLoginFailed);
 
       await QueryAuditLog(repository).more(cursor: '41', filter: filter);
 

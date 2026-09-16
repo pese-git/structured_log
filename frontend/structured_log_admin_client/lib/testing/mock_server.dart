@@ -467,7 +467,7 @@ class MockServer implements HttpClientAdapter {
     // than answered with an empty page — a typo that reads as "nothing
     // happened" is the one wrong answer this endpoint must not give.
     final action = query['action'];
-    if (action != null && !auditActions.contains(action)) {
+    if (action != null && AuditAction.fromWire(action) == null) {
       throw _Refusal(const MockReply(400, body: {'error': 'invalid_request'}));
     }
 

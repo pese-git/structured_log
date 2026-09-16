@@ -22,8 +22,8 @@ class AuditRepositoryImpl implements AuditRepository {
     return _attempt(
       () => _api.audit.query(
         actorUserId: filter.actorUserId,
-        action: filter.action,
-        targetType: filter.targetType,
+        action: filter.action?.wire,
+        targetType: filter.targetType?.wire,
         targetId: filter.targetId,
         // UTC, as the server parses it. Sending local time would move the
         // window by the reader's own offset without saying so — the same rule

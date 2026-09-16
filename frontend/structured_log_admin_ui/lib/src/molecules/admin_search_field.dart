@@ -16,6 +16,14 @@ class AdminSearchField extends StatelessWidget {
   final String placeholder;
   final ValueChanged<String>? onChanged;
 
+  /// Called when the reader presses Enter.
+  ///
+  /// Exists because not every search is cheap enough to run per keystroke: a
+  /// query that resets pagination, or one the server runs as a LIKE over
+  /// stored JSON, should happen when the reader says they are done typing —
+  /// and a half-typed value is a different question from the whole one.
+  final ValueChanged<String>? onSubmitted;
+
   /// Called when the field is cleared through its own button. The text is
   /// cleared first, so a listener on [controller] sees the empty value either
   /// way; this exists for callers that act on clearing itself.
@@ -26,6 +34,7 @@ class AdminSearchField extends StatelessWidget {
     required this.controller,
     required this.placeholder,
     this.onChanged,
+    this.onSubmitted,
     this.onCleared,
   });
 
@@ -41,6 +50,7 @@ class AdminSearchField extends StatelessWidget {
             controller: controller,
             placeholder: placeholder,
             onChanged: onChanged,
+            onSubmitted: onSubmitted,
             style: AdminTypography.bodySmall.copyWith(color: colors.text),
             placeholderStyle: AdminTypography.bodySmall.copyWith(
               color: colors.textTertiary,

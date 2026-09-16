@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../shared/api/dto/audit_dto.dart';
+
 part 'audit_filter.freezed.dart';
 
 /// Everything `GET /v1/audit-log` can narrow by, as one value.
@@ -23,11 +25,11 @@ abstract class AuditFilter with _$AuditFilter {
     /// matched by no value of this field, only by leaving it unset.
     int? actorUserId,
 
-    /// One of the server's closed set (`auditActions`). A value outside it is
-    /// refused with 400 rather than answered with an empty page, so the screen
-    /// offers a menu rather than a text box.
-    String? action,
-    String? targetType,
+    /// One of the server's closed set. Typed rather than a raw string: the
+    /// server refuses an unknown value with 400, so a filter that could hold
+    /// one would turn a typo into a failed request instead of a menu choice.
+    AuditAction? action,
+    AuditTargetType? targetType,
     int? targetId,
     DateTime? from,
     DateTime? to,

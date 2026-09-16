@@ -65,52 +65,115 @@ abstract class AuditPageDto with _$AuditPageDto {
       _$AuditPageDtoFromJson(json);
 }
 
-/// The closed set of actions the server records, by the string it puts on the
-/// wire (`specs/log-server-audit`).
+/// The closed set of actions the server records (`specs/log-server-audit`).
 ///
-/// A copy of the server's own set, and deliberately a copy: this package talks
-/// to `structured_log_server` over HTTP like any other consumer and shares no
-/// code with it. What keeps the two honest is that the server refuses an
-/// `action` outside its set with 400 — so a value here that the server does not
-/// know fails loudly on the first request rather than silently matching
-/// nothing.
+/// A copy of the server's own enum, down to the member names, and deliberately
+/// a copy: this package talks to `structured_log_server` over HTTP like any
+/// other consumer and shares no code with it. What keeps the two honest is that
+/// the server refuses an `action` outside its set with 400 — so a value here
+/// that the server does not know fails loudly on the first request rather than
+/// silently matching nothing.
 ///
-/// The client needs its own list for two things the wire cannot provide: an
-/// exhaustive set of labels to render, and a filter menu that offers what can
-/// be asked for rather than a free-text box.
-const auditActions = <String>[
-  'user.created',
-  'user.updated',
-  'user.blocked',
-  'user.unblocked',
-  'user.deleted',
-  'group.created',
-  'team.created',
-  'team.member_added',
-  'team.member_removed',
-  'project.created',
-  'project.quota_updated',
-  'project.blocked',
-  'project.unblocked',
-  'secret_key.created',
-  'secret_key.revoked',
-  'role_assignment.created',
-  'role_assignment.revoked',
-  'password.changed',
-  'password.reset_confirmed',
-  'email.verified',
-  'auth.login_succeeded',
-  'auth.login_failed',
-  'auth.logged_out',
-  'auth.throttled',
-  'audit.purged',
-];
+/// An enum rather than the list of strings this started as, because the screen
+/// has to name each of these in Russian, and a map from strings would let a new
+/// action arrive with no label and be rendered as a raw wire value. As an enum
+/// the label switch is exhaustive, so adding a member here without giving it a
+/// name does not compile (`presentation/audit_action_labels.dart`).
+///
+/// Nineteen of the twenty-five have no caller on the server yet — the endpoints
+/// that perform them do not exist (`design.md` "Delivery Phases", Этап 2,
+/// *Частично*). They are declared anyway, for the same reason the server
+/// declares them: a set that is not whole cannot be filtered against.
+enum AuditAction {
+  userCreated('user.created'),
+  userUpdated('user.updated'),
+  userBlocked('user.blocked'),
+  userUnblocked('user.unblocked'),
+  userDeleted('user.deleted'),
 
-/// The four the server keeps under its own, shorter retention period — and the
-/// ones a reader most often wants to see apart from administrative acts.
-const authEventActions = <String>[
-  'auth.login_succeeded',
-  'auth.login_failed',
-  'auth.logged_out',
-  'auth.throttled',
-];
+  groupCreated('group.created'),
+  teamCreated('team.created'),
+  teamMemberAdded('team.member_added'),
+  teamMemberRemoved('team.member_removed'),
+  projectCreated('project.created'),
+  projectQuotaUpdated('project.quota_updated'),
+  projectBlocked('project.blocked'),
+  projectUnblocked('project.unblocked'),
+  secretKeyCreated('secret_key.created'),
+  secretKeyRevoked('secret_key.revoked'),
+  roleAssignmentCreated('role_assignment.created'),
+  roleAssignmentRevoked('role_assignment.revoked'),
+
+  passwordChanged('password.changed'),
+  passwordResetConfirmed('password.reset_confirmed'),
+  emailVerified('email.verified'),
+
+  authLoginSucceeded('auth.login_succeeded'),
+  authLoginFailed('auth.login_failed'),
+  authLoggedOut('auth.logged_out'),
+  authThrottled('auth.throttled'),
+
+  auditPurged('audit.purged');
+
+  const AuditAction(this.wire);
+
+  /// What travels in `action`, spelled out rather than derived from the member
+  /// name — exactly as the server spells it.
+  final String wire;
+
+  /// The four the server keeps under its own, shorter retention period, and the
+  /// ones a reader most often wants to see apart from administrative acts.
+  bool get isAuthEvent =>
+      this == authLoginSucceeded ||
+      this == authLoginFailed ||
+      this == authLoggedOut ||
+      this == authThrottled;
+
+  /// The action a record names, or `null` if this build does not know the
+  /// value.
+  ///
+  /// `null` rather than a throw, for the same reason the server returns null: a
+  /// record can come from a newer server than this bundle was built against,
+  /// and a reader that crashes on one unfamiliar row is worse at its job than
+  /// one that shows the rest. The screen renders such a record with its raw
+  /// wire value — an audit log may not hide a record it fails to recognise.
+  static AuditAction? fromWire(String wire) {
+    for (final action in AuditAction.values) {
+      if (action.wire == wire) return action;
+    }
+    return null;
+  }
+}
+
+/// What an audit record points at — the server's `target_type`, which is
+/// `NOT NULL` for every record, including the ones with no resource behind
+/// them.
+///
+/// A copy of the server's enum, for the same reason and with the same caveat as
+/// [AuditAction]: it is the filter menu's vocabulary, and a value this build
+/// does not know comes back as `null` rather than as a crash.
+enum AuditTargetType {
+  user('user'),
+  group('group'),
+  team('team'),
+  project('project'),
+  secretKey('secret_key'),
+  roleAssignment('role_assignment'),
+
+  /// A throttled request: what was refused is the endpoint, not a resource.
+  auth('auth'),
+
+  /// A purge pass, naming the journal it trimmed.
+  audit('audit');
+
+  const AuditTargetType(this.wire);
+
+  final String wire;
+
+  static AuditTargetType? fromWire(String wire) {
+    for (final type in AuditTargetType.values) {
+      if (type.wire == wire) return type;
+    }
+    return null;
+  }
+}
