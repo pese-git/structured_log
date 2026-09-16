@@ -45,6 +45,21 @@ const _routes = <({String method, String path, Requires requires})>[
     path: '/v1/projects/1/secret-keys/1',
     requires: Requires.user,
   ),
+  (method: 'POST', path: '/v1/users', requires: Requires.user),
+  (method: 'GET', path: '/v1/users', requires: Requires.user),
+  (method: 'PATCH', path: '/v1/users/1', requires: Requires.user),
+  (method: 'POST', path: '/v1/users/1/block', requires: Requires.user),
+  (method: 'POST', path: '/v1/users/1/unblock', requires: Requires.user),
+  (method: 'DELETE', path: '/v1/users/me', requires: Requires.user),
+  (method: 'DELETE', path: '/v1/users/1', requires: Requires.user),
+  (method: 'POST', path: '/v1/projects/1/block', requires: Requires.user),
+  (method: 'POST', path: '/v1/projects/1/unblock', requires: Requires.user),
+  (method: 'POST', path: '/v1/role-assignments', requires: Requires.user),
+  (
+    method: 'DELETE',
+    path: '/v1/role-assignments/1',
+    requires: Requires.user,
+  ),
 ];
 
 StructuredLogDatabase openInMemory() {

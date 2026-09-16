@@ -275,4 +275,50 @@ class ProjectRoutes {
       ),
     );
   }
+
+  /// `admin` only — not `owner`, even for their own project
+  /// (`docs/architecture/rbac-and-lifecycle.md`; same rule `POST
+  /// /v1/users/:id/block` uses, `rbac/access_check.dart`'s
+  /// `isGlobalAdmin`).
+  @Route.post('/v1/projects/<id>/block')
+  Future<Response> blockProject(Request request, String id) async {
+    return _setBlocked(request, id, blocked: true);
+  }
+
+  /// `admin` only. Does not revoke the project's secret keys — that stays a
+  /// separate, irreversible action.
+  @Route.post('/v1/projects/<id>/unblock')
+  Future<Response> unblockProject(Request request, String id) async {
+    return _setBlocked(request, id, blocked: false);
+  }
+
+  Future<Response> _setBlocked(
+    Request request,
+    String id, {
+    required bool blocked,
+  }) async {
+    final identity = request.requireUser();
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!isGlobalAdmin(roles)) throw ApiError.forbidden();
+
+    final projectId = parsePathId(id, 'id');
+    await _requireProject(_db, projectId);
+
+    await _db.transaction(() async {
+      await (_db.update(
+        _db.projects,
+      )..where((t) => t.id.equals(projectId)))
+          .write(ProjectsCompanion(isBlocked: Value(blocked)));
+      await _audit.write(
+        action:
+            blocked ? AuditAction.projectBlocked : AuditAction.projectUnblocked,
+        targetType: AuditTargetType.project,
+        actorUserId: identity.userId,
+        targetId: projectId,
+      );
+    });
+
+    final updated = await _requireProject(_db, projectId);
+    return jsonOk(projectJson(updated));
+  }
 }

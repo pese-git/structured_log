@@ -13,9 +13,11 @@ Not published to pub.dev — this is a service you run, not a library you
 depend on.
 
 > **Status: in development.** Log ingestion, querying, the live stream,
-> groups, projects, secret keys, authentication, RBAC and the audit log work
-> today. User management, teams, role assignment, password recovery and
-> email verification are specified but not implemented — see
+> groups, projects, secret keys, authentication, RBAC, the audit log, and
+> user lifecycle management (create/block/delete, plus admin-only role
+> grants) work today. Teams, the full role-assignment rule (an `owner`
+> granting roles within their own group), self-registration, password
+> recovery and email verification are specified but not implemented — see
 > [tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) for
 > exactly what is and isn't there.
 
@@ -25,6 +27,9 @@ depend on.
 - **Query** — `GET /v1/logs` with filters, paging, and full-text search
 - **Live stream** — `GET /v1/logs/stream`, Server-Sent Events with catch-up
 - **Multi-tenancy** — groups own projects; roles are granted per scope
+- **User management** — `admin` creates/edits/blocks/deletes accounts
+  (`POST`/`GET`/`PATCH`/`DELETE /v1/users`); grants roles
+  (`POST`/`DELETE /v1/role-assignments`, `admin`-only in this stage)
 - **Quotas** — per-project entry/byte limits and a retention window
 - **Rate limiting** — token buckets on the auth endpoints, by address and by subject
 - **Audit log** — `GET /v1/audit-log`, administrators only: who changed what,

@@ -18,10 +18,10 @@ const _contextKey = 'structured_log_server.rateLimitAttempt';
 /// not request frequency — an application shipping a burst of logs is doing
 /// its job, and throttling it would drop data the operator asked for.
 ///
-/// Six of these eight are not routed yet (register, the password-reset and
-/// email-verification pair, and `DELETE /v1/users/me` belong to later
-/// sections). They are listed anyway so the limiter is in place the moment
-/// they land, rather than being a step someone has to remember.
+/// Five of these eight are not routed yet (register and the password-reset
+/// and email-verification pairs belong to later sections). They are listed
+/// anyway so the limiter is in place the moment they land, rather than
+/// being a step someone has to remember.
 const rateLimitedEndpoints = <({String method, String path})>[
   (method: 'POST', path: '/v1/auth/token'),
   (method: 'POST', path: '/v1/auth/register'),
