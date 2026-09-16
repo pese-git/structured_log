@@ -131,7 +131,14 @@ class EditUserDialog extends StatefulWidget {
   final String? errorText;
   final bool roleGranted;
   final ValueChanged<String?> onSaveDisplayName;
-  final ValueChanged<String> onSetPassword;
+
+  /// The password, and the display name to resend alongside it — the
+  /// server's `PATCH` always needs a value for `display_name` from this
+  /// dialog (`UpdateUserRequestDto`), and it has to be the one currently in
+  /// the field, not [user]'s: that copy is a snapshot from when the dialog
+  /// opened and does not track an earlier `onSaveDisplayName` in the same
+  /// session, which would otherwise be silently undone by this call.
+  final void Function(String password, String? displayName) onSetPassword;
   final ValueChanged<RoleGrantValues> onGrantRole;
   final VoidCallback onClose;
 
@@ -177,7 +184,8 @@ class _EditUserDialogState extends State<EditUserDialog> {
   void _setPassword() {
     final value = _newPassword.text;
     if (value.isEmpty) return;
-    widget.onSetPassword(value);
+    final displayName = _displayName.text.trim();
+    widget.onSetPassword(value, displayName.isEmpty ? null : displayName);
   }
 
   void _grantRole() {

@@ -70,7 +70,7 @@ void main() {
           createdAt: DateTime.utc(2026, 9, 16),
         ),
         onSaveDisplayName: (_) {},
-        onSetPassword: (_) {},
+        onSetPassword: (_, _) {},
         onGrantRole: (_) {},
         onClose: () {},
       ),

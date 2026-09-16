@@ -227,10 +227,10 @@ class _UserRow extends StatelessWidget {
               roleGranted: state.roleGranted,
               onSaveDisplayName: (value) =>
                   cubit.update(userId: user.id, displayName: value),
-              onSetPassword: (value) => cubit.update(
+              onSetPassword: (password, displayName) => cubit.update(
                 userId: user.id,
-                displayName: user.displayName,
-                password: value,
+                displayName: displayName,
+                password: password,
               ),
               onGrantRole: (grant) => cubit.grantRole(
                 userId: user.id,

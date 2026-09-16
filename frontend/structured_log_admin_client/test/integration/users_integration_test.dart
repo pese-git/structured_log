@@ -215,6 +215,37 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('setting a password after saving the name does not revert it', (
+    tester,
+  ) async {
+    // A regression: the dialog's `onSetPassword` used to resend the [user]
+    // the row was built with — a snapshot from before this dialog opened —
+    // instead of what the display-name field actually holds now, silently
+    // undoing a save made earlier in the same session.
+    await pumpApp(tester, server, signedIn: true);
+    await openUsers(tester);
+
+    await tester.tap(find.text('Изменить'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextBox).at(0), 'Bob Diaz');
+    await tester.tap(find.text('Сохранить имя'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextBox).at(1), 'new-temp-pw');
+    await tester.tap(find.text('Установить пароль'));
+    await tester.pumpAndSettle();
+
+    expect(lastRequest('PATCH', '/v1/users/5').json, {
+      'display_name': 'Bob Diaz',
+      'password': 'new-temp-pw',
+    });
+    await tester.tap(find.text('Закрыть'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Bob Diaz'), findsOneWidget);
+    await closeApp(tester);
+  });
+
   testWidgets('granting a global role sends no scope_id', (tester) async {
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
