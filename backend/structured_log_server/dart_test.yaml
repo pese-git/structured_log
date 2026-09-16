@@ -1,0 +1,6 @@
+tags:
+  integration:
+    description: >-
+      Spawns bin/server.dart as a real OS process — slower than the rest
+      of the suite (dart run's compile step), but the only way to prove
+      config resolution reads a genuinely separate process's environment.

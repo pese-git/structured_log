@@ -1,0 +1,29 @@
+# Applies to every image here: both build contexts are the repository root,
+# and Docker reads this file from the context root only — a copy next to a
+# Dockerfile is silently ignored.
+
+.git/
+**/.dart_tool/
+**/.fvm/
+.fvm/
+
+# Generated inside the image, never copied into it.
+**/*.g.dart
+**/*.freezed.dart
+**/pubspec_overrides.yaml
+
+# Build output. Listed one by one rather than as `**/build/`, because the
+# admin client's build/web is precisely what its image copies in, and a
+# directory excluded by a glob cannot be re-included.
+backend/structured_log_server/build/
+emb/structured_log/build/
+emb/structured_log_flutter/build/
+emb/structured_log_material/build/
+emb/structured_log_material/example/build/
+emb/structured_log_fluent/build/
+emb/structured_log_fluent/example/build/
+emb/structured_log_cupertino/build/
+emb/structured_log_cupertino/example/build/
+emb/structured_log_http/build/
+frontend/structured_log_admin_ui/build/
+frontend/structured_log_admin_ui/example/build/

@@ -1,0 +1,23 @@
+name: structured_log_admin_ui_example
+description: "structured_log_admin_ui component gallery (web)."
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.0.0
+  flutter: ">=3.44.0" # fluent_ui 4.16.0+ needs this — see ../pubspec.yaml
+
+dependencies:
+  flutter:
+    sdk: flutter
+  fluent_ui: ^4.16.1
+  structured_log_admin_ui:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

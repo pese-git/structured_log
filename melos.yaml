@@ -1,14 +1,20 @@
 name: structured_log_workspace
 
 packages:
-  - structured_log
-  - structured_log_flutter
-  - structured_log_material
-  - structured_log_material/example
-  - structured_log_fluent
-  - structured_log_fluent/example
-  - structured_log_cupertino
-  - structured_log_cupertino/example
+  - emb/structured_log
+  - emb/structured_log_flutter
+  - emb/structured_log_material
+  - emb/structured_log_material/example
+  - emb/structured_log_fluent
+  - emb/structured_log_fluent/example
+  - emb/structured_log_cupertino
+  - emb/structured_log_cupertino/example
+  - emb/structured_log_http
+  - backend/structured_log_server
+  - frontend/structured_log_admin_ui
+  - frontend/structured_log_admin_ui/example
+  - frontend/structured_log_admin_client
+  - packages/e2e
 
 command:
   bootstrap:
@@ -40,7 +46,7 @@ scripts:
   test:dart:
     exec: dart test
     packageFilters:
-      scope: ["structured_log"]
+      scope: ["structured_log", "structured_log_server", "structured_log_http"]
     description: Run tests for Dart-only packages
 
   test:flutter:
@@ -54,14 +60,33 @@ scripts:
         "structured_log_fluent_example",
         "structured_log_cupertino",
         "structured_log_cupertino_example",
+        "structured_log_admin_ui",
+        "structured_log_admin_ui_example",
+        "structured_log_admin_client",
       ]
     description: Run tests for Flutter packages
+
+  test:e2e:
+    exec: flutter test
+    packageFilters:
+      scope: ["structured_log_e2e"]
+    description: >-
+      Run the end-to-end suite. Not part of `test`: every case starts
+      bin/server.dart as a real process, which costs a `dart run` compile,
+      and it needs the server's generated code to exist first
+      (`melos run generate`).
 
   test:coverage:
     exec: dart test --coverage=coverage
     packageFilters:
       scope: ["structured_log"]
     description: Run tests with coverage (Dart-only packages)
+
+  generate:
+    exec: dart run build_runner build --delete-conflicting-outputs
+    packageFilters:
+      scope: ["structured_log_server", "structured_log_admin_client"]
+    description: Run code generation (drift/freezed/json_serializable/retrofit) for the packages that need it
 
   lint:
     steps:

@@ -1,0 +1,65 @@
+# Self-hosted structured_log: the API and the admin client behind one origin.
+#
+#   cd deploy && cp .env.example .env   # then edit it
+#   ./deploy.sh
+#
+# Run from this directory; the build context is the repository root.
+
+name: structured-log
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: backend/structured_log_server/Dockerfile
+    restart: unless-stopped
+    environment:
+      # Secrets come from the environment or from a mounted file, never from a
+      # flag — an argument is visible in the process list to everyone on the
+      # host. `_FILE` is read for any secret parameter.
+      STRUCTURED_LOG_JWT_SECRET_FILE: /run/secrets/jwt_secret
+      STRUCTURED_LOG_DB_PATH: /data/logs.db
+      STRUCTURED_LOG_HTTP_HOST: 0.0.0.0
+      STRUCTURED_LOG_HTTP_PORT: 8080
+      # JSON, because a container's log is read by a collector rather than by
+      # a person watching a terminal.
+      STRUCTURED_LOG_LOG_FORMAT: json
+      STRUCTURED_LOG_LOG_LEVEL: ${STRUCTURED_LOG_LOG_LEVEL:-info}
+      # One hop: the nginx in front of it. Counted from the right of
+      # X-Forwarded-For, so a wrong value here lets a caller spoof the address
+      # the rate limiter buckets by.
+      STRUCTURED_LOG_TRUSTED_PROXY_HOPS: 1
+      STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED: ${STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED:-true}
+      STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME: ${STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME:-admin}
+    volumes:
+      - data:/data
+      - ./secrets/jwt_secret:/run/secrets/jwt_secret:ro
+    # Not published to the host: the only way in is through the proxy, which
+    # is what keeps the deployment single-origin.
+    expose:
+      - "8080"
+    healthcheck:
+      # Against the endpoint that exists for this: it answers without
+      # authentication and touches the HTTP stack, so a container that passes
+      # is actually serving rather than merely running.
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/structured_log_admin_client/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      server:
+        # Waits for /healthz, not merely for the process: nginx that starts
+        # first answers 502 to whoever is already reloading the page.
+        condition: service_healthy
+    ports:
+      - "${STRUCTURED_LOG_PUBLIC_PORT:-8080}:80"
+
+volumes:
+  data:

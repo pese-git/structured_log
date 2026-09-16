@@ -1,0 +1,22 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # freezed puts `@JsonKey` on constructor parameters, which the analyzer
+    # flags because the annotation targets fields. The generated code is
+    # correct — json_serializable reads the annotation off the parameter —
+    # and this is the workaround freezed itself documents.
+    invalid_annotation_target: ignore
+  exclude:
+    # Generated, and not committed (see .gitignore). Analyzing it reports
+    # style on code nobody edits.
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - build/**
+    - web/**
+
+linter:
+  rules:
+    # Every DTO field and widget parameter is documented; this rule would
+    # demand a doc comment on the generated members too.
+    public_member_api_docs: false

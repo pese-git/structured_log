@@ -1,0 +1,243 @@
+import 'config_resolver.dart';
+import 'param_spec.dart';
+
+/// Subcommand names `bin/server.dart` accepts — used only to decide which
+/// [ParamSpec.requiredForCommands] apply (`log-server-config`: required
+/// params depend on the command being run).
+const commandServe = 'serve';
+const commandCreateAdmin = 'create-admin';
+
+/// Every configuration parameter Stage 1 needs, declared once — the single
+/// source [ConfigResolver] builds the CLI parser, env var names, and
+/// `--help`/`--print-config` output from. Fields for capabilities not in
+/// Stage 1 (`registrationEnabled`, password-reset/email-verification
+/// base URLs, SMTP, audit retention — `design.md` "Delivery Phases") are
+/// added here alongside those capabilities, not before.
+const serverConfigParams = <ParamSpec>[
+  ParamSpec(
+    name: 'db-path',
+    type: ParamType.string,
+    description: 'Path to the SQLite database file.',
+    requiredForCommands: {commandServe, commandCreateAdmin},
+  ),
+  ParamSpec(
+    name: 'http-host',
+    type: ParamType.string,
+    description: 'Host/address the HTTP server binds to.',
+    defaultValue: '0.0.0.0',
+  ),
+  ParamSpec(
+    name: 'http-port',
+    type: ParamType.int,
+    description: 'Port the HTTP server listens on.',
+    defaultValue: 8080,
+  ),
+  ParamSpec(
+    name: 'jwt-secret',
+    type: ParamType.string,
+    description: 'HMAC secret access tokens are signed with.',
+    isSecret: true,
+    requiredForCommands: {commandServe},
+  ),
+  ParamSpec(
+    name: 'jwt-issuer',
+    type: ParamType.string,
+    description: 'The `iss` claim embedded in access tokens.',
+    defaultValue: 'structured_log_server',
+  ),
+  ParamSpec(
+    name: 'max-ingest-body-bytes',
+    type: ParamType.int,
+    description: 'Maximum accepted POST /v1/logs request body size, in bytes.',
+    defaultValue: 10 * 1024 * 1024,
+  ),
+  ParamSpec(
+    name: 'retention-purge-interval-seconds',
+    type: ParamType.int,
+    description: 'How often the retention purge job runs, in seconds.',
+    defaultValue: 3600,
+  ),
+  ParamSpec(
+    name: 'bootstrap-admin-enabled',
+    type: ParamType.bool,
+    description: 'Auto-create the first administrator on an empty database.',
+    defaultValue: true,
+  ),
+  ParamSpec(
+    name: 'bootstrap-admin-username',
+    type: ParamType.string,
+    description: 'Username for the auto-created first administrator.',
+    defaultValue: 'admin',
+  ),
+  ParamSpec(
+    name: 'bootstrap-admin-password',
+    type: ParamType.string,
+    description:
+        'Password for the administrator created by auto-bootstrap or by '
+        'the create-admin command. Unset means generate one randomly and '
+        'require it to be changed at first login — same behavior in both '
+        'cases (`log-server-config`: create-admin has no required '
+        'parameter beyond db-path).',
+    isSecret: true,
+  ),
+  ParamSpec(
+    name: 'log-level',
+    type: ParamType.string,
+    description: "The server's own minimum diagnostic log level.",
+    defaultValue: 'info',
+    allowedValues: {
+      'trace',
+      'debug',
+      'info',
+      'warning',
+      'error',
+      'critical',
+    },
+  ),
+  ParamSpec(
+    name: 'log-file',
+    type: ParamType.string,
+    description:
+        "Path to write the server's own diagnostic log to. Unset means "
+        'the console.',
+  ),
+  ParamSpec(
+    name: 'log-format',
+    type: ParamType.string,
+    description: "The server's own diagnostic log output format.",
+    defaultValue: 'console',
+    allowedValues: {'console', 'json'},
+  ),
+  ParamSpec(
+    name: 'log-max-file-bytes',
+    type: ParamType.int,
+    description: 'Rotate the log file once it exceeds this size, in bytes.',
+    defaultValue: 10 * 1024 * 1024,
+  ),
+  ParamSpec(
+    name: 'log-max-files',
+    type: ParamType.int,
+    description: 'How many rotated log files to keep.',
+    defaultValue: 5,
+  ),
+  ParamSpec(
+    name: 'rate-limit-enabled',
+    type: ParamType.bool,
+    description: 'Enable rate limiting on auth endpoints.',
+    defaultValue: true,
+  ),
+  ParamSpec(
+    name: 'rate-limit-bucket-capacity',
+    type: ParamType.int,
+    description: 'Token bucket capacity for both the IP and subject keys.',
+    defaultValue: 10,
+  ),
+  ParamSpec(
+    name: 'rate-limit-refill-per-minute',
+    type: ParamType.int,
+    description: 'Tokens restored per minute to each rate-limit bucket.',
+    defaultValue: 10,
+  ),
+  ParamSpec(
+    name: 'rate-limit-max-keys',
+    type: ParamType.int,
+    description:
+        'Upper bound on the number of rate-limit buckets kept in memory.',
+    defaultValue: 10000,
+  ),
+  ParamSpec(
+    name: 'trusted-proxy-hops',
+    type: ParamType.int,
+    description: 'Number of trusted reverse-proxy hops — controls whether '
+        'X-Forwarded-For is honored for client IP resolution.',
+    defaultValue: 0,
+  ),
+  ParamSpec(
+    name: 'sse-heartbeat-interval-seconds',
+    type: ParamType.int,
+    description: 'Interval between GET /v1/logs/stream heartbeat pings.',
+    defaultValue: 25,
+  ),
+];
+
+/// The fully resolved, immutable configuration Stage 1 uses. No global
+/// singleton — every consumer receives it explicitly (`design.md` decision
+/// 47, a deliberate contrast with `StructlogConfiguration`), so tests
+/// construct one directly without touching process environment.
+class ServerConfig {
+  final String dbPath;
+  final String httpHost;
+  final int httpPort;
+  final String? jwtSecret;
+  final String jwtIssuer;
+  final int maxIngestBodyBytes;
+  final int retentionPurgeIntervalSeconds;
+  final bool bootstrapAdminEnabled;
+  final String bootstrapAdminUsername;
+  final String? bootstrapAdminPassword;
+  final String logLevel;
+  final String? logFile;
+  final String logFormat;
+  final int logMaxFileBytes;
+  final int logMaxFiles;
+  final bool rateLimitEnabled;
+  final int rateLimitBucketCapacity;
+  final int rateLimitRefillPerMinute;
+  final int rateLimitMaxKeys;
+  final int trustedProxyHops;
+  final int sseHeartbeatIntervalSeconds;
+
+  const ServerConfig({
+    required this.dbPath,
+    required this.httpHost,
+    required this.httpPort,
+    required this.jwtSecret,
+    required this.jwtIssuer,
+    required this.maxIngestBodyBytes,
+    required this.retentionPurgeIntervalSeconds,
+    required this.bootstrapAdminEnabled,
+    required this.bootstrapAdminUsername,
+    required this.bootstrapAdminPassword,
+    required this.logLevel,
+    required this.logFile,
+    required this.logFormat,
+    required this.logMaxFileBytes,
+    required this.logMaxFiles,
+    required this.rateLimitEnabled,
+    required this.rateLimitBucketCapacity,
+    required this.rateLimitRefillPerMinute,
+    required this.rateLimitMaxKeys,
+    required this.trustedProxyHops,
+    required this.sseHeartbeatIntervalSeconds,
+  });
+
+  /// Builds a [ServerConfig] from [ConfigResolver.parse]'s resolved values
+  /// — only valid to call on a [ConfigParseOutcome.success] or
+  /// [ConfigParseOutcome.printConfig] result.
+  factory ServerConfig.fromResolved(Map<String, ResolvedValue> values) {
+    T get<T>(String name) => values[name]!.value as T;
+    return ServerConfig(
+      dbPath: get('db-path'),
+      httpHost: get('http-host'),
+      httpPort: get('http-port'),
+      jwtSecret: get('jwt-secret'),
+      jwtIssuer: get('jwt-issuer'),
+      maxIngestBodyBytes: get('max-ingest-body-bytes'),
+      retentionPurgeIntervalSeconds: get('retention-purge-interval-seconds'),
+      bootstrapAdminEnabled: get('bootstrap-admin-enabled'),
+      bootstrapAdminUsername: get('bootstrap-admin-username'),
+      bootstrapAdminPassword: get('bootstrap-admin-password'),
+      logLevel: get('log-level'),
+      logFile: get('log-file'),
+      logFormat: get('log-format'),
+      logMaxFileBytes: get('log-max-file-bytes'),
+      logMaxFiles: get('log-max-files'),
+      rateLimitEnabled: get('rate-limit-enabled'),
+      rateLimitBucketCapacity: get('rate-limit-bucket-capacity'),
+      rateLimitRefillPerMinute: get('rate-limit-refill-per-minute'),
+      rateLimitMaxKeys: get('rate-limit-max-keys'),
+      trustedProxyHops: get('trusted-proxy-hops'),
+      sseHeartbeatIntervalSeconds: get('sse-heartbeat-interval-seconds'),
+    );
+  }
+}
