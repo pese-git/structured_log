@@ -386,4 +386,117 @@ void main() {
       expect(dotOf(tester), isNot(live));
     });
   });
+
+  group('AdminDateRangeField', () {
+    String day(DateTime value) => '${value.day}.${value.month}';
+
+    Widget field({
+      DateTime? from,
+      DateTime? to,
+      ValueChanged<DateTime?>? onFrom,
+      ValueChanged<DateTime?>? onTo,
+    }) =>
+        AdminDateRangeField(
+          from: from,
+          to: to,
+          formatDate: day,
+          onFromChanged: onFrom ?? (_) {},
+          onToChanged: onTo ?? (_) {},
+        );
+
+    testWidgets('an open end says so instead of showing a date',
+        (tester) async {
+      await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1))));
+
+      expect(find.text('С: 1.9'), findsOneWidget);
+      expect(
+        find.text('По: любая'),
+        findsOneWidget,
+        reason: 'the upper bound is unset, and an unset bound must not read as '
+            'today — that would be a filter nobody asked for',
+      );
+    });
+
+    testWidgets('each end opens its own calendar', (tester) async {
+      await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1))));
+
+      await tester.tap(find.text('С: 1.9'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CalendarView), findsOneWidget);
+    });
+
+    testWidgets('the calendar offers a way back to an open end',
+        (tester) async {
+      // Without this command a reader who once picked a date could only move
+      // it, never take it back, and "since Monday, up to whenever" would be
+      // unaskable.
+      DateTime? reported = DateTime(2026, 9, 1);
+      var reports = 0;
+
+      await tester.pumpWidget(
+        _host(
+          field(
+            from: DateTime(2026, 9, 1),
+            onFrom: (value) {
+              reported = value;
+              reports++;
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('С: 1.9'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Любая дата'));
+      await tester.pumpAndSettle();
+
+      expect(reports, 1);
+      expect(reported, isNull);
+      expect(find.byType(CalendarView), findsNothing);
+    });
+
+    testWidgets('picking a day reports it and closes the calendar',
+        (tester) async {
+      DateTime? reported;
+
+      await tester.pumpWidget(
+        _host(field(from: DateTime(2026, 9, 1), onFrom: (v) => reported = v)),
+      );
+
+      await tester.tap(find.text('С: 1.9'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('17').first);
+      await tester.pumpAndSettle();
+
+      expect(reported, isNotNull);
+      expect(reported!.day, 17);
+      expect(reported!.month, 9);
+      expect(find.byType(CalendarView), findsNothing);
+    });
+
+    testWidgets('the two ends fence each other in', (tester) async {
+      // A range with its end before its start returns nothing; saying so in
+      // the calendar beats reporting an empty page afterwards.
+      await tester.pumpWidget(
+        _host(field(from: DateTime(2026, 9, 10), to: DateTime(2026, 9, 20))),
+      );
+
+      await tester.tap(find.text('С: 10.9'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<CalendarView>(find.byType(CalendarView)).maxDate,
+        DateTime(2026, 9, 20),
+      );
+      await tester.tap(find.text('Любая дата'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('По: 20.9'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<CalendarView>(find.byType(CalendarView)).minDate,
+        DateTime(2026, 9, 10),
+      );
+    });
+  });
 }

@@ -55,6 +55,8 @@ class _GalleryPageState extends State<GalleryPage> {
   final _email = TextEditingController();
   var _navIndex = 0;
   var _selectedRow = 1;
+  DateTime? _from = DateTime(2026, 9, 1);
+  DateTime? _to;
 
   @override
   void dispose() {
@@ -463,6 +465,70 @@ class _GalleryPageState extends State<GalleryPage> {
             ),
           ),
           _Section(
+            title: 'Molecules · AdminDateRangeField',
+            child: AdminDateRangeField(
+              from: _from,
+              to: _to,
+              formatDate: _formatDay,
+              onFromChanged: (value) => setState(() => _from = value),
+              onToChanged: (value) => setState(() => _to = value),
+            ),
+          ),
+          _Section(
+            title: 'Organisms · AdminTable',
+            child: AdminTable(
+              columns: const [
+                AdminColumn('Время', width: 128),
+                AdminColumn('Инициатор', width: 120),
+                AdminColumn('Действие', width: 168),
+                AdminColumn('Цель', width: 120),
+                AdminColumn.flexible('Детали'),
+              ],
+              rows: [
+                AdminTableRow(
+                  cells: [
+                    const Text('13.09 14:02:11'),
+                    const Text('admin'),
+                    const AdminStatusTag(
+                      label: 'project.quota_updated',
+                      tone: AdminStatusTone.neutral,
+                    ),
+                    const Text('project #7'),
+                    const Text('retention_days 30 → 7, max_entries — → 1000'),
+                  ],
+                ),
+                AdminTableRow(
+                  cells: [
+                    const Text('13.09 13:58:40'),
+                    const Text('admin'),
+                    const AdminStatusTag(
+                      label: 'secret_key.revoked',
+                      tone: AdminStatusTone.error,
+                    ),
+                    const Text('secret_key #4'),
+                    const Text('label «CI pipeline», project #7'),
+                  ],
+                ),
+                AdminTableRow(
+                  // An event with nobody behind it: the row says so in words
+                  // rather than leaving an empty column, and the tint marks it
+                  // as being about the system rather than about a person.
+                  background: colors.warnBg,
+                  cells: [
+                    const Text('13.09 13:51:02'),
+                    const Text('—'),
+                    const AdminStatusTag(
+                      label: 'auth.throttled',
+                      tone: AdminStatusTone.warning,
+                    ),
+                    const Text('auth'),
+                    const Text('попытка под несуществующей учётной записью'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _Section(
             title: 'Atoms · AdminEmptyState',
             // The empty state is drawn centred in a whole content pane and
             // carries that pane's 64px breathing room; the gallery gives it a
@@ -488,6 +554,10 @@ class _GalleryPageState extends State<GalleryPage> {
       ),
     );
   }
+
+  String _formatDay(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}.'
+      '${value.month.toString().padLeft(2, '0')}.${value.year}';
 
   void _showConfirm(BuildContext context, {required bool destructive}) {
     showDialog<void>(
