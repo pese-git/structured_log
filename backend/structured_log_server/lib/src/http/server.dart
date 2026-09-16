@@ -84,7 +84,14 @@ Handler buildHandler(
   final logBroadcast = broadcast ?? LogBroadcast();
 
   final featureRouters = <Router>[
-    AuditLogRoutes(db, authorizer).router,
+    AuditLogRoutes(
+      db,
+      authorizer,
+      retention: AuditRetention(
+        auditRetentionDays: config?.auditRetentionDays,
+        authEventRetentionDays: config?.authEventRetentionDays,
+      ),
+    ).router,
     AuthRoutes(
       tokenService,
       trustedProxyHops: config?.trustedProxyHops ?? 0,

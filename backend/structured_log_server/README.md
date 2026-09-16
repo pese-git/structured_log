@@ -161,6 +161,9 @@ order of priority. Secrets are environment-only.
 | `--rate-limit-*` | enabled, 10 tokens, 10/min, 10000 keys |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` ignored |
 | `--sse-heartbeat-interval-seconds` | `25` |
+| `--audit-retention-days` | unset — audit records are kept indefinitely |
+| `--auth-event-retention-days` | unset — `auth.*` records are kept indefinitely |
+| `--audit-purge-batch-size` | `500` |
 
 Full list with descriptions:
 [docs/operations/configuration.md](../../docs/operations/configuration.md).

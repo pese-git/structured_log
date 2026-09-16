@@ -40,6 +40,15 @@ class ParamSpec {
   /// `logLevel`, `logFormat`) — any other value is a config error.
   final Set<String>? allowedValues;
 
+  /// For an int param where zero and negatives are meaningless rather than
+  /// merely unusual — a retention of `0` days, or a purge chunk of `0`, is a
+  /// setting that either deletes everything or never terminates. Refused at
+  /// startup with the rest of the configuration, because a server that took
+  /// it and then behaved strangely is far harder to diagnose than one that
+  /// would not start (`log-server-config`: the whole configuration is checked
+  /// before the port opens).
+  final bool mustBePositive;
+
   const ParamSpec({
     required this.name,
     required this.type,
@@ -48,6 +57,7 @@ class ParamSpec {
     this.isSecret = false,
     this.requiredForCommands = const {},
     this.allowedValues,
+    this.mustBePositive = false,
   });
 
   String get envVarName =>

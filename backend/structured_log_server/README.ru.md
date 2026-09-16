@@ -162,6 +162,9 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 | `--rate-limit-*` | включено, 10 токенов, 10/мин, 10000 ключей |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` игнорируется |
 | `--sse-heartbeat-interval-seconds` | `25` |
+| `--audit-retention-days` | не задан — записи аудита хранятся бессрочно |
+| `--auth-event-retention-days` | не задан — записи `auth.*` хранятся бессрочно |
+| `--audit-purge-batch-size` | `500` |
 
 Полный список с описаниями:
 [docs/operations/configuration.ru.md](../../docs/operations/configuration.ru.md).
