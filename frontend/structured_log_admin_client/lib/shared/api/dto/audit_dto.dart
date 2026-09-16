@@ -64,3 +64,53 @@ abstract class AuditPageDto with _$AuditPageDto {
   factory AuditPageDto.fromJson(Map<String, dynamic> json) =>
       _$AuditPageDtoFromJson(json);
 }
+
+/// The closed set of actions the server records, by the string it puts on the
+/// wire (`specs/log-server-audit`).
+///
+/// A copy of the server's own set, and deliberately a copy: this package talks
+/// to `structured_log_server` over HTTP like any other consumer and shares no
+/// code with it. What keeps the two honest is that the server refuses an
+/// `action` outside its set with 400 — so a value here that the server does not
+/// know fails loudly on the first request rather than silently matching
+/// nothing.
+///
+/// The client needs its own list for two things the wire cannot provide: an
+/// exhaustive set of labels to render, and a filter menu that offers what can
+/// be asked for rather than a free-text box.
+const auditActions = <String>[
+  'user.created',
+  'user.updated',
+  'user.blocked',
+  'user.unblocked',
+  'user.deleted',
+  'group.created',
+  'team.created',
+  'team.member_added',
+  'team.member_removed',
+  'project.created',
+  'project.quota_updated',
+  'project.blocked',
+  'project.unblocked',
+  'secret_key.created',
+  'secret_key.revoked',
+  'role_assignment.created',
+  'role_assignment.revoked',
+  'password.changed',
+  'password.reset_confirmed',
+  'email.verified',
+  'auth.login_succeeded',
+  'auth.login_failed',
+  'auth.logged_out',
+  'auth.throttled',
+  'audit.purged',
+];
+
+/// The four the server keeps under its own, shorter retention period — and the
+/// ones a reader most often wants to see apart from administrative acts.
+const authEventActions = <String>[
+  'auth.login_succeeded',
+  'auth.login_failed',
+  'auth.logged_out',
+  'auth.throttled',
+];
