@@ -444,8 +444,9 @@ curl -X POST http://localhost:8080/v1/groups/3/teams \
 
 ### `POST /v1/teams/:teamId/members`
 
-Role: `owner` of the team's group, or `admin`. Bumps `token_version`
-for every current member of the team ([auth.md](../architecture/auth.md#token_version-how-a-snapshot-in-a-jwt-stays-revocable)).
+Role: `owner` of the team's group, or `admin`. Bumps `token_version` for
+the added user only, not the team's other members — their own access is
+unaffected by someone else joining ([auth.md](../architecture/auth.md#token_version-how-a-snapshot-in-a-jwt-stays-revocable)).
 
 **Request body:** `{"user_id": 42}`
 
@@ -461,7 +462,9 @@ curl -X POST http://localhost:8080/v1/teams/5/members \
 
 ### `DELETE /v1/teams/:teamId/members/:userId`
 
-Role: `owner` of the team's group, or `admin`. Same `token_version` effect as above.
+Role: `owner` of the team's group, or `admin`. Bumps `token_version` for
+the removed user only — the same single-user effect as above, applied to
+whoever just lost access.
 
 **Response `204`:** empty body.
 
