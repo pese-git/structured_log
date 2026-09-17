@@ -191,6 +191,7 @@ order of priority. Secrets are environment-only.
 | `--rate-limit-*` | enabled, 10 tokens, 10/min, 10000 keys |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` ignored |
 | `--sse-heartbeat-interval-seconds` | `25` |
+| `--cors-allowed-origins` | unset — no CORS headers on any response |
 | `--audit-retention-days` | unset — audit records are kept indefinitely |
 | `--auth-event-retention-days` | unset — `auth.*` records are kept indefinitely |
 | `--audit-purge-batch-size` | `500` |
@@ -201,6 +202,13 @@ Full list with descriptions:
 **Behind a reverse proxy**, set `--trusted-proxy-hops` to the number of
 proxies in front. Left at `0` the rate limiter keys on the socket address,
 which behind a proxy is the proxy — every client would share one bucket.
+
+**CORS is off by default** — the bundled deployment ([deploy/](../../deploy))
+serves the admin client and the API behind one origin, which needs none.
+Set `--cors-allowed-origins` (comma-separated) only when the client is
+genuinely served from elsewhere, such as a client run against this server
+on its own port during local development; an origin not in the list gets no
+headers regardless.
 
 ## Documentation
 
