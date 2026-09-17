@@ -442,6 +442,30 @@ curl -X POST http://localhost:8080/v1/groups/3/teams \
   -d '{"name": "on-call"}'
 ```
 
+### `GET /v1/groups/:groupId/teams`
+
+Role: any role with read access to `:groupId` (`admin`/`owner`/`user`).
+
+**Response `200`:** `{"items": [Team]}`.
+
+**Errors:** `403 forbidden`, `404 not_found` (`:groupId`).
+
+```bash
+curl http://localhost:8080/v1/groups/3/teams -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### `GET /v1/teams/:teamId/members`
+
+Role: same as above. Minimal shape, not a full [User](models.md#user) — just
+enough to show and pick a member: `{"items": [{"user_id": 42, "username":
+"alice"}]}`.
+
+**Errors:** `403 forbidden`, `404 not_found` (`:teamId`).
+
+```bash
+curl http://localhost:8080/v1/teams/5/members -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
 ### `POST /v1/teams/:teamId/members`
 
 Role: `owner` of the team's group, or `admin`. Bumps `token_version` for

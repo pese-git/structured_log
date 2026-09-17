@@ -37,6 +37,23 @@ const _projectsBody = {
   ],
 };
 
+const _teamsBody = {
+  'items': [
+    {
+      'id': 1,
+      'group_id': 1,
+      'name': 'on-call',
+      'created_at': '2026-09-15T12:05:45.000Z',
+    },
+  ],
+};
+
+const _teamMembersBody = {
+  'items': [
+    {'user_id': 1, 'username': 'alice'},
+  ],
+};
+
 const _secretKeysBody = {
   'items': [
     {
@@ -84,6 +101,23 @@ void main() {
       reason: 'an unset quota is unlimited, not zero',
     );
     expect(adapter.requests.single.queryParameters, {'group_id': 1});
+  });
+
+  test('the team list is read out of the envelope', () async {
+    final (client, _) = _client(_teamsBody);
+
+    final teams = await client.teams.list(1);
+
+    expect(teams.items.single.name, 'on-call');
+    expect(teams.items.single.groupId, 1);
+  });
+
+  test('the team member list is read out of the envelope', () async {
+    final (client, _) = _client(_teamMembersBody);
+
+    final members = await client.teams.members(1);
+
+    expect(members.items.single.username, 'alice');
   });
 
   test('the secret key list is read out of the envelope', () async {

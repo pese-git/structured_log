@@ -60,6 +60,178 @@ void main() {
         );
   }
 
+  group('listTeams', () {
+    test('an admin sees every team in the group', () async {
+      await insertTeam(groupId, name: 'on-call');
+      await insertTeam(groupId, name: 'billing');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/groups/$groupId/teams',
+          roles: _admin,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      final body = await decodeJson(response);
+      final items = body['items'] as List;
+      expect(items.map((t) => t['name']), containsAll(['on-call', 'billing']));
+    });
+
+    test('a plain user with access to the group can also list', () async {
+      await insertTeam(groupId);
+      final userRoles = [
+        EffectiveRole(
+            role: Role.user, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/groups/$groupId/teams',
+          roles: userRoles,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+    });
+
+    test('a team of another group is not included', () async {
+      final otherGroupId =
+          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g2'));
+      await insertTeam(otherGroupId, name: 'not-this-one');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/groups/$groupId/teams',
+          roles: _admin,
+        ),
+      );
+
+      final body = await decodeJson(response);
+      expect(body['items'], isEmpty);
+    });
+
+    test('someone with no access to the group is refused with 403', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/groups/$groupId/teams',
+            roles: _noRoles,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test('an unknown group is rejected with 404', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/groups/999/teams',
+            roles: _admin,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+    });
+  });
+
+  group('listTeamMembers', () {
+    test('resolves the current members\' usernames', () async {
+      final teamId = await insertTeam(groupId);
+      final alice = await insertUser(username: 'alice');
+      final bob = await insertUser(username: 'bob2');
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: alice),
+          );
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: bob),
+          );
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/teams/$teamId/members',
+          roles: _admin,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      final body = await decodeJson(response);
+      final items = body['items'] as List;
+      expect(
+        items.map((m) => m['username']),
+        containsAll(['alice', 'bob2']),
+      );
+    });
+
+    test('an empty team returns an empty list, not an error', () async {
+      final teamId = await insertTeam(groupId);
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/teams/$teamId/members',
+          roles: _admin,
+        ),
+      );
+
+      final body = await decodeJson(response);
+      expect(body['items'], isEmpty);
+    });
+
+    test('a plain user with access to the group can also list', () async {
+      final teamId = await insertTeam(groupId);
+      final userRoles = [
+        EffectiveRole(
+            role: Role.user, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/teams/$teamId/members',
+          roles: userRoles,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+    });
+
+    test('someone with no access to the group is refused with 403', () async {
+      final teamId = await insertTeam(groupId);
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/teams/$teamId/members',
+            roles: _noRoles,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test('an unknown team is rejected with 404', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/teams/999/members',
+            roles: _admin,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+    });
+  });
+
   group('createTeam', () {
     test('an admin can create a team', () async {
       final response = await routes.router.call(

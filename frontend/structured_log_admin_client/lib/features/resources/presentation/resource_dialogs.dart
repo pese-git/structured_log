@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 
 /// What a quota form produced. `null` in a limit means unlimited, and it is
@@ -670,6 +671,152 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : _submit,
+        ),
+      ],
+    );
+  }
+}
+
+/// A team's current members, plus a picker to add one more (`13.2a`).
+///
+/// Stays open across an add/remove — unlike `GrantAccessDialog`, which
+/// closes on success, this is a management surface a reader works through
+/// one member at a time, the same reasoning `EditUserDialog`'s own
+/// role-grant section follows. [members]/[loading]/[changing]/[errorText]
+/// come from the cubit's state for the team currently open, so the caller
+/// wraps this in the same `BlocBuilder` pattern as `_Access` above.
+class TeamMembersDialog extends StatefulWidget {
+  final String teamName;
+  final List<TeamMemberDto> members;
+  final bool loading;
+  final bool changing;
+  final String? errorText;
+  final Future<List<UserDto>> Function(String query) searchUsers;
+  final ValueChanged<int> onAdd;
+  final ValueChanged<int> onRemove;
+  final VoidCallback onClose;
+
+  const TeamMembersDialog({
+    super.key,
+    required this.teamName,
+    required this.members,
+    required this.searchUsers,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onClose,
+    this.loading = false,
+    this.changing = false,
+    this.errorText,
+  });
+
+  @override
+  State<TeamMembersDialog> createState() => _TeamMembersDialogState();
+}
+
+class _TeamMembersDialogState extends State<TeamMembersDialog> {
+  int? _candidateId;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    final memberIds = widget.members.map((m) => m.userId).toSet();
+
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 480),
+      title: Text(
+        'Состав команды «${widget.teamName}»',
+        style: AdminTypography.sectionTitle.copyWith(color: colors.text),
+      ),
+      // Scrolling, like the quota dialogs above — same reasoning
+      // (`test/features/resources/dialog_layout_test.dart`).
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.errorText != null) ...[
+              AdminBanner(
+                message: widget.errorText!,
+                tone: AdminBannerTone.error,
+              ),
+              const SizedBox(height: AdminSpacing.x14),
+            ],
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  // Remounted whenever the member list changes — after a
+                  // successful add there is no other way to clear the
+                  // picker's own text/selection back to empty, since it
+                  // exposes neither.
+                  child: AdminSearchPicker<int>(
+                    key: ValueKey(memberIds.toList()..sort()),
+                    label: 'Добавить участника',
+                    placeholder: 'Начните вводить имя пользователя…',
+                    enabled: !widget.changing,
+                    onSearch: (query) async {
+                      final users = await widget.searchUsers(query);
+                      return [
+                        for (final u in users)
+                          if (!memberIds.contains(u.id))
+                            AdminSearchPickerItem(
+                              value: u.id,
+                              label: u.username,
+                            ),
+                      ];
+                    },
+                    onSelected: (item) =>
+                        setState(() => _candidateId = item?.value),
+                  ),
+                ),
+                const SizedBox(width: AdminSpacing.x10),
+                AdminButton(
+                  label: 'Добавить',
+                  size: AdminButtonSize.dialog,
+                  onPressed: widget.changing || _candidateId == null
+                      ? null
+                      : () {
+                          final id = _candidateId!;
+                          setState(() => _candidateId = null);
+                          widget.onAdd(id);
+                        },
+                ),
+              ],
+            ),
+            const SizedBox(height: AdminSpacing.x14),
+            if (widget.loading)
+              const Center(child: AdminLoadingIndicator())
+            else if (widget.members.isEmpty)
+              const AdminEmptyState(
+                icon: FluentIcons.contact,
+                title: 'Участников пока нет',
+                description: 'Добавьте первого через поиск выше.',
+              )
+            else
+              for (final member in widget.members) ...[
+                AdminResourceRow(
+                  icon: FluentIcons.contact,
+                  title: member.username,
+                  actions: [
+                    AdminButton(
+                      label: 'Удалить',
+                      size: AdminButtonSize.tonal,
+                      onPressed: widget.changing
+                          ? null
+                          : () => widget.onRemove(member.userId),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AdminSpacing.x10),
+              ],
+          ],
+        ),
+      ),
+      actions: [
+        AdminButton(
+          label: 'Закрыть',
+          variant: AdminButtonVariant.accent,
+          size: AdminButtonSize.dialog,
+          onPressed: widget.onClose,
         ),
       ],
     );

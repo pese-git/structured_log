@@ -108,6 +108,49 @@ class ResourcesRepositoryImpl implements ResourcesRepository {
   Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId) =>
       _attempt(() => _api.projects.unblock(projectId));
 
+  @override
+  Future<Either<ApiFailure, List<TeamDto>>> teamsOf(int groupId) =>
+      _attempt(() async => (await _api.teams.list(groupId)).items);
+
+  @override
+  Future<Either<ApiFailure, TeamDto>> createTeam({
+    required int groupId,
+    required String name,
+  }) {
+    return _attempt(
+      () => _api.teams.create(groupId, CreateTeamRequestDto(name: name)),
+    );
+  }
+
+  @override
+  Future<Either<ApiFailure, List<TeamMemberDto>>> teamMembers(int teamId) =>
+      _attempt(() async => (await _api.teams.members(teamId)).items);
+
+  @override
+  Future<Either<ApiFailure, Unit>> addTeamMember({
+    required int teamId,
+    required int userId,
+  }) {
+    return _attempt(() async {
+      await _api.teams.addMember(
+        teamId,
+        AddTeamMemberRequestDto(userId: userId),
+      );
+      return unit;
+    });
+  }
+
+  @override
+  Future<Either<ApiFailure, Unit>> removeTeamMember({
+    required int teamId,
+    required int userId,
+  }) {
+    return _attempt(() async {
+      await _api.teams.removeMember(teamId, userId);
+      return unit;
+    });
+  }
+
   /// Every call in this repository has the same two outcomes, and the same
   /// one way of telling them apart.
   Future<Either<ApiFailure, T>> _attempt<T>(Future<T> Function() call) async {

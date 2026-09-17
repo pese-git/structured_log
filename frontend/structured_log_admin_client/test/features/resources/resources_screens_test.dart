@@ -130,6 +130,40 @@ class _FakeRepository implements ResourcesRepository {
   @override
   Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId) async =>
       right(one.copyWith(isBlocked: false));
+
+  @override
+  Future<Either<ApiFailure, List<TeamDto>>> teamsOf(int groupId) async =>
+      right(const []);
+
+  @override
+  Future<Either<ApiFailure, TeamDto>> createTeam({
+    required int groupId,
+    required String name,
+  }) async => right(
+    TeamDto(
+      id: 1,
+      groupId: groupId,
+      name: name,
+      createdAt: DateTime.utc(2026, 2, 14),
+    ),
+  );
+
+  @override
+  Future<Either<ApiFailure, List<TeamMemberDto>>> teamMembers(
+    int teamId,
+  ) async => right(const []);
+
+  @override
+  Future<Either<ApiFailure, Unit>> addTeamMember({
+    required int teamId,
+    required int userId,
+  }) async => right(unit);
+
+  @override
+  Future<Either<ApiFailure, Unit>> removeTeamMember({
+    required int teamId,
+    required int userId,
+  }) async => right(unit);
 }
 
 /// These screens' `load()` calls `forScope` for the «Доступ» section — an

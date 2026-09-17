@@ -447,6 +447,30 @@ curl -X POST http://localhost:8080/v1/groups/3/teams \
   -d '{"name": "on-call"}'
 ```
 
+### `GET /v1/groups/:groupId/teams`
+
+Роль: любая роль с доступом на чтение к `:groupId` (`admin`/`owner`/`user`).
+
+**Ответ `200`:** `{"items": [Team]}`.
+
+**Ошибки:** `403 forbidden`, `404 not_found` (`:groupId`).
+
+```bash
+curl http://localhost:8080/v1/groups/3/teams -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+### `GET /v1/teams/:teamId/members`
+
+Роль: та же, что выше. Минимальная форма, не полный
+[User](models.ru.md#user) — только то, что нужно, чтобы показать участника и
+выбрать его: `{"items": [{"user_id": 42, "username": "alice"}]}`.
+
+**Ошибки:** `403 forbidden`, `404 not_found` (`:teamId`).
+
+```bash
+curl http://localhost:8080/v1/teams/5/members -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
 ### `POST /v1/teams/:teamId/members`
 
 Роль: `owner` группы этой команды, или `admin`. Инкрементирует

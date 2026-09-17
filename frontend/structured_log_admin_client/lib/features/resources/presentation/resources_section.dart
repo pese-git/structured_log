@@ -83,6 +83,7 @@ class _ResourcesSectionState extends State<ResourcesSection> {
         create: (_) => GroupDetailCubit(
           projects: widget.scope.resolve<ManageProjects>(),
           roleAssignments: widget.scope.resolve<ManageRoleAssignments>(),
+          teams: widget.scope.resolve<ManageTeams>(),
           groupId: groupId,
         )..load(),
         child: GroupDetailPage(

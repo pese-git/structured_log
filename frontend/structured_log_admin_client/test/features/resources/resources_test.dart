@@ -200,6 +200,74 @@ class _FakeRepository implements ResourcesRepository {
     calls.add('unblockProject:$projectId');
     return _answer(one.copyWith(isBlocked: false), write: true);
   }
+
+  var teamList = <TeamDto>[];
+  final teamMemberLists = <int, List<TeamMemberDto>>{};
+
+  @override
+  Future<Either<ApiFailure, List<TeamDto>>> teamsOf(int groupId) async {
+    calls.add('teamsOf:$groupId');
+    return _answer(teamList);
+  }
+
+  @override
+  Future<Either<ApiFailure, TeamDto>> createTeam({
+    required int groupId,
+    required String name,
+  }) async {
+    calls.add('createTeam:$name');
+    final created = TeamDto(
+      id: teamList.length + 1,
+      groupId: groupId,
+      name: name,
+      createdAt: DateTime.utc(2026, 2, 14),
+    );
+    if (refuseEverything == null && refuseWrites == null) {
+      teamList = [...teamList, created];
+    }
+    return _answer(created, write: true);
+  }
+
+  @override
+  Future<Either<ApiFailure, List<TeamMemberDto>>> teamMembers(
+    int teamId,
+  ) async {
+    calls.add('teamMembers:$teamId');
+    return _answer(teamMemberLists[teamId] ?? const []);
+  }
+
+  @override
+  Future<Either<ApiFailure, Unit>> addTeamMember({
+    required int teamId,
+    required int userId,
+  }) async {
+    calls.add('addTeamMember:$teamId:$userId');
+    if (refuseEverything == null && refuseWrites == null) {
+      final current = teamMemberLists[teamId] ?? const [];
+      if (!current.any((m) => m.userId == userId)) {
+        teamMemberLists[teamId] = [
+          ...current,
+          TeamMemberDto(userId: userId, username: 'user$userId'),
+        ];
+      }
+    }
+    return _answer(unit, write: true);
+  }
+
+  @override
+  Future<Either<ApiFailure, Unit>> removeTeamMember({
+    required int teamId,
+    required int userId,
+  }) async {
+    calls.add('removeTeamMember:$teamId:$userId');
+    if (refuseEverything == null && refuseWrites == null) {
+      teamMemberLists[teamId] = [
+        for (final m in teamMemberLists[teamId] ?? const [])
+          if (m.userId != userId) m,
+      ];
+    }
+    return _answer(unit, write: true);
+  }
 }
 
 class _FakeRoleAssignments implements RoleAssignmentsRepository {
@@ -321,6 +389,7 @@ void main() {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -351,6 +420,7 @@ void main() {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -365,6 +435,7 @@ void main() {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -385,6 +456,7 @@ void main() {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -399,6 +471,7 @@ void main() {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -432,6 +505,7 @@ void main() {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -445,6 +519,170 @@ void main() {
         hasLength(1),
         reason: 'the row a revoke was refused on is still there',
       );
+    });
+  });
+
+  group('teams in a group', () {
+    test('the team list loads alongside the projects', () async {
+      repository.teamList = [
+        TeamDto(
+          id: 1,
+          groupId: 1,
+          name: 'on-call',
+          createdAt: DateTime.utc(2026, 2, 14),
+        ),
+      ];
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      expect(cubit.state.teams.single.name, 'on-call');
+    });
+
+    test('creating a team reloads the list', () async {
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.createTeam('on-call');
+
+      expect(cubit.state.teams.map((t) => t.name), ['on-call']);
+      expect(cubit.state.teamCreated, isTrue);
+      expect(
+        repository.calls,
+        containsAllInOrder(['createTeam:on-call', 'teamsOf:1']),
+      );
+    });
+
+    test(
+      'a refused team creation is explained, not silently dropped',
+      () async {
+        repository.refuseWrites = const ApiFailure.forbidden(code: 'forbidden');
+        final cubit = GroupDetailCubit(
+          projects: ManageProjects(repository),
+          roleAssignments: ManageRoleAssignments(roleAssignments),
+          teams: ManageTeams(repository),
+          groupId: 1,
+        );
+        addTearDown(cubit.close);
+        await cubit.load();
+
+        await cubit.createTeam('on-call');
+
+        expect(cubit.state.teamCreated, isFalse);
+        expect(cubit.state.createTeamFailure, isA<ForbiddenFailure>());
+      },
+    );
+
+    test('opening the composition dialog loads its current members', () async {
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+      repository.teamMemberLists[7] = [
+        const TeamMemberDto(userId: 9, username: 'alice'),
+      ];
+
+      await cubit.openTeamMembers(7);
+
+      expect(cubit.state.managingTeamId, 7);
+      expect(cubit.state.teamMembers.single.username, 'alice');
+      expect(cubit.state.loadingTeamMembers, isFalse);
+    });
+
+    test('adding a member reloads the composition for the open team', () async {
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+      await cubit.openTeamMembers(7);
+
+      await cubit.addTeamMember(9);
+
+      expect(cubit.state.teamMembers.single.userId, 9);
+      expect(
+        repository.calls,
+        containsAllInOrder(['addTeamMember:7:9', 'teamMembers:7']),
+      );
+    });
+
+    test('removing a member reloads the composition too', () async {
+      repository.teamMemberLists[7] = [
+        const TeamMemberDto(userId: 9, username: 'alice'),
+      ];
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+      await cubit.openTeamMembers(7);
+
+      await cubit.removeTeamMember(9);
+
+      expect(cubit.state.teamMembers, isEmpty);
+      expect(
+        repository.calls,
+        containsAllInOrder(['removeTeamMember:7:9', 'teamMembers:7']),
+      );
+    });
+
+    test(
+      'a refused add is explained and does not touch the shown list',
+      () async {
+        final cubit = GroupDetailCubit(
+          projects: ManageProjects(repository),
+          roleAssignments: ManageRoleAssignments(roleAssignments),
+          teams: ManageTeams(repository),
+          groupId: 1,
+        );
+        addTearDown(cubit.close);
+        await cubit.load();
+        await cubit.openTeamMembers(7);
+        repository.refuseWrites = const ApiFailure.forbidden(code: 'forbidden');
+
+        await cubit.addTeamMember(9);
+
+        expect(cubit.state.teamMembersFailure, isNotNull);
+        expect(cubit.state.teamMembers, isEmpty);
+      },
+    );
+
+    test('closing the dialog clears which team is being managed', () async {
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+      await cubit.openTeamMembers(7);
+
+      cubit.closeTeamMembers();
+
+      expect(cubit.state.managingTeamId, isNull);
     });
   });
 

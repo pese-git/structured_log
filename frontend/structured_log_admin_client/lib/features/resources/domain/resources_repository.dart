@@ -13,9 +13,7 @@ import '../../../shared/api/dto/resource_dto.dart';
 /// Users and role assignments live in their own feature
 /// (`lib/features/users/`), not here — they are a different resource family
 /// with their own screen, even though `blockProject`/`unblockProject` below
-/// share the same admin-only authorization rule as blocking a user. Teams
-/// are still absent — the server has no endpoints for them in this stage
-/// (design.md «Delivery Phases»).
+/// share the same admin-only authorization rule as blocking a user.
 abstract interface class ResourcesRepository {
   /// Groups the caller can see. An administrator sees all of them.
   ///
@@ -82,4 +80,28 @@ abstract interface class ResourcesRepository {
   Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId);
 
   Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId);
+
+  /// Every team of one group — any role with read access to it (5.9).
+  Future<Either<ApiFailure, List<TeamDto>>> teamsOf(int groupId);
+
+  /// `owner` of the group, or `admin`.
+  Future<Either<ApiFailure, TeamDto>> createTeam({
+    required int groupId,
+    required String name,
+  });
+
+  /// A team's current members, resolved to username — for the composition
+  /// dialog to show who is there and to keep from re-adding them.
+  Future<Either<ApiFailure, List<TeamMemberDto>>> teamMembers(int teamId);
+
+  /// Idempotent on the server: adding an existing member is not an error.
+  Future<Either<ApiFailure, Unit>> addTeamMember({
+    required int teamId,
+    required int userId,
+  });
+
+  Future<Either<ApiFailure, Unit>> removeTeamMember({
+    required int teamId,
+    required int userId,
+  });
 }
