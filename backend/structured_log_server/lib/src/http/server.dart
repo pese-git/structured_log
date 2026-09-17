@@ -12,6 +12,7 @@ import '../rbac/authorizer.dart';
 import '../live/log_broadcast.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
+import 'cors_middleware.dart';
 import 'logging_middleware.dart';
 import 'principal_middleware.dart';
 import 'rate_limit_middleware.dart';
@@ -123,6 +124,17 @@ Handler buildHandler(
   // to the assertions.
   if (logger != null) {
     pipeline = pipeline.addMiddleware(requestLoggingMiddleware(logger));
+  }
+  // Ahead of error handling, rate limiting and principal resolution: a
+  // matching preflight is answered here and never reaches any of them, and a
+  // real request's `Access-Control-Allow-Origin` has to land on whatever
+  // response those stages produce — including an error one. Off entirely
+  // when no config is supplied, and a no-op when its origin list is empty
+  // (`specs/log-server-api`).
+  if (config != null) {
+    pipeline = pipeline.addMiddleware(
+      corsMiddleware(config.corsAllowedOrigins),
+    );
   }
   pipeline = pipeline.addMiddleware(errorHandlingMiddleware());
   // Ahead of authentication: throttling by address must not depend on the

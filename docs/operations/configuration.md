@@ -143,6 +143,7 @@ Questions).
 | Subject bucket capacity / refill | `--rate-limit-subject-capacity`, `--rate-limit-subject-refill-per-minute` | TBD | Spent on failures only; a success refills it |
 | Limiter key ceiling | `--rate-limit-max-keys` | TBD | LRU eviction above it |
 | Trusted proxy hops | `--trusted-proxy-hops` | `0` | `0` = ignore `X-Forwarded-For` entirely |
+| CORS allowed origins | `--cors-allowed-origins` | unset | Comma-separated exact origins; unset/empty = no CORS headers at all ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
 | Audit retention | `--audit-retention-days` | unset | Unset = keep forever ([quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
 | Audit purge chunk | `--audit-purge-batch-size` | `500` | Deleting in chunks keeps ingestion unblocked |

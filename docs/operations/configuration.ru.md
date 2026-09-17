@@ -142,6 +142,7 @@ design.md).
 | Ведро субъекта: ёмкость / пополнение | `--rate-limit-subject-capacity`, `--rate-limit-subject-refill-per-minute` | TBD | Списывается только на неудачах, успех восстанавливает |
 | Предел числа ключей | `--rate-limit-max-keys` | TBD | Сверх него — LRU-вытеснение |
 | Доверенных прокси | `--trusted-proxy-hops` | `0` | `0` = `X-Forwarded-For` игнорируется полностью |
+| Разрешённые CORS-origin | `--cors-allowed-origins` | не задано | Список точных origin через запятую; не задано/пусто = CORS-заголовков нет вообще ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
 | Хранение аудита | `--audit-retention-days` | не задано | Не задано = хранить вечно ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | Хранение auth-событий | `--auth-event-retention-days` | не задано | Отделено от предыдущего намеренно |
 | Порция очистки аудита | `--audit-purge-batch-size` | `500` | Удаление порциями не блокирует приём логов |

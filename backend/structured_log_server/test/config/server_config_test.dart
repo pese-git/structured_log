@@ -31,6 +31,7 @@ const _expectedParamNames = {
   'rate-limit-max-keys',
   'trusted-proxy-hops',
   'sse-heartbeat-interval-seconds',
+  'cors-allowed-origins',
   'audit-retention-days',
   'auth-event-retention-days',
   'audit-purge-batch-size',
@@ -169,6 +170,36 @@ void main() {
         resolve(['--audit-purge-batch-size=0']).outcome,
         ConfigParseOutcome.errors,
       );
+    });
+  });
+
+  group('cors-allowed-origins', () {
+    ServerConfig resolve(List<String> args) {
+      final result = ConfigResolver(serverConfigParams).parse(
+        args,
+        {
+          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+          'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+        },
+        command: commandServe,
+      );
+      return ServerConfig.fromResolved(result.values!);
+    }
+
+    test('unset means CORS is off — an empty set', () {
+      expect(resolve([]).corsAllowedOrigins, isEmpty);
+    });
+
+    test('a comma-separated list becomes a trimmed set', () {
+      final config = resolve([
+        '--cors-allowed-origins=http://a.test, http://b.test',
+      ]);
+      expect(config.corsAllowedOrigins, {'http://a.test', 'http://b.test'});
+    });
+
+    test('a trailing comma does not produce a blank origin', () {
+      final config = resolve(['--cors-allowed-origins=http://a.test,']);
+      expect(config.corsAllowedOrigins, {'http://a.test'});
     });
   });
 }

@@ -181,6 +181,14 @@ const serverConfigParams = <ParamSpec>[
     description: 'Interval between GET /v1/logs/stream heartbeat pings.',
     defaultValue: 25,
   ),
+  ParamSpec(
+    name: 'cors-allowed-origins',
+    type: ParamType.string,
+    description: 'Comma-separated list of origins allowed to make cross-origin '
+        'requests. Empty (the default) means no CORS headers at all — the '
+        'client is expected to be served from the same origin as the API.',
+    defaultValue: '',
+  ),
 ];
 
 /// The fully resolved, immutable configuration Stage 1 uses. No global
@@ -209,6 +217,11 @@ class ServerConfig {
   final int rateLimitMaxKeys;
   final int trustedProxyHops;
   final int sseHeartbeatIntervalSeconds;
+
+  /// Origins allowed to receive CORS headers. Empty by default, which keeps
+  /// the server's long-standing behavior: no `Access-Control-Allow-*` header
+  /// on any response, for any origin (`specs/log-server-api`).
+  final Set<String> corsAllowedOrigins;
 
   /// Both `null` by default, meaning records are kept indefinitely — which is
   /// the behaviour a server that predates this setting already had. Upgrading
@@ -241,6 +254,7 @@ class ServerConfig {
     required this.rateLimitMaxKeys,
     required this.trustedProxyHops,
     required this.sseHeartbeatIntervalSeconds,
+    this.corsAllowedOrigins = const {},
     this.auditRetentionDays,
     this.authEventRetentionDays,
     this.auditPurgeBatchSize = 500,
@@ -273,9 +287,20 @@ class ServerConfig {
       rateLimitMaxKeys: get('rate-limit-max-keys'),
       trustedProxyHops: get('trusted-proxy-hops'),
       sseHeartbeatIntervalSeconds: get('sse-heartbeat-interval-seconds'),
+      corsAllowedOrigins: _parseOrigins(get('cors-allowed-origins')),
       auditRetentionDays: get('audit-retention-days'),
       authEventRetentionDays: get('auth-event-retention-days'),
       auditPurgeBatchSize: get('audit-purge-batch-size'),
     );
   }
 }
+
+/// Splits `cors-allowed-origins`'s raw comma-separated value into a set of
+/// origins, trimming whitespace and dropping empty segments — so a trailing
+/// comma or stray space doesn't produce a spurious entry that could never
+/// match a real `Origin` header.
+Set<String> _parseOrigins(String raw) => raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .where((origin) => origin.isNotEmpty)
+    .toSet();
