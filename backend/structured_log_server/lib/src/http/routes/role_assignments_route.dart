@@ -172,17 +172,18 @@ class RoleAssignmentRoutes {
     });
   }
 
-  /// `admin` only in this stage's reduced scope (`rbac/access_check.dart`'s
-  /// `canManageRoleAssignments`, 4.3a) — an `owner` granting `owner`/`user`
-  /// within their own group is the full rule (4.3), a later stage.
-  /// `subject_type: "team"` is rejected outright: `subject_type: user` is
-  /// all 4.3a covers, since nothing yet can create a team to assign a role
-  /// to (`design.md` "Delivery Phases", Этап 3).
+  /// Full rule (`rbac/access_check.dart`'s `canCreateOrRevokeRoleAssignment`,
+  /// design.md "Delivery Phases", Этап 4, 4.3): `admin` without restriction;
+  /// `owner` of group `G` may grant `role ∈ {owner, user}` on
+  /// `scope ∈ {group:G, project ∈ G}`. Authorization runs after resolving
+  /// the target scope (needed to know its enclosing group for a `project`
+  /// scope) but before touching the subject or inserting — same order as
+  /// `projects_route.dart`'s writes. `subject_type: "team"` is still
+  /// rejected outright: nothing can create a team to assign a role to yet
+  /// (раздел 5.3, same stage, not landed in this task).
   @Route.post('/v1/role-assignments')
   Future<Response> createRoleAssignment(Request request) async {
     final identity = request.requireUser();
-    final roles = await resolveRoles(_authorizer, identity);
-    if (!canManageRoleAssignments(roles)) throw ApiError.forbidden();
 
     final body = await readJsonBody(request);
     final subjectType = body['subject_type'];
@@ -239,12 +240,7 @@ class RoleAssignmentRoutes {
       );
     }
 
-    final subject = await (_db.select(
-      _db.users,
-    )..where((t) => t.id.equals(subjectId)))
-        .getSingleOrNull();
-    if (subject == null) throw ApiError.notFound('User not found.');
-
+    int? enclosingGroupId;
     if (scopeType == ScopeType.group) {
       final group = await (_db.select(
         _db.groups,
@@ -257,7 +253,25 @@ class RoleAssignmentRoutes {
       )..where((t) => t.id.equals(scopeId as int)))
           .getSingleOrNull();
       if (project == null) throw ApiError.notFound('Project not found.');
+      enclosingGroupId = project.groupId;
     }
+
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canCreateOrRevokeRoleAssignment(
+      roles,
+      targetRole: role,
+      scopeType: scopeType,
+      scopeId: scopeId as int?,
+      enclosingGroupId: enclosingGroupId,
+    )) {
+      throw ApiError.forbidden();
+    }
+
+    final subject = await (_db.select(
+      _db.users,
+    )..where((t) => t.id.equals(subjectId)))
+        .getSingleOrNull();
+    if (subject == null) throw ApiError.notFound('User not found.');
 
     final id = await _db.transaction(() async {
       final id = await _db.into(_db.roleAssignments).insert(
@@ -266,7 +280,7 @@ class RoleAssignmentRoutes {
               subjectId: subjectId,
               role: role.name,
               scopeType: scopeType.name,
-              scopeId: Value(scopeId as int?),
+              scopeId: Value(scopeId),
             ),
           );
       // Single increment, not cascading: `subject_type: user` only in this
@@ -296,12 +310,12 @@ class RoleAssignmentRoutes {
     return jsonOk(roleAssignmentJson(row), statusCode: 201);
   }
 
-  /// Same rule as creating it (4.3a: `admin` only in this stage).
+  /// Same rule as creating it (`canCreateOrRevokeRoleAssignment`, 4.3) — the
+  /// grant's own `role`/`scope_type`/`scope_id` stand in for the request
+  /// body a `POST` would have carried, since a `DELETE` has none.
   @Route.delete('/v1/role-assignments/<id>')
   Future<Response> deleteRoleAssignment(Request request, String id) async {
     final identity = request.requireUser();
-    final roles = await resolveRoles(_authorizer, identity);
-    if (!canManageRoleAssignments(roles)) throw ApiError.forbidden();
 
     final assignmentId = parsePathId(id, 'id');
     final row = await (_db.select(
@@ -309,6 +323,27 @@ class RoleAssignmentRoutes {
     )..where((t) => t.id.equals(assignmentId)))
         .getSingleOrNull();
     if (row == null) throw ApiError.notFound('Role assignment not found.');
+
+    final scopeType = _enumByNameOrNull(ScopeType.values, row.scopeType)!;
+    int? enclosingGroupId;
+    if (scopeType == ScopeType.project && row.scopeId != null) {
+      final project = await (_db.select(
+        _db.projects,
+      )..where((t) => t.id.equals(row.scopeId!)))
+          .getSingleOrNull();
+      enclosingGroupId = project?.groupId;
+    }
+
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canCreateOrRevokeRoleAssignment(
+      roles,
+      targetRole: _enumByNameOrNull(Role.values, row.role)!,
+      scopeType: scopeType,
+      scopeId: row.scopeId,
+      enclosingGroupId: enclosingGroupId,
+    )) {
+      throw ApiError.forbidden();
+    }
 
     await _db.transaction(() async {
       await (_db.delete(

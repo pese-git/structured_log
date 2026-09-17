@@ -225,8 +225,8 @@ void main() {
     );
   });
 
-  test('the owner creates a project in the granted group, but cannot grant or '
-      'revoke access there themselves', () async {
+  test('the owner creates a project in the granted group, and can delegate '
+      'roles within it — but not on another group\'s', () async {
     final project =
         (await ownerResources.createProject(
           groupId: ownedGroupId,
@@ -238,8 +238,36 @@ void main() {
         );
     expect(project.name, 'checkout');
 
+    // Full 4.3 (`design.md` "Delivery Phases", Этап 4): an owner may grant
+    // and revoke `owner`/`user` roles inside their own group — read access
+    // to the scope's list (previous test) was never the same right as
+    // this, but this stage grants both.
+    final teammate = (await adminUsers.create(
+      username: 'teammate',
+      password: 'issued-by-the-administrator-too',
+    )).getOrElse((failure) => fail('creating the teammate failed: $failure'));
+
+    final delegated =
+        (await ownerRoleAssignments.grant(
+          subjectId: teammate.id,
+          role: 'user',
+          scopeType: 'group',
+          scopeId: ownedGroupId,
+        )).getOrElse(
+          (failure) => fail(
+            'the owner\'s own group refused a delegated grant: $failure',
+          ),
+        );
+
+    final revokedByOwner = await ownerRoleAssignments.revoke(delegated.id);
+    expect(
+      revokedByOwner.isRight(),
+      isTrue,
+      reason: 'an owner may also revoke what they delegated in their own group',
+    );
+
     final deniedGrant = await ownerRoleAssignments.grant(
-      subjectId: ownerUserId,
+      subjectId: teammate.id,
       role: 'user',
       scopeType: 'group',
       scopeId: otherGroupId,
@@ -248,25 +276,12 @@ void main() {
       deniedGrant.isLeft(),
       isTrue,
       reason:
-          'read access to one\'s own scope is not write access to '
-          'role assignments anywhere — grants stay admin-only (4.3a)',
+          'the rule is scoped to the group the owner actually owns, not '
+          'every group',
     );
     deniedGrant.match(
       (failure) => expect(failure, isA<ForbiddenFailure>()),
-      (_) => fail('the write check should have stopped this'),
-    );
-
-    final deniedRevoke = await ownerRoleAssignments.revoke(grantId);
-    expect(
-      deniedRevoke.isLeft(),
-      isTrue,
-      reason:
-          'seeing the row that grants their own access does not let '
-          'the owner remove it',
-    );
-    deniedRevoke.match(
-      (failure) => expect(failure, isA<ForbiddenFailure>()),
-      (_) => fail('the write check should have stopped this'),
+      (_) => fail('the scope check should have stopped this'),
     );
   });
 

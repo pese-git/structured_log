@@ -269,6 +269,133 @@ void main() {
     });
   });
 
+  group('canCreateOrRevokeRoleAssignment', () {
+    test('admin may grant any role on any scope', () {
+      for (final role in Role.values) {
+        expect(
+          canCreateOrRevokeRoleAssignment(
+            [global(Role.admin)],
+            targetRole: role,
+            scopeType: ScopeType.global,
+          ),
+          isTrue,
+          reason: '$role',
+        );
+      }
+    });
+
+    test('owner of group G may grant owner/user on group G', () {
+      for (final role in [Role.owner, Role.user]) {
+        expect(
+          canCreateOrRevokeRoleAssignment(
+            [onGroup(Role.owner, 1)],
+            targetRole: role,
+            scopeType: ScopeType.group,
+            scopeId: 1,
+          ),
+          isTrue,
+          reason: '$role',
+        );
+      }
+    });
+
+    test('owner of group G may grant owner/user on a project inside G', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.project,
+          scopeId: 42,
+          enclosingGroupId: 1,
+        ),
+        isTrue,
+      );
+    });
+
+    test('owner cannot grant the admin role', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.admin,
+          scopeType: ScopeType.group,
+          scopeId: 1,
+        ),
+        isFalse,
+      );
+    });
+
+    test('owner cannot grant outside their own group', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.project,
+          scopeId: 42,
+          enclosingGroupId: 2,
+        ),
+        isFalse,
+        reason: 'project belongs to a different group',
+      );
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: 2,
+        ),
+        isFalse,
+      );
+    });
+
+    test('owner cannot grant a global-scoped role', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.global,
+        ),
+        isFalse,
+      );
+    });
+
+    test('an owner of a project alone cannot grant anything', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onProject(Role.owner, 42)],
+          targetRole: Role.user,
+          scopeType: ScopeType.project,
+          scopeId: 42,
+          enclosingGroupId: 1,
+        ),
+        isFalse,
+        reason: 'the rule is scoped to a group-level owner, not project-level',
+      );
+    });
+
+    test('user can never grant a role', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.user, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: 1,
+        ),
+        isFalse,
+      );
+    });
+
+    test('no roles grants nothing', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [],
+          targetRole: Role.user,
+          scopeType: ScopeType.global,
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('resolveRoles', () {
     late StructuredLogDatabase db;
     late Authorizer authorizer;

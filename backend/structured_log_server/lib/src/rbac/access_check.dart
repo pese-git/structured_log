@@ -62,17 +62,47 @@ bool canRead(
   );
 }
 
-/// Whether [roles] may create/revoke a `RoleAssignment`, in this stage's
-/// reduced scope (`design.md` "Delivery Phases", Этап 3, 4.3a): only
-/// `admin`, unconditionally.
-///
-/// The full rule (4.3) — an `owner` granting `owner`/`user` within their own
-/// group — needs an existing group with an `owner` before it can grant
-/// anything in it, which is circular for the group a bootstrap admin hasn't
-/// delegated yet; it belongs to the stage that also adds `subject_type:
-/// team`, not this one.
+/// Whether [roles] may list the role-assignment table without a
+/// `scope_type`+`scope_id` filter — a bare `subject_id` filter or no filter
+/// at all (the Edit User dialog, "grants held by this user"): `admin` only,
+/// unconditionally. Reading a specific scope's own list has a wider rule,
+/// [canReadRoleAssignmentsForScope]; *creating*/*revoking* one has a wider
+/// rule too, [canCreateOrRevokeRoleAssignment] — this function no longer
+/// gates those (Этап 4, 4.3).
 bool canManageRoleAssignments(List<EffectiveRole> roles) =>
     isGlobalAdmin(roles);
+
+/// Whether [roles] may create or revoke a `RoleAssignment` with
+/// `role: targetRole` on ([scopeType], [scopeId]) — the full rule
+/// (`design.md` "Delivery Phases", Этап 4, 4.3; `specs/log-server-rbac`,
+/// requirement «Правила выдачи и отзыва ролей ограничены ролью и областью
+/// выдающего», specified from the very first pass): `admin` without
+/// restriction; `owner` of group `G` only for `targetRole ∈ {owner, user}`
+/// on `scope ∈ {group:G, project ∈ G}`; `user` never. [enclosingGroupId] is
+/// required to authorize a `project` scope, the same convention as
+/// [canRead]/[canWrite].
+///
+/// [scopeId] is `null` only for `scopeType: ScopeType.global` — an `owner`
+/// never qualifies there, since a `group`-scoped `EffectiveRole` cannot
+/// cover the global scope (`_covers` has no case that does).
+bool canCreateOrRevokeRoleAssignment(
+  List<EffectiveRole> roles, {
+  required Role targetRole,
+  required ScopeType scopeType,
+  int? scopeId,
+  int? enclosingGroupId,
+}) {
+  if (isGlobalAdmin(roles)) return true;
+  if (targetRole != Role.owner && targetRole != Role.user) return false;
+  return roles.any((r) {
+    if (r.role != Role.owner || r.scopeType != ScopeType.group) return false;
+    return switch (scopeType) {
+      ScopeType.group => r.scopeId == scopeId,
+      ScopeType.project => r.scopeId == enclosingGroupId,
+      ScopeType.global => false,
+    };
+  });
+}
 
 /// Whether [roles] may *read* the role-assignment list for the group/project
 /// at ([scopeType], [scopeId]) — the «Доступ» section on

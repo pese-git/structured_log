@@ -310,6 +310,117 @@ void main() {
       expect(metadata['scope_type'], 'global');
     });
 
+    test('the owner of the group can grant a user role within it', () async {
+      final subjectId = await insertUser();
+      final groupId = await insertGroup();
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/role-assignments',
+          roles: ownerRoles,
+          jsonBody: {
+            'subject_type': 'user',
+            'subject_id': subjectId,
+            'role': 'user',
+            'scope_type': 'group',
+            'scope_id': groupId,
+          },
+        ),
+      );
+
+      expect(response.statusCode, 201);
+    });
+
+    test('the owner of the enclosing group can grant a role on its project',
+        () async {
+      final subjectId = await insertUser();
+      final groupId = await insertGroup();
+      final projectId = await insertProject(groupId);
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/role-assignments',
+          roles: ownerRoles,
+          jsonBody: {
+            'subject_type': 'user',
+            'subject_id': subjectId,
+            'role': 'owner',
+            'scope_type': 'project',
+            'scope_id': projectId,
+          },
+        ),
+      );
+
+      expect(response.statusCode, 201);
+    });
+
+    test('an owner cannot grant the admin role', () async {
+      final subjectId = await insertUser();
+      final groupId = await insertGroup();
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: ownerRoles,
+            jsonBody: {
+              'subject_type': 'user',
+              'subject_id': subjectId,
+              'role': 'admin',
+              'scope_type': 'group',
+              'scope_id': groupId,
+            },
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test('an owner cannot grant a role on a different group\'s project',
+        () async {
+      final subjectId = await insertUser();
+      final groupId = await insertGroup();
+      final otherGroupId = await insertGroup(name: 'other');
+      final otherProjectId = await insertProject(otherGroupId);
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: ownerRoles,
+            jsonBody: {
+              'subject_type': 'user',
+              'subject_id': subjectId,
+              'role': 'user',
+              'scope_type': 'project',
+              'scope_id': otherProjectId,
+            },
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
     test('a refused attempt leaves no audit record', () async {
       await expectLater(
         routes.router.call(
@@ -595,13 +706,19 @@ void main() {
   });
 
   group('deleteRoleAssignment', () {
-    Future<int> grant(int subjectId) async {
+    Future<int> grant(
+      int subjectId, {
+      String role = 'user',
+      String scopeType = 'global',
+      int? scopeId,
+    }) async {
       return db.into(db.roleAssignments).insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: subjectId,
-              role: 'user',
-              scopeType: 'global',
+              role: role,
+              scopeType: scopeType,
+              scopeId: Value(scopeId),
             ),
           );
     }
@@ -637,6 +754,61 @@ void main() {
             'DELETE',
             'http://x/v1/role-assignments/$assignmentId',
             roles: _noRoles,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test('the owner of the group can revoke a grant within it', () async {
+      final subjectId = await insertUser();
+      final groupId = await insertGroup();
+      final assignmentId = await grant(
+        subjectId,
+        role: 'owner',
+        scopeType: 'group',
+        scopeId: groupId,
+      );
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'DELETE',
+          'http://x/v1/role-assignments/$assignmentId',
+          roles: ownerRoles,
+        ),
+      );
+
+      expect(response.statusCode, 204);
+    });
+
+    test('an owner of a different group cannot revoke this grant', () async {
+      final subjectId = await insertUser();
+      final groupId = await insertGroup();
+      final otherGroupId = await insertGroup(name: 'other');
+      final assignmentId = await grant(
+        subjectId,
+        role: 'owner',
+        scopeType: 'group',
+        scopeId: groupId,
+      );
+      final ownerOfOther = [
+        EffectiveRole(
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: otherGroupId,
+        ),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/role-assignments/$assignmentId',
+            roles: ownerOfOther,
           ),
         ),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
