@@ -70,6 +70,7 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
     text: widget.initialItem?.label ?? '',
   );
   final _focusNode = FocusNode();
+  final _autoSuggestKey = GlobalKey<AutoSuggestBoxState<T>>();
   List<AutoSuggestBoxItem<T>> _items = const [];
   Timer? _debounce;
   bool _openedOnce = false;
@@ -115,6 +116,24 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
           AutoSuggestBoxItem<T>(value: r.value, label: r.label),
       ];
     });
+    // `AutoSuggestBox` (fluent_ui 4.15.1) only ever paints the items list it
+    // had at the moment its overlay was first opened: a later `items` update
+    // reaches the already-open overlay through a stream listener that
+    // assigns a field without calling `setState`, so the popup silently
+    // keeps showing whatever it started with — usually nothing, since the
+    // overlay opens before this search has a result to show. A fresh
+    // `dismissOverlay()` + `showOverlay()` forces it to rebuild from
+    // scratch, which does pick up the current `items`. Deferred a frame so
+    // it runs after the `setState` above has actually rebuilt `AutoSuggestBox`
+    // with the new list — calling it in the same frame would still capture
+    // the stale one.
+    if (!_focusNode.hasFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focusNode.hasFocus) return;
+      _autoSuggestKey.currentState
+        ?..dismissOverlay()
+        ..showOverlay();
+    });
   }
 
   @override
@@ -133,6 +152,7 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
         ),
         const SizedBox(height: AdminSpacing.x6),
         AutoSuggestBox<T>(
+          key: _autoSuggestKey,
           controller: _controller,
           focusNode: _focusNode,
           enabled: widget.enabled,

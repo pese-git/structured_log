@@ -304,13 +304,15 @@ void main() {
       await _waitFor(tester, find.text('Пользователь'));
 
       // A name search (`AdminSearchPicker`), not a raw id box — type the
-      // username and let the debounce fire. The overlay `AutoSuggestBox`
-      // opens for this closes itself the moment the field loses focus, which
-      // this binding's browser window does on its own during an idle wait it
-      // does not control — so the field is tapped again once the debounced
-      // search has settled, which reopens the overlay fresh, already showing
-      // the result the search found rather than the empty list it started
-      // with.
+      // username and let the debounce fire. `AdminSearchPicker` itself
+      // reopens the suggestions overlay once the search answers (see its
+      // doc comment on the `fluent_ui` staleness bug this works around), but
+      // that only fires while the field is still focused — and this
+      // binding's automated browser window is not the foreground window, so
+      // it can lose focus of its own accord during an idle real-time wait
+      // like the one the debounce needs. Tapping the field again is enough
+      // to pick focus back up; nothing here depends on the tap doing more
+      // than that.
       await _type(tester, find.byType(AutoSuggestBox<int>), 'operator');
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpAndSettle();

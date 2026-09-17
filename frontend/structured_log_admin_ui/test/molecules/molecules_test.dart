@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
@@ -498,5 +500,62 @@ void main() {
         DateTime(2026, 9, 10),
       );
     });
+  });
+
+  group('AdminSearchPicker', () {
+    testWidgets(
+      'a result that resolves after the suggestions overlay has already '
+      'opened is still shown, not lost behind it',
+      (tester) async {
+        // `fluent_ui`'s `AutoSuggestBox` (this repo's pinned 4.15.1) opens its
+        // overlay the instant the field's text changes, painting whatever
+        // `items` it was given at that exact moment — before this widget's
+        // own debounced search has had a chance to answer. A `Completer`
+        // held open across that gap reproduces the race deterministically,
+        // without depending on real wall-clock timing the way the browser
+        // integration test that first found this had to.
+        final resultsCompleter = Completer<List<AdminSearchPickerItem<int>>>();
+        AdminSearchPickerItem<int>? selected;
+
+        await tester.pumpWidget(
+          _host(
+            AdminSearchPicker<int>(
+              label: 'Пользователь',
+              onSearch: (_) => resultsCompleter.future,
+              onSelected: (item) => selected = item,
+            ),
+          ),
+        );
+
+        await tester.tap(find.byType(AutoSuggestBox<int>));
+        await tester.pump();
+        // Typing is what opens the overlay (a focus with empty text does
+        // not) — it opens synchronously, well before the 300ms debounce
+        // below even starts, let alone before `onSearch` answers.
+        await tester.enterText(find.byType(AutoSuggestBox<int>), 'op');
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(
+          find.text('operator'),
+          findsNothing,
+          reason: 'the search has not answered yet',
+        );
+
+        resultsCompleter.complete([
+          const AdminSearchPickerItem(value: 5, label: 'operator'),
+        ]);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('operator'),
+          findsOneWidget,
+          reason: 'the overlay was already open when the result arrived — it '
+              'must still pick it up rather than stay on what it opened with',
+        );
+
+        await tester.tap(find.text('operator'));
+        await tester.pumpAndSettle();
+        expect(selected?.value, 5);
+      },
+    );
   });
 }
