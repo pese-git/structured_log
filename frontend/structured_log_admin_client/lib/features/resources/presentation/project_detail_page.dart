@@ -492,6 +492,16 @@ class _Access extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AdminSpacing.x12),
+        // Only reaches the reader here for a revoke fired straight from a
+        // row — a grant's refusal is shown inside `GrantAccessDialog` itself
+        // while it's open, and clears with it either way when it closes.
+        if (state.accessFailure != null) ...[
+          AdminBanner(
+            message: describeApiFailure(state.accessFailure!),
+            tone: AdminBannerTone.error,
+          ),
+          const SizedBox(height: AdminSpacing.x12),
+        ],
         if (state.roleAssignments.isEmpty)
           const AdminEmptyState(
             icon: FluentIcons.permissions,

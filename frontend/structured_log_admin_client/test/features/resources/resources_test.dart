@@ -411,6 +411,41 @@ void main() {
         containsAllInOrder(['revoke:1', 'forScope:group:1']),
       );
     });
+
+    test('a refused revoke is explained too — an owner sees the server\'s '
+        'reason, not a silent no-op', () async {
+      roleAssignments.forScopeResult = [
+        RoleAssignmentDto(
+          id: 1,
+          subjectType: 'user',
+          subjectId: 9,
+          subjectName: 'alice',
+          role: 'owner',
+          scopeType: 'group',
+          scopeId: 1,
+          createdAt: DateTime.utc(2026, 2, 14),
+        ),
+      ];
+      roleAssignments.refuseWrites = const ApiFailure.forbidden(
+        code: 'forbidden',
+      );
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.revokeAccess(1);
+
+      expect(cubit.state.accessFailure, isNotNull);
+      expect(
+        cubit.state.roleAssignments,
+        hasLength(1),
+        reason: 'the row a revoke was refused on is still there',
+      );
+    });
   });
 
   group('one project', () {

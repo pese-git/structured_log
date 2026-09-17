@@ -132,15 +132,24 @@ class _FakeRepository implements ResourcesRepository {
       right(one.copyWith(isBlocked: false));
 }
 
-/// A blank `RoleAssignmentsRepository` — these screens' `load()` calls
-/// `forScope` for the «Доступ» section, but no test here drives that
-/// section, so an empty answer is enough to keep `load()` from throwing.
+/// These screens' `load()` calls `forScope` for the «Доступ» section — an
+/// empty [forScopeResult] is enough to keep `load()` from throwing when a
+/// test doesn't drive that section at all.
 class _FakeRoleAssignments implements RoleAssignmentsRepository {
+  var forScopeResult = <RoleAssignmentDto>[];
+  ApiFailure? refuseWrites;
+
   @override
   Future<Either<ApiFailure, List<RoleAssignmentDto>>> forScope({
     required String scopeType,
     required int scopeId,
-  }) async => right(const []);
+  }) async => right(forScopeResult);
+
+  @override
+  Future<Either<ApiFailure, Unit>> revoke(int assignmentId) async {
+    if (refuseWrites != null) return left(refuseWrites!);
+    return right(unit);
+  }
 
   @override
   Never noSuchMethod(Invocation invocation) => throw UnimplementedError(
@@ -155,11 +164,13 @@ Widget _host(Widget child) => FluentApp(
 
 void main() {
   late _FakeRepository repository;
+  late _FakeRoleAssignments roleAssignmentsFake;
   late ManageRoleAssignments roleAssignments;
 
   setUp(() {
     repository = _FakeRepository();
-    roleAssignments = ManageRoleAssignments(_FakeRoleAssignments());
+    roleAssignmentsFake = _FakeRoleAssignments();
+    roleAssignments = ManageRoleAssignments(roleAssignmentsFake);
   });
 
   void useWideSurface(WidgetTester tester) {
@@ -352,6 +363,39 @@ void main() {
       expect(
         find.textContaining('заблокирован администратором'),
         findsOneWidget,
+      );
+    });
+
+    testWidgets('a refused revoke is explained in a banner, not silently '
+        'dropped', (tester) async {
+      roleAssignmentsFake.forScopeResult = [
+        RoleAssignmentDto(
+          id: 1,
+          subjectType: 'user',
+          subjectId: 9,
+          subjectName: 'alice',
+          role: 'owner',
+          scopeType: 'project',
+          scopeId: 1,
+          createdAt: DateTime.utc(2026, 2, 14),
+        ),
+      ];
+      roleAssignmentsFake.refuseWrites = const ApiFailure.forbidden(
+        code: 'forbidden',
+      );
+      await pump(tester);
+      expect(find.text('alice'), findsOneWidget);
+
+      await tester.tap(find.text('Отозвать'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Отозвать').last);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Недостаточно прав'), findsOneWidget);
+      expect(
+        find.text('alice'),
+        findsOneWidget,
+        reason: 'the row a revoke was refused on is still there',
       );
     });
   });
