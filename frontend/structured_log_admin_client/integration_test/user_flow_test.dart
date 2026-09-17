@@ -266,6 +266,79 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('the administrator creates another operator account', (
+    tester,
+  ) async {
+    await openApp(tester);
+    await _press(tester, find.text('Пользователи'));
+    await _waitFor(tester, find.text('Создать пользователя'));
+
+    await _press(tester, find.text('Создать пользователя'));
+    final fields = find.byType(TextBox);
+    await _type(tester, fields.at(0), 'operator');
+    await _type(tester, fields.at(1), 'issued-by-the-administrator');
+    await _type(tester, fields.at(2), 'Operator One');
+    await _press(tester, find.text('Создать пользователя').last);
+
+    await _waitFor(tester, find.text('Operator One'));
+    await _waitFor(tester, find.text('Временный пароль'));
+    await closeApp(tester);
+  });
+
+  testWidgets(
+    'the administrator grants the operator owner access to the group, '
+    'then revokes it',
+    (tester) async {
+      await openApp(tester);
+      // The default destination on a fresh open is the groups list — the one
+      // group set up earlier in this file ("payments").
+      await _press(tester, find.text('Открыть').first);
+      await _waitFor(tester, find.text('Предоставить доступ'));
+      await _waitFor(
+        tester,
+        find.text('Доступа пока никому не выдано'),
+        reason: 'nothing has been granted on this group yet',
+      );
+
+      await _press(tester, find.text('Предоставить доступ'));
+      await _waitFor(tester, find.text('Пользователь'));
+
+      // A name search (`AdminSearchPicker`), not a raw id box — type the
+      // username and let the debounce fire. The overlay `AutoSuggestBox`
+      // opens for this closes itself the moment the field loses focus, which
+      // this binding's browser window does on its own during an idle wait it
+      // does not control — so the field is tapped again once the debounced
+      // search has settled, which reopens the overlay fresh, already showing
+      // the result the search found rather than the empty list it started
+      // with.
+      await _type(tester, find.byType(AutoSuggestBox<int>), 'operator');
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(AutoSuggestBox<int>));
+      await tester.pumpAndSettle();
+      await _press(tester, find.text('operator').last);
+
+      await _press(tester, find.byType(ComboBox<String>));
+      await _press(tester, find.text('owner').last);
+
+      await _press(tester, find.text('Предоставить'));
+      await _waitFor(
+        tester,
+        find.text('operator'),
+        reason: 'the dialog closes on success and the granted row appears',
+      );
+      await _waitFor(tester, find.text('owner'));
+
+      await _press(tester, find.text('Отозвать'));
+      await _waitFor(tester, find.textContaining('Отозвать доступ у'));
+      await _press(tester, find.text('Отозвать').last);
+
+      await _waitFor(tester, find.text('Доступа пока никому не выдано'));
+      await _waitForGone(tester, find.text('operator'));
+      await closeApp(tester);
+    },
+  );
+
   testWidgets('signing out ends the session, and it does not come back', (
     tester,
   ) async {
