@@ -394,6 +394,65 @@ void main() {
         isFalse,
       );
     });
+
+    test('owner of group G may grant a team belonging to G', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: 1,
+          subjectTeamGroupId: 1,
+        ),
+        isTrue,
+      );
+    });
+
+    test('owner of group G may not grant a team belonging to another group',
+        () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: 1,
+          subjectTeamGroupId: 2,
+        ),
+        isFalse,
+        reason: "the other group's owner controls that team's membership, "
+            'not this one',
+      );
+    });
+
+    test(
+        'owner of group G may grant a team of G a role on one of G\'s '
+        'projects', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [onGroup(Role.owner, 1)],
+          targetRole: Role.user,
+          scopeType: ScopeType.project,
+          scopeId: 42,
+          enclosingGroupId: 1,
+          subjectTeamGroupId: 1,
+        ),
+        isTrue,
+      );
+    });
+
+    test('admin may grant a team from any group', () {
+      expect(
+        canCreateOrRevokeRoleAssignment(
+          [global(Role.admin)],
+          targetRole: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: 1,
+          subjectTeamGroupId: 2,
+        ),
+        isTrue,
+        reason: "admin is exempt from the team-must-belong-to-G restriction",
+      );
+    });
   });
 
   group('resolveRoles', () {

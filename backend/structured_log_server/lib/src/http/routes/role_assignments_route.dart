@@ -126,6 +126,10 @@ class RoleAssignmentRoutes {
       for (final r in rows)
         if (r.subjectType == 'user') r.subjectId,
     };
+    final teamIds = {
+      for (final r in rows)
+        if (r.subjectType == 'team') r.subjectId,
+    };
 
     final groupNames = groupIds.isEmpty
         ? <int, String>{}
@@ -154,6 +158,15 @@ class RoleAssignmentRoutes {
                 .get())
               u.id: u.username,
           };
+    final teamNames = teamIds.isEmpty
+        ? <int, String>{}
+        : {
+            for (final t in await (_db.select(
+              _db.teams,
+            )..where((t) => t.id.isIn(teamIds)))
+                .get())
+              t.id: t.name,
+          };
 
     return jsonOk({
       'items': [
@@ -165,34 +178,36 @@ class RoleAssignmentRoutes {
               'project' => projectNames[row.scopeId],
               _ => null,
             },
-            'subject_name':
-                row.subjectType == 'user' ? userNames[row.subjectId] : null,
+            'subject_name': switch (row.subjectType) {
+              'user' => userNames[row.subjectId],
+              'team' => teamNames[row.subjectId],
+              _ => null,
+            },
           },
       ],
     });
   }
 
   /// Full rule (`rbac/access_check.dart`'s `canCreateOrRevokeRoleAssignment`,
-  /// design.md "Delivery Phases", Этап 4, 4.3): `admin` without restriction;
-  /// `owner` of group `G` may grant `role ∈ {owner, user}` on
-  /// `scope ∈ {group:G, project ∈ G}`. Authorization runs after resolving
-  /// the target scope (needed to know its enclosing group for a `project`
-  /// scope) but before touching the subject or inserting — same order as
-  /// `projects_route.dart`'s writes. `subject_type: "team"` is still
-  /// rejected outright: nothing can create a team to assign a role to yet
-  /// (раздел 5.3, same stage, not landed in this task).
+  /// design.md "Delivery Phases", Этап 4, 4.3/5.6): `admin` without
+  /// restriction; `owner` of group `G` may grant `role ∈ {owner, user}` on
+  /// `scope ∈ {group:G, project ∈ G}`, to a user or to a team that itself
+  /// belongs to `G`. Order: validate the body, resolve the target scope
+  /// (needed for a `project` scope's enclosing group), resolve the subject
+  /// (needed for a team's own group, which the authorization check also
+  /// needs), *then* authorize, then insert — same "resolve what the check
+  /// needs, then check, then mutate" order as `projects_route.dart`'s
+  /// writes.
   @Route.post('/v1/role-assignments')
   Future<Response> createRoleAssignment(Request request) async {
     final identity = request.requireUser();
 
     final body = await readJsonBody(request);
     final subjectType = body['subject_type'];
-    if (subjectType != 'user') {
+    if (subjectType != 'user' && subjectType != 'team') {
       throw ApiError.invalidRequest(
-        subjectType == 'team'
-            ? 'subject_type "team" is not supported yet.'
-            : 'subject_type must be "user".',
-        details: {'field': 'subject_type', 'reason': 'unsupported'},
+        'subject_type must be "user" or "team".',
+        details: {'field': 'subject_type', 'reason': 'invalid'},
       );
     }
 
@@ -256,6 +271,22 @@ class RoleAssignmentRoutes {
       enclosingGroupId = project.groupId;
     }
 
+    int? subjectTeamGroupId;
+    if (subjectType == 'user') {
+      final subject = await (_db.select(
+        _db.users,
+      )..where((t) => t.id.equals(subjectId)))
+          .getSingleOrNull();
+      if (subject == null) throw ApiError.notFound('User not found.');
+    } else {
+      final team = await (_db.select(
+        _db.teams,
+      )..where((t) => t.id.equals(subjectId)))
+          .getSingleOrNull();
+      if (team == null) throw ApiError.notFound('Team not found.');
+      subjectTeamGroupId = team.groupId;
+    }
+
     final roles = await resolveRoles(_authorizer, identity);
     if (!canCreateOrRevokeRoleAssignment(
       roles,
@@ -263,37 +294,37 @@ class RoleAssignmentRoutes {
       scopeType: scopeType,
       scopeId: scopeId as int?,
       enclosingGroupId: enclosingGroupId,
+      subjectTeamGroupId: subjectTeamGroupId,
     )) {
       throw ApiError.forbidden();
     }
 
-    final subject = await (_db.select(
-      _db.users,
-    )..where((t) => t.id.equals(subjectId)))
-        .getSingleOrNull();
-    if (subject == null) throw ApiError.notFound('User not found.');
-
     final id = await _db.transaction(() async {
       final id = await _db.into(_db.roleAssignments).insert(
             RoleAssignmentsCompanion.insert(
-              subjectType: 'user',
+              subjectType: subjectType as String,
               subjectId: subjectId,
               role: role.name,
               scopeType: scopeType.name,
               scopeId: Value(scopeId),
             ),
           );
-      // Single increment, not cascading: `subject_type: user` only in this
-      // stage — the cascading update for `subject_type: team` has no caller
-      // yet (`rbac/token_version.dart`).
-      await incrementTokenVersion(_db, subjectId);
+      // Single increment for a user subject; cascading (bulk, one UPDATE)
+      // for a team subject — that team's grant changing affects every
+      // current member's effective roles at once (`design.md` decision 10,
+      // `rbac/token_version.dart`).
+      if (subjectType == 'user') {
+        await incrementTokenVersion(_db, subjectId);
+      } else {
+        await incrementTokenVersionsForTeam(_db, subjectId);
+      }
       await _audit.write(
         action: AuditAction.roleAssignmentCreated,
         targetType: AuditTargetType.roleAssignment,
         actorUserId: identity.userId,
         targetId: id,
         metadata: {
-          'subject_type': 'user',
+          'subject_type': subjectType,
           'subject_id': subjectId,
           'role': role.name,
           'scope_type': scopeType.name,
@@ -334,6 +365,15 @@ class RoleAssignmentRoutes {
       enclosingGroupId = project?.groupId;
     }
 
+    int? subjectTeamGroupId;
+    if (row.subjectType == 'team') {
+      final team = await (_db.select(
+        _db.teams,
+      )..where((t) => t.id.equals(row.subjectId)))
+          .getSingleOrNull();
+      subjectTeamGroupId = team?.groupId;
+    }
+
     final roles = await resolveRoles(_authorizer, identity);
     if (!canCreateOrRevokeRoleAssignment(
       roles,
@@ -341,6 +381,7 @@ class RoleAssignmentRoutes {
       scopeType: scopeType,
       scopeId: row.scopeId,
       enclosingGroupId: enclosingGroupId,
+      subjectTeamGroupId: subjectTeamGroupId,
     )) {
       throw ApiError.forbidden();
     }
@@ -352,6 +393,8 @@ class RoleAssignmentRoutes {
           .go();
       if (row.subjectType == 'user') {
         await incrementTokenVersion(_db, row.subjectId);
+      } else {
+        await incrementTokenVersionsForTeam(_db, row.subjectId);
       }
       await _audit.write(
         action: AuditAction.roleAssignmentRevoked,

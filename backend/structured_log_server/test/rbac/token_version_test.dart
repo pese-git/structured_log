@@ -74,6 +74,66 @@ void main() {
     });
   });
 
+  group('incrementTokenVersionsForTeam', () {
+    late int groupId;
+    late int teamId;
+
+    setUp(() async {
+      groupId =
+          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+      teamId = await db.into(db.teams).insert(
+            TeamsCompanion.insert(groupId: groupId, name: 't'),
+          );
+    });
+
+    test('bumps every current member, in one call', () async {
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
+          );
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: otherUserId),
+          );
+
+      await incrementTokenVersionsForTeam(db, teamId);
+
+      expect(await versionOf(userId), 1);
+      expect(await versionOf(otherUserId), 1);
+    });
+
+    test('does not touch a user who isn\'t a member of this team', () async {
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
+          );
+
+      await incrementTokenVersionsForTeam(db, teamId);
+
+      expect(await versionOf(otherUserId), 0);
+    });
+
+    test('does not touch a member of a different team', () async {
+      final otherTeamId = await db.into(db.teams).insert(
+            TeamsCompanion.insert(groupId: groupId, name: 't2'),
+          );
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: otherTeamId, userId: userId),
+          );
+
+      await incrementTokenVersionsForTeam(db, teamId);
+
+      expect(await versionOf(userId), 0);
+    });
+
+    test('an empty team is a no-op, not an error', () async {
+      await incrementTokenVersionsForTeam(db, teamId);
+      expect(await versionOf(userId), 0);
+    });
+
+    test('an unknown team id changes nothing and does not throw', () async {
+      await incrementTokenVersionsForTeam(db, 999999);
+      expect(await versionOf(userId), 0);
+    });
+  });
+
   group('ClaimsResolver', () {
     late ClaimsResolver resolver;
 

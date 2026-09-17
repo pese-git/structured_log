@@ -57,6 +57,12 @@ void main() {
         );
   }
 
+  Future<int> insertTeam(int groupId, {String name = 't'}) {
+    return db.into(db.teams).insert(
+          TeamsCompanion.insert(groupId: groupId, name: name),
+        );
+  }
+
   group('createRoleAssignment', () {
     test('an admin can grant a global-scoped role', () async {
       final subjectId = await insertUser();
@@ -153,7 +159,51 @@ void main() {
       );
     });
 
-    test('`subject_type: "team"` is rejected — not in this stage', () async {
+    test('an unrecognized subject_type is rejected with 400', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: _admin,
+            jsonBody: {
+              'subject_type': 'robot',
+              'subject_id': 1,
+              'role': 'user',
+              'scope_type': 'global',
+            },
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
+      );
+    });
+
+    test('an admin can grant a role to a team', () async {
+      final groupId = await insertGroup();
+      final teamId = await insertTeam(groupId);
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/role-assignments',
+          roles: _admin,
+          jsonBody: {
+            'subject_type': 'team',
+            'subject_id': teamId,
+            'role': 'user',
+            'scope_type': 'project',
+            'scope_id': await insertProject(groupId),
+          },
+        ),
+      );
+
+      expect(response.statusCode, 201);
+      final body = await decodeJson(response);
+      expect(body['subject_type'], 'team');
+      expect(body['subject_id'], teamId);
+    });
+
+    test('an unknown team subject_id is rejected with 404', () async {
       await expectLater(
         routes.router.call(
           authenticatedRequest(
@@ -162,13 +212,106 @@ void main() {
             roles: _admin,
             jsonBody: {
               'subject_type': 'team',
-              'subject_id': 1,
+              'subject_id': 999,
               'role': 'user',
               'scope_type': 'global',
             },
           ),
         ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+    });
+
+    test('granting to a team bumps token_version for every current member',
+        () async {
+      final groupId = await insertGroup();
+      final teamId = await insertTeam(groupId);
+      final memberA = await insertUser(username: 'a');
+      final memberB = await insertUser(username: 'b');
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: memberA),
+          );
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: memberB),
+          );
+
+      await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/role-assignments',
+          roles: _admin,
+          jsonBody: {
+            'subject_type': 'team',
+            'subject_id': teamId,
+            'role': 'user',
+            'scope_type': 'group',
+            'scope_id': groupId,
+          },
+        ),
+      );
+
+      final a = await (db.select(db.users)..where((t) => t.id.equals(memberA)))
+          .getSingle();
+      final b = await (db.select(db.users)..where((t) => t.id.equals(memberB)))
+          .getSingle();
+      expect(a.tokenVersion, 1);
+      expect(b.tokenVersion, 1);
+    });
+
+    test('the owner of group G can grant a role to a team belonging to G',
+        () async {
+      final groupId = await insertGroup();
+      final teamId = await insertTeam(groupId);
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/role-assignments',
+          roles: ownerRoles,
+          jsonBody: {
+            'subject_type': 'team',
+            'subject_id': teamId,
+            'role': 'user',
+            'scope_type': 'group',
+            'scope_id': groupId,
+          },
+        ),
+      );
+
+      expect(response.statusCode, 201);
+    });
+
+    test(
+        'the owner of group G cannot grant a role to a team belonging to '
+        'another group', () async {
+      final groupId = await insertGroup();
+      final otherGroupId = await insertGroup(name: 'g2');
+      final teamOfOtherGroup = await insertTeam(otherGroupId);
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: ownerRoles,
+            jsonBody: {
+              'subject_type': 'team',
+              'subject_id': teamOfOtherGroup,
+              'role': 'user',
+              'scope_type': 'group',
+              'scope_id': groupId,
+            },
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
       );
     });
 
@@ -461,6 +604,23 @@ void main() {
           );
     }
 
+    Future<int> grantToTeam({
+      required int teamId,
+      String role = 'user',
+      String scopeType = 'global',
+      int? scopeId,
+    }) {
+      return db.into(db.roleAssignments).insert(
+            RoleAssignmentsCompanion.insert(
+              subjectType: 'team',
+              subjectId: teamId,
+              role: role,
+              scopeType: scopeType,
+              scopeId: Value(scopeId),
+            ),
+          );
+    }
+
     test('filters by subject_id and resolves the subject\'s username',
         () async {
       final alice = await insertUser(username: 'alice');
@@ -554,6 +714,30 @@ void main() {
 
       final body = await decodeJson(response);
       expect((body['items'] as List).single['scope_name'], isNull);
+    });
+
+    test('resolves a team grant\'s subject_name', () async {
+      final groupId = await insertGroup();
+      final teamId = await insertTeam(groupId, name: 'on-call');
+      await grantToTeam(
+        teamId: teamId,
+        role: 'owner',
+        scopeType: 'group',
+        scopeId: groupId,
+      );
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/role-assignments?scope_type=group&scope_id=$groupId',
+          roles: _admin,
+        ),
+      );
+
+      final body = await decodeJson(response);
+      final item = (body['items'] as List).single;
+      expect(item['subject_type'], 'team');
+      expect(item['subject_name'], 'on-call');
     });
 
     test('no filter and no matches both return an empty list, not an error',
@@ -867,6 +1051,81 @@ void main() {
       expect(row.action, 'role_assignment.revoked');
       expect(row.actorUserId, 7);
       expect(row.targetId, assignmentId);
+    });
+
+    test(
+        'revoking a team grant bumps token_version for every current '
+        'member', () async {
+      final groupId = await insertGroup();
+      final teamId = await insertTeam(groupId);
+      final memberA = await insertUser(username: 'a');
+      final memberB = await insertUser(username: 'b');
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: memberA),
+          );
+      await db.into(db.teamMembers).insert(
+            TeamMembersCompanion.insert(teamId: teamId, userId: memberB),
+          );
+      final assignmentId = await db.into(db.roleAssignments).insert(
+            RoleAssignmentsCompanion.insert(
+              subjectType: 'team',
+              subjectId: teamId,
+              role: 'user',
+              scopeType: 'group',
+              scopeId: Value(groupId),
+            ),
+          );
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'DELETE',
+          'http://x/v1/role-assignments/$assignmentId',
+          roles: _admin,
+        ),
+      );
+
+      expect(response.statusCode, 204);
+      final a = await (db.select(db.users)..where((t) => t.id.equals(memberA)))
+          .getSingle();
+      final b = await (db.select(db.users)..where((t) => t.id.equals(memberB)))
+          .getSingle();
+      expect(a.tokenVersion, 1);
+      expect(b.tokenVersion, 1);
+    });
+
+    test(
+        'an owner of a different group cannot revoke a grant to a team of '
+        'this group', () async {
+      final groupId = await insertGroup();
+      final otherGroupId = await insertGroup(name: 'g2');
+      final teamId = await insertTeam(groupId);
+      final assignmentId = await db.into(db.roleAssignments).insert(
+            RoleAssignmentsCompanion.insert(
+              subjectType: 'team',
+              subjectId: teamId,
+              role: 'user',
+              scopeType: 'group',
+              scopeId: Value(groupId),
+            ),
+          );
+      final ownerOfOther = [
+        EffectiveRole(
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: otherGroupId,
+        ),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/role-assignments/$assignmentId',
+            roles: ownerOfOther,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
     });
   });
 }

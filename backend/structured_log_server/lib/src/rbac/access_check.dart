@@ -85,22 +85,36 @@ bool canManageRoleAssignments(List<EffectiveRole> roles) =>
 /// [scopeId] is `null` only for `scopeType: ScopeType.global` — an `owner`
 /// never qualifies there, since a `group`-scoped `EffectiveRole` cannot
 /// cover the global scope (`_covers` has no case that does).
+///
+/// [subjectTeamGroupId] is the subject's own `Team.group_id` when the
+/// subject is a team, `null` for a user subject (which has no such
+/// structural property). The requirement's wording — "пользователю или
+/// команде внутри `G`" — only has teeth for a team: an owner delegating
+/// within their own group `G` must not be able to name a team that belongs
+/// to a *different* group `G2` as the recipient, because `G2`'s own
+/// owner/admin controls that team's membership and could silently grant or
+/// revoke `G`-access by adding or removing members — a privilege-escalation
+/// path this check closes. `admin` is exempt, same as every other part of
+/// this rule.
 bool canCreateOrRevokeRoleAssignment(
   List<EffectiveRole> roles, {
   required Role targetRole,
   required ScopeType scopeType,
   int? scopeId,
   int? enclosingGroupId,
+  int? subjectTeamGroupId,
 }) {
   if (isGlobalAdmin(roles)) return true;
   if (targetRole != Role.owner && targetRole != Role.user) return false;
   return roles.any((r) {
     if (r.role != Role.owner || r.scopeType != ScopeType.group) return false;
-    return switch (scopeType) {
+    final matchesScope = switch (scopeType) {
       ScopeType.group => r.scopeId == scopeId,
       ScopeType.project => r.scopeId == enclosingGroupId,
       ScopeType.global => false,
     };
+    if (!matchesScope) return false;
+    return subjectTeamGroupId == null || subjectTeamGroupId == r.scopeId;
   });
 }
 
