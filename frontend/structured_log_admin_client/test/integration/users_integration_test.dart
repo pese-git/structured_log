@@ -267,6 +267,11 @@ void main() {
   });
 
   testWidgets('granting a role scoped to a group sends its id', (tester) async {
+    server.groups.add({
+      'id': 3,
+      'name': 'checkout-team',
+      'created_at': '2026-09-10T00:00:00.000Z',
+    });
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
 
@@ -280,7 +285,15 @@ void main() {
     await tester.tap(find.text('group').last);
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextBox).last, '3');
+    // The scope field is a name search (`AdminSearchPicker`), not a raw id
+    // box: type a name, let the debounce fire, and pick the match from the
+    // overlay it opens.
+    await tester.enterText(find.byType(TextBox).last, 'check');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('checkout-team').last);
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Выдать роль').last);
     await tester.pumpAndSettle();
 
@@ -292,6 +305,68 @@ void main() {
       'scope_type': 'group',
       'scope_id': 3,
     });
+    await closeApp(tester);
+  });
+
+  testWidgets('the group picker resets when scope type changes away and back', (
+    tester,
+  ) async {
+    server.groups.add({
+      'id': 3,
+      'name': 'checkout-team',
+      'created_at': '2026-09-10T00:00:00.000Z',
+    });
+    server.projects.add({
+      'id': 9,
+      'group_id': 3,
+      'name': 'checkout-api',
+      'retention_days': 30,
+      'max_entries': null,
+      'max_bytes': null,
+      'is_blocked': false,
+      'created_at': '2026-09-10T00:00:00.000Z',
+    });
+    await pumpApp(tester, server, signedIn: true);
+    await openUsers(tester);
+
+    await tester.tap(find.text('Изменить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(ComboBox<String>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('group').last);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextBox).last, 'checkout-team');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('checkout-team').last);
+    await tester.pumpAndSettle();
+
+    // Switching to project must not silently grant on the group id typed
+    // a moment ago for a different kind of scope.
+    await tester.tap(find.byType(ComboBox<String>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('project').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('checkout-team'),
+      findsNothing,
+      reason: 'a fresh project picker carries none of the group text',
+    );
+
+    await tester.enterText(find.byType(TextBox).last, 'checkout-api');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('checkout-api').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Выдать роль').last);
+    await tester.pumpAndSettle();
+
+    final sent = lastRequest('POST', '/v1/role-assignments').json;
+    expect(sent['scope_type'], 'project');
+    expect(sent['scope_id'], 9);
     await closeApp(tester);
   });
 }

@@ -9,6 +9,7 @@ import '../../errors.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
+import '../../storage/log_filter.dart' show escapeLike;
 import '../json_response.dart';
 import '../principal_middleware.dart';
 import '../request_helpers.dart';
@@ -80,6 +81,10 @@ class ProjectRoutes {
   /// Blocked projects are listed, carrying `is_blocked`: whoever shows the
   /// list decides what to do with them, and hiding a project that exists
   /// would read as its deletion.
+  ///
+  /// `?name=` narrows to projects whose name contains it (case-insensitive,
+  /// `LIKE`), combinable with `group_id` — same filter idiom as `GET
+  /// /v1/groups`.
   @Route.get('/v1/projects')
   Future<Response> listProjects(Request request) async {
     final identity = request.requireUser();
@@ -91,10 +96,16 @@ class ProjectRoutes {
     if (groupIdParam != null && groupFilter == null) {
       throw ApiError.invalidRequest('group_id must be an integer.');
     }
+    final name = request.url.queryParameters['name'];
 
     final select = _db.select(_db.projects);
     if (groupFilter != null) {
       select.where((t) => t.groupId.equals(groupFilter));
+    }
+    if (name != null && name.isNotEmpty) {
+      select.where(
+        (t) => t.name.like('%${escapeLike(name)}%', escapeChar: r'\'),
+      );
     }
     final projects = await select.get();
 

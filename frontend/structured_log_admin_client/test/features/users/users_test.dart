@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:structured_log_admin_client/features/resources/domain/resources_repository.dart';
 import 'package:structured_log_admin_client/features/users/application/manage_users.dart';
 import 'package:structured_log_admin_client/features/users/domain/users_repository.dart';
 import 'package:structured_log_admin_client/features/users/presentation/user_failure_text.dart';
 import 'package:structured_log_admin_client/features/users/presentation/users_cubit.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
+import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
 UserDto _user({
@@ -124,13 +126,37 @@ class _FakeRepository implements UsersRepository {
   }
 }
 
+/// Only [groups]/[searchProjects] matter here — the role-grant picker's
+/// data source — everything else in [ResourcesRepository] is unreachable
+/// from this suite, which never opens the Groups/Projects screens.
+class _FakeResources implements ResourcesRepository {
+  var groupResults = <GroupDto>[];
+  var projectResults = <ProjectDto>[];
+
+  @override
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async =>
+      right(groupResults);
+
+  @override
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+    String? name,
+  }) async => right(projectResults);
+
+  @override
+  Never noSuchMethod(Invocation invocation) => throw UnimplementedError(
+    '${invocation.memberName} is not used by users_test.dart',
+  );
+}
+
 void main() {
   late _FakeRepository repository;
+  late _FakeResources resources;
   late UsersCubit cubit;
 
   setUp(() {
     repository = _FakeRepository();
-    cubit = UsersCubit(ManageUsers(repository));
+    resources = _FakeResources();
+    cubit = UsersCubit(ManageUsers(repository), resources);
   });
   tearDown(() => cubit.close());
 

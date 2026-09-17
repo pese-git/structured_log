@@ -320,6 +320,50 @@ void main() {
       expect((items.single! as Map<String, Object?>)['name'], 'elsewhere');
     });
 
+    test('name narrows to projects whose name contains it', () async {
+      await addProject(groupId, 'checkout-api');
+      await addProject(groupId, 'payments-worker');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects?name=check',
+          roles: [
+            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+          ],
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(1));
+      expect((items.single! as Map<String, Object?>)['name'], 'checkout-api');
+    });
+
+    test('name and group_id combine', () async {
+      final other = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'other'));
+      await addProject(groupId, 'checkout-api');
+      await addProject(other, 'checkout-worker');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects?name=checkout&group_id=$other',
+          roles: [
+            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+          ],
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(1));
+      expect(
+        (items.single! as Map<String, Object?>)['name'],
+        'checkout-worker',
+      );
+    });
+
     test('a blocked project is listed, carrying its state', () async {
       await addProject(groupId, 'blocked', blocked: true);
 

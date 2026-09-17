@@ -38,7 +38,8 @@ class _FakeRepository implements ResourcesRepository {
   final created = <String>[];
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups() async => right(groupList);
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async =>
+      right(groupList);
 
   @override
   Future<Either<ApiFailure, GroupDto>> createGroup(String name) async {
@@ -56,6 +57,11 @@ class _FakeRepository implements ResourcesRepository {
   @override
   Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) async =>
       right(const []);
+
+  @override
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+    String? name,
+  }) async => right(const []);
 
   @override
   Future<Either<ApiFailure, ProjectDto>> project(int projectId) async =>

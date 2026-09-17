@@ -60,7 +60,7 @@ class _FakeRepository implements ResourcesRepository {
   }
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups() async {
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async {
     calls.add('groups');
     return _answer(groupList);
   }
@@ -78,6 +78,14 @@ class _FakeRepository implements ResourcesRepository {
   @override
   Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) async {
     calls.add('projectsOf:$groupId');
+    return _answer(projectList);
+  }
+
+  @override
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+    String? name,
+  }) async {
+    calls.add('searchProjects');
     return _answer(projectList);
   }
 

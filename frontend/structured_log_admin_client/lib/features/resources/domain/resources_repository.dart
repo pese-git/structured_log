@@ -18,7 +18,11 @@ import '../../../shared/api/dto/resource_dto.dart';
 /// (design.md «Delivery Phases»).
 abstract interface class ResourcesRepository {
   /// Groups the caller can see. An administrator sees all of them.
-  Future<Either<ApiFailure, List<GroupDto>>> groups();
+  ///
+  /// [name] narrows to groups whose name contains it — used by
+  /// `AdminSearchPicker` to resolve a group by name rather than an id the
+  /// reader is never expected to know.
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name});
 
   /// Administrators only; anyone else is refused by the server.
   Future<Either<ApiFailure, GroupDto>> createGroup(String name);
@@ -28,6 +32,12 @@ abstract interface class ResourcesRepository {
   /// Carries no usage counters — those come from [project], one at a time,
   /// which is the only endpoint that computes them.
   Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId);
+
+  /// Every project the caller may read, flat across all groups, optionally
+  /// narrowed by [name] — the flat `GET /v1/projects` counterpart to
+  /// [groups], for resolving a project by name when the enclosing group
+  /// isn't known yet (the role-grant picker).
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({String? name});
 
   /// One project, with `entry_count`/`total_bytes` filled in.
   Future<Either<ApiFailure, ProjectDto>> project(int projectId);

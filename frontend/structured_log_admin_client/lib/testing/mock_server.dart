@@ -406,7 +406,17 @@ class MockServer implements HttpClientAdapter {
 
   MockReply _listGroups(RecordedRequest request) {
     _requireUser(request);
-    return MockReply(200, body: {'items': groups});
+    final name = request.query['name'];
+    final visible = name == null
+        ? groups
+        : groups
+              .where(
+                (g) => (g['name'] as String).toLowerCase().contains(
+                  name.toLowerCase(),
+                ),
+              )
+              .toList();
+    return MockReply(200, body: {'items': visible});
   }
 
   MockReply _createGroup(RecordedRequest request) {
@@ -423,9 +433,19 @@ class MockServer implements HttpClientAdapter {
   MockReply _listProjects(RecordedRequest request) {
     _requireUser(request);
     final groupId = request.query['group_id'];
-    final visible = groupId == null
+    final name = request.query['name'];
+    var visible = groupId == null
         ? projects
         : projects.where((p) => p['group_id'] == int.parse(groupId)).toList();
+    if (name != null) {
+      visible = visible
+          .where(
+            (p) => (p['name'] as String).toLowerCase().contains(
+              name.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
     // The list endpoint carries no usage counters — only `GET /v1/projects/{id}`
     // computes them — and stripping them here is what makes the client's
     // "keep the counters we already showed" behaviour testable.

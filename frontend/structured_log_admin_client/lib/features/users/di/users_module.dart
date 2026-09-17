@@ -1,6 +1,8 @@
 import 'package:cherrypick/cherrypick.dart';
 
 import '../../../shared/api/api_client.dart';
+import '../../resources/domain/resources_repository.dart';
+import '../../resources/infrastructure/resources_repository_impl.dart';
 import '../application/manage_users.dart';
 import '../domain/users_repository.dart';
 import '../infrastructure/users_repository_impl.dart';
@@ -17,6 +19,16 @@ class UsersModule extends Module {
         .toProvide(() => UsersRepositoryImpl(currentScope.resolve<ApiClient>()))
         .singleton();
 
+    // For the role-grant form's group/project search — the same repository
+    // `ResourcesModule` binds for the Groups/Projects screens, rebound here
+    // because this subscope is opened independently of that one and cannot
+    // resolve into it (`AuditModule`, same shape of problem).
+    bind<ResourcesRepository>()
+        .toProvide(
+          () => ResourcesRepositoryImpl(currentScope.resolve<ApiClient>()),
+        )
+        .singleton();
+
     bind<ManageUsers>().toProvide(
       () => ManageUsers(currentScope.resolve<UsersRepository>()),
     );
@@ -24,7 +36,10 @@ class UsersModule extends Module {
     // Not a singleton: the cubit belongs to the screen that opened it and is
     // closed with it (`AuditModule`, same rule).
     bind<UsersCubit>().toProvide(
-      () => UsersCubit(currentScope.resolve<ManageUsers>()),
+      () => UsersCubit(
+        currentScope.resolve<ManageUsers>(),
+        currentScope.resolve<ResourcesRepository>(),
+      ),
     );
   }
 }

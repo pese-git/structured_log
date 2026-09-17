@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 
 /// `Новый пользователь` — username, a temporary password, and an optional
@@ -142,6 +143,11 @@ class EditUserDialog extends StatefulWidget {
   final ValueChanged<RoleGrantValues> onGrantRole;
   final VoidCallback onClose;
 
+  /// Resolve the "Область" picker's results by name — never by an id the
+  /// admin is expected to know (`AdminSearchPicker`, `RoleAssignment.dc.html`).
+  final Future<List<GroupDto>> Function(String query) searchGroups;
+  final Future<List<ProjectDto>> Function(String query) searchProjects;
+
   const EditUserDialog({
     super.key,
     required this.user,
@@ -149,6 +155,8 @@ class EditUserDialog extends StatefulWidget {
     required this.onSetPassword,
     required this.onGrantRole,
     required this.onClose,
+    required this.searchGroups,
+    required this.searchProjects,
     this.submitting = false,
     this.errorText,
     this.roleGranted = false,
@@ -163,16 +171,20 @@ class _EditUserDialogState extends State<EditUserDialog> {
     text: widget.user.displayName ?? '',
   );
   final _newPassword = TextEditingController();
-  final _scopeId = TextEditingController();
 
   var _role = 'user';
   var _scopeType = 'global';
+
+  /// The picked group/project — `null` for `global` (no scope to pick) and
+  /// also `null` whenever the picker's text no longer matches a selection
+  /// (`AdminSearchPicker.onSelected`, cleared as soon as the reader edits
+  /// what it shows).
+  int? _scopeId;
 
   @override
   void dispose() {
     _displayName.dispose();
     _newPassword.dispose();
-    _scopeId.dispose();
     super.dispose();
   }
 
@@ -189,11 +201,8 @@ class _EditUserDialogState extends State<EditUserDialog> {
   }
 
   void _grantRole() {
-    final scopeId = _scopeType == 'global'
-        ? null
-        : int.tryParse(_scopeId.text.trim());
-    if (_scopeType != 'global' && scopeId == null) return;
-    widget.onGrantRole((role: _role, scopeType: _scopeType, scopeId: scopeId));
+    if (_scopeType != 'global' && _scopeId == null) return;
+    widget.onGrantRole((role: _role, scopeType: _scopeType, scopeId: _scopeId));
   }
 
   @override
@@ -306,16 +315,42 @@ class _EditUserDialogState extends State<EditUserDialog> {
                 Expanded(
                   child: _ScopeTypePicker(
                     value: _scopeType,
-                    onChanged: (value) => setState(() => _scopeType = value),
+                    onChanged: (value) => setState(() {
+                      _scopeType = value;
+                      // The old pick names a group/project of the wrong
+                      // kind (or, from `global`, no scope at all) — keeping
+                      // it would grant a role over a scope the field no
+                      // longer shows.
+                      _scopeId = null;
+                    }),
                   ),
                 ),
               ],
             ),
             if (_scopeType != 'global') ...[
               const SizedBox(height: AdminSpacing.x10),
-              AdminTextField(
-                label: _scopeType == 'group' ? 'ID группы' : 'ID проекта',
-                controller: _scopeId,
+              // Keyed on scope type so switching group ↔ project mounts a
+              // fresh picker instead of reusing one still holding the other
+              // kind's text and results.
+              AdminSearchPicker<int>(
+                key: ValueKey(_scopeType),
+                label: _scopeType == 'group' ? 'Группа' : 'Проект',
+                placeholder: 'Начните вводить название…',
+                onSearch: (query) async {
+                  if (_scopeType == 'group') {
+                    final items = await widget.searchGroups(query);
+                    return [
+                      for (final g in items)
+                        AdminSearchPickerItem(value: g.id, label: g.name),
+                    ];
+                  }
+                  final items = await widget.searchProjects(query);
+                  return [
+                    for (final p in items)
+                      AdminSearchPickerItem(value: p.id, label: p.name),
+                  ];
+                },
+                onSelected: (item) => setState(() => _scopeId = item?.value),
               ),
             ],
             const SizedBox(height: AdminSpacing.x10),

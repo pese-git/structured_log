@@ -15,8 +15,12 @@ abstract class GroupsApi {
   /// Wrapped in [GroupListDto], not a bare list — the server envelopes every
   /// collection as `{"items": [...]}`, and declaring the bare form here made
   /// dio throw on the cast and the screen say the server was unreachable.
+  ///
+  /// [name] narrows to groups whose name contains it — a picker resolving a
+  /// group by name is the caller so far (`AdminSearchPicker` in the
+  /// role-grant dialog).
   @GET('/v1/groups')
-  Future<GroupListDto> list();
+  Future<GroupListDto> list({@Query('name') String? name});
 
   /// Administrators only — the server answers 403 to anyone else.
   @POST('/v1/groups')
@@ -40,8 +44,14 @@ abstract class ProjectsApi {
   ///
   /// Carries no usage counters — those come from [get], one project at a
   /// time.
+  ///
+  /// [name] narrows to projects whose name contains it, combinable with
+  /// [groupId] — same idiom as [GroupsApi.list].
   @GET('/v1/projects')
-  Future<ProjectListDto> list({@Query('group_id') int? groupId});
+  Future<ProjectListDto> list({
+    @Query('group_id') int? groupId,
+    @Query('name') String? name,
+  });
 
   /// The only endpoint that reports usage: `entry_count` and `total_bytes`
   /// come back here and nowhere else.

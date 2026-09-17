@@ -2,7 +2,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
+import '../../resources/domain/resources_repository.dart';
 import '../application/manage_users.dart';
 
 part 'users_cubit.freezed.dart';
@@ -54,12 +56,13 @@ abstract class UsersState with _$UsersState {
 /// or its edit dialog can take.
 class UsersCubit extends Cubit<UsersState> {
   final ManageUsers _users;
+  final ResourcesRepository _resources;
 
   /// The server's own default (`users_route.dart`); passed explicitly so a
   /// reader of this file does not have to know that to follow [loadMore].
   static const _pageSize = 50;
 
-  UsersCubit(this._users) : super(const UsersState());
+  UsersCubit(this._users, this._resources) : super(const UsersState());
 
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
@@ -211,6 +214,22 @@ class UsersCubit extends Cubit<UsersState> {
       (failure) => emit(state.copyWith(saving: false, actionFailure: failure)),
       (_) => emit(state.copyWith(saving: false, roleGranted: true)),
     );
+  }
+
+  /// Resolves the "Область" picker in the role-grant form — a group or
+  /// project by name, never by an id the reader is expected to know
+  /// (`AdminSearchPicker`). A failed lookup degrades to an empty result list
+  /// rather than surfacing [state.actionFailure]: a search box coming up
+  /// empty reads as "no matches yet", not as a form-level error that would
+  /// block the fields already filled in.
+  Future<List<GroupDto>> searchGroups(String query) async {
+    final result = await _resources.groups(name: query);
+    return result.getOrElse((_) => const []);
+  }
+
+  Future<List<ProjectDto>> searchProjects(String query) async {
+    final result = await _resources.searchProjects(name: query);
+    return result.getOrElse((_) => const []);
   }
 
   List<UserDto> _replaced(UserDto updated) => [

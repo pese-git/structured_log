@@ -13,8 +13,8 @@ class ResourcesRepositoryImpl implements ResourcesRepository {
   const ResourcesRepositoryImpl(this._api);
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups() =>
-      _attempt(() async => (await _api.groups.list()).items);
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) =>
+      _attempt(() async => (await _api.groups.list(name: name)).items);
 
   @override
   Future<Either<ApiFailure, GroupDto>> createGroup(String name) =>
@@ -23,6 +23,10 @@ class ResourcesRepositoryImpl implements ResourcesRepository {
   @override
   Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) =>
       _attempt(() async => (await _api.projects.list(groupId: groupId)).items);
+
+  @override
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({String? name}) =>
+      _attempt(() async => (await _api.projects.list(name: name)).items);
 
   @override
   Future<Either<ApiFailure, ProjectDto>> project(int projectId) =>

@@ -125,6 +125,57 @@ void main() {
       final body = await decodeJson(response);
       expect(body['items'], isEmpty);
     });
+
+    test('?name= narrows to groups whose name contains it', () async {
+      await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'checkout-team'));
+      await db.into(db.groups).insert(GroupsCompanion.insert(name: 'payments'));
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/groups?name=check',
+          roles: _admin,
+        ),
+      );
+      final body = await decodeJson(response);
+      final items = body['items'] as List;
+      expect(items, hasLength(1));
+      expect((items.single as Map)['name'], 'checkout-team');
+    });
+
+    test('?name= is case-insensitive', () async {
+      await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'Checkout-Team'));
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/groups?name=CHECKOUT',
+          roles: _admin,
+        ),
+      );
+      final body = await decodeJson(response);
+      expect((body['items'] as List), hasLength(1));
+    });
+
+    test('?name= matching nothing returns an empty list, not an error',
+        () async {
+      await db.into(db.groups).insert(GroupsCompanion.insert(name: 'payments'));
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/groups?name=nonexistent',
+          roles: _admin,
+        ),
+      );
+      expect(response.statusCode, 200);
+      final body = await decodeJson(response);
+      expect(body['items'], isEmpty);
+    });
   });
 
   group('the audit record', () {

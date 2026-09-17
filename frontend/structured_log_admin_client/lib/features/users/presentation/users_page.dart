@@ -238,6 +238,8 @@ class _UserRow extends StatelessWidget {
                 scopeType: grant.scopeType,
                 scopeId: grant.scopeId,
               ),
+              searchGroups: cubit.searchGroups,
+              searchProjects: cubit.searchProjects,
               onClose: () => Navigator.of(dialogContext).pop(),
             );
           },

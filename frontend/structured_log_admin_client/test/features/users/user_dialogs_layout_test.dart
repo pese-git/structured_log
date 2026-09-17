@@ -72,6 +72,8 @@ void main() {
         onSaveDisplayName: (_) {},
         onSetPassword: (_, _) {},
         onGrantRole: (_) {},
+        searchGroups: (_) async => const [],
+        searchProjects: (_) async => const [],
         onClose: () {},
       ),
       // Three sections — profile, password, role grant — comfortably
