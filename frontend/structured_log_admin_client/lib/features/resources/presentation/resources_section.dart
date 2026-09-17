@@ -3,6 +3,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../role_assignments/application/manage_role_assignments.dart';
 import '../application/manage_resources.dart';
 import 'group_detail_cubit.dart';
 import 'group_detail_page.dart';
@@ -81,6 +82,7 @@ class _ResourcesSectionState extends State<ResourcesSection> {
         key: ValueKey('group-$groupId'),
         create: (_) => GroupDetailCubit(
           projects: widget.scope.resolve<ManageProjects>(),
+          roleAssignments: widget.scope.resolve<ManageRoleAssignments>(),
           groupId: groupId,
         )..load(),
         child: GroupDetailPage(
@@ -95,6 +97,7 @@ class _ResourcesSectionState extends State<ResourcesSection> {
         create: (_) => ProjectDetailCubit(
           projects: widget.scope.resolve<ManageProjects>(),
           keys: widget.scope.resolve<ManageSecretKeys>(),
+          roleAssignments: widget.scope.resolve<ManageRoleAssignments>(),
           projectId: projectId,
         )..load(),
         child: ProjectDetailPage(

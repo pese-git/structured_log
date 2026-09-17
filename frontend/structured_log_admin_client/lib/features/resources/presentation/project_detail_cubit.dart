@@ -3,6 +3,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/resource_dto.dart';
+import '../../../shared/api/dto/user_dto.dart';
+import '../../role_assignments/application/manage_role_assignments.dart';
 import '../application/manage_resources.dart';
 
 part 'project_detail_cubit.freezed.dart';
@@ -25,6 +27,12 @@ abstract class ProjectDetailState with _$ProjectDetailState {
     /// — it exists nowhere else, on the server included
     /// (`specs/admin-client-resource-management`).
     SecretKeyDto? revealedKey,
+
+    /// Who has a role on this project — the «Доступ» section (уточнение
+    /// 17.09.2026).
+    @Default(<RoleAssignmentDto>[]) List<RoleAssignmentDto> roleAssignments,
+    @Default(false) bool grantingAccess,
+    ApiFailure? accessFailure,
   }) = _ProjectDetailState;
 
   const ProjectDetailState._();
@@ -36,22 +44,31 @@ abstract class ProjectDetailState with _$ProjectDetailState {
 class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   final ManageProjects _projects;
   final ManageSecretKeys _keys;
+  final ManageRoleAssignments _roleAssignments;
   final int projectId;
 
   ProjectDetailCubit({
     required ManageProjects projects,
     required ManageSecretKeys keys,
+    required ManageRoleAssignments roleAssignments,
     required this.projectId,
   }) : _projects = projects,
        _keys = keys,
+       _roleAssignments = roleAssignments,
        super(const ProjectDetailState());
 
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
-    // Both, because the screen is not useful with either half missing: the
-    // quota comes from the project, the keys from their own endpoint.
+    // The quota comes from the project, the keys and the grant list each
+    // from their own endpoint — the screen is not useful without the first
+    // two; a failed access lookup degrades to the previous list instead,
+    // same reasoning as `GroupDetailCubit.load`.
     final project = await _projects.get(projectId);
     final keys = await _keys.list(projectId);
+    final access = await _roleAssignments.forScope(
+      scopeType: 'project',
+      scopeId: projectId,
+    );
     if (isClosed) return;
 
     project.match(
@@ -61,9 +78,64 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
           loading: false,
           project: project,
           keys: keys.getOrElse((_) => const []),
+          roleAssignments: access.getOrElse((_) => state.roleAssignments),
           failure: null,
         ),
       ),
+    );
+  }
+
+  Future<void> grantAccess({required int userId, required String role}) async {
+    if (state.grantingAccess) return;
+    emit(state.copyWith(grantingAccess: true, accessFailure: null));
+    final result = await _roleAssignments.grant(
+      subjectId: userId,
+      role: role,
+      scopeType: 'project',
+      scopeId: projectId,
+    );
+    if (isClosed) return;
+
+    await result.match(
+      (failure) async =>
+          emit(state.copyWith(grantingAccess: false, accessFailure: failure)),
+      (_) async {
+        emit(state.copyWith(grantingAccess: false));
+        await _reloadAccess();
+      },
+    );
+  }
+
+  Future<void> revokeAccess(int assignmentId) async {
+    if (state.grantingAccess) return;
+    emit(state.copyWith(grantingAccess: true, accessFailure: null));
+    final result = await _roleAssignments.revoke(assignmentId);
+    if (isClosed) return;
+
+    await result.match(
+      (failure) async =>
+          emit(state.copyWith(grantingAccess: false, accessFailure: failure)),
+      (_) async {
+        emit(state.copyWith(grantingAccess: false));
+        await _reloadAccess();
+      },
+    );
+  }
+
+  void clearAccessFailure() => emit(state.copyWith(accessFailure: null));
+
+  Future<List<UserDto>> searchUsers(String query) =>
+      _roleAssignments.searchUsers(query);
+
+  Future<void> _reloadAccess() async {
+    final result = await _roleAssignments.forScope(
+      scopeType: 'project',
+      scopeId: projectId,
+    );
+    if (isClosed) return;
+    result.match(
+      (_) {},
+      (items) => emit(state.copyWith(roleAssignments: items)),
     );
   }
 

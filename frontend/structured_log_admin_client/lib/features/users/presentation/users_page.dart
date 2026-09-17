@@ -208,6 +208,7 @@ class _UserRow extends StatelessWidget {
 
   Future<void> _edit(BuildContext context, UserDto user) async {
     final cubit = context.read<UsersCubit>();
+    cubit.loadRoleAssignments(user.id);
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => BlocProvider.value(
@@ -224,7 +225,7 @@ class _UserRow extends StatelessWidget {
               errorText: state.actionFailure == null
                   ? null
                   : describeUserFailure(state.actionFailure!),
-              roleGranted: state.roleGranted,
+              roleAssignments: state.roleAssignments,
               onSaveDisplayName: (value) =>
                   cubit.update(userId: user.id, displayName: value),
               onSetPassword: (password, displayName) => cubit.update(
@@ -238,6 +239,8 @@ class _UserRow extends StatelessWidget {
                 scopeType: grant.scopeType,
                 scopeId: grant.scopeId,
               ),
+              onRevokeRole: (assignmentId) =>
+                  cubit.revokeRole(assignmentId, user.id),
               searchGroups: cubit.searchGroups,
               searchProjects: cubit.searchProjects,
               onClose: () => Navigator.of(dialogContext).pop(),

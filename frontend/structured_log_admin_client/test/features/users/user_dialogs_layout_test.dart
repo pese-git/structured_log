@@ -72,6 +72,7 @@ void main() {
         onSaveDisplayName: (_) {},
         onSetPassword: (_, _) {},
         onGrantRole: (_) {},
+        onRevokeRole: (_) {},
         searchGroups: (_) async => const [],
         searchProjects: (_) async => const [],
         onClose: () {},

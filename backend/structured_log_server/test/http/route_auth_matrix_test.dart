@@ -55,6 +55,7 @@ const _routes = <({String method, String path, Requires requires})>[
   (method: 'POST', path: '/v1/projects/1/block', requires: Requires.user),
   (method: 'POST', path: '/v1/projects/1/unblock', requires: Requires.user),
   (method: 'POST', path: '/v1/role-assignments', requires: Requires.user),
+  (method: 'GET', path: '/v1/role-assignments', requires: Requires.user),
   (
     method: 'DELETE',
     path: '/v1/role-assignments/1',

@@ -12,10 +12,14 @@ abstract class UsersApi {
   factory UsersApi(Dio dio, {String baseUrl}) = _UsersApi;
 
   /// Cursor-paginated, oldest-first by `id` descending — see [UserPageDto].
+  /// [username] narrows by substring, for the grant-target search picker
+  /// (design.md, уточнение 17.09.2026) — same idiom as `?name=` on
+  /// `GroupsApi`/`ProjectsApi`.
   @GET('/v1/users')
   Future<UserPageDto> list({
     @Query('cursor') String? cursor,
     @Query('limit') int? limit,
+    @Query('username') String? username,
   });
 
   /// No `email` field on this client (`CreateUserRequestDto`). The server
@@ -44,8 +48,7 @@ abstract class UsersApi {
 }
 
 /// `/v1/role-assignments`. Reduced to this stage's scope: `admin` only,
-/// `subject_type: "user"` only (`role_assignments_route.dart`, 4.3a/5.6a) —
-/// there is no `GET` here because the server does not have one either.
+/// `subject_type: "user"` only (`role_assignments_route.dart`, 4.3a/5.6a).
 @RestApi()
 abstract class RoleAssignmentsApi {
   factory RoleAssignmentsApi(Dio dio, {String baseUrl}) = _RoleAssignmentsApi;
@@ -55,4 +58,14 @@ abstract class RoleAssignmentsApi {
 
   @DELETE('/v1/role-assignments/{id}')
   Future<void> delete(@Path('id') int id);
+
+  /// Filtered by exactly one of [subjectId] (Edit User dialog's grant list)
+  /// or [scopeType]+[scopeId] (a group/project's «Доступ» section) — never
+  /// called with neither, which would dump the whole table.
+  @GET('/v1/role-assignments')
+  Future<RoleAssignmentPageDto> list({
+    @Query('subject_id') int? subjectId,
+    @Query('scope_type') String? scopeType,
+    @Query('scope_id') int? scopeId,
+  });
 }

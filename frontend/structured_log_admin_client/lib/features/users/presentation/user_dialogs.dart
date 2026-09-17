@@ -121,16 +121,18 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
 /// What an [EditUserDialog]'s role-grant section produced.
 typedef RoleGrantValues = ({String role, String scopeType, int? scopeId});
 
-/// `Изменить пользователя` — profile fields, and the reduced role-grant form
-/// (13.5a) underneath: the subject is fixed to this user, and the admin
-/// picks role/scope. There is no list of the user's existing grants here —
-/// the server has no `GET /v1/role-assignments` in this stage
-/// (`UsersRepository`).
+/// `Изменить пользователя` — profile fields, the subject's current grants,
+/// and the reduced role-grant form (13.5a) underneath: the subject is fixed
+/// to this user, and the admin picks role/scope. The mirror image lives on
+/// the group/project side (`GrantAccessDialog`, уточнение 17.09.2026): fixes
+/// the scope, lets the admin pick the subject.
 class EditUserDialog extends StatefulWidget {
   final UserDto user;
   final bool submitting;
   final String? errorText;
-  final bool roleGranted;
+
+  /// This user's current grants, any scope — loaded when the dialog opens.
+  final List<RoleAssignmentDto> roleAssignments;
   final ValueChanged<String?> onSaveDisplayName;
 
   /// The password, and the display name to resend alongside it — the
@@ -141,6 +143,9 @@ class EditUserDialog extends StatefulWidget {
   /// session, which would otherwise be silently undone by this call.
   final void Function(String password, String? displayName) onSetPassword;
   final ValueChanged<RoleGrantValues> onGrantRole;
+
+  /// Revokes one of [roleAssignments] by its id.
+  final ValueChanged<int> onRevokeRole;
   final VoidCallback onClose;
 
   /// Resolve the "Область" picker's results by name — never by an id the
@@ -154,12 +159,13 @@ class EditUserDialog extends StatefulWidget {
     required this.onSaveDisplayName,
     required this.onSetPassword,
     required this.onGrantRole,
+    required this.onRevokeRole,
     required this.onClose,
     required this.searchGroups,
     required this.searchProjects,
     this.submitting = false,
     this.errorText,
-    this.roleGranted = false,
+    this.roleAssignments = const [],
   });
 
   @override
@@ -203,6 +209,33 @@ class _EditUserDialogState extends State<EditUserDialog> {
   void _grantRole() {
     if (_scopeType != 'global' && _scopeId == null) return;
     widget.onGrantRole((role: _role, scopeType: _scopeType, scopeId: _scopeId));
+  }
+
+  Future<void> _revokeRole(
+    BuildContext context,
+    RoleAssignmentDto grant,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AdminConfirmDialog(
+        title: 'Отозвать роль «${grant.role}»?',
+        message: 'Доступ (${_scopeLabel(grant)}) будет отозван немедленно.',
+        confirmLabel: 'Отозвать',
+        destructive: true,
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+      ),
+    );
+    if (confirmed ?? false) widget.onRevokeRole(grant.id);
+  }
+
+  static String _scopeLabel(RoleAssignmentDto grant) {
+    return switch (grant.scopeType) {
+      'global' => 'вся система',
+      'group' => 'группа: ${grant.scopeName ?? '#${grant.scopeId}'}',
+      'project' => 'проект: ${grant.scopeName ?? '#${grant.scopeId}'}',
+      _ => grant.scopeType,
+    };
   }
 
   @override
@@ -286,23 +319,43 @@ class _EditUserDialogState extends State<EditUserDialog> {
             ),
             const SizedBox(height: AdminSpacing.x18),
             Text(
-              'Выдать роль',
+              'Права доступа',
               style: AdminTypography.label.copyWith(color: colors.text),
             ),
             const SizedBox(height: AdminSpacing.x6),
             Text(
-              'Только для этого пользователя. Список уже выданных ролей '
-              'сервер пока не предоставляет.',
+              'Только для этого пользователя. Область — вся система, группа '
+              'или проект.',
               style: AdminTypography.caption.copyWith(
                 color: colors.textSecondary,
                 height: 1.45,
               ),
             ),
             const SizedBox(height: AdminSpacing.x10),
-            if (widget.roleGranted) ...[
-              const AdminBanner(message: 'Роль выдана.'),
-              const SizedBox(height: AdminSpacing.x10),
-            ],
+            if (widget.roleAssignments.isEmpty)
+              Text(
+                'Ролей пока не выдано.',
+                style: AdminTypography.bodySmall.copyWith(
+                  color: colors.textSecondary,
+                ),
+              )
+            else
+              for (final grant in widget.roleAssignments) ...[
+                AdminResourceRow(
+                  icon: FluentIcons.permissions,
+                  title: grant.role,
+                  subtitle: _scopeLabel(grant),
+                  actions: [
+                    AdminButton(
+                      label: 'Отозвать',
+                      size: AdminButtonSize.tonal,
+                      onPressed: () => _revokeRole(context, grant),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AdminSpacing.x10),
+              ],
+            const SizedBox(height: AdminSpacing.x10),
             Row(
               children: [
                 Expanded(

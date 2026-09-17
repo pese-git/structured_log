@@ -12,6 +12,7 @@ import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../rbac/token_version.dart';
 import '../../storage/database.dart';
+import '../../storage/log_filter.dart' show escapeLike;
 import '../json_response.dart';
 import '../principal_middleware.dart';
 import '../rate_limit_middleware.dart';
@@ -161,6 +162,7 @@ class UserRoutes {
     final limit = params['limit'] != null ? int.parse(params['limit']!) : 50;
     final cursor =
         params['cursor'] != null ? int.tryParse(params['cursor']!) : null;
+    final username = params['username'];
 
     // One row more than asked for, dropped below — tells us whether another
     // page exists without a second `COUNT` query (same trick as
@@ -170,6 +172,14 @@ class UserRoutes {
       ..limit(limit + 1);
     if (cursor != null) {
       select.where((t) => t.id.isSmallerThanValue(cursor));
+    }
+    // Same picker use case as `?name=` on `/v1/groups`/`/v1/projects`
+    // (design.md, уточнение 17.09.2026) — narrows the grant-target search,
+    // not a general-purpose directory field.
+    if (username != null && username.isNotEmpty) {
+      select.where(
+        (t) => t.username.like('%${escapeLike(username)}%', escapeChar: r'\'),
+      );
     }
     final rows = await select.get();
     final page = rows.take(limit).toList();

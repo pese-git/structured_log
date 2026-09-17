@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:structured_log_admin_client/features/resources/domain/resources_repository.dart';
+import 'package:structured_log_admin_client/features/role_assignments/application/manage_role_assignments.dart';
+import 'package:structured_log_admin_client/features/role_assignments/domain/role_assignments_repository.dart';
 import 'package:structured_log_admin_client/features/users/application/manage_users.dart';
 import 'package:structured_log_admin_client/features/users/domain/users_repository.dart';
 import 'package:structured_log_admin_client/features/users/presentation/user_failure_text.dart';
@@ -102,20 +104,38 @@ class _FakeRepository implements UsersRepository {
     calls.add('deleteUser:$userId');
     return _answer(unit, write: true);
   }
+}
+
+class _FakeRoleAssignments implements RoleAssignmentsRepository {
+  var forUserResult = <RoleAssignmentDto>[];
+  ApiFailure? refuseWrites;
+  final calls = <String>[];
+
+  Either<ApiFailure, T> _answer<T>(T value, {bool write = false}) {
+    return write && refuseWrites != null ? left(refuseWrites!) : right(value);
+  }
 
   @override
-  Future<Either<ApiFailure, RoleAssignmentDto>> grantRole({
-    required int userId,
+  Future<Either<ApiFailure, List<RoleAssignmentDto>>> forUser(
+    int userId,
+  ) async {
+    calls.add('forUser:$userId');
+    return right(forUserResult);
+  }
+
+  @override
+  Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required int subjectId,
     required String role,
     required String scopeType,
     int? scopeId,
   }) async {
-    calls.add('grantRole:$userId:$role:$scopeType:$scopeId');
+    calls.add('grant:$subjectId:$role:$scopeType:$scopeId');
     return _answer(
       RoleAssignmentDto(
         id: 1,
         subjectType: 'user',
-        subjectId: userId,
+        subjectId: subjectId,
         role: role,
         scopeType: scopeType,
         scopeId: scopeId,
@@ -124,6 +144,17 @@ class _FakeRepository implements UsersRepository {
       write: true,
     );
   }
+
+  @override
+  Future<Either<ApiFailure, Unit>> revoke(int assignmentId) async {
+    calls.add('revoke:$assignmentId');
+    return _answer(unit, write: true);
+  }
+
+  @override
+  Never noSuchMethod(Invocation invocation) => throw UnimplementedError(
+    '${invocation.memberName} is not used by users_test.dart',
+  );
 }
 
 /// Only [groups]/[searchProjects] matter here — the role-grant picker's
@@ -151,12 +182,18 @@ class _FakeResources implements ResourcesRepository {
 void main() {
   late _FakeRepository repository;
   late _FakeResources resources;
+  late _FakeRoleAssignments roleAssignments;
   late UsersCubit cubit;
 
   setUp(() {
     repository = _FakeRepository();
     resources = _FakeResources();
-    cubit = UsersCubit(ManageUsers(repository), resources);
+    roleAssignments = _FakeRoleAssignments();
+    cubit = UsersCubit(
+      ManageUsers(repository),
+      resources,
+      ManageRoleAssignments(roleAssignments),
+    );
   });
   tearDown(() => cubit.close());
 
@@ -325,31 +362,106 @@ void main() {
     });
   });
 
-  group('grantRole', () {
-    test('a successful grant is a one-shot flag, not a list change', () async {
-      await cubit.grantRole(
-        userId: 1,
-        role: 'owner',
-        scopeType: 'group',
-        scopeId: 3,
-      );
+  group('loadRoleAssignments', () {
+    test('populates the subject\'s grants', () async {
+      roleAssignments.forUserResult = [
+        RoleAssignmentDto(
+          id: 1,
+          subjectType: 'user',
+          subjectId: 1,
+          role: 'owner',
+          scopeType: 'group',
+          scopeId: 3,
+          scopeName: 'payments',
+          createdAt: DateTime.utc(2026, 9, 16),
+        ),
+      ];
 
-      expect(cubit.state.roleGranted, isTrue);
-      expect(repository.calls, contains('grantRole:1:owner:group:3'));
+      await cubit.loadRoleAssignments(1);
+
+      expect(cubit.state.roleAssignments, hasLength(1));
+      expect(cubit.state.roleAssignments.single.scopeName, 'payments');
     });
+  });
+
+  group('grantRole', () {
+    test(
+      'a successful grant reloads the grant list, not a one-shot flag',
+      () async {
+        roleAssignments.forUserResult = [
+          RoleAssignmentDto(
+            id: 1,
+            subjectType: 'user',
+            subjectId: 1,
+            role: 'owner',
+            scopeType: 'group',
+            scopeId: 3,
+            createdAt: DateTime.utc(2026, 9, 16),
+          ),
+        ];
+
+        await cubit.grantRole(
+          userId: 1,
+          role: 'owner',
+          scopeType: 'group',
+          scopeId: 3,
+        );
+
+        expect(cubit.state.roleAssignments, hasLength(1));
+        expect(
+          roleAssignments.calls,
+          containsAllInOrder(['grant:1:owner:group:3', 'forUser:1']),
+        );
+      },
+    );
 
     test('a global grant carries no scope_id', () async {
       await cubit.grantRole(userId: 1, role: 'admin', scopeType: 'global');
-      expect(repository.calls, contains('grantRole:1:admin:global:null'));
+      expect(roleAssignments.calls, contains('grant:1:admin:global:null'));
     });
 
-    test('clearActionFailure resets roleGranted too', () async {
-      await cubit.grantRole(userId: 1, role: 'user', scopeType: 'global');
-      expect(cubit.state.roleGranted, isTrue);
+    test('a refusal leaves the grant list untouched', () async {
+      roleAssignments.refuseWrites = const ApiFailure.forbidden(
+        code: 'forbidden',
+      );
 
-      cubit.clearActionFailure();
+      await cubit.grantRole(userId: 1, role: 'admin', scopeType: 'global');
 
-      expect(cubit.state.roleGranted, isFalse);
+      expect(cubit.state.actionFailure, isNotNull);
+      expect(cubit.state.roleAssignments, isEmpty);
+    });
+
+    test(
+      'clearActionFailure also drops the previous subject\'s grants',
+      () async {
+        roleAssignments.forUserResult = [
+          RoleAssignmentDto(
+            id: 1,
+            subjectType: 'user',
+            subjectId: 1,
+            role: 'user',
+            scopeType: 'global',
+            createdAt: DateTime.utc(2026, 9, 16),
+          ),
+        ];
+        await cubit.loadRoleAssignments(1);
+        expect(cubit.state.roleAssignments, isNotEmpty);
+
+        cubit.clearActionFailure();
+
+        expect(cubit.state.roleAssignments, isEmpty);
+      },
+    );
+  });
+
+  group('revokeRole', () {
+    test('a successful revoke reloads the grant list', () async {
+      await cubit.revokeRole(1, 5);
+
+      expect(
+        roleAssignments.calls,
+        containsAllInOrder(['revoke:1', 'forUser:5']),
+      );
     });
   });
 }

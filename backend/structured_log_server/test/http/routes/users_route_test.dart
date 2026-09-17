@@ -255,6 +255,56 @@ void main() {
           (secondPage['items'] as List).map((u) => (u as Map)['id']).toSet();
       expect(firstIds.intersection(secondIds), isEmpty);
     });
+
+    test('?username= narrows to users whose username contains it', () async {
+      await insertUser(username: 'alice');
+      await insertUser(username: 'bob');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/users?username=ali',
+          roles: _admin,
+        ),
+      );
+
+      final body = await decodeJson(response);
+      final items = body['items'] as List;
+      expect(items, hasLength(1));
+      expect(items.single['username'], 'alice');
+    });
+
+    test('?username= is case-insensitive', () async {
+      await insertUser(username: 'Alice');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/users?username=ALICE',
+          roles: _admin,
+        ),
+      );
+
+      final body = await decodeJson(response);
+      expect((body['items'] as List), hasLength(1));
+    });
+
+    test('?username= matching nothing returns an empty list, not an error',
+        () async {
+      await insertUser(username: 'alice');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/users?username=zzz',
+          roles: _admin,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      final body = await decodeJson(response);
+      expect(body['items'], isEmpty);
+    });
   });
 
   group('updateUser', () {

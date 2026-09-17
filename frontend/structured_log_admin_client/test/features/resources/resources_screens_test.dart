@@ -8,8 +8,11 @@ import 'package:structured_log_admin_client/features/resources/presentation/grou
 import 'package:structured_log_admin_client/features/resources/presentation/groups_page.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/project_detail_cubit.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/project_detail_page.dart';
+import 'package:structured_log_admin_client/features/role_assignments/application/manage_role_assignments.dart';
+import 'package:structured_log_admin_client/features/role_assignments/domain/role_assignments_repository.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
+import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 /// The screens, driven through the widgets rather than the cubits.
@@ -129,6 +132,22 @@ class _FakeRepository implements ResourcesRepository {
       right(one.copyWith(isBlocked: false));
 }
 
+/// A blank `RoleAssignmentsRepository` — these screens' `load()` calls
+/// `forScope` for the «Доступ» section, but no test here drives that
+/// section, so an empty answer is enough to keep `load()` from throwing.
+class _FakeRoleAssignments implements RoleAssignmentsRepository {
+  @override
+  Future<Either<ApiFailure, List<RoleAssignmentDto>>> forScope({
+    required String scopeType,
+    required int scopeId,
+  }) async => right(const []);
+
+  @override
+  Never noSuchMethod(Invocation invocation) => throw UnimplementedError(
+    '${invocation.memberName} is not used by resources_screens_test.dart',
+  );
+}
+
 Widget _host(Widget child) => FluentApp(
   theme: AdminTheme.light(),
   home: ScaffoldPage(padding: EdgeInsets.zero, content: child),
@@ -136,8 +155,12 @@ Widget _host(Widget child) => FluentApp(
 
 void main() {
   late _FakeRepository repository;
+  late ManageRoleAssignments roleAssignments;
 
-  setUp(() => repository = _FakeRepository());
+  setUp(() {
+    repository = _FakeRepository();
+    roleAssignments = ManageRoleAssignments(_FakeRoleAssignments());
+  });
 
   void useWideSurface(WidgetTester tester) {
     tester.view.physicalSize = const Size(1440, 900);
@@ -215,6 +238,7 @@ void main() {
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
+        roleAssignments: roleAssignments,
         projectId: 1,
       )..load();
       addTearDown(cubit.close);

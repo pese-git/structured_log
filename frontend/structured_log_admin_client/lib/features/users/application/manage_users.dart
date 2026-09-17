@@ -52,18 +52,4 @@ class ManageUsers {
 
   Future<Either<ApiFailure, Unit>> delete(int userId) =>
       _repository.deleteUser(userId);
-
-  Future<Either<ApiFailure, RoleAssignmentDto>> grantRole({
-    required int userId,
-    required String role,
-    required String scopeType,
-    int? scopeId,
-  }) {
-    return _repository.grantRole(
-      userId: userId,
-      role: role,
-      scopeType: scopeType,
-      scopeId: scopeId,
-    );
-  }
 }

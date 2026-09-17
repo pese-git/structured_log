@@ -6,8 +6,11 @@ import 'package:structured_log_admin_client/features/resources/presentation/grou
 import 'package:structured_log_admin_client/features/resources/presentation/groups_cubit.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/project_detail_cubit.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/resource_failure_text.dart';
+import 'package:structured_log_admin_client/features/role_assignments/application/manage_role_assignments.dart';
+import 'package:structured_log_admin_client/features/role_assignments/domain/role_assignments_repository.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
+import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
 GroupDto _group(int id, String name) =>
     GroupDto(id: id, name: name, createdAt: DateTime.utc(2026, 2, 14));
@@ -199,10 +202,70 @@ class _FakeRepository implements ResourcesRepository {
   }
 }
 
+class _FakeRoleAssignments implements RoleAssignmentsRepository {
+  var forScopeResult = <RoleAssignmentDto>[];
+  var searchResult = <UserDto>[];
+  ApiFailure? refuseWrites;
+  final calls = <String>[];
+
+  @override
+  Future<Either<ApiFailure, List<RoleAssignmentDto>>> forScope({
+    required String scopeType,
+    required int scopeId,
+  }) async {
+    calls.add('forScope:$scopeType:$scopeId');
+    return right(forScopeResult);
+  }
+
+  @override
+  Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required int subjectId,
+    required String role,
+    required String scopeType,
+    int? scopeId,
+  }) async {
+    calls.add('grant:$subjectId:$role:$scopeType:$scopeId');
+    if (refuseWrites != null) return left(refuseWrites!);
+    return right(
+      RoleAssignmentDto(
+        id: 1,
+        subjectType: 'user',
+        subjectId: subjectId,
+        role: role,
+        scopeType: scopeType,
+        scopeId: scopeId,
+        createdAt: DateTime.utc(2026, 2, 14),
+      ),
+    );
+  }
+
+  @override
+  Future<Either<ApiFailure, Unit>> revoke(int assignmentId) async {
+    calls.add('revoke:$assignmentId');
+    if (refuseWrites != null) return left(refuseWrites!);
+    return right(unit);
+  }
+
+  @override
+  Future<Either<ApiFailure, List<UserDto>>> searchUsers(String username) async {
+    calls.add('searchUsers:$username');
+    return right(searchResult);
+  }
+
+  @override
+  Never noSuchMethod(Invocation invocation) => throw UnimplementedError(
+    '${invocation.memberName} is not used by resources_test.dart',
+  );
+}
+
 void main() {
   late _FakeRepository repository;
+  late _FakeRoleAssignments roleAssignments;
 
-  setUp(() => repository = _FakeRepository());
+  setUp(() {
+    repository = _FakeRepository();
+    roleAssignments = _FakeRoleAssignments();
+  });
 
   group('groups', () {
     test('a created group shows up because the list is re-read', () async {
@@ -257,6 +320,7 @@ void main() {
     test('an unlimited quota is sent as absent, not as zero', () async {
       final cubit = GroupDetailCubit(
         projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
         groupId: 1,
       );
       addTearDown(cubit.close);
@@ -270,6 +334,85 @@ void main() {
     });
   });
 
+  group('access to a group', () {
+    test('the grant list loads alongside the projects', () async {
+      roleAssignments.forScopeResult = [
+        RoleAssignmentDto(
+          id: 1,
+          subjectType: 'user',
+          subjectId: 9,
+          subjectName: 'alice',
+          role: 'owner',
+          scopeType: 'group',
+          scopeId: 1,
+          createdAt: DateTime.utc(2026, 2, 14),
+        ),
+      ];
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      expect(cubit.state.roleAssignments.single.subjectName, 'alice');
+      expect(roleAssignments.calls, contains('forScope:group:1'));
+    });
+
+    test('granting reloads the list, scoped to this group', () async {
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.grantAccess(userId: 9, role: 'owner');
+
+      expect(
+        roleAssignments.calls,
+        containsAllInOrder(['grant:9:owner:group:1', 'forScope:group:1']),
+      );
+    });
+
+    test('a refused grant is explained, not silently dropped', () async {
+      roleAssignments.refuseWrites = const ApiFailure.forbidden(
+        code: 'forbidden',
+      );
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.grantAccess(userId: 9, role: 'owner');
+
+      expect(cubit.state.accessFailure, isNotNull);
+    });
+
+    test('revoking reloads the list too', () async {
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await cubit.revokeAccess(1);
+
+      expect(
+        roleAssignments.calls,
+        containsAllInOrder(['revoke:1', 'forScope:group:1']),
+      );
+    });
+  });
+
   group('one project', () {
     test('the quota and the keys are loaded together', () async {
       repository.one = _project(entryCount: 842, totalBytes: 1024);
@@ -277,6 +420,7 @@ void main() {
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -292,6 +436,7 @@ void main() {
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -317,6 +462,7 @@ void main() {
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -341,6 +487,7 @@ void main() {
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -350,6 +497,37 @@ void main() {
 
       expect(cubit.state.keys, hasLength(1));
       expect(cubit.state.keys.single.revokedAt, isNotNull);
+    });
+  });
+
+  group('access to a project', () {
+    test('the grant list loads scoped to the project, not the group', () async {
+      final cubit = ProjectDetailCubit(
+        projects: ManageProjects(repository),
+        keys: ManageSecretKeys(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        projectId: 1,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.load();
+
+      expect(roleAssignments.calls, contains('forScope:project:1'));
+    });
+
+    test('the user search picker degrades to empty on failure', () async {
+      final cubit = ProjectDetailCubit(
+        projects: ManageProjects(repository),
+        keys: ManageSecretKeys(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        projectId: 1,
+      );
+      addTearDown(cubit.close);
+
+      final result = await cubit.searchUsers('ali');
+
+      expect(result, isEmpty);
+      expect(roleAssignments.calls, contains('searchUsers:ali'));
     });
   });
 

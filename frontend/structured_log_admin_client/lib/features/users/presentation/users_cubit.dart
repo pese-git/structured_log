@@ -5,6 +5,7 @@ import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../resources/domain/resources_repository.dart';
+import '../../role_assignments/application/manage_role_assignments.dart';
 import '../application/manage_users.dart';
 
 part 'users_cubit.freezed.dart';
@@ -33,15 +34,14 @@ abstract class UsersState with _$UsersState {
     /// Set once a create succeeds, so the dialog can close itself.
     @Default(false) bool created,
 
-    /// Covers edit, block/unblock, delete and the role grant — all four
+    /// Covers edit, block/unblock, delete and the role grant/revoke — all
     /// reach the server from the same open edit dialog, never two at once.
     @Default(false) bool saving,
     ApiFailure? actionFailure,
 
-    /// Set once a role grant succeeds, so the dialog can show a one-line
-    /// confirmation without closing itself — there is more than one field
-    /// left to edit underneath it.
-    @Default(false) bool roleGranted,
+    /// The open edit dialog's subject's current grants — loaded when the
+    /// dialog opens, refreshed after a grant or a revoke.
+    @Default(<RoleAssignmentDto>[]) List<RoleAssignmentDto> roleAssignments,
   }) = _UsersState;
 
   const UsersState._();
@@ -57,12 +57,14 @@ abstract class UsersState with _$UsersState {
 class UsersCubit extends Cubit<UsersState> {
   final ManageUsers _users;
   final ResourcesRepository _resources;
+  final ManageRoleAssignments _roleAssignments;
 
   /// The server's own default (`users_route.dart`); passed explicitly so a
   /// reader of this file does not have to know that to follow [loadMore].
   static const _pageSize = 50;
 
-  UsersCubit(this._users, this._resources) : super(const UsersState());
+  UsersCubit(this._users, this._resources, this._roleAssignments)
+    : super(const UsersState());
 
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
@@ -137,9 +139,21 @@ class UsersCubit extends Cubit<UsersState> {
   void dialogClosed() =>
       emit(state.copyWith(created: false, createFailure: null));
 
-  /// Clears the edit dialog's flags, after it has acted on them.
+  /// Clears the edit dialog's flags, after it has acted on them — including
+  /// the grant list, so the next dialog opened does not flash the previous
+  /// subject's grants before [loadRoleAssignments] replaces them.
   void clearActionFailure() =>
-      emit(state.copyWith(actionFailure: null, roleGranted: false));
+      emit(state.copyWith(actionFailure: null, roleAssignments: const []));
+
+  /// The open edit dialog's subject's current grants.
+  Future<void> loadRoleAssignments(int userId) async {
+    final result = await _roleAssignments.forUser(userId);
+    if (isClosed) return;
+    result.match(
+      (failure) => emit(state.copyWith(actionFailure: failure)),
+      (items) => emit(state.copyWith(roleAssignments: items)),
+    );
+  }
 
   Future<void> update({
     required int userId,
@@ -201,18 +215,38 @@ class UsersCubit extends Cubit<UsersState> {
     int? scopeId,
   }) async {
     if (state.saving) return;
-    emit(state.copyWith(saving: true, actionFailure: null, roleGranted: false));
-    final result = await _users.grantRole(
-      userId: userId,
+    emit(state.copyWith(saving: true, actionFailure: null));
+    final result = await _roleAssignments.grant(
+      subjectId: userId,
       role: role,
       scopeType: scopeType,
       scopeId: scopeId,
     );
     if (isClosed) return;
 
-    result.match(
-      (failure) => emit(state.copyWith(saving: false, actionFailure: failure)),
-      (_) => emit(state.copyWith(saving: false, roleGranted: true)),
+    await result.match(
+      (failure) async =>
+          emit(state.copyWith(saving: false, actionFailure: failure)),
+      (_) async {
+        emit(state.copyWith(saving: false));
+        await loadRoleAssignments(userId);
+      },
+    );
+  }
+
+  Future<void> revokeRole(int assignmentId, int userId) async {
+    if (state.saving) return;
+    emit(state.copyWith(saving: true, actionFailure: null));
+    final result = await _roleAssignments.revoke(assignmentId);
+    if (isClosed) return;
+
+    await result.match(
+      (failure) async =>
+          emit(state.copyWith(saving: false, actionFailure: failure)),
+      (_) async {
+        emit(state.copyWith(saving: false));
+        await loadRoleAssignments(userId);
+      },
     );
   }
 

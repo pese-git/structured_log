@@ -87,11 +87,13 @@ abstract class UserPageDto with _$UserPageDto {
       _$UserPageDtoFromJson(json);
 }
 
-/// A `RoleAssignment`, as `POST /v1/role-assignments` returns it.
+/// A `RoleAssignment`, as `POST`/`GET /v1/role-assignments` return it.
 ///
-/// There is no `GET /v1/role-assignments` in this stage — the server has no
-/// listing endpoint — so this client can offer granting a role but cannot
-/// show what a user already holds.
+/// [scopeName]/[subjectName] only ever come from `GET` — the server resolves
+/// them server-side (a batch lookup, not sent by `POST`, which only ever
+/// echoes back what the caller already knows) so the UI never has to
+/// round-trip per row to show a human-readable list. [scopeName] is `null`
+/// for a `global` grant.
 @freezed
 abstract class RoleAssignmentDto with _$RoleAssignmentDto {
   const factory RoleAssignmentDto({
@@ -102,10 +104,27 @@ abstract class RoleAssignmentDto with _$RoleAssignmentDto {
     @JsonKey(name: 'scope_type') required String scopeType,
     @JsonKey(name: 'scope_id') int? scopeId,
     @JsonKey(name: 'created_at') required DateTime createdAt,
+    @JsonKey(name: 'scope_name') String? scopeName,
+    @JsonKey(name: 'subject_name') String? subjectName,
   }) = _RoleAssignmentDto;
 
   factory RoleAssignmentDto.fromJson(Map<String, dynamic> json) =>
       _$RoleAssignmentDtoFromJson(json);
+}
+
+/// `GET /v1/role-assignments` — flat `{"items": [...]}`, like groups/
+/// projects/keys, not cursor-paginated like [UserPageDto]: the caller always
+/// filters by a single subject or a single scope (`RoleAssignmentsApi.list`),
+/// and neither ever holds enough rows to need paging (design.md, уточнение
+/// 17.09.2026).
+@freezed
+abstract class RoleAssignmentPageDto with _$RoleAssignmentPageDto {
+  const factory RoleAssignmentPageDto({
+    @Default(<RoleAssignmentDto>[]) List<RoleAssignmentDto> items,
+  }) = _RoleAssignmentPageDto;
+
+  factory RoleAssignmentPageDto.fromJson(Map<String, dynamic> json) =>
+      _$RoleAssignmentPageDtoFromJson(json);
 }
 
 /// `POST /v1/role-assignments`.

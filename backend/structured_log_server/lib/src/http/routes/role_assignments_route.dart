@@ -48,6 +48,104 @@ class RoleAssignmentRoutes {
 
   Router get router => _$RoleAssignmentRoutesRouter(this);
 
+  /// `admin` only, same rule as create/delete (4.3a). Filters by any
+  /// combination of `subject_id`/`scope_type`+`scope_id` — the two shapes
+  /// the UI needs are "grants held by this user" (Edit User dialog) and
+  /// "grants held on this group/project" (Group/Project detail's «Доступ»
+  /// section, design.md, уточнение 17.09.2026); neither ever wants the
+  /// whole table, so there is no pagination, matching `listGroups`/
+  /// `listProjects`. `scope_name`/`subject_name` are resolved here (batch
+  /// lookup, not a join — no drift `.join()` precedent elsewhere in this
+  /// package, see design.md) so the UI never has to round-trip per row to
+  /// show a human-readable list.
+  @Route.get('/v1/role-assignments')
+  Future<Response> listRoleAssignments(Request request) async {
+    final identity = request.requireUser();
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canManageRoleAssignments(roles)) throw ApiError.forbidden();
+
+    final params = request.url.queryParameters;
+    final subjectId = params['subject_id'] != null
+        ? int.tryParse(params['subject_id']!)
+        : null;
+    final scopeType = params['scope_type'];
+    final scopeId =
+        params['scope_id'] != null ? int.tryParse(params['scope_id']!) : null;
+
+    final select = _db.select(_db.roleAssignments)
+      ..orderBy([(t) => OrderingTerm.desc(t.id)]);
+    if (subjectId != null) {
+      select.where(
+          (t) => t.subjectType.equals('user') & t.subjectId.equals(subjectId));
+    }
+    if (scopeType != null) {
+      select.where((t) => t.scopeType.equals(scopeType));
+    }
+    if (scopeId != null) {
+      select.where((t) => t.scopeId.equals(scopeId));
+    }
+    final rows = await select.get();
+
+    final groupIds = {
+      for (final r in rows)
+        if (r.scopeType == ScopeType.group.name && r.scopeId != null)
+          r.scopeId!,
+    };
+    final projectIds = {
+      for (final r in rows)
+        if (r.scopeType == ScopeType.project.name && r.scopeId != null)
+          r.scopeId!,
+    };
+    final userIds = {
+      for (final r in rows)
+        if (r.subjectType == 'user') r.subjectId,
+    };
+
+    final groupNames = groupIds.isEmpty
+        ? <int, String>{}
+        : {
+            for (final g in await (_db.select(
+              _db.groups,
+            )..where((t) => t.id.isIn(groupIds)))
+                .get())
+              g.id: g.name,
+          };
+    final projectNames = projectIds.isEmpty
+        ? <int, String>{}
+        : {
+            for (final p in await (_db.select(
+              _db.projects,
+            )..where((t) => t.id.isIn(projectIds)))
+                .get())
+              p.id: p.name,
+          };
+    final userNames = userIds.isEmpty
+        ? <int, String>{}
+        : {
+            for (final u in await (_db.select(
+              _db.users,
+            )..where((t) => t.id.isIn(userIds)))
+                .get())
+              u.id: u.username,
+          };
+
+    return jsonOk({
+      'items': [
+        for (final row in rows)
+          {
+            ...roleAssignmentJson(row),
+            'scope_name': switch (row.scopeType) {
+              'group' => groupNames[row.scopeId],
+              'project' => projectNames[row.scopeId],
+              _ => null,
+            },
+            'subject_name':
+                row.subjectType == 'user' ? userNames[row.subjectId] : null,
+          },
+      ],
+    });
+  }
+
   /// `admin` only in this stage's reduced scope (`rbac/access_check.dart`'s
   /// `canManageRoleAssignments`, 4.3a) — an `owner` granting `owner`/`user`
   /// within their own group is the full rule (4.3), a later stage.

@@ -69,26 +69,6 @@ class UsersRepositoryImpl implements UsersRepository {
     });
   }
 
-  @override
-  Future<Either<ApiFailure, RoleAssignmentDto>> grantRole({
-    required int userId,
-    required String role,
-    required String scopeType,
-    int? scopeId,
-  }) {
-    return _attempt(
-      () => _api.roleAssignments.create(
-        CreateRoleAssignmentRequestDto(
-          subjectType: 'user',
-          subjectId: userId,
-          role: role,
-          scopeType: scopeType,
-          scopeId: scopeId,
-        ),
-      ),
-    );
-  }
-
   /// Every call in this repository has the same two outcomes, and the same
   /// one way of telling them apart (`ResourcesRepositoryImpl`).
   Future<Either<ApiFailure, T>> _attempt<T>(Future<T> Function() call) async {

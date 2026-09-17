@@ -1,6 +1,9 @@
 import 'package:cherrypick/cherrypick.dart';
 
 import '../../../shared/api/api_client.dart';
+import '../../role_assignments/application/manage_role_assignments.dart';
+import '../../role_assignments/domain/role_assignments_repository.dart';
+import '../../role_assignments/infrastructure/role_assignments_repository_impl.dart';
 import '../application/manage_resources.dart';
 import '../domain/resources_repository.dart';
 import '../infrastructure/resources_repository_impl.dart';
@@ -16,6 +19,16 @@ class ResourcesModule extends Module {
         )
         .singleton();
 
+    // Rebound here, same reasoning as `ResourcesRepository` being rebound
+    // into `UsersModule` — for the group/project «Доступ» section
+    // (`RoleAssignmentsRepository.forScope`/`searchUsers`).
+    bind<RoleAssignmentsRepository>()
+        .toProvide(
+          () =>
+              RoleAssignmentsRepositoryImpl(currentScope.resolve<ApiClient>()),
+        )
+        .singleton();
+
     bind<ManageGroups>().toProvide(
       () => ManageGroups(currentScope.resolve<ResourcesRepository>()),
     );
@@ -24,6 +37,11 @@ class ResourcesModule extends Module {
     );
     bind<ManageSecretKeys>().toProvide(
       () => ManageSecretKeys(currentScope.resolve<ResourcesRepository>()),
+    );
+    bind<ManageRoleAssignments>().toProvide(
+      () => ManageRoleAssignments(
+        currentScope.resolve<RoleAssignmentsRepository>(),
+      ),
     );
   }
 }

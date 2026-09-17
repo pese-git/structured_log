@@ -82,9 +82,9 @@ class MockServer implements HttpClientAdapter {
   final users = <Map<String, dynamic>>[];
 
   /// `subject_type`/`subject_id`/`role`/`scope_type`/`scope_id`, exactly as
-  /// `POST /v1/role-assignments` stores them. There is no listing endpoint on
-  /// the real server in this stage, so nothing reads this back except
-  /// `_deleteRoleAssignment` and a test asserting on it directly.
+  /// `POST /v1/role-assignments` stores them. `_listRoleAssignments` resolves
+  /// `scope_name`/`subject_name` from [groups]/[projects]/[users] the same
+  /// way the real server does — a batch lookup, not stored here.
   final roleAssignments = <Map<String, dynamic>>[];
 
   /// Oldest first; `GET /v1/logs` reverses them, as the server does.
@@ -317,6 +317,7 @@ class MockServer implements HttpClientAdapter {
         int.parse(id),
       ),
 
+      ('GET', ['v1', 'role-assignments']) => _listRoleAssignments(request),
       ('POST', ['v1', 'role-assignments']) => _createRoleAssignment(request),
       ('DELETE', ['v1', 'role-assignments', final id]) => _deleteRoleAssignment(
         request,
@@ -533,6 +534,17 @@ class MockServer implements HttpClientAdapter {
     final query = request.query;
     var matching = users.reversed.toList();
 
+    final username = query['username'];
+    if (username != null && username.isNotEmpty) {
+      matching = matching
+          .where(
+            (u) => (u['username'] as String).toLowerCase().contains(
+              username.toLowerCase(),
+            ),
+          )
+          .toList();
+    }
+
     final cursor = query['cursor'];
     if (cursor != null) {
       matching = matching
@@ -658,6 +670,53 @@ class MockServer implements HttpClientAdapter {
     };
     roleAssignments.add(assignment);
     return MockReply(201, body: assignment);
+  }
+
+  MockReply _listRoleAssignments(RecordedRequest request) {
+    _requireAdmin(request);
+    final query = request.query;
+    final subjectId = int.tryParse(query['subject_id'] ?? '');
+    final scopeType = query['scope_type'];
+    final scopeId = int.tryParse(query['scope_id'] ?? '');
+
+    var matching = roleAssignments.toList();
+    if (subjectId != null) {
+      matching = matching.where((a) => a['subject_id'] == subjectId).toList();
+    }
+    if (scopeType != null) {
+      matching = matching.where((a) => a['scope_type'] == scopeType).toList();
+    }
+    if (scopeId != null) {
+      matching = matching.where((a) => a['scope_id'] == scopeId).toList();
+    }
+
+    Map<String, dynamic>? findById(
+      List<Map<String, dynamic>> rows,
+      Object? id,
+    ) {
+      for (final row in rows) {
+        if (row['id'] == id) return row;
+      }
+      return null;
+    }
+
+    final items = <Map<String, dynamic>>[];
+    for (final a in matching) {
+      String? scopeName;
+      if (a['scope_type'] == 'group') {
+        scopeName = findById(groups, a['scope_id'])?['name'] as String?;
+      } else if (a['scope_type'] == 'project') {
+        scopeName = findById(projects, a['scope_id'])?['name'] as String?;
+      }
+
+      String? subjectName;
+      if (a['subject_type'] == 'user') {
+        subjectName = findById(users, a['subject_id'])?['username'] as String?;
+      }
+
+      items.add({...a, 'scope_name': scopeName, 'subject_name': subjectName});
+    }
+    return MockReply(200, body: {'items': items});
   }
 
   MockReply _deleteRoleAssignment(RecordedRequest request, int id) {

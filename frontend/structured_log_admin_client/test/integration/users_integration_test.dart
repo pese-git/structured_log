@@ -262,7 +262,9 @@ void main() {
       'role': 'user',
       'scope_type': 'global',
     });
-    expect(find.text('Роль выдана.'), findsOneWidget);
+    // The dialog no longer shows a one-shot banner — the grant reloads the
+    // list above the form, and the new row is the proof it succeeded.
+    expect(find.text('вся система'), findsOneWidget);
     await closeApp(tester);
   });
 
@@ -367,6 +369,37 @@ void main() {
     final sent = lastRequest('POST', '/v1/role-assignments').json;
     expect(sent['scope_type'], 'project');
     expect(sent['scope_id'], 9);
+    await closeApp(tester);
+  });
+
+  testWidgets('the dialog lists existing grants, and revoking one reaches '
+      'the server', (tester) async {
+    server.roleAssignments.add({
+      'id': 4,
+      'subject_type': 'user',
+      'subject_id': 5,
+      'role': 'owner',
+      'scope_type': 'global',
+      'scope_id': null,
+      'created_at': '2026-09-10T00:00:00.000Z',
+    });
+    await pumpApp(tester, server, signedIn: true);
+    await openUsers(tester);
+
+    await tester.tap(find.text('Изменить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('owner'), findsOneWidget);
+    expect(find.text('вся система'), findsOneWidget);
+
+    await tester.tap(find.text('Отозвать'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Отозвать').last);
+    await tester.pumpAndSettle();
+
+    expect(lastRequest('DELETE', '/v1/role-assignments/4'), isNotNull);
+    expect(find.text('owner'), findsNothing);
+    expect(find.text('Ролей пока не выдано.'), findsOneWidget);
     await closeApp(tester);
   });
 }

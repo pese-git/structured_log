@@ -3,6 +3,9 @@ import 'package:cherrypick/cherrypick.dart';
 import '../../../shared/api/api_client.dart';
 import '../../resources/domain/resources_repository.dart';
 import '../../resources/infrastructure/resources_repository_impl.dart';
+import '../../role_assignments/application/manage_role_assignments.dart';
+import '../../role_assignments/domain/role_assignments_repository.dart';
+import '../../role_assignments/infrastructure/role_assignments_repository_impl.dart';
 import '../application/manage_users.dart';
 import '../domain/users_repository.dart';
 import '../infrastructure/users_repository_impl.dart';
@@ -29,8 +32,23 @@ class UsersModule extends Module {
         )
         .singleton();
 
+    // Same rebinding, same reason, for the role-grant list/grant/revoke —
+    // `ResourcesModule` binds the same class for the group/project «Доступ»
+    // section.
+    bind<RoleAssignmentsRepository>()
+        .toProvide(
+          () =>
+              RoleAssignmentsRepositoryImpl(currentScope.resolve<ApiClient>()),
+        )
+        .singleton();
+
     bind<ManageUsers>().toProvide(
       () => ManageUsers(currentScope.resolve<UsersRepository>()),
+    );
+    bind<ManageRoleAssignments>().toProvide(
+      () => ManageRoleAssignments(
+        currentScope.resolve<RoleAssignmentsRepository>(),
+      ),
     );
 
     // Not a singleton: the cubit belongs to the screen that opened it and is
@@ -39,6 +57,7 @@ class UsersModule extends Module {
       () => UsersCubit(
         currentScope.resolve<ManageUsers>(),
         currentScope.resolve<ResourcesRepository>(),
+        currentScope.resolve<ManageRoleAssignments>(),
       ),
     );
   }

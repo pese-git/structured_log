@@ -3,13 +3,14 @@ import 'package:fpdart/fpdart.dart';
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/user_dto.dart';
 
-/// User accounts, and the reduced role-grant this stage offers alongside
-/// them (`design.md` "Delivery Phases", Этап 3: create/block/delete, plus
-/// `admin`-only `subject_type: user` role assignments — 4.3a/5.6a).
+/// User accounts (`design.md` "Delivery Phases", Этап 3: create/block/
+/// delete). Role assignments live in `RoleAssignmentsRepository` next door,
+/// not here — a user's grants are read/written from both this feature's Edit
+/// dialog and the resources feature's group/project «Доступ» section, so
+/// neither owns them exclusively (уточнение 17.09.2026).
 ///
 /// The DTOs travel as-is, as in `ResourcesRepository` next door — no email
-/// field on this client, and no way to list a user's existing role grants:
-/// the server has no `GET /v1/role-assignments` in this stage.
+/// field on this client.
 abstract interface class UsersRepository {
   /// The first page, newest account first.
   Future<Either<ApiFailure, UserPageDto>> firstPage({int? limit});
@@ -49,15 +50,4 @@ abstract interface class UsersRepository {
   /// `403 cannot_delete_primary_admin` or `409 sole_group_owner` — the
   /// latter carries `blocking_groups` in `ConflictFailure.details`.
   Future<Either<ApiFailure, Unit>> deleteUser(int userId);
-
-  /// Grants [role] on ([scopeType], [scopeId]) to [userId] —
-  /// `subject_type: "user"` always, the only kind this stage's server
-  /// accepts (4.3a). [scopeId] is required unless [scopeType] is
-  /// `"global"`.
-  Future<Either<ApiFailure, RoleAssignmentDto>> grantRole({
-    required int userId,
-    required String role,
-    required String scopeType,
-    int? scopeId,
-  });
 }
