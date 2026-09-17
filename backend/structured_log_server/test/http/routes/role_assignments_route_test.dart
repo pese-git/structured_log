@@ -472,6 +472,126 @@ void main() {
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
       );
     });
+
+    test('the owner of the group can read its own access list', () async {
+      final groupId = await insertGroup();
+      final subjectId = await insertUser();
+      await grant(
+        subjectId: subjectId,
+        role: 'owner',
+        scopeType: 'group',
+        scopeId: groupId,
+      );
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/role-assignments?scope_type=group&scope_id=$groupId',
+          roles: ownerRoles,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      final body = await decodeJson(response);
+      expect((body['items'] as List), hasLength(1));
+    });
+
+    test('the owner of a different group is refused with 403', () async {
+      final groupId = await insertGroup();
+      final otherGroupId = await insertGroup(name: 'other');
+      final ownerOfOther = [
+        EffectiveRole(
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: otherGroupId,
+        ),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/role-assignments?scope_type=group&scope_id=$groupId',
+            roles: ownerOfOther,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test(
+        'a plain user role on the scope is still refused — reading is '
+        '`owner`/`admin`, not `user`', () async {
+      final groupId = await insertGroup();
+      final userRoles = [
+        EffectiveRole(
+            role: Role.user, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/role-assignments?scope_type=group&scope_id=$groupId',
+            roles: userRoles,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test(
+        'the owner of a project\'s enclosing group can read the project\'s '
+        'access list too', () async {
+      final groupId = await insertGroup();
+      final projectId = await insertProject(groupId);
+      final subjectId = await insertUser();
+      await grant(
+        subjectId: subjectId,
+        scopeType: 'project',
+        scopeId: projectId,
+      );
+      final ownerOfGroup = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/role-assignments?scope_type=project&scope_id=$projectId',
+          roles: ownerOfGroup,
+        ),
+      );
+
+      expect(response.statusCode, 200);
+    });
+
+    test(
+        'an owner is still refused when filtering by subject_id alone — '
+        'that shape stays admin-only', () async {
+      final groupId = await insertGroup();
+      final subjectId = await insertUser();
+      final ownerRoles = [
+        EffectiveRole(
+            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+      ];
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/role-assignments?subject_id=$subjectId',
+            roles: ownerRoles,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
   });
 
   group('deleteRoleAssignment', () {

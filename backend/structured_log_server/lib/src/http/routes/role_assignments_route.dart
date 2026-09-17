@@ -48,29 +48,55 @@ class RoleAssignmentRoutes {
 
   Router get router => _$RoleAssignmentRoutesRouter(this);
 
-  /// `admin` only, same rule as create/delete (4.3a). Filters by any
-  /// combination of `subject_id`/`scope_type`+`scope_id` — the two shapes
-  /// the UI needs are "grants held by this user" (Edit User dialog) and
-  /// "grants held on this group/project" (Group/Project detail's «Доступ»
-  /// section, design.md, уточнение 17.09.2026); neither ever wants the
-  /// whole table, so there is no pagination, matching `listGroups`/
-  /// `listProjects`. `scope_name`/`subject_name` are resolved here (batch
-  /// lookup, not a join — no drift `.join()` precedent elsewhere in this
-  /// package, see design.md) so the UI never has to round-trip per row to
-  /// show a human-readable list.
+  /// Two authorization rules, by what the caller filters on. Filtering by
+  /// `scope_type`+`scope_id` — the group/project detail's «Доступ» section —
+  /// is open to `admin` or the `owner` of that specific scope
+  /// (`canReadRoleAssignmentsForScope`, уточнение 17.09.2026): an owner may
+  /// see who else has a role on their own group/project. Every other shape,
+  /// including `subject_id` alone (the Edit User dialog, "grants held by
+  /// this user") or no filter at all, stays `admin`-only
+  /// (`canManageRoleAssignments`, 4.3a) — neither ever wants the whole
+  /// table, so there is no pagination, matching `listGroups`/`listProjects`.
+  /// `scope_name`/`subject_name` are resolved here (batch lookup, not a
+  /// join — no drift `.join()` precedent elsewhere in this package, see
+  /// design.md) so the UI never has to round-trip per row to show a
+  /// human-readable list.
   @Route.get('/v1/role-assignments')
   Future<Response> listRoleAssignments(Request request) async {
     final identity = request.requireUser();
     final roles = await resolveRoles(_authorizer, identity);
-    if (!canManageRoleAssignments(roles)) throw ApiError.forbidden();
 
     final params = request.url.queryParameters;
     final subjectId = params['subject_id'] != null
         ? int.tryParse(params['subject_id']!)
         : null;
-    final scopeType = params['scope_type'];
+    final rawScopeType = params['scope_type'];
+    final scopeType = rawScopeType != null
+        ? _enumByNameOrNull(ScopeType.values, rawScopeType)
+        : null;
     final scopeId =
         params['scope_id'] != null ? int.tryParse(params['scope_id']!) : null;
+
+    if (scopeType != null && scopeId != null) {
+      int? enclosingGroupId;
+      if (scopeType == ScopeType.project) {
+        final project = await (_db.select(
+          _db.projects,
+        )..where((t) => t.id.equals(scopeId)))
+            .getSingleOrNull();
+        enclosingGroupId = project?.groupId;
+      }
+      if (!canReadRoleAssignmentsForScope(
+        roles,
+        scopeType: scopeType,
+        scopeId: scopeId,
+        enclosingGroupId: enclosingGroupId,
+      )) {
+        throw ApiError.forbidden();
+      }
+    } else if (!canManageRoleAssignments(roles)) {
+      throw ApiError.forbidden();
+    }
 
     final select = _db.select(_db.roleAssignments)
       ..orderBy([(t) => OrderingTerm.desc(t.id)]);
@@ -79,7 +105,7 @@ class RoleAssignmentRoutes {
           (t) => t.subjectType.equals('user') & t.subjectId.equals(subjectId));
     }
     if (scopeType != null) {
-      select.where((t) => t.scopeType.equals(scopeType));
+      select.where((t) => t.scopeType.equals(scopeType.name));
     }
     if (scopeId != null) {
       select.where((t) => t.scopeId.equals(scopeId));

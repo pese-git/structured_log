@@ -74,6 +74,27 @@ bool canRead(
 bool canManageRoleAssignments(List<EffectiveRole> roles) =>
     isGlobalAdmin(roles);
 
+/// Whether [roles] may *read* the role-assignment list for the group/project
+/// at ([scopeType], [scopeId]) — the «Доступ» section on
+/// `GroupDetailPage`/`ProjectDetailPage` (уточнение 17.09.2026): `admin`
+/// unconditionally, or the `owner` of that specific scope. Separate from
+/// [canManageRoleAssignments] on purpose — an owner may now see who else
+/// has a role on their own group/project without being able to grant or
+/// revoke one (4.3a keeps that `admin`-only) — even though today the boolean
+/// it computes happens to equal [canWrite]'s.
+bool canReadRoleAssignmentsForScope(
+  List<EffectiveRole> roles, {
+  required ScopeType scopeType,
+  required int scopeId,
+  int? enclosingGroupId,
+}) =>
+    canWrite(
+      roles,
+      targetType: scopeType,
+      targetId: scopeId,
+      enclosingGroupId: enclosingGroupId,
+    );
+
 /// Whether [roles] grants write access (`admin`/`owner` only, not `user`)
 /// to the resource at ([targetType], [targetId]).
 bool canWrite(
