@@ -10,11 +10,19 @@ import '../../../shared/api/dto/resource_dto.dart';
 /// values that mirror the wire, and a second identical set of domain classes
 /// would be ceremony rather than insulation.
 ///
-/// Users, teams and role assignments are deliberately absent — the server has
-/// no endpoints for them in this stage (design.md «Delivery Phases»).
+/// Users and role assignments live in their own feature
+/// (`lib/features/users/`), not here — they are a different resource family
+/// with their own screen, even though `blockProject`/`unblockProject` below
+/// share the same admin-only authorization rule as blocking a user. Teams
+/// are still absent — the server has no endpoints for them in this stage
+/// (design.md «Delivery Phases»).
 abstract interface class ResourcesRepository {
   /// Groups the caller can see. An administrator sees all of them.
-  Future<Either<ApiFailure, List<GroupDto>>> groups();
+  ///
+  /// [name] narrows to groups whose name contains it — used by
+  /// `AdminSearchPicker` to resolve a group by name rather than an id the
+  /// reader is never expected to know.
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name});
 
   /// Administrators only; anyone else is refused by the server.
   Future<Either<ApiFailure, GroupDto>> createGroup(String name);
@@ -24,6 +32,12 @@ abstract interface class ResourcesRepository {
   /// Carries no usage counters — those come from [project], one at a time,
   /// which is the only endpoint that computes them.
   Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId);
+
+  /// Every project the caller may read, flat across all groups, optionally
+  /// narrowed by [name] — the flat `GET /v1/projects` counterpart to
+  /// [groups], for resolving a project by name when the enclosing group
+  /// isn't known yet (the role-grant picker).
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({String? name});
 
   /// One project, with `entry_count`/`total_bytes` filled in.
   Future<Either<ApiFailure, ProjectDto>> project(int projectId);
@@ -61,4 +75,11 @@ abstract interface class ResourcesRepository {
     required int projectId,
     required int keyId,
   });
+
+  /// `admin` only — not even `owner` of the project's own group. Does not
+  /// revoke the project's secret keys, which stays a separate, irreversible
+  /// action.
+  Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId);
+
+  Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId);
 }

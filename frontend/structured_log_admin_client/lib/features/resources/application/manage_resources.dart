@@ -64,6 +64,12 @@ class ManageProjects {
       maxBytes: maxBytes,
     );
   }
+
+  Future<Either<ApiFailure, ProjectDto>> block(int projectId) =>
+      _repository.blockProject(projectId);
+
+  Future<Either<ApiFailure, ProjectDto>> unblock(int projectId) =>
+      _repository.unblockProject(projectId);
 }
 
 class ManageSecretKeys {

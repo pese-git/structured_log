@@ -23,7 +23,9 @@ import 'routes/groups_route.dart';
 import 'routes/log_stream_route.dart';
 import 'routes/logs_route.dart';
 import 'routes/projects_route.dart';
+import 'routes/role_assignments_route.dart';
 import 'routes/secret_keys_route.dart';
+import 'routes/users_route.dart';
 
 /// Builds the full `shelf` [Handler] for the server.
 ///
@@ -110,6 +112,8 @@ Handler buildHandler(
     GroupRoutes(db, authorizer, audit).router,
     ProjectRoutes(db, authorizer, audit).router,
     SecretKeyRoutes(db, authorizer, audit).router,
+    UserRoutes(db, authorizer, audit).router,
+    RoleAssignmentRoutes(db, authorizer, audit).router,
   ];
 
   final router = Router();

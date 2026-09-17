@@ -16,6 +16,9 @@ import '../features/log_browser/presentation/log_browser_page.dart';
 import '../features/log_browser/presentation/log_feed_bloc.dart';
 import '../features/resources/di/resources_module.dart';
 import '../features/resources/presentation/resources_section.dart';
+import '../features/users/di/users_module.dart';
+import '../features/users/presentation/users_cubit.dart';
+import '../features/users/presentation/users_page.dart';
 import '../shared/auth/session_controller.dart';
 
 /// The destinations the nav can offer, in the order it offers them.
@@ -25,7 +28,7 @@ import '../shared/auth/session_controller.dart';
 /// present item silently shifts the ones after it. Keeping the destination and
 /// its position in one list (see `_entries`) makes that impossible to get
 /// wrong rather than merely documented.
-enum _Destination { groups, audit, logs }
+enum _Destination { groups, users, audit, logs }
 
 /// One nav item: which section it belongs to, how it is drawn, and where it
 /// goes.
@@ -38,11 +41,11 @@ typedef _NavEntry = ({
 /// What the application is once someone is signed in.
 ///
 /// Two sections, as the artboards group them: administration (groups, and
-/// through them projects and their keys — plus the audit log for an
-/// administrator) and logs. Users, teams and the dashboard appear on the
-/// artboards' nav and are not here — the server has no endpoints behind them
-/// in this stage, and a nav item that opens an empty screen is worse than one
-/// that is not offered.
+/// through them projects and their keys — plus users and the audit log, both
+/// for an administrator) and logs. Teams and the dashboard still appear on
+/// the artboards' nav and are not here — the server has no endpoints behind
+/// them in this stage, and a nav item that opens an empty screen is worse
+/// than one that is not offered.
 class HomeShell extends StatefulWidget {
   final Scope scope;
   final SessionController session;
@@ -56,6 +59,7 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   late final Scope _logScope = openLogBrowserScope(widget.scope);
   late final Scope _resourcesScope = openResourcesScope(widget.scope);
+  late final Scope _usersScope = openUsersScope(widget.scope);
   late final Scope _auditScope = openAuditScope(widget.scope);
   late final Scope _authScope = openAuthScope(widget.scope);
 
@@ -96,6 +100,12 @@ class _HomeShellState extends State<HomeShell> {
       item: AdminNavItem(icon: FluentIcons.group, label: 'Группы'),
       destination: _Destination.groups,
     ),
+    if (_isAdmin)
+      const (
+        section: 'Администрирование',
+        item: AdminNavItem(icon: FluentIcons.people, label: 'Пользователи'),
+        destination: _Destination.users,
+      ),
     if (_isAdmin)
       const (
         section: 'Администрирование',
@@ -163,6 +173,10 @@ class _HomeShellState extends State<HomeShell> {
         _Destination.groups => ResourcesSection(
           scope: _resourcesScope,
           onOpenLogs: _openLogsFor,
+        ),
+        _Destination.users => BlocProvider(
+          create: (_) => _usersScope.resolve<UsersCubit>()..load(),
+          child: const UsersPage(),
         ),
         _Destination.audit => BlocProvider(
           create: (_) => _auditScope.resolve<AuditCubit>()..load(),

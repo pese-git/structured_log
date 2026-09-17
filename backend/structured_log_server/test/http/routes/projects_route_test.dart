@@ -320,6 +320,50 @@ void main() {
       expect((items.single! as Map<String, Object?>)['name'], 'elsewhere');
     });
 
+    test('name narrows to projects whose name contains it', () async {
+      await addProject(groupId, 'checkout-api');
+      await addProject(groupId, 'payments-worker');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects?name=check',
+          roles: [
+            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+          ],
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(1));
+      expect((items.single! as Map<String, Object?>)['name'], 'checkout-api');
+    });
+
+    test('name and group_id combine', () async {
+      final other = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'other'));
+      await addProject(groupId, 'checkout-api');
+      await addProject(other, 'checkout-worker');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/projects?name=checkout&group_id=$other',
+          roles: [
+            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+          ],
+        ),
+      );
+
+      final items = (await decodeJson(response))['items'] as List<Object?>;
+      expect(items, hasLength(1));
+      expect(
+        (items.single! as Map<String, Object?>)['name'],
+        'checkout-worker',
+      );
+    });
+
     test('a blocked project is listed, carrying its state', () async {
       await addProject(groupId, 'blocked', blocked: true);
 
@@ -529,6 +573,95 @@ void main() {
 
       expect(await auditRows(db), isEmpty);
       expect(await db.select(db.projects).get(), isEmpty);
+    });
+  });
+
+  group('blockProject / unblockProject', () {
+    Future<int> createTestProject() {
+      return db.into(db.projects).insert(
+            ProjectsCompanion.insert(
+                groupId: groupId, name: 'p', retentionDays: 30),
+          );
+    }
+
+    test('an admin can block and unblock a project', () async {
+      final projectId = await createTestProject();
+
+      final blocked = await decodeJson(
+        await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/projects/$projectId/block',
+            roles: _admin,
+          ),
+        ),
+      );
+      expect(blocked['is_blocked'], isTrue);
+
+      final unblocked = await decodeJson(
+        await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/projects/$projectId/unblock',
+            roles: _admin,
+          ),
+        ),
+      );
+      expect(unblocked['is_blocked'], isFalse);
+    });
+
+    test(
+        'the owner of the enclosing group is rejected with 403 — admin '
+        'only, even for their own project', () async {
+      final projectId = await createTestProject();
+
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/projects/$projectId/block',
+            roles: ownerOf(groupId),
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
+      );
+    });
+
+    test('an unknown project id is rejected with 404', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/projects/999/block',
+            roles: _admin,
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
+      );
+    });
+
+    test(
+        'blocking leaves project.blocked, unblocking leaves '
+        'project.unblocked', () async {
+      final projectId = await createTestProject();
+
+      await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/projects/$projectId/block',
+          roles: _admin,
+        ),
+      );
+      await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/projects/$projectId/unblock',
+          roles: _admin,
+        ),
+      );
+
+      final actions = (await auditRows(db)).map((r) => r.action).toList();
+      expect(actions, ['project.blocked', 'project.unblocked']);
     });
   });
 }

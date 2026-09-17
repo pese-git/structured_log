@@ -8,8 +8,11 @@ import 'package:structured_log_admin_client/features/resources/presentation/grou
 import 'package:structured_log_admin_client/features/resources/presentation/groups_page.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/project_detail_cubit.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/project_detail_page.dart';
+import 'package:structured_log_admin_client/features/role_assignments/application/manage_role_assignments.dart';
+import 'package:structured_log_admin_client/features/role_assignments/domain/role_assignments_repository.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
+import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 /// The screens, driven through the widgets rather than the cubits.
@@ -38,7 +41,8 @@ class _FakeRepository implements ResourcesRepository {
   final created = <String>[];
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups() async => right(groupList);
+  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async =>
+      right(groupList);
 
   @override
   Future<Either<ApiFailure, GroupDto>> createGroup(String name) async {
@@ -56,6 +60,11 @@ class _FakeRepository implements ResourcesRepository {
   @override
   Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) async =>
       right(const []);
+
+  @override
+  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+    String? name,
+  }) async => right(const []);
 
   @override
   Future<Either<ApiFailure, ProjectDto>> project(int projectId) async =>
@@ -113,6 +122,39 @@ class _FakeRepository implements ResourcesRepository {
     required int projectId,
     required int keyId,
   }) async => right(unit);
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> blockProject(int projectId) async =>
+      right(one.copyWith(isBlocked: true));
+
+  @override
+  Future<Either<ApiFailure, ProjectDto>> unblockProject(int projectId) async =>
+      right(one.copyWith(isBlocked: false));
+}
+
+/// These screens' `load()` calls `forScope` for the «Доступ» section — an
+/// empty [forScopeResult] is enough to keep `load()` from throwing when a
+/// test doesn't drive that section at all.
+class _FakeRoleAssignments implements RoleAssignmentsRepository {
+  var forScopeResult = <RoleAssignmentDto>[];
+  ApiFailure? refuseWrites;
+
+  @override
+  Future<Either<ApiFailure, List<RoleAssignmentDto>>> forScope({
+    required String scopeType,
+    required int scopeId,
+  }) async => right(forScopeResult);
+
+  @override
+  Future<Either<ApiFailure, Unit>> revoke(int assignmentId) async {
+    if (refuseWrites != null) return left(refuseWrites!);
+    return right(unit);
+  }
+
+  @override
+  Never noSuchMethod(Invocation invocation) => throw UnimplementedError(
+    '${invocation.memberName} is not used by resources_screens_test.dart',
+  );
 }
 
 Widget _host(Widget child) => FluentApp(
@@ -122,8 +164,14 @@ Widget _host(Widget child) => FluentApp(
 
 void main() {
   late _FakeRepository repository;
+  late _FakeRoleAssignments roleAssignmentsFake;
+  late ManageRoleAssignments roleAssignments;
 
-  setUp(() => repository = _FakeRepository());
+  setUp(() {
+    repository = _FakeRepository();
+    roleAssignmentsFake = _FakeRoleAssignments();
+    roleAssignments = ManageRoleAssignments(roleAssignmentsFake);
+  });
 
   void useWideSurface(WidgetTester tester) {
     tester.view.physicalSize = const Size(1440, 900);
@@ -201,6 +249,7 @@ void main() {
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
+        roleAssignments: roleAssignments,
         projectId: 1,
       )..load();
       addTearDown(cubit.close);
@@ -314,6 +363,39 @@ void main() {
       expect(
         find.textContaining('заблокирован администратором'),
         findsOneWidget,
+      );
+    });
+
+    testWidgets('a refused revoke is explained in a banner, not silently '
+        'dropped', (tester) async {
+      roleAssignmentsFake.forScopeResult = [
+        RoleAssignmentDto(
+          id: 1,
+          subjectType: 'user',
+          subjectId: 9,
+          subjectName: 'alice',
+          role: 'owner',
+          scopeType: 'project',
+          scopeId: 1,
+          createdAt: DateTime.utc(2026, 2, 14),
+        ),
+      ];
+      roleAssignmentsFake.refuseWrites = const ApiFailure.forbidden(
+        code: 'forbidden',
+      );
+      await pump(tester);
+      expect(find.text('alice'), findsOneWidget);
+
+      await tester.tap(find.text('Отозвать'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Отозвать').last);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Недостаточно прав'), findsOneWidget);
+      expect(
+        find.text('alice'),
+        findsOneWidget,
+        reason: 'the row a revoke was refused on is still there',
       );
     });
   });

@@ -1158,11 +1158,7 @@ void main() {
         401,
         reason: 'no credential at all',
       );
-      // A project key authenticates ingestion, not administration. There is
-      // no way to make a non-admin *user* in this stage — no endpoint creates
-      // one — so the 403 for an owner stays covered by the route tests, and
-      // what a live process can show is that the wrong kind of credential
-      // does not open this door either.
+      // A project key authenticates ingestion, not administration.
       expect(
         (await call('GET', '/v1/audit-log', bearer: secret)).status,
         401,
@@ -1202,6 +1198,535 @@ void main() {
         expect(jsonEncode(record), isNot(contains('Pa55word-typo')));
         expect(jsonEncode(record), isNot(contains('real-pw')));
       }
+
+      process.kill(ProcessSignal.sigterm);
+      expect(
+        await process.exitCode.timeout(const Duration(seconds: 15)),
+        0,
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 120)),
+  );
+
+  test(
+    'over a real process: blocking, self-deletion, admin deletion, and '
+    'primary-administrator protection (Этап 3, tasks 10.4/10.5/10.7/10.9a)',
+    () async {
+      final dir =
+          Directory.systemTemp.createTempSync('server_user_lifecycle_test');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      final port = probe.port;
+      await probe.close();
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+        // This scenario logs in a couple dozen times from one address to
+        // exercise several accounts in turn — `log-server-rate-limit`'s IP
+        // bucket is covered by its own test above, not this one.
+        'STRUCTURED_LOG_RATE_LIMIT_ENABLED': 'false',
+      });
+      addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+      final stdoutLines = process.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .asBroadcastStream();
+      stdoutLines.listen((_) {});
+      await stdoutLines
+          .firstWhere((line) => line.contains('Listening on'))
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () =>
+                throw StateError('server did not report ready in time'),
+          );
+
+      final client = HttpClient();
+      addTearDown(client.close);
+
+      Future<({int status, Map<String, Object?> body})> call(
+        String method,
+        String path, {
+        Object? json,
+        String? bearer,
+        String? form,
+      }) async {
+        final request = await client.open(method, 'localhost', port, path);
+        if (bearer != null) {
+          request.headers
+              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+        }
+        if (form != null) {
+          request.headers.contentType =
+              ContentType('application', 'x-www-form-urlencoded');
+          request.write(form);
+        } else if (json != null) {
+          request.headers.contentType = ContentType.json;
+          request.write(jsonEncode(json));
+        }
+        final response = await request.close();
+        final text = await response.transform(utf8.decoder).join();
+        return (
+          status: response.statusCode,
+          body: text.isEmpty
+              ? const <String, Object?>{}
+              : jsonDecode(text) as Map<String, Object?>,
+        );
+      }
+
+      Future<({String access, String refresh})> login(
+        String username,
+        String password,
+      ) async {
+        final response = await call(
+          'POST',
+          '/v1/auth/token',
+          form: 'grant_type=password&username=$username&password=$password',
+        );
+        expect(response.status, 200, reason: '${response.body}');
+        return (
+          access: response.body['access_token'] as String,
+          refresh: response.body['refresh_token'] as String,
+        );
+      }
+
+      /// Creates a user through `POST /v1/users` (temporary password), then
+      /// walks it through the mandatory first change — `must_change_password`
+      /// gates everything else, so a freshly admin-created account cannot do
+      /// anything, including block/delete itself, until this runs.
+      Future<({int id, String access, String refresh})> createAndActivateUser(
+        String adminAccess,
+        String username,
+        String newPassword,
+      ) async {
+        final created = await call(
+          'POST',
+          '/v1/users',
+          bearer: adminAccess,
+          json: {'username': username, 'password': 'temp-$username'},
+        );
+        expect(created.status, 201, reason: '${created.body}');
+        final id = created.body['id'] as int;
+
+        var tokens = await login(username, 'temp-$username');
+        final gated = await call('GET', '/v1/groups', bearer: tokens.access);
+        expect(gated.status, 403);
+        expect(gated.body['error'], 'must_change_password');
+
+        final changed = await call(
+          'POST',
+          '/v1/auth/change-password',
+          bearer: tokens.access,
+          json: {
+            'current_password': 'temp-$username',
+            'new_password': newPassword,
+          },
+        );
+        expect(changed.status, 200, reason: '${changed.body}');
+
+        tokens = await login(username, newPassword);
+        return (id: id, access: tokens.access, refresh: tokens.refresh);
+      }
+
+      // Root's own forced-password-change, out of the way first.
+      var rootTokens = await login('root', 'bootstrap-pw');
+      await call(
+        'POST',
+        '/v1/auth/change-password',
+        bearer: rootTokens.access,
+        json: {'current_password': 'bootstrap-pw', 'new_password': 'root-pw'},
+      );
+      rootTokens = await login('root', 'root-pw');
+      final admin = rootTokens.access;
+
+      // ==================================================================
+      // 10.4 — blocking a user and a project
+      // ==================================================================
+
+      final victim = await createAndActivateUser(admin, 'victim', 'victim-pw');
+      final victimId = victim.id;
+      var victimAccess = victim.access;
+      final victimRefresh = victim.refresh;
+
+      final blockVictim = await call(
+        'POST',
+        '/v1/users/$victimId/block',
+        bearer: admin,
+      );
+      expect(blockVictim.status, 200);
+      expect(
+        (await call('GET', '/v1/groups', bearer: victimAccess)).status,
+        401,
+        reason: 'token_version bumped by blocking',
+      );
+      final refreshBlocked = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=refresh_token&refresh_token=$victimRefresh',
+      );
+      expect(refreshBlocked.status, 400);
+      expect(refreshBlocked.body['error'], 'invalid_grant');
+
+      final unblockVictim = await call(
+        'POST',
+        '/v1/users/$victimId/unblock',
+        bearer: admin,
+      );
+      expect(unblockVictim.status, 200);
+      victimAccess = (await login('victim', 'victim-pw')).access;
+      expect(
+        (await call('GET', '/v1/groups', bearer: victimAccess)).status,
+        200,
+        reason: 'unblocking restores access',
+      );
+
+      // --- project blocking ------------------------------------------------
+      final group = await call(
+        'POST',
+        '/v1/groups',
+        bearer: admin,
+        json: {'name': 'payments'},
+      );
+      final groupId = group.body['id'];
+      final blockedProject = await call(
+        'POST',
+        '/v1/groups/$groupId/projects',
+        bearer: admin,
+        json: {'name': 'checkout', 'retention_days': 30},
+      );
+      final blockedProjectId = blockedProject.body['id'];
+      final untouchedProject = await call(
+        'POST',
+        '/v1/groups/$groupId/projects',
+        bearer: admin,
+        json: {'name': 'billing', 'retention_days': 30},
+      );
+      final untouchedProjectId = untouchedProject.body['id'];
+      final key = await call(
+        'POST',
+        '/v1/projects/$blockedProjectId/secret-keys',
+        bearer: admin,
+        json: <String, Object?>{},
+      );
+      final secret = key.body['secret'] as String;
+
+      expect(
+          (await call('POST', '/v1/projects/$blockedProjectId/block',
+                  bearer: admin))
+              .status,
+          200);
+
+      expect(
+        (await call('POST', '/v1/logs', bearer: secret, json: [
+          {
+            'timestamp': DateTime.now().toIso8601String(),
+            'level': 'info',
+            'event': 'x'
+          }
+        ]))
+            .status,
+        403,
+      );
+      final byProjectId = await call(
+        'GET',
+        '/v1/logs?project_id=$blockedProjectId',
+        bearer: admin,
+      );
+      expect(byProjectId.status, 403);
+      expect(byProjectId.body['error'], 'project_blocked');
+
+      final byGroupId = await call(
+        'GET',
+        '/v1/logs?group_id=$groupId',
+        bearer: admin,
+      );
+      expect(
+        byGroupId.status,
+        200,
+        reason: 'a group query silently excludes the blocked project',
+      );
+
+      expect(
+          (await call('POST', '/v1/projects/$blockedProjectId/unblock',
+                  bearer: admin))
+              .status,
+          200);
+      expect(
+        (await call(
+          'POST',
+          '/v1/logs',
+          bearer: secret,
+          json: [
+            {
+              'timestamp': DateTime.now().toIso8601String(),
+              'level': 'info',
+              'event': 'x',
+            },
+          ],
+        ))
+            .status,
+        202,
+        reason: 'unblocking restores ingestion, no new key needed',
+      );
+
+      // --- an owner of the group is refused, even over their own resources
+      // The role grant below bumps token_version, so the tokens this
+      // returns are discarded immediately — only activation (the forced
+      // password change) is what this call is for.
+      final ownerId =
+          (await createAndActivateUser(admin, 'owner-of-payments', 'owner-pw'))
+              .id;
+      final grantOwner = await call(
+        'POST',
+        '/v1/role-assignments',
+        bearer: admin,
+        json: {
+          'subject_type': 'user',
+          'subject_id': ownerId,
+          'role': 'owner',
+          'scope_type': 'group',
+          'scope_id': groupId,
+        },
+      );
+      expect(grantOwner.status, 201, reason: '${grantOwner.body}');
+      // The grant bumped the owner's token_version — re-login for a token
+      // that actually carries the new role.
+      final ownerAccess = (await login('owner-of-payments', 'owner-pw')).access;
+
+      expect(
+        (await call(
+          'POST',
+          '/v1/users/$victimId/block',
+          bearer: ownerAccess,
+        ))
+            .status,
+        403,
+        reason: 'blocking is admin-only, not even for an owner',
+      );
+      expect(
+        (await call(
+          'POST',
+          '/v1/projects/$untouchedProjectId/block',
+          bearer: ownerAccess,
+        ))
+            .status,
+        403,
+      );
+
+      // ==================================================================
+      // 10.5 — self-deletion
+      // ==================================================================
+
+      final leaver = await createAndActivateUser(admin, 'leaver', 'leaver-pw');
+
+      final selfDelete = await call(
+        'DELETE',
+        '/v1/users/me',
+        bearer: leaver.access,
+        json: {'password': 'leaver-pw'},
+      );
+      expect(selfDelete.status, 204, reason: '${selfDelete.body}');
+
+      expect(
+        (await call('GET', '/v1/groups', bearer: leaver.access)).status,
+        401,
+      );
+      final leaverRefresh = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=refresh_token&refresh_token=${leaver.refresh}',
+      );
+      expect(leaverRefresh.status, 400);
+      expect(leaverRefresh.body['error'], 'invalid_grant');
+
+      final reLogin = await call(
+        'POST',
+        '/v1/auth/token',
+        form: 'grant_type=password&username=leaver&password=leaver-pw',
+      );
+      expect(reLogin.status, 400);
+      expect(reLogin.body['error'], 'invalid_grant');
+
+      final leaverId = leaver.id;
+      final unblockDeleted = await call(
+        'POST',
+        '/v1/users/$leaverId/unblock',
+        bearer: admin,
+      );
+      expect(unblockDeleted.status, 409);
+      expect(unblockDeleted.body['error'], 'deleted_account');
+
+      final usernameStillReserved = await call(
+        'POST',
+        '/v1/users',
+        bearer: admin,
+        json: {'username': 'leaver', 'password': 'whatever'},
+      );
+      expect(usernameStillReserved.status, 409);
+      expect(usernameStillReserved.body['error'], 'username_taken');
+
+      // ==================================================================
+      // 10.7 — admin deletion and the sole-group-owner guard
+      // ==================================================================
+
+      final soleGroup = await call(
+        'POST',
+        '/v1/groups',
+        bearer: admin,
+        json: {'name': 'sole-owned'},
+      );
+      final soleGroupId = soleGroup.body['id'];
+
+      final soleOwnerId =
+          (await createAndActivateUser(admin, 'sole-owner', 'sole-pw')).id;
+      await call(
+        'POST',
+        '/v1/role-assignments',
+        bearer: admin,
+        json: {
+          'subject_type': 'user',
+          'subject_id': soleOwnerId,
+          'role': 'owner',
+          'scope_type': 'group',
+          'scope_id': soleGroupId,
+        },
+      );
+
+      final blockedDeletion = await call(
+        'DELETE',
+        '/v1/users/$soleOwnerId',
+        bearer: admin,
+      );
+      expect(blockedDeletion.status, 409);
+      expect(blockedDeletion.body['error'], 'sole_group_owner');
+      final blockingGroups =
+          blockedDeletion.body['details']! as Map<String, Object?>;
+      expect(
+        (blockingGroups['blocking_groups']! as List)
+            .map((g) => (g as Map)['id']),
+        contains(soleGroupId),
+      );
+      expect(
+        (await login('sole-owner', 'sole-pw')).access,
+        isNotEmpty,
+        reason: 'the refused deletion changed nothing',
+      );
+
+      // Hand ownership to someone else, then the deletion goes through.
+      final secondOwnerCreated = await call(
+        'POST',
+        '/v1/users',
+        bearer: admin,
+        json: {'username': 'second-owner', 'password': 'temp-second'},
+      );
+      await call(
+        'POST',
+        '/v1/role-assignments',
+        bearer: admin,
+        json: {
+          'subject_type': 'user',
+          'subject_id': secondOwnerCreated.body['id'],
+          'role': 'owner',
+          'scope_type': 'group',
+          'scope_id': soleGroupId,
+        },
+      );
+
+      final allowedDeletion = await call(
+        'DELETE',
+        '/v1/users/$soleOwnerId',
+        bearer: admin,
+      );
+      expect(allowedDeletion.status, 204, reason: '${allowedDeletion.body}');
+
+      final auditAfterDeletion = await call(
+        'GET',
+        '/v1/audit-log?action=user.deleted',
+        bearer: admin,
+      );
+      final deletions = auditAfterDeletion.body['items']! as List;
+      final soleOwnerDeletion = deletions.singleWhere(
+        (e) => (e as Map)['target_id'] == soleOwnerId,
+      ) as Map<String, Object?>;
+      expect(soleOwnerDeletion['actor_user_id'], isNotNull);
+
+      // ==================================================================
+      // 10.9a — the primary administrator cannot be deleted, by anyone
+      // ==================================================================
+
+      final secondAdminId =
+          (await createAndActivateUser(admin, 'second-admin', 'admin2-pw')).id;
+      await call(
+        'POST',
+        '/v1/role-assignments',
+        bearer: admin,
+        json: {
+          'subject_type': 'user',
+          'subject_id': secondAdminId,
+          'role': 'admin',
+          'scope_type': 'global',
+        },
+      );
+      final secondAdminAccess =
+          (await login('second-admin', 'admin2-pw')).access;
+
+      // Root is `is_primary_admin` — the account auto-bootstrap created.
+      final allUsers = (await call('GET', '/v1/users?limit=200', bearer: admin))
+          .body['items']! as List;
+      final rootId = (allUsers.firstWhere(
+        (u) => (u as Map)['username'] == 'root',
+      ) as Map)['id'];
+
+      final byOtherAdmin = await call(
+        'DELETE',
+        '/v1/users/$rootId',
+        bearer: secondAdminAccess,
+      );
+      expect(byOtherAdmin.status, 403);
+      expect(byOtherAdmin.body['error'], 'cannot_delete_primary_admin');
+      expect(
+        (await login('root', 'root-pw')).access,
+        isNotEmpty,
+        reason: 'root can still log in',
+      );
+
+      final bySelf = await call(
+        'DELETE',
+        '/v1/users/me',
+        bearer: (await login('root', 'root-pw')).access,
+        json: {'password': 'root-pw'},
+      );
+      expect(bySelf.status, 403);
+      expect(bySelf.body['error'], 'cannot_delete_primary_admin');
+
+      // The second administrator, who is not primary, deletes normally.
+      final secondAdminDeleted = await call(
+        'DELETE',
+        '/v1/users/$secondAdminId',
+        bearer: admin,
+      );
+      expect(secondAdminDeleted.status, 204);
+
+      final auditForRoot = await call(
+        'GET',
+        '/v1/audit-log?action=user.deleted&target_id=$rootId',
+        bearer: admin,
+      );
+      expect(
+        auditForRoot.body['items'],
+        isEmpty,
+        reason: 'every attempt against the primary administrator was refused',
+      );
 
       process.kill(ProcessSignal.sigterm);
       expect(

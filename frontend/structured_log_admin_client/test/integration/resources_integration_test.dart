@@ -268,4 +268,79 @@ void main() {
     expect(find.textContaining('заблокирован администратором'), findsOneWidget);
     await closeApp(tester);
   });
+
+  group('access', () {
+    setUp(() {
+      server.users.add({
+        'id': 9,
+        'username': 'alice',
+        'display_name': null,
+        'email': null,
+        'email_verified_at': null,
+        'must_change_password': false,
+        'is_active': true,
+        'deleted_at': null,
+        'is_primary_admin': false,
+        'created_at': '2026-02-14T00:00:00.000Z',
+      });
+    });
+
+    testWidgets('granting on a project searches users by name, not id', (
+      tester,
+    ) async {
+      await pumpApp(tester, server, signedIn: true);
+      await openProject(tester);
+      expect(find.text('Доступа пока никому не выдано'), findsOneWidget);
+
+      await tester.tap(find.text('Предоставить доступ'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextBox).last, 'ali');
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('alice').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Предоставить').last);
+      await tester.pumpAndSettle();
+
+      final sent = lastRequest('POST', '/v1/role-assignments').json;
+      expect(sent, {
+        'subject_type': 'user',
+        'subject_id': 9,
+        'role': 'user',
+        'scope_type': 'project',
+        'scope_id': 1,
+      });
+      expect(
+        find.text('alice'),
+        findsOneWidget,
+        reason: 'the dialog closes itself and the reloaded list shows it',
+      );
+      await closeApp(tester);
+    });
+
+    testWidgets('revoking removes the row', (tester) async {
+      server.roleAssignments.add({
+        'id': 1,
+        'subject_type': 'user',
+        'subject_id': 9,
+        'role': 'owner',
+        'scope_type': 'project',
+        'scope_id': 1,
+        'created_at': '2026-02-14T00:00:00.000Z',
+      });
+      await pumpApp(tester, server, signedIn: true);
+      await openProject(tester);
+      expect(find.text('alice'), findsOneWidget);
+
+      await tester.tap(find.text('Отозвать'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Отозвать').last);
+      await tester.pumpAndSettle();
+
+      expect(lastRequest('DELETE', '/v1/role-assignments/1'), isNotNull);
+      expect(find.text('alice'), findsNothing);
+      expect(find.text('Доступа пока никому не выдано'), findsOneWidget);
+      await closeApp(tester);
+    });
+  });
 }

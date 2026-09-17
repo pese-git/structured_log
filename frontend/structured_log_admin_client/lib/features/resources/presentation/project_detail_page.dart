@@ -3,19 +3,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../shared/api/dto/resource_dto.dart';
+import '../../../shared/api/dto/user_dto.dart';
 import 'project_detail_cubit.dart';
 import 'resource_dialogs.dart';
 import 'resource_failure_text.dart';
 import 'resources_section.dart';
 
-/// One project: what it may hold, how much of that it is holding, and the
-/// keys that let an application add to it (`ProjectDetail.dc.html`).
+/// One project: what it may hold, how much of that it is holding, the keys
+/// that let an application add to it, and who has a role on it
+/// (`ProjectDetail.dc.html`).
 ///
-/// The artboard's block/unblock button is not here. It needs
-/// `POST /v1/projects/:id/block`, which this stage's server does not have —
-/// but the *indicator* is, because a blocked project has to look blocked to
-/// everyone who can see it (`specs/admin-client-resource-management`).
-/// Role assignments are absent for the same reason as the endpoint.
+/// Role assignments can still also be granted from the target user's own
+/// screen (`lib/features/users/`) — the reduced grant UI there fixes the
+/// subject and lets the admin pick the scope. This «Доступ» section is the
+/// mirror: fixes the scope, lets the admin pick the subject (уточнение
+/// 17.09.2026).
 class ProjectDetailPage extends StatelessWidget {
   final String groupName;
   final VoidCallback onBackToGroups;
@@ -76,6 +78,8 @@ class ProjectDetailPage extends StatelessWidget {
               _Quota(project: project),
               const SizedBox(height: AdminSpacing.x24),
               _SecretKeys(project: project, state: state),
+              const SizedBox(height: AdminSpacing.x24),
+              _Access(project: project, state: state),
             ],
           ),
         );
@@ -129,6 +133,12 @@ class _Header extends StatelessWidget {
             ],
             const Spacer(),
             AdminButton(
+              label: project.isBlocked ? 'Разблокировать' : 'Заблокировать',
+              size: AdminButtonSize.dialog,
+              onPressed: () => _toggleBlocked(context, project),
+            ),
+            const SizedBox(width: AdminSpacing.x10),
+            AdminButton(
               label: 'Открыть логи',
               icon: FluentIcons.search,
               variant: AdminButtonVariant.accent,
@@ -146,6 +156,32 @@ class _Header extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _toggleBlocked(BuildContext context, ProjectDto project) async {
+    final cubit = context.read<ProjectDetailCubit>();
+    if (project.isBlocked) {
+      // Reversible and non-disruptive to confirm again — unblocking only
+      // restores what blocking took away.
+      await cubit.setBlocked(false);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AdminConfirmDialog(
+        title: 'Заблокировать проект «${project.name}»?',
+        message:
+            'Приём новых логов и запрос уже сохранённых логов этого проекта '
+            'будут отключены до разблокировки. Секретные ключи проекта не '
+            'отзываются.',
+        confirmLabel: 'Заблокировать',
+        destructive: true,
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+      ),
+    );
+    if (confirmed ?? false) await cubit.setBlocked(true);
   }
 }
 
@@ -422,5 +458,127 @@ class _SecretKeys extends StatelessWidget {
       ),
     );
     if (confirmed ?? false) await cubit.revokeKey(key.id);
+  }
+}
+
+class _Access extends StatelessWidget {
+  final ProjectDto project;
+  final ProjectDetailState state;
+
+  const _Access({required this.project, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Доступ',
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
+            ),
+            const SizedBox(width: AdminSpacing.x12),
+            AdminButton(
+              label: 'Предоставить доступ',
+              icon: FluentIcons.add,
+              onPressed: () => _grant(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: AdminSpacing.x12),
+        // Only reaches the reader here for a revoke fired straight from a
+        // row — a grant's refusal is shown inside `GrantAccessDialog` itself
+        // while it's open, and clears with it either way when it closes.
+        if (state.accessFailure != null) ...[
+          AdminBanner(
+            message: describeApiFailure(state.accessFailure!),
+            tone: AdminBannerTone.error,
+          ),
+          const SizedBox(height: AdminSpacing.x12),
+        ],
+        if (state.roleAssignments.isEmpty)
+          const AdminEmptyState(
+            icon: FluentIcons.permissions,
+            title: 'Доступа пока никому не выдано',
+            description:
+                'Предоставьте роль owner или user, чтобы открыть доступ к '
+                'этому проекту.',
+          )
+        else
+          for (final grant in state.roleAssignments) ...[
+            AdminResourceRow(
+              icon: FluentIcons.contact,
+              title: grant.subjectName ?? 'Пользователь #${grant.subjectId}',
+              subtitle: grant.role,
+              actions: [
+                AdminButton(
+                  label: 'Отозвать',
+                  size: AdminButtonSize.tonal,
+                  onPressed: () => _revoke(context, grant),
+                ),
+              ],
+            ),
+            const SizedBox(height: AdminSpacing.x10),
+          ],
+      ],
+    );
+  }
+
+  Future<void> _grant(BuildContext context) async {
+    final cubit = context.read<ProjectDetailCubit>();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => BlocProvider.value(
+        value: cubit,
+        child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
+          builder: (builderContext, state) {
+            return GrantAccessDialog(
+              scopeLabel: 'Проект: ${project.name}',
+              submitting: state.grantingAccess,
+              errorText: state.accessFailure == null
+                  ? null
+                  : describeApiFailure(state.accessFailure!),
+              searchUsers: cubit.searchUsers,
+              onGrant: (values) async {
+                await cubit.grantAccess(
+                  userId: values.userId,
+                  role: values.role,
+                );
+                if (!dialogContext.mounted) return;
+                if (cubit.state.accessFailure == null) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              onCancel: () => Navigator.of(dialogContext).pop(),
+            );
+          },
+        ),
+      ),
+    );
+    cubit.clearAccessFailure();
+  }
+
+  Future<void> _revoke(BuildContext context, RoleAssignmentDto grant) async {
+    final cubit = context.read<ProjectDetailCubit>();
+    final subject = grant.subjectName ?? 'пользователя #${grant.subjectId}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AdminConfirmDialog(
+        title: 'Отозвать доступ у «$subject»?',
+        message:
+            'Роль «${grant.role}» на этот проект будет отозвана немедленно.',
+        confirmLabel: 'Отозвать',
+        destructive: true,
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+      ),
+    );
+    if (confirmed ?? false) await cubit.revokeAccess(grant.id);
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../shared/api/dto/resource_dto.dart';
+import '../../../shared/api/dto/user_dto.dart';
 import 'group_detail_cubit.dart';
 import 'resource_dialogs.dart';
 import 'resource_failure_text.dart';
@@ -10,9 +11,11 @@ import 'resources_section.dart';
 
 /// One group and the projects inside it (`GroupDetail.dc.html`).
 ///
-/// The artboard also draws teams and the group's role assignments. Neither is
-/// here: the server has no endpoints for them in this stage, so the sections
-/// would be empty frames promising something the app cannot do.
+/// The artboard also draws teams — still not here, the server has no
+/// endpoints for them in this stage. Role assignments (the artboard's
+/// «Доступ» section) are here now (уточнение 17.09.2026): who holds a role
+/// on this group, granted/revoked from this side, the mirror of the reduced
+/// grant form on the target user's own screen (`lib/features/users/`).
 class GroupDetailPage extends StatelessWidget {
   final String groupName;
   final VoidCallback onBack;
@@ -31,7 +34,7 @@ class GroupDetailPage extends StatelessWidget {
 
     return BlocBuilder<GroupDetailCubit, GroupDetailState>(
       builder: (context, state) {
-        return Padding(
+        return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             AdminSpacing.x24,
             AdminSpacing.x18,
@@ -72,7 +75,9 @@ class GroupDetailPage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AdminSpacing.x12),
-              Expanded(child: _projects(context, state)),
+              _projects(context, state),
+              const SizedBox(height: AdminSpacing.x24),
+              _Access(groupName: groupName, state: state),
             ],
           ),
         );
@@ -101,32 +106,33 @@ class GroupDetailPage extends StatelessWidget {
       );
     }
 
-    return ListView.separated(
-      itemCount: state.projects.length,
-      separatorBuilder: (_, _) => const SizedBox(height: AdminSpacing.x10),
-      itemBuilder: (context, index) {
-        final project = state.projects[index];
-        return AdminResourceRow(
-          icon: FluentIcons.build_queue,
-          title: project.name,
-          subtitle: _quotaLine(project),
-          tags: [
-            if (project.isBlocked)
-              const AdminStatusTag(
-                label: 'Заблокирован',
-                tone: AdminStatusTone.error,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final project in state.projects) ...[
+          AdminResourceRow(
+            icon: FluentIcons.build_queue,
+            title: project.name,
+            subtitle: _quotaLine(project),
+            tags: [
+              if (project.isBlocked)
+                const AdminStatusTag(
+                  label: 'Заблокирован',
+                  tone: AdminStatusTone.error,
+                ),
+            ],
+            onPressed: () => onOpenProject(project),
+            actions: [
+              AdminButton(
+                label: 'Открыть',
+                size: AdminButtonSize.tonal,
+                onPressed: () => onOpenProject(project),
               ),
-          ],
-          onPressed: () => onOpenProject(project),
-          actions: [
-            AdminButton(
-              label: 'Открыть',
-              size: AdminButtonSize.tonal,
-              onPressed: () => onOpenProject(project),
-            ),
-          ],
-        );
-      },
+            ],
+          ),
+          const SizedBox(height: AdminSpacing.x10),
+        ],
+      ],
     );
   }
 
@@ -181,5 +187,129 @@ class GroupDetailPage extends StatelessWidget {
       ),
     );
     cubit.dialogClosed();
+  }
+}
+
+class _Access extends StatelessWidget {
+  final String groupName;
+  final GroupDetailState state;
+
+  const _Access({required this.groupName, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Доступ',
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
+            ),
+            const SizedBox(width: AdminSpacing.x12),
+            AdminButton(
+              label: 'Предоставить доступ',
+              icon: FluentIcons.add,
+              onPressed: () => _grant(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: AdminSpacing.x12),
+        // Only reaches the reader here for a revoke fired straight from a
+        // row — a grant's refusal is shown inside `GrantAccessDialog` itself
+        // while it's open, and clears with it either way when it closes.
+        if (state.accessFailure != null) ...[
+          AdminBanner(
+            message: describeApiFailure(state.accessFailure!),
+            tone: AdminBannerTone.error,
+          ),
+          const SizedBox(height: AdminSpacing.x12),
+        ],
+        if (state.roleAssignments.isEmpty)
+          const AdminEmptyState(
+            icon: FluentIcons.permissions,
+            title: 'Доступа пока никому не выдано',
+            description:
+                'Предоставьте роль owner или user, чтобы открыть доступ к '
+                'этой группе и её проектам.',
+          )
+        else
+          for (final grant in state.roleAssignments) ...[
+            AdminResourceRow(
+              icon: FluentIcons.contact,
+              title: grant.subjectName ?? 'Пользователь #${grant.subjectId}',
+              subtitle: grant.role,
+              actions: [
+                AdminButton(
+                  label: 'Отозвать',
+                  size: AdminButtonSize.tonal,
+                  onPressed: () => _revoke(context, grant),
+                ),
+              ],
+            ),
+            const SizedBox(height: AdminSpacing.x10),
+          ],
+      ],
+    );
+  }
+
+  Future<void> _grant(BuildContext context) async {
+    final cubit = context.read<GroupDetailCubit>();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => BlocProvider.value(
+        value: cubit,
+        child: BlocBuilder<GroupDetailCubit, GroupDetailState>(
+          builder: (builderContext, state) {
+            return GrantAccessDialog(
+              scopeLabel: 'Группа: $groupName',
+              submitting: state.grantingAccess,
+              errorText: state.accessFailure == null
+                  ? null
+                  : describeApiFailure(state.accessFailure!),
+              searchUsers: cubit.searchUsers,
+              onGrant: (values) async {
+                await cubit.grantAccess(
+                  userId: values.userId,
+                  role: values.role,
+                );
+                if (!dialogContext.mounted) return;
+                // Left open on a refusal so the reason is read where the
+                // grant was attempted (`_Quota._edit`, same pattern).
+                if (cubit.state.accessFailure == null) {
+                  Navigator.of(dialogContext).pop();
+                }
+              },
+              onCancel: () => Navigator.of(dialogContext).pop(),
+            );
+          },
+        ),
+      ),
+    );
+    cubit.clearAccessFailure();
+  }
+
+  Future<void> _revoke(BuildContext context, RoleAssignmentDto grant) async {
+    final cubit = context.read<GroupDetailCubit>();
+    final subject = grant.subjectName ?? 'пользователя #${grant.subjectId}';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AdminConfirmDialog(
+        title: 'Отозвать доступ у «$subject»?',
+        message:
+            'Роль «${grant.role}» на эту группу будет отозвана немедленно.',
+        confirmLabel: 'Отозвать',
+        destructive: true,
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+      ),
+    );
+    if (confirmed ?? false) await cubit.revokeAccess(grant.id);
   }
 }

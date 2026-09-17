@@ -216,6 +216,59 @@ void main() {
     });
   });
 
+  group('canReadRoleAssignmentsForScope', () {
+    test('the same grid as canWrite — admin and owner, not user', () {
+      expect(
+        canReadRoleAssignmentsForScope(
+          [global(Role.admin)],
+          scopeType: ScopeType.group,
+          scopeId: 1,
+        ),
+        isTrue,
+      );
+      expect(
+        canReadRoleAssignmentsForScope(
+          [onGroup(Role.owner, 1)],
+          scopeType: ScopeType.group,
+          scopeId: 1,
+        ),
+        isTrue,
+      );
+      expect(
+        canReadRoleAssignmentsForScope(
+          [onGroup(Role.user, 1)],
+          scopeType: ScopeType.group,
+          scopeId: 1,
+        ),
+        isFalse,
+        reason: 'a mere member of the group, not its owner',
+      );
+    });
+
+    test('an owner of the enclosing group covers the project too', () {
+      expect(
+        canReadRoleAssignmentsForScope(
+          [onGroup(Role.owner, 1)],
+          scopeType: ScopeType.project,
+          scopeId: 42,
+          enclosingGroupId: 1,
+        ),
+        isTrue,
+      );
+    });
+
+    test('owner of a different group does not cover this one', () {
+      expect(
+        canReadRoleAssignmentsForScope(
+          [onGroup(Role.owner, 2)],
+          scopeType: ScopeType.group,
+          scopeId: 1,
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('resolveRoles', () {
     late StructuredLogDatabase db;
     late Authorizer authorizer;

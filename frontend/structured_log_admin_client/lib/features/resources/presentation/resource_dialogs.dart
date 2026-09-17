@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../shared/api/dto/user_dto.dart';
+
 /// What a quota form produced. `null` in a limit means unlimited, and it is
 /// sent as `null` rather than left out (`UpdateProjectQuotaRequestDto`).
 typedef QuotaValues = ({int retentionDays, int? maxEntries, int? maxBytes});
@@ -564,6 +566,140 @@ class _NameDialogState extends State<NameDialog> {
           onPressed: widget.submitting
               ? null
               : () => widget.onSubmit(_value.text.trim()),
+        ),
+      ],
+    );
+  }
+}
+
+/// What a group/project «Доступ» section's grant dialog produced.
+typedef AccessGrantValues = ({int userId, String role});
+
+/// Grants a role on a fixed group/project to a user picked by name — the
+/// mirror image of `EditUserDialog`'s role-grant section, which fixes the
+/// user and lets the admin pick the scope (уточнение 17.09.2026). `role` is
+/// `owner`/`user` only: `admin` is a global role, not one to hold "on" a
+/// group or project (`_GroupRolePicker`, unlike `EditUserDialog`'s
+/// `_RolePicker`).
+class GrantAccessDialog extends StatefulWidget {
+  final String scopeLabel;
+  final bool submitting;
+  final String? errorText;
+  final Future<List<UserDto>> Function(String query) searchUsers;
+  final ValueChanged<AccessGrantValues> onGrant;
+  final VoidCallback onCancel;
+
+  const GrantAccessDialog({
+    super.key,
+    required this.scopeLabel,
+    required this.searchUsers,
+    required this.onGrant,
+    required this.onCancel,
+    this.submitting = false,
+    this.errorText,
+  });
+
+  @override
+  State<GrantAccessDialog> createState() => _GrantAccessDialogState();
+}
+
+class _GrantAccessDialogState extends State<GrantAccessDialog> {
+  String _role = 'user';
+  int? _userId;
+
+  void _submit() {
+    if (_userId == null) return;
+    widget.onGrant((userId: _userId!, role: _role));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    return ContentDialog(
+      constraints: const BoxConstraints(maxWidth: 440),
+      title: Text(
+        'Предоставить доступ',
+        style: AdminTypography.sectionTitle.copyWith(color: colors.text),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.errorText != null) ...[
+              AdminBanner(
+                message: widget.errorText!,
+                tone: AdminBannerTone.error,
+              ),
+              const SizedBox(height: AdminSpacing.x14),
+            ],
+            Text(
+              widget.scopeLabel,
+              style: AdminTypography.bodySmall.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AdminSpacing.x14),
+            AdminSearchPicker<int>(
+              label: 'Пользователь',
+              placeholder: 'Начните вводить имя пользователя…',
+              onSearch: (query) async {
+                final users = await widget.searchUsers(query);
+                return [
+                  for (final u in users)
+                    AdminSearchPickerItem(value: u.id, label: u.username),
+                ];
+              },
+              onSelected: (item) => setState(() => _userId = item?.value),
+            ),
+            const SizedBox(height: AdminSpacing.x14),
+            _GroupRolePicker(
+              value: _role,
+              onChanged: (value) => setState(() => _role = value),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        AdminButton(
+          label: 'Отмена',
+          size: AdminButtonSize.dialog,
+          onPressed: widget.submitting ? null : widget.onCancel,
+        ),
+        AdminButton(
+          label: 'Предоставить',
+          variant: AdminButtonVariant.accent,
+          size: AdminButtonSize.dialog,
+          onPressed: widget.submitting ? null : _submit,
+        ),
+      ],
+    );
+  }
+}
+
+class _GroupRolePicker extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _GroupRolePicker({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Роль', style: AdminTypography.label.copyWith(color: colors.text)),
+        const SizedBox(height: AdminSpacing.x6),
+        ComboBox<String>(
+          value: value,
+          isExpanded: true,
+          items: const [
+            ComboBoxItem(value: 'owner', child: Text('owner')),
+            ComboBoxItem(value: 'user', child: Text('user')),
+          ],
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
         ),
       ],
     );
