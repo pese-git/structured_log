@@ -31,11 +31,16 @@ class SoleOwnerConflictDialog extends StatelessWidget {
   final void Function(({int id, String name}) group)? onGrantAccess;
   final VoidCallback onClose;
 
+  /// The reader is deleting their own account, so the text says "you" instead
+  /// of "the user".
+  final bool ownAccount;
+
   const SoleOwnerConflictDialog({
     super.key,
     required this.groups,
     required this.onClose,
     this.onGrantAccess,
+    this.ownAccount = false,
   });
 
   @override
@@ -53,7 +58,9 @@ class SoleOwnerConflictDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              context.l10n.usersSoleOwnerDescription,
+              ownAccount
+                  ? context.l10n.usersSoleOwnerDescriptionSelf
+                  : context.l10n.usersSoleOwnerDescription,
               style: AdminTypography.bodySmall.copyWith(
                 color: colors.textSecondary,
                 height: 1.5,

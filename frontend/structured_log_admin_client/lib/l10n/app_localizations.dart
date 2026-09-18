@@ -2599,6 +2599,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open in the audit with a filter for this user'**
   String get usersOpenInAudit;
+
+  /// Change form current password label when it is not a temporary one (account settings)
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get authCurrentPasswordLabelOwn;
+
+  /// Change failure in account settings: wrong current password
+  ///
+  /// In en, this message translates to:
+  /// **'The current password is incorrect.'**
+  String get authChangeWrongCurrentOwn;
+
+  /// Sole owner dialog body when the reader is deleting their own account
+  ///
+  /// In en, this message translates to:
+  /// **'You are the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.'**
+  String get usersSoleOwnerDescriptionSelf;
 }
 
 class _AppLocalizationsDelegate

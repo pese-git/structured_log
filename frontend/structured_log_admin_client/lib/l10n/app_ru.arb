@@ -416,5 +416,8 @@
   "usersScopePickerPlaceholder": "Начните вводить название…",
   "usersRecentAuditTitle": "Последние события аудита",
   "usersNoAuditEvents": "Событий пока нет.",
-  "usersOpenInAudit": "Открыть в аудите с фильтром по этому пользователю"
+  "usersOpenInAudit": "Открыть в аудите с фильтром по этому пользователю",
+  "authCurrentPasswordLabelOwn": "Текущий пароль",
+  "authChangeWrongCurrentOwn": "Текущий пароль неверен.",
+  "usersSoleOwnerDescriptionSelf": "Вы — единственный владелец (owner) следующих групп. Выдайте роль владельца ещё кому-то в каждой из них, прежде чем удаление станет возможным."
 }

@@ -360,6 +360,7 @@ class _HomeShellState extends State<HomeShell> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => SoleOwnerConflictDialog(
+        ownAccount: true,
         groups: groups,
         onClose: () => Navigator.of(dialogContext).pop(),
         // Granting a role needs `admin` or that group's own `owner`
@@ -615,6 +616,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                             ),
                             const SizedBox(height: AdminSpacing.x14),
                             ChangePasswordForm(
+                              currentIsTemporary: false,
                               submitLabel: l10n.shellChangePassword,
                             ),
                           ],

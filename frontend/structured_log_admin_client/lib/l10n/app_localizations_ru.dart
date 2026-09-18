@@ -1488,4 +1488,14 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get usersOpenInAudit =>
       'Открыть в аудите с фильтром по этому пользователю';
+
+  @override
+  String get authCurrentPasswordLabelOwn => 'Текущий пароль';
+
+  @override
+  String get authChangeWrongCurrentOwn => 'Текущий пароль неверен.';
+
+  @override
+  String get usersSoleOwnerDescriptionSelf =>
+      'Вы — единственный владелец (owner) следующих групп. Выдайте роль владельца ещё кому-то в каждой из них, прежде чем удаление станет возможным.';
 }

@@ -1483,4 +1483,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get usersOpenInAudit =>
       'Open in the audit with a filter for this user';
+
+  @override
+  String get authCurrentPasswordLabelOwn => 'Current password';
+
+  @override
+  String get authChangeWrongCurrentOwn => 'The current password is incorrect.';
+
+  @override
+  String get usersSoleOwnerDescriptionSelf =>
+      'You are the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.';
 }

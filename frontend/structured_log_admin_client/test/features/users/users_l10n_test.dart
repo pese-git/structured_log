@@ -47,6 +47,34 @@ void main() {
     expect(find.text('Понятно'), findsNothing);
   });
 
+  testWidgets('the dialog speaks of "you" only for one\'s own account', (
+    tester,
+  ) async {
+    Future<void> pump({required bool own}) async {
+      await tester.pumpWidget(
+        localizedApp(
+          locale: const Locale('en'),
+          home: ScaffoldPage(
+            content: SoleOwnerConflictDialog(
+              ownAccount: own,
+              groups: const [(id: 1, name: 'Ops')],
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await pump(own: false);
+    expect(find.textContaining('The user is the only owner'), findsOneWidget);
+    expect(find.textContaining('You are the only owner'), findsNothing);
+
+    await pump(own: true);
+    expect(find.textContaining('You are the only owner'), findsOneWidget);
+    expect(find.textContaining('The user is the only owner'), findsNothing);
+  });
+
   test('failure text follows the locale', () {
     const failure = ApiFailure.rateLimited(retryAfter: Duration(seconds: 7));
     expect(

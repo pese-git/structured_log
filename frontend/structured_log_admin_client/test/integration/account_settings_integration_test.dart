@@ -57,6 +57,29 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('the password form here does not call the current password '
+      'temporary, or send anyone to the administrator', (tester) async {
+    await pumpApp(tester, server, signedIn: true);
+    await openAccountSettings(tester);
+
+    await tester.tap(find.text('Сменить пароль').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Текущий пароль'), findsOneWidget);
+    expect(find.textContaining('временный'), findsNothing);
+
+    final fields = find.byType(TextBox);
+    await tester.enterText(fields.at(0), 'not-the-password');
+    await tester.enterText(fields.at(1), 'a-new-password-1');
+    await tester.enterText(fields.at(2), 'a-new-password-1');
+    await tester.tap(find.text('Сменить пароль').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Текущий пароль неверен.'), findsOneWidget);
+    expect(find.textContaining('администратор'), findsNothing);
+    await closeApp(tester);
+  });
+
   testWidgets('deleting the account with the right password signs out', (
     tester,
   ) async {
@@ -129,6 +152,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Сначала передайте владение'), findsOneWidget);
+    expect(
+      find.textContaining('Вы — единственный владелец'),
+      findsOneWidget,
+      reason: 'it is the reader\'s own account, not "the user"',
+    );
     expect(find.text('checkout-team'), findsOneWidget);
     expect(
       find.text('Выдать роль'),

@@ -16,7 +16,17 @@ class ChangePasswordForm extends StatefulWidget {
   /// settings simply saves.
   final String submitLabel;
 
-  const ChangePasswordForm({super.key, required this.submitLabel});
+  /// Whether the password being replaced is the temporary one an administrator
+  /// set. The forced screen says so and points at the administrator; in
+  /// account settings the current password is just the reader's own, and the
+  /// same words would send them looking for someone who never gave it.
+  final bool currentIsTemporary;
+
+  const ChangePasswordForm({
+    super.key,
+    required this.submitLabel,
+    this.currentIsTemporary = true,
+  });
 
   @override
   State<ChangePasswordForm> createState() => _ChangePasswordFormState();
@@ -53,13 +63,19 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
           children: [
             if (state.failure != null) ...[
               AdminBanner(
-                message: _failureText(context.l10n, state.failure!),
+                message: _failureText(
+                  context.l10n,
+                  state.failure!,
+                  currentIsTemporary: widget.currentIsTemporary,
+                ),
                 tone: AdminBannerTone.error,
               ),
               const SizedBox(height: AdminSpacing.x18),
             ],
             AdminTextField(
-              label: context.l10n.authCurrentPasswordLabel,
+              label: widget.currentIsTemporary
+                  ? context.l10n.authCurrentPasswordLabel
+                  : context.l10n.authCurrentPasswordLabelOwn,
               controller: _current,
               obscure: true,
               autofocus: true,
@@ -98,11 +114,15 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
 
   static String _failureText(
     AppLocalizations l10n,
-    AuthFailure failure,
-  ) => switch (failure) {
+    AuthFailure failure, {
+    required bool currentIsTemporary,
+  }) => switch (failure) {
     // The server says `invalid_grant` here for one thing only, and it is not
     // about the session: the current password was wrong.
-    InvalidCredentialsFailure() => l10n.authChangeWrongCurrent,
+    InvalidCredentialsFailure() =>
+      currentIsTemporary
+          ? l10n.authChangeWrongCurrent
+          : l10n.authChangeWrongCurrentOwn,
     RateLimitedAuthFailure(:final retryAfter) => l10n.authChangeRateLimited(
       retryAfter.inSeconds,
     ),
