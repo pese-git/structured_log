@@ -46,4 +46,15 @@ abstract class AuthApi {
   /// answering `403 must_change_password`.
   @POST('/v1/auth/change-password')
   Future<void> changePassword(@Body() ChangePasswordRequestDto body);
+
+  /// `/v1/users/me`, not `/v1/auth/*` — kept here anyway rather than in
+  /// `UsersApi`, which every one of its other methods restricts to `admin`
+  /// (`users_api.dart`). This one is self-service, over the caller's own
+  /// account, the same shape as [changePassword] above it.
+  ///
+  /// `204` on success. `409 sole_group_owner` if the account is the last
+  /// owner of a group — same conflict and payload shape `UsersApi.delete`
+  /// answers with, since both share the server's one deletion path.
+  @DELETE('/v1/users/me')
+  Future<void> deleteMe(@Body() DeleteAccountRequestDto body);
 }

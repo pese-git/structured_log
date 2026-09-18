@@ -103,9 +103,9 @@ void main() {
       'locally', (tester) async {
     final harness = await pumpApp(tester, server, signedIn: true);
 
-    await tester.tap(find.text('Аккаунт'));
+    await tester.tap(find.text(harness.accountName));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Выйти из аккаунта'));
+    await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();
 
     expect(

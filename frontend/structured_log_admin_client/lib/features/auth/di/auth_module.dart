@@ -4,6 +4,7 @@ import 'package:structured_log/structured_log.dart';
 import '../../../shared/api/api_client.dart';
 import '../../../shared/auth/token_storage.dart';
 import '../application/change_password.dart';
+import '../application/delete_account.dart';
 import '../application/restore_session.dart';
 import '../application/sign_in.dart';
 import '../application/sign_out.dart';
@@ -52,6 +53,14 @@ class AuthModule extends Module {
     );
     bind<IsGlobalAdmin>().toProvide(
       () => IsGlobalAdmin(currentScope.resolve<AuthRepository>()),
+    );
+    // Resolves `ApiClient` directly, same as `AuthRepositoryImpl` above —
+    // its failure shape does not fit `AuthRepository` (see the class doc).
+    bind<DeleteAccount>().toProvide(
+      () => DeleteAccount(
+        currentScope.resolve<ApiClient>(),
+        currentScope.resolve<BoundLogger>(),
+      ),
     );
   }
 }

@@ -145,3 +145,16 @@ Future<void> openUsers(WidgetTester tester) async {
   await tester.tap(find.text('Пользователи'));
   await tester.pumpAndSettle();
 }
+
+/// Opens `AdminAccountMenu` off the nav rail's account block, then its
+/// "Настройки аккаунта" item — [username] is the block's own label
+/// (`AdminAppShell.accountName`), the same default `signIn` signs in as.
+Future<void> openAccountSettings(
+  WidgetTester tester, {
+  String username = 'root',
+}) async {
+  await tester.tap(find.text(username));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Настройки аккаунта'));
+  await tester.pumpAndSettle();
+}
