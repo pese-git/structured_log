@@ -320,7 +320,10 @@ void main() {
       await tester.pumpAndSettle();
       await _press(tester, find.text('operator').last);
 
-      await _press(tester, find.byType(ComboBox<String>));
+      // Two ComboBox<String> live in this dialog since 13.5 (full version)
+      // added the recipient-kind picker above this one — the role picker,
+      // this one's target, is the second.
+      await _press(tester, find.byType(ComboBox<String>).last);
       await _press(tester, find.text('owner').last);
 
       await _press(tester, find.text('Предоставить'));
