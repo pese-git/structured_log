@@ -502,6 +502,142 @@ void main() {
     });
   });
 
+  group('AdminTimeRangeField', () {
+    String hm(DateTime value) => '${value.hour.toString().padLeft(2, '0')}:'
+        '${value.minute.toString().padLeft(2, '0')}';
+
+    Widget field({
+      DateTime? from,
+      DateTime? to,
+      ValueChanged<DateTime?>? onFrom,
+      ValueChanged<DateTime?>? onTo,
+    }) =>
+        AdminTimeRangeField(
+          from: from,
+          to: to,
+          formatTime: hm,
+          onFromChanged: onFrom ?? (_) {},
+          onToChanged: onTo ?? (_) {},
+        );
+
+    testWidgets('an open end says so instead of showing a time', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1, 9, 30))));
+
+      expect(find.text('С: 09:30'), findsOneWidget);
+      expect(
+        find.text('По: любое'),
+        findsOneWidget,
+        reason: 'the upper bound is unset, and an unset bound must not read as '
+            'now — that would be a filter nobody asked for',
+      );
+    });
+
+    testWidgets('each end opens its own hour and minute pickers', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1, 9, 30))));
+
+      await tester.tap(find.text('С: 09:30'));
+      await tester.pumpAndSettle();
+
+      expect(find.byWidgetPredicate((w) => w is ComboBox), findsNWidgets(2));
+    });
+
+    testWidgets('the flyout offers a way back to an open end', (
+      tester,
+    ) async {
+      DateTime? reported = DateTime(2026, 9, 1, 9, 30);
+      var reports = 0;
+
+      await tester.pumpWidget(
+        _host(
+          field(
+            from: DateTime(2026, 9, 1, 9, 30),
+            onFrom: (value) {
+              reported = value;
+              reports++;
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('С: 09:30'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Любое время'));
+      await tester.pumpAndSettle();
+
+      expect(reports, 1);
+      expect(reported, isNull);
+    });
+
+    testWidgets(
+      "picking an hour and a minute applies them on the bound's own day",
+      (tester) async {
+        DateTime? reported;
+
+        await tester.pumpWidget(
+          _host(
+            field(
+              from: DateTime(2026, 9, 1, 9, 30),
+              onFrom: (value) => reported = value,
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('С: 09:30'));
+        await tester.pumpAndSettle();
+
+        // Driven directly rather than through the popup: fluent_ui's own
+        // ComboBox lazily builds its (up to 60-item) list, so an item far
+        // from the current selection is not built until scrolled into view.
+        // This widget's own logic — combining the two picks onto the
+        // bound's day — is what is under test here, not the popup's own
+        // scroll mechanics.
+        ComboBox<int> hourCombo() =>
+            tester.widgetList<ComboBox<int>>(find.byType(ComboBox<int>)).first;
+        ComboBox<int> minuteCombo() =>
+            tester.widgetList<ComboBox<int>>(find.byType(ComboBox<int>)).last;
+
+        hourCombo().onChanged!(14);
+        await tester.pump();
+        minuteCombo().onChanged!(45);
+        await tester.pump();
+
+        await tester.tap(find.text('Применить'));
+        await tester.pumpAndSettle();
+
+        expect(reported, isNotNull);
+        expect(reported!.year, 2026);
+        expect(reported!.month, 9);
+        expect(reported!.day, 1);
+        expect(reported!.hour, 14);
+        expect(reported!.minute, 45);
+      },
+    );
+
+    testWidgets('applying with no prior value anchors to today', (
+      tester,
+    ) async {
+      DateTime? reported;
+      final before = DateTime.now();
+
+      await tester
+          .pumpWidget(_host(field(onFrom: (value) => reported = value)));
+
+      await tester.tap(find.text('С: любое'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Применить'));
+      await tester.pumpAndSettle();
+
+      expect(reported, isNotNull);
+      expect(reported!.year, before.year);
+      expect(reported!.month, before.month);
+      expect(reported!.day, before.day);
+    });
+  });
+
   group('AdminSearchPicker', () {
     testWidgets(
       'a result that resolves after the suggestions overlay has already '

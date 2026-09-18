@@ -185,6 +185,110 @@ void main() {
     );
   });
 
+  testWidgets('a time-range bound narrows the query, and clears', (
+    tester,
+  ) async {
+    await openFeed(tester);
+    repository.calls.clear();
+
+    final before = DateTime.now();
+    await tester.tap(find.text('С: любое'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Применить'));
+    await tester.pumpAndSettle();
+
+    expect(repository.calls.last.filter.from, isNotNull);
+    expect(
+      repository.calls.last.filter.from!.difference(before).inMinutes.abs(),
+      lessThanOrEqualTo(1),
+      reason:
+          'applying without changing the picker keeps its own default — '
+          'the current time',
+    );
+    expect(find.text('С: любое'), findsNothing);
+
+    await tester.tap(find.textContaining('С: '));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Любое время'));
+    await tester.pumpAndSettle();
+
+    expect(repository.calls.last.filter.from, isNull);
+    expect(find.text('С: любое'), findsOneWidget);
+  });
+
+  testWidgets(
+    'a correlation id narrows the query, and shows as a removable chip',
+    (tester) async {
+      await openFeed(tester);
+      repository.calls.clear();
+
+      await tester.tap(find.text('+ correlation id'));
+      await tester.pumpAndSettle();
+
+      // The dialog defaults to the first field the enum declares —
+      // session_id — so typing a value and confirming is enough for the
+      // common case. The dialog's own field is the second TextBox: the
+      // first is the feed's own search box, still mounted behind it.
+      await tester.enterText(find.byType(TextBox).last, 'sess-42');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Добавить'));
+      await tester.pumpAndSettle();
+
+      expect(repository.calls.last.filter.sessionId, 'sess-42');
+      expect(find.text('session_id: sess-42'), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: find.widgetWithText(HoverButton, 'session_id: sess-42'),
+          matching: find.byType(IconButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repository.calls.last.filter.sessionId, isNull);
+      expect(find.text('session_id: sess-42'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'connection_generation only submits once the typed value is a number',
+    (tester) async {
+      await openFeed(tester);
+
+      await tester.tap(find.text('+ correlation id'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byWidgetPredicate((w) => w is ComboBox));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('connection_generation').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextBox).last, 'not-a-number');
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Значение должно быть числом'),
+        findsOneWidget,
+        reason:
+            'the field is not a string, unlike every other correlation '
+            'id — the dialog says so rather than sending a query the server '
+            'would refuse to parse',
+      );
+      expect(
+        tester
+            .widget<Button>(find.widgetWithText(Button, 'Добавить'))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.enterText(find.byType(TextBox).last, '7');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Добавить'));
+      await tester.pumpAndSettle();
+
+      expect(repository.calls.last.filter.connectionGeneration, 7);
+      expect(find.text('connection_generation: 7'), findsOneWidget);
+    },
+  );
+
   testWidgets('an entry opens in full, context beside the standard fields', (
     tester,
   ) async {

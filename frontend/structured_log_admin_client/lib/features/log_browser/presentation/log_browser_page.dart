@@ -339,6 +339,26 @@ class _FilterBar extends StatelessWidget {
               filter.copyWith(context: {...filter.context}..remove(entry.key)),
             ),
           ),
+        AdminTimeRangeField(
+          from: filter.from,
+          to: filter.to,
+          formatTime: _formatTime,
+          onFromChanged: (value) => apply(filter.copyWith(from: value)),
+          onToChanged: (value) => apply(filter.copyWith(to: value)),
+        ),
+        for (final field in _CorrelationField.values)
+          if (field.read(filter) case final value?)
+            AdminFilterChip(
+              label: field.label,
+              value: value,
+              selected: true,
+              onCleared: () => apply(field.clear(filter)),
+            ),
+        if (_CorrelationField.values.any((field) => field.read(filter) == null))
+          AdminButton(
+            label: '+ correlation id',
+            onPressed: () => _addCorrelationId(context, bloc, filter),
+          ),
       ],
       trailing: [
         AdminButton(
@@ -391,6 +411,199 @@ class _FilterBar extends StatelessWidget {
     const levels = [null, 'debug', 'info', 'warning', 'error', 'critical'];
     final next = levels[(levels.indexOf(filter.minLevel) + 1) % levels.length];
     bloc.add(LogFeedEvent.filterChanged(filter.copyWith(minLevel: next)));
+  }
+
+  /// `09:00`, in the reader's own timezone — the boxes name a time, not an
+  /// instant, and the reader is asking about their own day.
+  static String _formatTime(DateTime value) {
+    final local = value.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  Future<void> _addCorrelationId(
+    BuildContext context,
+    LogFeedBloc bloc,
+    LogFilter filter,
+  ) async {
+    final available = [
+      for (final field in _CorrelationField.values)
+        if (field.read(filter) == null) field,
+    ];
+    if (available.isEmpty) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _CorrelationIdDialog(
+        available: available,
+        onAdd: (field, value) {
+          Navigator.of(dialogContext).pop();
+          bloc.add(LogFeedEvent.filterChanged(field.write(filter, value)));
+        },
+        onCancel: () => Navigator.of(dialogContext).pop(),
+      ),
+    );
+  }
+}
+
+/// One of the six identifiers `LogFilter` narrows by beyond level/category/
+/// logger/search — `LogBrowser.dc.html`'s bare "+ correlation id" button
+/// gives no interaction design to copy, so the shape here (pick a field, add
+/// it as a removable chip) mirrors the arbitrary `context` filter chips
+/// `_FilterBar` already draws immediately above it.
+enum _CorrelationField {
+  session('session_id'),
+  request('request_id'),
+  toolCall('tool_call_id'),
+  message('message_id'),
+  operation('operation_id'),
+  // The one field that isn't a string — `LogFilter.connectionGeneration` is
+  // an `int?`, so setting it goes through `int.parse` rather than a bare
+  // assignment (`write` below), and the dialog only offers "Добавить" once
+  // the typed value actually parses.
+  connectionGeneration('connection_generation');
+
+  const _CorrelationField(this.label);
+
+  /// The wire name, which is also what an operator recognises from the
+  /// entry detail pane's own "СТАНДАРТНЫЕ ПОЛЯ" section — shown as-is
+  /// rather than translated, the same choice `_ActionTag` makes for audit
+  /// actions.
+  final String label;
+
+  String? read(LogFilter filter) => switch (this) {
+    _CorrelationField.session => filter.sessionId,
+    _CorrelationField.request => filter.requestId,
+    _CorrelationField.toolCall => filter.toolCallId,
+    _CorrelationField.message => filter.messageId,
+    _CorrelationField.operation => filter.operationId,
+    _CorrelationField.connectionGeneration =>
+      filter.connectionGeneration?.toString(),
+  };
+
+  LogFilter clear(LogFilter filter) => switch (this) {
+    _CorrelationField.session => filter.copyWith(sessionId: null),
+    _CorrelationField.request => filter.copyWith(requestId: null),
+    _CorrelationField.toolCall => filter.copyWith(toolCallId: null),
+    _CorrelationField.message => filter.copyWith(messageId: null),
+    _CorrelationField.operation => filter.copyWith(operationId: null),
+    _CorrelationField.connectionGeneration => filter.copyWith(
+      connectionGeneration: null,
+    ),
+  };
+
+  /// [value] is assumed valid for this field already — [_CorrelationIdDialog]
+  /// only enables its submit button once it is.
+  LogFilter write(LogFilter filter, String value) => switch (this) {
+    _CorrelationField.session => filter.copyWith(sessionId: value),
+    _CorrelationField.request => filter.copyWith(requestId: value),
+    _CorrelationField.toolCall => filter.copyWith(toolCallId: value),
+    _CorrelationField.message => filter.copyWith(messageId: value),
+    _CorrelationField.operation => filter.copyWith(operationId: value),
+    _CorrelationField.connectionGeneration => filter.copyWith(
+      connectionGeneration: int.parse(value),
+    ),
+  };
+}
+
+class _CorrelationIdDialog extends StatefulWidget {
+  final List<_CorrelationField> available;
+  final void Function(_CorrelationField field, String value) onAdd;
+  final VoidCallback onCancel;
+
+  const _CorrelationIdDialog({
+    required this.available,
+    required this.onAdd,
+    required this.onCancel,
+  });
+
+  @override
+  State<_CorrelationIdDialog> createState() => _CorrelationIdDialogState();
+}
+
+class _CorrelationIdDialogState extends State<_CorrelationIdDialog> {
+  late _CorrelationField _field = widget.available.first;
+  final _value = TextEditingController();
+
+  @override
+  void dispose() {
+    _value.dispose();
+    super.dispose();
+  }
+
+  bool get _isNumberField => _field == _CorrelationField.connectionGeneration;
+
+  String? get _errorText {
+    if (!_isNumberField) return null;
+    final text = _value.text.trim();
+    if (text.isEmpty) return null;
+    return int.tryParse(text) == null ? 'Значение должно быть числом' : null;
+  }
+
+  bool get _canSubmit {
+    final text = _value.text.trim();
+    if (text.isEmpty) return false;
+    return !_isNumberField || int.tryParse(text) != null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    return StatefulBuilder(
+      builder: (context, setDialogState) => ContentDialog(
+        constraints: const BoxConstraints(maxWidth: 420),
+        title: Text(
+          'Фильтр по correlation id',
+          style: AdminTypography.sectionTitle.copyWith(color: colors.text),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Поле',
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
+              const SizedBox(height: AdminSpacing.x6),
+              ComboBox<_CorrelationField>(
+                value: _field,
+                isExpanded: true,
+                items: [
+                  for (final field in widget.available)
+                    ComboBoxItem(value: field, child: Text(field.label)),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => _field = value);
+                },
+              ),
+              const SizedBox(height: AdminSpacing.x14),
+              AdminTextField(
+                label: 'Значение',
+                controller: _value,
+                autofocus: true,
+                onChanged: (_) => setDialogState(() {}),
+                errorText: _errorText,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          AdminButton(
+            label: 'Отмена',
+            size: AdminButtonSize.dialog,
+            onPressed: widget.onCancel,
+          ),
+          AdminButton(
+            label: 'Добавить',
+            variant: AdminButtonVariant.accent,
+            size: AdminButtonSize.dialog,
+            onPressed: _canSubmit
+                ? () => widget.onAdd(_field, _value.text.trim())
+                : null,
+          ),
+        ],
+      ),
+    );
   }
 }
 
