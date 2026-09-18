@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../shared/l10n/locale_controller.dart';
+import 'auth_language_switch.dart';
 import '../domain/auth_failure.dart';
 import 'auth_brand_panel.dart';
 import 'login_cubit.dart';
@@ -30,10 +32,14 @@ class LoginPage extends StatefulWidget {
   /// rather than by opening the app. The artboard has its own banner for it.
   final bool sessionExpired;
 
+  /// The language switcher in the corner. Absent, there is no switcher.
+  final LocaleController? localeController;
+
   const LoginPage({
     super.key,
     required this.serverLabel,
     this.sessionExpired = false,
+    this.localeController,
   });
 
   @override
@@ -81,8 +87,21 @@ class _LoginPageState extends State<LoginPage> {
                 Expanded(
                   child: ColoredBox(
                     color: colors.surface,
-                    child: Center(
-                      child: SizedBox(width: 340, child: _buildForm(colors)),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: SizedBox(
+                            width: 340,
+                            child: _buildForm(colors),
+                          ),
+                        ),
+                        if (widget.localeController case final controller?)
+                          Positioned(
+                            top: AdminSpacing.x12,
+                            right: AdminSpacing.x18,
+                            child: AuthLanguageSwitch(controller: controller),
+                          ),
+                      ],
                     ),
                   ),
                 ),

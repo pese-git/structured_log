@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/features/auth/application/change_password.dart';
 import 'package:structured_log_admin_client/features/auth/domain/auth_failure.dart';
 import 'package:structured_log_admin_client/features/auth/domain/auth_repository.dart';
@@ -86,6 +87,44 @@ void main() {
     await tester.tap(find.text('Сменить пароль и продолжить'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('the corner switcher changes the language of the gate too', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = LocaleController(initial: const Locale('ru'));
+
+    await tester.pumpWidget(
+      ListenableBuilder(
+        listenable: controller,
+        builder: (_, _) => localizedApp(
+          locale: controller.locale!,
+          home: BlocProvider(
+            create: (_) => ChangePasswordCubit(
+              changePassword: ChangePassword(repository),
+              currentUsername: CurrentUsername(repository),
+            ),
+            child: ForcePasswordChangePage(
+              onChanged: () {},
+              onSignOut: () {},
+              localeController: controller,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Смените пароль'), findsOneWidget);
+
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Change your password'), findsOneWidget);
+    expect(find.text('Смените пароль'), findsNothing);
+  });
 
   testWidgets('it says why the rest of the app is closed', (tester) async {
     await pump(tester);

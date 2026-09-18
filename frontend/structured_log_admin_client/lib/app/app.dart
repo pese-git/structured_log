@@ -138,6 +138,7 @@ class _AuthGateState extends State<AuthGate> {
           child: LoginPage(
             serverLabel: _serverLabel,
             sessionExpired: widget.session.expired,
+            localeController: widget.localeController,
           ),
         ),
       );
@@ -155,6 +156,7 @@ class _AuthGateState extends State<AuthGate> {
         child: ForcePasswordChangePage(
           onChanged: widget.session.passwordChanged,
           onSignOut: _signOut,
+          localeController: widget.localeController,
         ),
       );
     }

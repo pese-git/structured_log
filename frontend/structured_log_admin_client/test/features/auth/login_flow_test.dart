@@ -36,6 +36,7 @@ _buildApp(
   FakeReply Function(RequestOptions options) handler, {
   TokenPair? storedSession,
   String? baseUrl,
+  LocaleController? localeController,
 }) {
   final session = SessionController();
   final storage = InMemoryTokenStorage(storedSession);
@@ -50,7 +51,8 @@ _buildApp(
     app: AdminApp(
       scope: scope,
       session: session,
-      localeController: LocaleController(initial: const Locale('ru')),
+      localeController:
+          localeController ?? LocaleController(initial: const Locale('ru')),
     ),
     session: session,
     storage: storage,
@@ -103,6 +105,24 @@ void main() {
       findsNothing,
       reason: 'the shell moves on without asking again',
     );
+  });
+
+  testWidgets('the corner switcher changes the language before anyone has '
+      'signed in', (tester) async {
+    useArtboardSurface(tester);
+    final controller = LocaleController(initial: const Locale('ru'));
+    final built = _buildApp((_) => _tokens, localeController: controller);
+
+    await tester.pumpWidget(built.app);
+    await tester.pumpAndSettle();
+    expect(find.text('Вход в систему'), findsOneWidget);
+
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(controller.locale, const Locale('en'));
+    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('Вход в систему'), findsNothing);
   });
 
   testWidgets('wrong credentials keep the screen and store nothing', (

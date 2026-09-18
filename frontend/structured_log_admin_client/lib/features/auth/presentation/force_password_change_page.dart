@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../shared/l10n/locale_controller.dart';
+import 'auth_language_switch.dart';
 import 'auth_brand_panel.dart';
 import 'change_password_cubit.dart';
 import 'change_password_form.dart';
@@ -27,10 +29,14 @@ class ForcePasswordChangePage extends StatefulWidget {
 
   final VoidCallback onSignOut;
 
+  /// The language switcher in the corner. Absent, there is no switcher.
+  final LocaleController? localeController;
+
   const ForcePasswordChangePage({
     super.key,
     required this.onChanged,
     required this.onSignOut,
+    this.localeController,
   });
 
   @override
@@ -68,13 +74,23 @@ class _ForcePasswordChangePageState extends State<ForcePasswordChangePage> {
                 Expanded(
                   child: ColoredBox(
                     color: colors.surface,
-                    child: Center(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AdminSpacing.x24,
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AdminSpacing.x24,
+                            ),
+                            child: SizedBox(width: 340, child: _body(colors)),
+                          ),
                         ),
-                        child: SizedBox(width: 340, child: _body(colors)),
-                      ),
+                        if (widget.localeController case final controller?)
+                          Positioned(
+                            top: AdminSpacing.x12,
+                            right: AdminSpacing.x18,
+                            child: AuthLanguageSwitch(controller: controller),
+                          ),
+                      ],
                     ),
                   ),
                 ),

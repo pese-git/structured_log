@@ -32,7 +32,7 @@ base URL. Opening the API up is a change to the server, not a proxy setting.
 ### Languages
 
 English and Russian. The app follows the browser's language (English for any
-other) until someone picks one under **Account settings → Language**; the
+other) until someone picks one under **Account settings → Language** (or the English / Русский switch in the corner of the sign-in and forced password change screens); the
 choice is kept in the browser's `localStorage`. Texts live in `lib/l10n/*.arb`
 and are read through `context.l10n`; after editing them run `flutter gen-l10n`
 (the generated files are committed).
