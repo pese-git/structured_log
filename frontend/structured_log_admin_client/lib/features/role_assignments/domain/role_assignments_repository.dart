@@ -24,9 +24,11 @@ abstract interface class RoleAssignmentsRepository {
     required int scopeId,
   });
 
-  /// `subject_type: "user"` always — the only kind this stage's server
-  /// accepts (4.3a). [scopeId] is required unless [scopeType] is `"global"`.
+  /// [subjectType] is `"user"` or `"team"` (13.5, full version — the server
+  /// has accepted `"team"` since 5.6). [scopeId] is required unless
+  /// [scopeType] is `"global"`.
   Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required String subjectType,
     required int subjectId,
     required String role,
     required String scopeType,

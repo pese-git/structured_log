@@ -721,11 +721,15 @@ class MockServer implements HttpClientAdapter {
   MockReply _createRoleAssignment(RecordedRequest request) {
     _requireAdmin(request);
     final body = request.json;
-    if (body['subject_type'] != 'user') {
+    final subjectType = body['subject_type'];
+    if (subjectType != 'user' && subjectType != 'team') {
       return const MockReply(400, body: {'error': 'invalid_request'});
     }
     final subjectId = body['subject_id'];
-    if (subjectId is! int || !users.any((u) => u['id'] == subjectId)) {
+    final subjectExists = subjectType == 'user'
+        ? users.any((u) => u['id'] == subjectId)
+        : teams.any((t) => t['id'] == subjectId);
+    if (subjectId is! int || !subjectExists) {
       return const MockReply(404, body: {'error': 'not_found'});
     }
     final scopeType = body['scope_type'];
@@ -736,7 +740,7 @@ class MockServer implements HttpClientAdapter {
 
     final assignment = {
       'id': _nextId(roleAssignments),
-      'subject_type': 'user',
+      'subject_type': subjectType,
       'subject_id': subjectId,
       'role': body['role'],
       'scope_type': scopeType,
@@ -787,6 +791,8 @@ class MockServer implements HttpClientAdapter {
       String? subjectName;
       if (a['subject_type'] == 'user') {
         subjectName = findById(users, a['subject_id'])?['username'] as String?;
+      } else if (a['subject_type'] == 'team') {
+        subjectName = findById(teams, a['subject_id'])?['name'] as String?;
       }
 
       items.add({...a, 'scope_name': scopeName, 'subject_name': subjectName});

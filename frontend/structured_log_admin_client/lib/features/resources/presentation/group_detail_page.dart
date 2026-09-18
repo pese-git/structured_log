@@ -18,12 +18,14 @@ import 'resources_section.dart';
 /// target user's own screen (`lib/features/users/`).
 class GroupDetailPage extends StatelessWidget {
   final String groupName;
+  final bool isAdmin;
   final VoidCallback onBack;
   final ValueChanged<ProjectDto> onOpenProject;
 
   const GroupDetailPage({
     super.key,
     required this.groupName,
+    required this.isAdmin,
     required this.onBack,
     required this.onOpenProject,
   });
@@ -79,7 +81,7 @@ class GroupDetailPage extends StatelessWidget {
               const SizedBox(height: AdminSpacing.x24),
               _Teams(state: state),
               const SizedBox(height: AdminSpacing.x24),
-              _Access(groupName: groupName, state: state),
+              _Access(groupName: groupName, isAdmin: isAdmin, state: state),
             ],
           ),
         );
@@ -319,9 +321,14 @@ class _Teams extends StatelessWidget {
 
 class _Access extends StatelessWidget {
   final String groupName;
+  final bool isAdmin;
   final GroupDetailState state;
 
-  const _Access({required this.groupName, required this.state});
+  const _Access({
+    required this.groupName,
+    required this.isAdmin,
+    required this.state,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +377,7 @@ class _Access extends StatelessWidget {
           for (final grant in state.roleAssignments) ...[
             AdminResourceRow(
               icon: FluentIcons.contact,
-              title: grant.subjectName ?? 'Пользователь #${grant.subjectId}',
+              title: subjectLabel(grant),
               subtitle: grant.role,
               actions: [
                 AdminButton(
@@ -397,13 +404,16 @@ class _Access extends StatelessWidget {
             return GrantAccessDialog(
               scopeLabel: 'Группа: $groupName',
               submitting: state.grantingAccess,
+              isGlobalAdmin: isAdmin,
               errorText: state.accessFailure == null
                   ? null
                   : describeApiFailure(state.accessFailure!),
               searchUsers: cubit.searchUsers,
+              searchTeams: cubit.searchTeams,
               onGrant: (values) async {
                 await cubit.grantAccess(
-                  userId: values.userId,
+                  subjectType: values.subjectType,
+                  subjectId: values.subjectId,
                   role: values.role,
                 );
                 if (!dialogContext.mounted) return;
@@ -424,7 +434,11 @@ class _Access extends StatelessWidget {
 
   Future<void> _revoke(BuildContext context, RoleAssignmentDto grant) async {
     final cubit = context.read<GroupDetailCubit>();
-    final subject = grant.subjectName ?? 'пользователя #${grant.subjectId}';
+    final subject =
+        grant.subjectName ??
+        (grant.subjectType == 'team'
+            ? 'команды #${grant.subjectId}'
+            : 'пользователя #${grant.subjectId}');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(

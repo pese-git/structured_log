@@ -45,16 +45,19 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
   final ManageProjects _projects;
   final ManageSecretKeys _keys;
   final ManageRoleAssignments _roleAssignments;
+  final ManageTeams _teams;
   final int projectId;
 
   ProjectDetailCubit({
     required ManageProjects projects,
     required ManageSecretKeys keys,
     required ManageRoleAssignments roleAssignments,
+    required ManageTeams teams,
     required this.projectId,
   }) : _projects = projects,
        _keys = keys,
        _roleAssignments = roleAssignments,
+       _teams = teams,
        super(const ProjectDetailState());
 
   Future<void> load() async {
@@ -85,11 +88,16 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
     );
   }
 
-  Future<void> grantAccess({required int userId, required String role}) async {
+  Future<void> grantAccess({
+    required String subjectType,
+    required int subjectId,
+    required String role,
+  }) async {
     if (state.grantingAccess) return;
     emit(state.copyWith(grantingAccess: true, accessFailure: null));
     final result = await _roleAssignments.grant(
-      subjectId: userId,
+      subjectType: subjectType,
+      subjectId: subjectId,
       role: role,
       scopeType: 'project',
       scopeId: projectId,
@@ -126,6 +134,26 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
   Future<List<UserDto>> searchUsers(String query) =>
       _roleAssignments.searchUsers(query);
+
+  /// This project's *enclosing group*'s teams — a team is never scoped to a
+  /// project directly, and the server's own owner-delegation rule requires a
+  /// team recipient to belong to the group a project sits in
+  /// (`access_check.dart`'s `subjectTeamGroupId` check) — same reasoning and
+  /// same client-side substring filter as `GroupDetailCubit.searchTeams`.
+  /// Empty before [ProjectDetailState.project] has loaded, which is also the
+  /// only time the «Предоставить доступ» dialog cannot yet be open.
+  Future<List<TeamDto>> searchTeams(String query) async {
+    final groupId = state.project?.groupId;
+    if (groupId == null) return const [];
+    final result = await _teams.inGroup(groupId);
+    final teams = result.getOrElse((_) => const []);
+    if (query.isEmpty) return teams;
+    final needle = query.toLowerCase();
+    return [
+      for (final team in teams)
+        if (team.name.toLowerCase().contains(needle)) team,
+    ];
+  }
 
   Future<void> _reloadAccess() async {
     final result = await _roleAssignments.forScope(

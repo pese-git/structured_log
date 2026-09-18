@@ -9,6 +9,16 @@ import '../../../shared/api/dto/user_dto.dart';
 /// sent as `null` rather than left out (`UpdateProjectQuotaRequestDto`).
 typedef QuotaValues = ({int retentionDays, int? maxEntries, int? maxBytes});
 
+/// A «Доступ» row's title — the resolved name the server sends, or a
+/// fallback naming the subject's kind, so a team grant never reads as a
+/// user's (13.5, full version: the subject can now be either).
+String subjectLabel(RoleAssignmentDto grant) {
+  if (grant.subjectName != null) return grant.subjectName!;
+  return grant.subjectType == 'team'
+      ? 'Команда #${grant.subjectId}'
+      : 'Пользователь #${grant.subjectId}';
+}
+
 /// A field and the "без лимита" checkbox beside it, as the quota dialogs draw
 /// it. Checking the box is what "no limit" means, and it empties the field
 /// rather than leaving a number nobody will honour.
@@ -574,19 +584,30 @@ class _NameDialogState extends State<NameDialog> {
 }
 
 /// What a group/project «Доступ» section's grant dialog produced.
-typedef AccessGrantValues = ({int userId, String role});
+typedef AccessGrantValues = ({String subjectType, int subjectId, String role});
 
-/// Grants a role on a fixed group/project to a user picked by name — the
-/// mirror image of `EditUserDialog`'s role-grant section, which fixes the
-/// user and lets the admin pick the scope (уточнение 17.09.2026). `role` is
-/// `owner`/`user` only: `admin` is a global role, not one to hold "on" a
-/// group or project (`_GroupRolePicker`, unlike `EditUserDialog`'s
-/// `_RolePicker`).
+/// Grants a role on a fixed group/project to a user or a team picked by name
+/// — the mirror image of `EditUserDialog`'s role-grant section, which fixes
+/// the user and lets the admin pick the scope (уточнение 17.09.2026). `role`
+/// defaults to `owner`/`user` — the only roles an `owner` may grant
+/// (`_GroupRolePicker`) — and widens to include `admin` when [isGlobalAdmin]
+/// says the caller's token claims it (13.5, full version): a client-side
+/// hint only, never the source of truth — the server re-derives the
+/// caller's actual rights on every request regardless of what this form
+/// offered (`specs/admin-client-resource-management`, requirement «Выдача и
+/// отзыв ролей пользователю или команде»).
 class GrantAccessDialog extends StatefulWidget {
   final String scopeLabel;
   final bool submitting;
+  final bool isGlobalAdmin;
   final String? errorText;
   final Future<List<UserDto>> Function(String query) searchUsers;
+
+  /// Candidates for the team-recipient mode — already narrowed to teams of
+  /// the group this grant is on (or that group's project is in), the same
+  /// scope the server's own owner-delegation rule requires of a team
+  /// recipient.
+  final Future<List<TeamDto>> Function(String query) searchTeams;
   final ValueChanged<AccessGrantValues> onGrant;
   final VoidCallback onCancel;
 
@@ -594,9 +615,11 @@ class GrantAccessDialog extends StatefulWidget {
     super.key,
     required this.scopeLabel,
     required this.searchUsers,
+    required this.searchTeams,
     required this.onGrant,
     required this.onCancel,
     this.submitting = false,
+    this.isGlobalAdmin = false,
     this.errorText,
   });
 
@@ -606,11 +629,17 @@ class GrantAccessDialog extends StatefulWidget {
 
 class _GrantAccessDialogState extends State<GrantAccessDialog> {
   String _role = 'user';
-  int? _userId;
+  String _subjectType = 'user';
+  int? _subjectId;
 
   void _submit() {
-    if (_userId == null) return;
-    widget.onGrant((userId: _userId!, role: _role));
+    final subjectId = _subjectId;
+    if (subjectId == null) return;
+    widget.onGrant((
+      subjectType: _subjectType,
+      subjectId: subjectId,
+      role: _role,
+    ));
   }
 
   @override
@@ -640,21 +669,47 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
               ),
             ),
             const SizedBox(height: AdminSpacing.x14),
+            _SubjectTypePicker(
+              value: _subjectType,
+              onChanged: (value) => setState(() {
+                _subjectType = value;
+                // The old pick is the wrong kind of subject for the picker
+                // that is about to replace it — keeping it would grant a
+                // role to whoever the field no longer shows (same reasoning
+                // as `EditUserDialog`'s `_ScopeTypePicker`).
+                _subjectId = null;
+              }),
+            ),
+            const SizedBox(height: AdminSpacing.x14),
+            // Keyed on subject type so switching user ↔ team mounts a fresh
+            // picker instead of reusing one still holding the other kind's
+            // text and results.
             AdminSearchPicker<int>(
-              label: 'Пользователь',
-              placeholder: 'Начните вводить имя пользователя…',
+              key: ValueKey(_subjectType),
+              label: _subjectType == 'user' ? 'Пользователь' : 'Команда',
+              placeholder: _subjectType == 'user'
+                  ? 'Начните вводить имя пользователя…'
+                  : 'Начните вводить название команды…',
               onSearch: (query) async {
+                if (_subjectType == 'team') {
+                  final teams = await widget.searchTeams(query);
+                  return [
+                    for (final t in teams)
+                      AdminSearchPickerItem(value: t.id, label: t.name),
+                  ];
+                }
                 final users = await widget.searchUsers(query);
                 return [
                   for (final u in users)
                     AdminSearchPickerItem(value: u.id, label: u.username),
                 ];
               },
-              onSelected: (item) => setState(() => _userId = item?.value),
+              onSelected: (item) => setState(() => _subjectId = item?.value),
             ),
             const SizedBox(height: AdminSpacing.x14),
             _GroupRolePicker(
               value: _role,
+              includeAdmin: widget.isGlobalAdmin,
               onChanged: (value) => setState(() => _role = value),
             ),
           ],
@@ -671,6 +726,39 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : _submit,
+        ),
+      ],
+    );
+  }
+}
+
+class _SubjectTypePicker extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _SubjectTypePicker({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Получатель',
+          style: AdminTypography.label.copyWith(color: colors.text),
+        ),
+        const SizedBox(height: AdminSpacing.x6),
+        ComboBox<String>(
+          value: value,
+          isExpanded: true,
+          items: const [
+            ComboBoxItem(value: 'user', child: Text('Пользователь')),
+            ComboBoxItem(value: 'team', child: Text('Команда')),
+          ],
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
         ),
       ],
     );
@@ -823,11 +911,21 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
   }
 }
 
+/// `owner`/`user` always — the only roles an `owner` may grant on a group or
+/// project — plus `admin` when [includeAdmin] says the caller's own token
+/// claims global `admin` (13.5, full version): `admin` is otherwise a global
+/// role, not one to hold "on" a group or project, so it stays off this list
+/// for anyone the form does not already know is unrestricted.
 class _GroupRolePicker extends StatelessWidget {
   final String value;
+  final bool includeAdmin;
   final ValueChanged<String> onChanged;
 
-  const _GroupRolePicker({required this.value, required this.onChanged});
+  const _GroupRolePicker({
+    required this.value,
+    required this.onChanged,
+    this.includeAdmin = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -840,9 +938,11 @@ class _GroupRolePicker extends StatelessWidget {
         ComboBox<String>(
           value: value,
           isExpanded: true,
-          items: const [
-            ComboBoxItem(value: 'owner', child: Text('owner')),
-            ComboBoxItem(value: 'user', child: Text('user')),
+          items: [
+            if (includeAdmin)
+              const ComboBoxItem(value: 'admin', child: Text('admin')),
+            const ComboBoxItem(value: 'owner', child: Text('owner')),
+            const ComboBoxItem(value: 'user', child: Text('user')),
           ],
           onChanged: (v) {
             if (v != null) onChanged(v);

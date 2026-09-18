@@ -318,6 +318,52 @@ void main() {
       await closeApp(tester);
     });
 
+    testWidgets(
+      'granting a team searches the project\'s own group by name, not id '
+      '(13.5, full version)',
+      (tester) async {
+        server.teams.add({
+          'id': 3,
+          'group_id': 7,
+          'name': 'on-call',
+          'created_at': '2026-02-14T00:00:00.000Z',
+        });
+        await pumpApp(tester, server, signedIn: true);
+        await openProject(tester);
+
+        await tester.tap(find.text('Предоставить доступ'));
+        await tester.pumpAndSettle();
+        // The recipient-kind picker is the first ComboBox<String> in the
+        // dialog — the role picker is the second.
+        await tester.tap(find.byType(ComboBox<String>).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Команда').last);
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextBox).last, 'on');
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('on-call').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Предоставить').last);
+        await tester.pumpAndSettle();
+
+        final sent = lastRequest('POST', '/v1/role-assignments').json;
+        expect(sent, {
+          'subject_type': 'team',
+          'subject_id': 3,
+          'role': 'user',
+          'scope_type': 'project',
+          'scope_id': 1,
+        });
+        expect(
+          find.text('on-call'),
+          findsOneWidget,
+          reason: 'the dialog closes itself and the reloaded list shows it',
+        );
+        await closeApp(tester);
+      },
+    );
+
     testWidgets('revoking removes the row', (tester) async {
       server.roleAssignments.add({
         'id': 1,

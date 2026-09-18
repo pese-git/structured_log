@@ -284,6 +284,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: roleAssignments,
+        teams: ManageTeams(repository),
         projectId: 1,
       )..load();
       addTearDown(cubit.close);
@@ -293,6 +294,7 @@ void main() {
             value: cubit,
             child: ProjectDetailPage(
               groupName: 'payments',
+              isAdmin: false,
               onBackToGroups: () {},
               onOpenLogs: (_, _) {},
             ),

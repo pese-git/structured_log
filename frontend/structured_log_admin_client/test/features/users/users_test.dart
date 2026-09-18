@@ -125,16 +125,17 @@ class _FakeRoleAssignments implements RoleAssignmentsRepository {
 
   @override
   Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required String subjectType,
     required int subjectId,
     required String role,
     required String scopeType,
     int? scopeId,
   }) async {
-    calls.add('grant:$subjectId:$role:$scopeType:$scopeId');
+    calls.add('grant:$subjectType:$subjectId:$role:$scopeType:$scopeId');
     return _answer(
       RoleAssignmentDto(
         id: 1,
-        subjectType: 'user',
+        subjectType: subjectType,
         subjectId: subjectId,
         role: role,
         scopeType: scopeType,
@@ -410,14 +411,14 @@ void main() {
         expect(cubit.state.roleAssignments, hasLength(1));
         expect(
           roleAssignments.calls,
-          containsAllInOrder(['grant:1:owner:group:3', 'forUser:1']),
+          containsAllInOrder(['grant:user:1:owner:group:3', 'forUser:1']),
         );
       },
     );
 
     test('a global grant carries no scope_id', () async {
       await cubit.grantRole(userId: 1, role: 'admin', scopeType: 'global');
-      expect(roleAssignments.calls, contains('grant:1:admin:global:null'));
+      expect(roleAssignments.calls, contains('grant:user:1:admin:global:null'));
     });
 
     test('a refusal leaves the grant list untouched', () async {

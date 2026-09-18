@@ -91,11 +91,16 @@ class GroupDetailCubit extends Cubit<GroupDetailState> {
     );
   }
 
-  Future<void> grantAccess({required int userId, required String role}) async {
+  Future<void> grantAccess({
+    required String subjectType,
+    required int subjectId,
+    required String role,
+  }) async {
     if (state.grantingAccess) return;
     emit(state.copyWith(grantingAccess: true, accessFailure: null));
     final result = await _roleAssignments.grant(
-      subjectId: userId,
+      subjectType: subjectType,
+      subjectId: subjectId,
       role: role,
       scopeType: 'group',
       scopeId: groupId,
@@ -132,6 +137,23 @@ class GroupDetailCubit extends Cubit<GroupDetailState> {
 
   Future<List<UserDto>> searchUsers(String query) =>
       _roleAssignments.searchUsers(query);
+
+  /// Candidate teams for the «Предоставить доступ» dialog's team-recipient
+  /// mode — this group's own teams, narrowed by substring client-side: the
+  /// server has no `?name=` filter for `GET /v1/groups/:id/teams` (a group's
+  /// team list is small by construction, unlike the user/group/project
+  /// lists `AdminSearchPicker` otherwise searches server-side). Degrades to
+  /// an empty result on failure, same reasoning as `searchUsers`.
+  Future<List<TeamDto>> searchTeams(String query) async {
+    final result = await _teams.inGroup(groupId);
+    final teams = result.getOrElse((_) => const []);
+    if (query.isEmpty) return teams;
+    final needle = query.toLowerCase();
+    return [
+      for (final team in teams)
+        if (team.name.toLowerCase().contains(needle)) team,
+    ];
+  }
 
   Future<void> _reloadAccess() async {
     final result = await _roleAssignments.forScope(

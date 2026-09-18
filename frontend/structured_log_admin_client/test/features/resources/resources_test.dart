@@ -287,17 +287,18 @@ class _FakeRoleAssignments implements RoleAssignmentsRepository {
 
   @override
   Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required String subjectType,
     required int subjectId,
     required String role,
     required String scopeType,
     int? scopeId,
   }) async {
-    calls.add('grant:$subjectId:$role:$scopeType:$scopeId');
+    calls.add('grant:$subjectType:$subjectId:$role:$scopeType:$scopeId');
     if (refuseWrites != null) return left(refuseWrites!);
     return right(
       RoleAssignmentDto(
         id: 1,
-        subjectType: 'user',
+        subjectType: subjectType,
         subjectId: subjectId,
         role: role,
         scopeType: scopeType,
@@ -441,11 +442,11 @@ void main() {
       addTearDown(cubit.close);
       await cubit.load();
 
-      await cubit.grantAccess(userId: 9, role: 'owner');
+      await cubit.grantAccess(subjectType: 'user', subjectId: 9, role: 'owner');
 
       expect(
         roleAssignments.calls,
-        containsAllInOrder(['grant:9:owner:group:1', 'forScope:group:1']),
+        containsAllInOrder(['grant:user:9:owner:group:1', 'forScope:group:1']),
       );
     });
 
@@ -462,7 +463,7 @@ void main() {
       addTearDown(cubit.close);
       await cubit.load();
 
-      await cubit.grantAccess(userId: 9, role: 'owner');
+      await cubit.grantAccess(subjectType: 'user', subjectId: 9, role: 'owner');
 
       expect(cubit.state.accessFailure, isNotNull);
     });
@@ -694,6 +695,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -710,6 +712,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -736,6 +739,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -761,6 +765,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -779,6 +784,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         projectId: 1,
       );
       addTearDown(cubit.close);
@@ -793,6 +799,7 @@ void main() {
         projects: ManageProjects(repository),
         keys: ManageSecretKeys(repository),
         roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
         projectId: 1,
       );
       addTearDown(cubit.close);
