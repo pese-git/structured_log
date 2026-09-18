@@ -23,7 +23,7 @@ than a convention, which a directory inside the client could not do.
 |---|---|
 | `tokens` | `AdminColors`, `AdminTypography`, `AdminSpacing`/`AdminRadius`/`AdminSizes`, `AdminLogLevel` + `AdminLogLevelColors`, `AdminTheme` |
 | `atoms` | `AdminLogLevelBadge`, `AdminButton`, `AdminTag`, `AdminLoadingIndicator`, `AdminEmptyState` |
-| `molecules` | `AdminSearchField`, `AdminFilterChip`, `AdminKeyValueRow`, `AdminQuotaBar`, `AdminStatusTag`, `AdminLabeledToggle`, `AdminTextField`, `AdminBanner`, `AdminLivePill`, `AdminDateRangeField` |
+| `molecules` | `AdminSearchField`, `AdminFilterChip`, `AdminKeyValueRow`, `AdminQuotaBar`, `AdminStatusTag`, `AdminLabeledToggle`, `AdminTextField`, `AdminBanner`, `AdminLivePill`, `AdminDateRangeField`, `AdminTimeRangeField` |
 | `organisms` | `AdminAppShell`, `AdminResourceRow`, `AdminFilterBar`, `AdminConfirmDialog`, `AdminLogEntryRow`, `AdminFeedStatusStrip`, `AdminTable` |
 
 There is no `templates` or `pages` level. Those assemble whole screens around

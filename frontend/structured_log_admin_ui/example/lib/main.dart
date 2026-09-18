@@ -57,6 +57,8 @@ class _GalleryPageState extends State<GalleryPage> {
   var _selectedRow = 1;
   DateTime? _from = DateTime(2026, 9, 1);
   DateTime? _to;
+  DateTime? _fromTime = DateTime(2026, 9, 1, 9);
+  DateTime? _toTime;
 
   @override
   void dispose() {
@@ -475,6 +477,16 @@ class _GalleryPageState extends State<GalleryPage> {
             ),
           ),
           _Section(
+            title: 'Molecules · AdminTimeRangeField',
+            child: AdminTimeRangeField(
+              from: _fromTime,
+              to: _toTime,
+              formatTime: _formatTime,
+              onFromChanged: (value) => setState(() => _fromTime = value),
+              onToChanged: (value) => setState(() => _toTime = value),
+            ),
+          ),
+          _Section(
             title: 'Organisms · AdminTable',
             child: AdminTable(
               columns: const [
@@ -558,6 +570,10 @@ class _GalleryPageState extends State<GalleryPage> {
   String _formatDay(DateTime value) =>
       '${value.day.toString().padLeft(2, '0')}.'
       '${value.month.toString().padLeft(2, '0')}.${value.year}';
+
+  String _formatTime(DateTime value) =>
+      '${value.hour.toString().padLeft(2, '0')}:'
+      '${value.minute.toString().padLeft(2, '0')}';
 
   void _showConfirm(BuildContext context, {required bool destructive}) {
     showDialog<void>(
