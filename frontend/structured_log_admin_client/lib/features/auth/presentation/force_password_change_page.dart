@@ -55,49 +55,52 @@ class _ForcePasswordChangePageState extends State<ForcePasswordChangePage> {
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
-    return ScaffoldPage(
-      padding: EdgeInsets.zero,
-      content: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.sizeOf(context).width,
-          ),
-          child: SizedBox(
-            width: 1160,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AuthBrandPanel(
-                  description: context.l10n.authForceBrandDescription,
-                ),
-                Expanded(
-                  child: ColoredBox(
-                    color: colors.surface,
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AdminSpacing.x24,
-                            ),
-                            child: SizedBox(width: 340, child: _body(colors)),
-                          ),
-                        ),
-                        if (widget.localeController case final controller?)
-                          Positioned(
-                            top: AdminSpacing.x12,
-                            right: AdminSpacing.x18,
-                            child: AuthLanguageSwitch(controller: controller),
-                          ),
-                      ],
+    final scroller = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: MediaQuery.sizeOf(context).width),
+        child: SizedBox(
+          width: 1160,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AuthBrandPanel(
+                description: context.l10n.authForceBrandDescription,
+              ),
+              Expanded(
+                child: ColoredBox(
+                  color: colors.surface,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AdminSpacing.x24,
+                      ),
+                      child: SizedBox(width: 340, child: _body(colors)),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+
+    // The switcher lives outside the horizontal scroller: inside it, in a
+    // window narrower than the artboard, it would sit past the right edge
+    // and be reachable only by scrolling.
+    return ScaffoldPage(
+      padding: EdgeInsets.zero,
+      content: Stack(
+        children: [
+          scroller,
+          if (widget.localeController case final controller?)
+            Positioned(
+              top: AdminSpacing.x12,
+              right: AdminSpacing.x18,
+              child: AuthLanguageSwitch(controller: controller),
+            ),
+        ],
       ),
     );
   }

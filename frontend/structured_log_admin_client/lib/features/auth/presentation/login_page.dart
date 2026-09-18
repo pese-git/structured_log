@@ -68,47 +68,47 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
-    return ScaffoldPage(
-      padding: EdgeInsets.zero,
-      content: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.sizeOf(context).width,
-          ),
-          child: SizedBox(
-            width: 1160,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AuthBrandPanel(
-                  description: context.l10n.authLoginBrandDescription,
-                ),
-                Expanded(
-                  child: ColoredBox(
-                    color: colors.surface,
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: SizedBox(
-                            width: 340,
-                            child: _buildForm(colors),
-                          ),
-                        ),
-                        if (widget.localeController case final controller?)
-                          Positioned(
-                            top: AdminSpacing.x12,
-                            right: AdminSpacing.x18,
-                            child: AuthLanguageSwitch(controller: controller),
-                          ),
-                      ],
-                    ),
+    final scroller = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: MediaQuery.sizeOf(context).width),
+        child: SizedBox(
+          width: 1160,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AuthBrandPanel(
+                description: context.l10n.authLoginBrandDescription,
+              ),
+              Expanded(
+                child: ColoredBox(
+                  color: colors.surface,
+                  child: Center(
+                    child: SizedBox(width: 340, child: _buildForm(colors)),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+
+    // The switcher lives outside the horizontal scroller: inside it, in a
+    // window narrower than the artboard, it would sit past the right edge
+    // and be reachable only by scrolling.
+    return ScaffoldPage(
+      padding: EdgeInsets.zero,
+      content: Stack(
+        children: [
+          scroller,
+          if (widget.localeController case final controller?)
+            Positioned(
+              top: AdminSpacing.x12,
+              right: AdminSpacing.x18,
+              child: AuthLanguageSwitch(controller: controller),
+            ),
+        ],
       ),
     );
   }
