@@ -33,6 +33,12 @@ Every component takes primitives, enums and callbacks — never a domain model
 or a Bloc state. Purely presentational local state (hover, focus, expanded) is
 fine and uses `StatefulWidget`/`ValueNotifier`.
 
+## Language
+
+The kit knows no language: every visible text is a parameter, and the defaults
+of those that have one (`Cancel`, `From`/`To`/`any`, `Apply`, `Account
+settings`, `Sign out`, …) are English. A screen passes its own, localized.
+
 ## Design source
 
 Values come from the "Structured Log Admin UI" design canvas, whose artboards

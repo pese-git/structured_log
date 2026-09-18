@@ -44,10 +44,10 @@ class AdminDateRangeField extends StatelessWidget {
     required this.formatDate,
     this.from,
     this.to,
-    this.fromLabel = 'С',
-    this.toLabel = 'По',
-    this.anyLabel = 'любая',
-    this.clearLabel = 'Любая дата',
+    this.fromLabel = 'From',
+    this.toLabel = 'To',
+    this.anyLabel = 'any',
+    this.clearLabel = 'Any date',
   });
 
   @override

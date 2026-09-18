@@ -8,7 +8,8 @@ import 'package:structured_log_admin_client/features/resources/application/manag
 import 'package:structured_log_admin_client/features/resources/domain/resources_repository.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
-import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
 
 /// `ManageGroups.list`/`ManageProjects.search`/`.get` is all
 /// [DashboardCubit] calls — everything else throws if the test does not set
@@ -49,10 +50,11 @@ class _FakeRepository implements ResourcesRepository {
   );
 }
 
-Widget _host(Widget child) => FluentApp(
-  theme: AdminTheme.light(),
-  home: ScaffoldPage(padding: EdgeInsets.zero, content: child),
-);
+Widget _host(Widget child, {Locale locale = const Locale('ru')}) =>
+    localizedApp(
+      locale: locale,
+      home: ScaffoldPage(padding: EdgeInsets.zero, content: child),
+    );
 
 GroupDto _group(int id, String name) =>
     GroupDto(id: id, name: name, createdAt: DateTime.utc(2026, 2, 14));
@@ -85,6 +87,7 @@ void main() {
     WidgetTester tester, {
     void Function(int, String)? onOpenGroup,
     void Function(int, String)? onOpenLogs,
+    Locale locale = const Locale('ru'),
   }) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
@@ -106,6 +109,7 @@ void main() {
             onOpenLogs: onOpenLogs ?? (_, _) {},
           ),
         ),
+        locale: locale,
       ),
     );
     await tester.pumpAndSettle();
@@ -119,6 +123,16 @@ void main() {
 
     expect(find.text('Групп пока нет'), findsOneWidget);
     expect(find.text('Проектов пока нет'), findsOneWidget);
+  });
+
+  testWidgets('the English locale shows English text, not Russian', (
+    tester,
+  ) async {
+    await pump(tester, locale: const Locale('en'));
+
+    expect(find.text('Dashboard'), findsOneWidget);
+    expect(find.text('No groups yet'), findsOneWidget);
+    expect(find.text('Групп пока нет'), findsNothing);
   });
 
   testWidgets('a group card shows its name, the admin badge and usage', (

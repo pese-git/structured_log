@@ -68,6 +68,11 @@ class AdminAppShell extends StatelessWidget {
   final VoidCallback? onOpenAccountSettings;
   final VoidCallback? onSignOut;
 
+  /// The account menu's two rows. English by default like every label in this
+  /// kit; the screen passes its own.
+  final String accountSettingsLabel;
+  final String signOutLabel;
+
   const AdminAppShell({
     super.key,
     required this.sections,
@@ -80,6 +85,8 @@ class AdminAppShell extends StatelessWidget {
     this.productName = 'Structured Log',
     this.onOpenAccountSettings,
     this.onSignOut,
+    this.accountSettingsLabel = 'Account settings',
+    this.signOutLabel = 'Sign out',
   });
 
   @override
@@ -118,6 +125,8 @@ class AdminAppShell extends StatelessWidget {
                 accountRole: accountRole,
                 onOpenAccountSettings: onOpenAccountSettings,
                 onSignOut: onSignOut,
+                accountSettingsLabel: accountSettingsLabel,
+                signOutLabel: signOutLabel,
               ),
             ),
             Expanded(
@@ -174,6 +183,11 @@ class _NavPane extends StatelessWidget {
   final VoidCallback? onOpenAccountSettings;
   final VoidCallback? onSignOut;
 
+  /// The account menu's two rows. English by default like every label in this
+  /// kit; the screen passes its own.
+  final String accountSettingsLabel;
+  final String signOutLabel;
+
   const _NavPane({
     required this.collapsed,
     required this.sections,
@@ -184,6 +198,8 @@ class _NavPane extends StatelessWidget {
     required this.accountRole,
     this.onOpenAccountSettings,
     this.onSignOut,
+    this.accountSettingsLabel = 'Account settings',
+    this.signOutLabel = 'Sign out',
   });
 
   @override
@@ -267,6 +283,8 @@ class _NavPane extends StatelessWidget {
           accountRole: accountRole,
           onOpenAccountSettings: onOpenAccountSettings,
           onSignOut: onSignOut,
+          accountSettingsLabel: accountSettingsLabel,
+          signOutLabel: signOutLabel,
         ),
       ],
     );
@@ -283,12 +301,19 @@ class _AccountBlock extends StatefulWidget {
   final VoidCallback? onOpenAccountSettings;
   final VoidCallback? onSignOut;
 
+  /// The account menu's two rows. English by default like every label in this
+  /// kit; the screen passes its own.
+  final String accountSettingsLabel;
+  final String signOutLabel;
+
   const _AccountBlock({
     required this.collapsed,
     required this.accountName,
     required this.accountRole,
     this.onOpenAccountSettings,
     this.onSignOut,
+    this.accountSettingsLabel = 'Account settings',
+    this.signOutLabel = 'Sign out',
   });
 
   @override
@@ -318,6 +343,8 @@ class _AccountBlockState extends State<_AccountBlock> {
           Navigator.of(flyoutContext).pop();
           widget.onSignOut?.call();
         },
+        accountSettingsLabel: widget.accountSettingsLabel,
+        signOutLabel: widget.signOutLabel,
       ),
     );
   }

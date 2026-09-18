@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 
@@ -12,11 +13,11 @@ typedef QuotaValues = ({int retentionDays, int? maxEntries, int? maxBytes});
 /// A «Доступ» row's title — the resolved name the server sends, or a
 /// fallback naming the subject's kind, so a team grant never reads as a
 /// user's (13.5, full version: the subject can now be either).
-String subjectLabel(RoleAssignmentDto grant) {
+String subjectLabel(AppLocalizations l10n, RoleAssignmentDto grant) {
   if (grant.subjectName != null) return grant.subjectName!;
   return grant.subjectType == 'team'
-      ? 'Команда #${grant.subjectId}'
-      : 'Пользователь #${grant.subjectId}';
+      ? l10n.resSubjectTeam(grant.subjectId)
+      : l10n.resSubjectUser(grant.subjectId);
 }
 
 /// A field and the "без лимита" checkbox beside it, as the quota dialogs draw
@@ -56,7 +57,7 @@ class _LimitField extends StatelessWidget {
             checked: unlimited,
             onChanged: (value) => onUnlimitedChanged(value ?? false),
             content: Text(
-              'без лимита',
+              context.l10n.resNoLimit,
               style: AdminTypography.bodySmall.copyWith(
                 color: colors.textSecondary,
               ),
@@ -95,19 +96,19 @@ class _QuotaFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AdminTextField(
-          label: 'Срок хранения, дней (retention_days)',
+          label: context.l10n.resFieldRetention,
           controller: retention,
         ),
         const SizedBox(height: AdminSpacing.x14),
         _LimitField(
-          label: 'Лимит записей (max_entries)',
+          label: context.l10n.resFieldMaxEntries,
           controller: entries,
           unlimited: entriesUnlimited,
           onUnlimitedChanged: onEntriesUnlimited,
         ),
         const SizedBox(height: AdminSpacing.x14),
         _LimitField(
-          label: 'Лимит объёма, МБ (max_bytes)',
+          label: context.l10n.resFieldMaxBytes,
           controller: bytes,
           unlimited: bytesUnlimited,
           onUnlimitedChanged: onBytesUnlimited,
@@ -184,7 +185,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
     return ContentDialog(
       constraints: const BoxConstraints(maxWidth: 480),
       title: Text(
-        'Новый проект',
+        context.l10n.resNewProject,
         style: AdminTypography.sectionTitle.copyWith(color: colors.text),
       ),
       content: SingleChildScrollView(
@@ -199,14 +200,14 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
               const SizedBox(height: AdminSpacing.x14),
             ],
             Text(
-              'Группа',
+              context.l10n.resGroup,
               style: AdminTypography.bodySmall.copyWith(color: colors.text),
             ),
             const SizedBox(height: AdminSpacing.x6),
             AdminTag(label: widget.groupName),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Название проекта',
+              label: context.l10n.resProjectNameLabel,
               controller: _name,
               autofocus: true,
             ),
@@ -222,8 +223,7 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
             ),
             const SizedBox(height: AdminSpacing.x14),
             Text(
-              'Секретный ключ для приёма логов создаётся отдельно, на экране '
-              'проекта, после его создания.',
+              context.l10n.resNewProjectNote,
               style: AdminTypography.caption.copyWith(
                 color: colors.textSecondary,
                 height: 1.45,
@@ -234,12 +234,12 @@ class _CreateProjectDialogState extends State<CreateProjectDialog> {
       ),
       actions: [
         AdminButton(
-          label: 'Отмена',
+          label: context.l10n.resCancel,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : widget.onCancel,
         ),
         AdminButton(
-          label: 'Создать проект',
+          label: context.l10n.resCreateProject,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : _submit,
@@ -321,12 +321,12 @@ class _EditQuotaDialogState extends State<EditQuotaDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Изменить квоту',
+            context.l10n.resEditQuota,
             style: AdminTypography.sectionTitle.copyWith(color: colors.text),
           ),
           const SizedBox(height: AdminSpacing.x4),
           Text(
-            'Проект: ${widget.projectName}',
+            context.l10n.resProjectPrefix(widget.projectName),
             style: AdminTypography.bodySmall.copyWith(
               color: colors.textSecondary,
             ),
@@ -358,12 +358,12 @@ class _EditQuotaDialogState extends State<EditQuotaDialog> {
       ),
       actions: [
         AdminButton(
-          label: 'Отмена',
+          label: context.l10n.resCancel,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : widget.onCancel,
         ),
         AdminButton(
-          label: 'Сохранить',
+          label: context.l10n.resSave,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : _submit,
@@ -406,7 +406,7 @@ class SecretKeyRevealDialog extends StatelessWidget {
               Icon(FluentIcons.completed, size: 18, color: colors.successFg),
               const SizedBox(width: AdminSpacing.x8),
               Text(
-                'Ключ создан',
+                context.l10n.resKeyCreated,
                 style: AdminTypography.sectionTitle.copyWith(
                   color: colors.text,
                 ),
@@ -415,7 +415,7 @@ class SecretKeyRevealDialog extends StatelessWidget {
           ),
           const SizedBox(height: AdminSpacing.x4),
           Text(
-            'Проект $projectName · метка «$label»',
+            context.l10n.resKeyRevealSubtitle(projectName, label),
             style: AdminTypography.bodySmall.copyWith(
               color: colors.textSecondary,
             ),
@@ -433,10 +433,8 @@ class SecretKeyRevealDialog extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AdminBanner(
-              message:
-                  'Значение показывается только один раз. После закрытия окна '
-                  'оно нигде не будет доступно — сохраните его сейчас.',
+            AdminBanner(
+              message: context.l10n.resKeyRevealWarning,
               tone: AdminBannerTone.error,
             ),
             const SizedBox(height: AdminSpacing.x14),
@@ -471,7 +469,7 @@ class SecretKeyRevealDialog extends StatelessWidget {
       ),
       actions: [
         AdminButton(
-          label: 'Я сохранил(а) ключ — закрыть',
+          label: context.l10n.resKeySavedClose,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: onClose,
@@ -553,7 +551,7 @@ class _NameDialogState extends State<NameDialog> {
             ],
             if (widget.groupLabel != null) ...[
               Text(
-                'Группа',
+                context.l10n.resGroup,
                 style: AdminTypography.bodySmall.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x6),
@@ -581,7 +579,7 @@ class _NameDialogState extends State<NameDialog> {
       ),
       actions: [
         AdminButton(
-          label: 'Отмена',
+          label: context.l10n.resCancel,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : widget.onCancel,
         ),
@@ -663,7 +661,7 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
     return ContentDialog(
       constraints: const BoxConstraints(maxWidth: 440),
       title: Text(
-        'Предоставить доступ',
+        context.l10n.resGrantAccess,
         style: AdminTypography.sectionTitle.copyWith(color: colors.text),
       ),
       content: SingleChildScrollView(
@@ -705,10 +703,10 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
             // one 'Пользователь', not two).
             AdminSearchPicker<int>(
               key: ValueKey(_subjectType),
-              label: 'Имя получателя',
+              label: context.l10n.resRecipientName,
               placeholder: _subjectType == 'user'
-                  ? 'Начните вводить имя пользователя…'
-                  : 'Начните вводить название команды…',
+                  ? context.l10n.resSearchUserHint
+                  : context.l10n.resSearchTeamHint,
               onSearch: (query) async {
                 if (_subjectType == 'team') {
                   final teams = await widget.searchTeams(query);
@@ -736,12 +734,12 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
       ),
       actions: [
         AdminButton(
-          label: 'Отмена',
+          label: context.l10n.resCancel,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : widget.onCancel,
         ),
         AdminButton(
-          label: 'Предоставить',
+          label: context.l10n.resGrant,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : _submit,
@@ -764,16 +762,16 @@ class _SubjectTypePicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Получатель',
+          context.l10n.resRecipient,
           style: AdminTypography.label.copyWith(color: colors.text),
         ),
         const SizedBox(height: AdminSpacing.x6),
         ComboBox<String>(
           value: value,
           isExpanded: true,
-          items: const [
-            ComboBoxItem(value: 'user', child: Text('Пользователь')),
-            ComboBoxItem(value: 'team', child: Text('Команда')),
+          items: [
+            ComboBoxItem(value: 'user', child: Text(context.l10n.resUser)),
+            ComboBoxItem(value: 'team', child: Text(context.l10n.resTeam)),
           ],
           onChanged: (v) {
             if (v != null) onChanged(v);
@@ -836,12 +834,12 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Состав команды «${widget.teamName}»',
+            context.l10n.resTeamMembersTitle(widget.teamName),
             style: AdminTypography.sectionTitle.copyWith(color: colors.text),
           ),
           const SizedBox(height: AdminSpacing.x4),
           Text(
-            'Группа: ${widget.groupName}',
+            context.l10n.resGroupPrefix(widget.groupName),
             style: AdminTypography.bodySmall.copyWith(
               color: colors.textSecondary,
             ),
@@ -871,8 +869,8 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
                   // exposes neither.
                   child: AdminSearchPicker<int>(
                     key: ValueKey(memberIds.toList()..sort()),
-                    label: 'Добавить участника',
-                    placeholder: 'Начните вводить имя пользователя…',
+                    label: context.l10n.resAddMember,
+                    placeholder: context.l10n.resSearchUserHint,
                     enabled: !widget.changing,
                     onSearch: (query) async {
                       final users = await widget.searchUsers(query);
@@ -891,7 +889,7 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
                 ),
                 const SizedBox(width: AdminSpacing.x10),
                 AdminButton(
-                  label: 'Добавить',
+                  label: context.l10n.resAdd,
                   size: AdminButtonSize.dialog,
                   onPressed: widget.changing || _candidateId == null
                       ? null
@@ -907,10 +905,10 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
             if (widget.loading)
               const Center(child: AdminLoadingIndicator())
             else if (widget.members.isEmpty)
-              const AdminEmptyState(
+              AdminEmptyState(
                 icon: FluentIcons.contact,
-                title: 'Участников пока нет',
-                description: 'Добавьте первого через поиск выше.',
+                title: context.l10n.resNoMembers,
+                description: context.l10n.resNoMembersHint,
               )
             else
               for (final member in widget.members) ...[
@@ -919,7 +917,7 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
                   title: member.username,
                   actions: [
                     AdminButton(
-                      label: 'Удалить',
+                      label: context.l10n.resDelete,
                       size: AdminButtonSize.tonal,
                       onPressed: widget.changing
                           ? null
@@ -934,7 +932,7 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
       ),
       actions: [
         AdminButton(
-          label: 'Закрыть',
+          label: context.l10n.resClose,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.onClose,
@@ -966,7 +964,10 @@ class _GroupRolePicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Роль', style: AdminTypography.label.copyWith(color: colors.text)),
+        Text(
+          context.l10n.resRole,
+          style: AdminTypography.label.copyWith(color: colors.text),
+        ),
         const SizedBox(height: AdminSpacing.x6),
         ComboBox<String>(
           value: value,

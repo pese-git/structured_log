@@ -160,7 +160,7 @@ void main() {
 
       await tester.tap(find.text('Отозвать'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Отмена'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       expect(confirmed, 1);
@@ -349,24 +349,24 @@ void main() {
         );
 
         // Closed: the menu items are not drawn until the block is pressed.
-        expect(find.text('Настройки аккаунта'), findsNothing);
-        expect(find.text('Выйти'), findsNothing);
+        expect(find.text('Account settings'), findsNothing);
+        expect(find.text('Sign out'), findsNothing);
 
         await tester.tap(find.text('Jana Novak'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Настройки аккаунта'), findsOneWidget);
-        expect(find.text('Выйти'), findsOneWidget);
+        expect(find.text('Account settings'), findsOneWidget);
+        expect(find.text('Sign out'), findsOneWidget);
         expect(openedSettings, 0, reason: 'opening the menu is not an action');
         expect(signedOut, 0);
 
-        await tester.tap(find.text('Настройки аккаунта'));
+        await tester.tap(find.text('Account settings'));
         await tester.pumpAndSettle();
 
         expect(openedSettings, 1);
         expect(signedOut, 0);
         expect(
-          find.text('Выйти'),
+          find.text('Sign out'),
           findsNothing,
           reason: 'picking an item closes the menu',
         );
@@ -396,7 +396,7 @@ void main() {
 
       await tester.tap(find.text('Jana Novak'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Выйти'));
+      await tester.tap(find.text('Sign out'));
       await tester.pumpAndSettle();
 
       expect(signedOut, 1);
@@ -422,7 +422,7 @@ void main() {
       await tester.tap(find.text('Jana Novak'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Настройки аккаунта'), findsNothing);
+      expect(find.text('Account settings'), findsNothing);
     });
   });
 

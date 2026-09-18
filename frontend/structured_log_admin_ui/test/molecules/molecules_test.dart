@@ -410,9 +410,9 @@ void main() {
         (tester) async {
       await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1))));
 
-      expect(find.text('С: 1.9'), findsOneWidget);
+      expect(find.text('From: 1.9'), findsOneWidget);
       expect(
-        find.text('По: любая'),
+        find.text('To: any'),
         findsOneWidget,
         reason: 'the upper bound is unset, and an unset bound must not read as '
             'today — that would be a filter nobody asked for',
@@ -422,7 +422,7 @@ void main() {
     testWidgets('each end opens its own calendar', (tester) async {
       await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1))));
 
-      await tester.tap(find.text('С: 1.9'));
+      await tester.tap(find.text('From: 1.9'));
       await tester.pumpAndSettle();
 
       expect(find.byType(CalendarView), findsOneWidget);
@@ -448,9 +448,9 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('С: 1.9'));
+      await tester.tap(find.text('From: 1.9'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Любая дата'));
+      await tester.tap(find.text('Any date'));
       await tester.pumpAndSettle();
 
       expect(reports, 1);
@@ -466,7 +466,7 @@ void main() {
         _host(field(from: DateTime(2026, 9, 1), onFrom: (v) => reported = v)),
       );
 
-      await tester.tap(find.text('С: 1.9'));
+      await tester.tap(find.text('From: 1.9'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('17').first);
       await tester.pumpAndSettle();
@@ -484,16 +484,16 @@ void main() {
         _host(field(from: DateTime(2026, 9, 10), to: DateTime(2026, 9, 20))),
       );
 
-      await tester.tap(find.text('С: 10.9'));
+      await tester.tap(find.text('From: 10.9'));
       await tester.pumpAndSettle();
       expect(
         tester.widget<CalendarView>(find.byType(CalendarView)).maxDate,
         DateTime(2026, 9, 20),
       );
-      await tester.tap(find.text('Любая дата'));
+      await tester.tap(find.text('Any date'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('По: 20.9'));
+      await tester.tap(find.text('To: 20.9'));
       await tester.pumpAndSettle();
       expect(
         tester.widget<CalendarView>(find.byType(CalendarView)).minDate,
@@ -525,9 +525,9 @@ void main() {
     ) async {
       await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1, 9, 30))));
 
-      expect(find.text('С: 09:30'), findsOneWidget);
+      expect(find.text('From: 09:30'), findsOneWidget);
       expect(
-        find.text('По: любое'),
+        find.text('To: any'),
         findsOneWidget,
         reason: 'the upper bound is unset, and an unset bound must not read as '
             'now — that would be a filter nobody asked for',
@@ -539,7 +539,7 @@ void main() {
     ) async {
       await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1, 9, 30))));
 
-      await tester.tap(find.text('С: 09:30'));
+      await tester.tap(find.text('From: 09:30'));
       await tester.pumpAndSettle();
 
       expect(find.byWidgetPredicate((w) => w is ComboBox), findsNWidgets(2));
@@ -563,9 +563,9 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('С: 09:30'));
+      await tester.tap(find.text('From: 09:30'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Любое время'));
+      await tester.tap(find.text('Any time'));
       await tester.pumpAndSettle();
 
       expect(reports, 1);
@@ -586,7 +586,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.text('С: 09:30'));
+        await tester.tap(find.text('From: 09:30'));
         await tester.pumpAndSettle();
 
         // Driven directly rather than through the popup: fluent_ui's own
@@ -605,7 +605,7 @@ void main() {
         minuteCombo().onChanged!(45);
         await tester.pump();
 
-        await tester.tap(find.text('Применить'));
+        await tester.tap(find.text('Apply'));
         await tester.pumpAndSettle();
 
         expect(reported, isNotNull);
@@ -626,9 +626,9 @@ void main() {
       await tester
           .pumpWidget(_host(field(onFrom: (value) => reported = value)));
 
-      await tester.tap(find.text('С: любое'));
+      await tester.tap(find.text('From: any'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Применить'));
+      await tester.tap(find.text('Apply'));
       await tester.pumpAndSettle();
 
       expect(reported, isNotNull);

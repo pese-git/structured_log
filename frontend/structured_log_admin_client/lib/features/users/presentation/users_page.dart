@@ -2,9 +2,9 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/formatting.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/user_dto.dart';
-import '../../resources/presentation/resource_failure_text.dart'
-    show formatDate;
 import 'user_actions.dart';
 import 'user_dialogs.dart';
 import 'user_failure_text.dart';
@@ -44,7 +44,7 @@ class UsersPage extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Пользователи',
+                      context.l10n.usersPageTitle,
                       overflow: TextOverflow.ellipsis,
                       style: AdminTypography.pageTitle.copyWith(
                         color: colors.text,
@@ -53,7 +53,7 @@ class UsersPage extends StatelessWidget {
                   ),
                   const SizedBox(width: AdminSpacing.x12),
                   AdminButton(
-                    label: 'Создать пользователя',
+                    label: context.l10n.usersCreateUser,
                     icon: FluentIcons.add,
                     variant: AdminButtonVariant.accent,
                     size: AdminButtonSize.dialog,
@@ -77,16 +77,15 @@ class UsersPage extends StatelessWidget {
     if (state.failure != null && state.users.isEmpty) {
       return AdminEmptyState(
         icon: FluentIcons.error_badge,
-        title: 'Не удалось загрузить пользователей',
-        description: describeUserFailure(state.failure!),
+        title: context.l10n.usersLoadFailedTitle,
+        description: describeUserFailure(context.l10n, state.failure!),
       );
     }
     if (state.isEmpty) {
-      return const AdminEmptyState(
+      return AdminEmptyState(
         icon: FluentIcons.contact,
-        title: 'Пользователей пока нет',
-        description:
-            'Здесь появятся учётные записи, как только вы создадите первую.',
+        title: context.l10n.usersEmptyTitle,
+        description: context.l10n.usersEmptyDescription,
       );
     }
 
@@ -103,7 +102,7 @@ class UsersPage extends StatelessWidget {
               child: state.loadingMore
                   ? const AdminLoadingIndicator()
                   : AdminButton(
-                      label: 'Показать ещё',
+                      label: context.l10n.usersShowMore,
                       icon: FluentIcons.chevron_down,
                       onPressed: context.read<UsersCubit>().loadMore,
                     ),
@@ -136,7 +135,10 @@ class UsersPage extends StatelessWidget {
               submitting: state.creating,
               errorText: state.createFailure == null
                   ? null
-                  : describeUserFailure(state.createFailure!),
+                  : describeUserFailure(
+                      builderContext.l10n,
+                      state.createFailure!,
+                    ),
               onCreate: (username, password, displayName) => cubit.create(
                 username: username,
                 password: password,
@@ -164,23 +166,31 @@ class _UserRow extends StatelessWidget {
       icon: FluentIcons.contact,
       identifier: user.username,
       title: user.displayName ?? user.username,
-      subtitle: 'Создан ${formatDate(user.createdAt)}',
+      subtitle: context.l10n.usersCreatedOn(
+        formatDate(context.l10n, user.createdAt),
+      ),
       onPressed: () => onOpen(user),
       tags: [
         if (user.isDeleted)
-          const AdminStatusTag(label: 'Удалён', tone: AdminStatusTone.neutral)
+          AdminStatusTag(
+            label: context.l10n.usersStatusDeleted,
+            tone: AdminStatusTone.neutral,
+          )
         else if (user.isBlocked)
-          const AdminStatusTag(
-            label: 'Заблокирован',
+          AdminStatusTag(
+            label: context.l10n.usersStatusBlocked,
             tone: AdminStatusTone.error,
           )
         else
-          const AdminStatusTag(label: 'Активен', tone: AdminStatusTone.success),
+          AdminStatusTag(
+            label: context.l10n.usersStatusActive,
+            tone: AdminStatusTone.success,
+          ),
         if (user.isPrimaryAdmin)
-          const AdminTag(label: 'Основной администратор'),
+          AdminTag(label: context.l10n.usersPrimaryAdmin),
         if (user.mustChangePassword && !user.isDeleted)
-          const AdminStatusTag(
-            label: 'Временный пароль',
+          AdminStatusTag(
+            label: context.l10n.usersTemporaryPassword,
             tone: AdminStatusTone.warning,
           ),
       ],
@@ -190,13 +200,15 @@ class _UserRow extends StatelessWidget {
       // matching `Users.dc.html`.
       actions: [
         AdminButton(
-          label: 'Открыть',
+          label: context.l10n.usersOpen,
           size: AdminButtonSize.tonal,
           onPressed: () => onOpen(user),
         ),
         if (!user.isDeleted) ...[
           AdminButton(
-            label: user.isBlocked ? 'Разблокировать' : 'Заблокировать',
+            label: user.isBlocked
+                ? context.l10n.usersUnblock
+                : context.l10n.usersBlock,
             size: AdminButtonSize.tonal,
             onPressed: () =>
                 toggleUserBlocked(context, context.read<UsersCubit>(), user),
@@ -207,7 +219,7 @@ class _UserRow extends StatelessWidget {
           // (`AdminResourceRow`'s own rule).
           if (!user.isPrimaryAdmin)
             AdminButton(
-              label: 'Удалить',
+              label: context.l10n.usersDelete,
               size: AdminButtonSize.tonal,
               onPressed: () =>
                   deleteUser(context, context.read<UsersCubit>(), user),

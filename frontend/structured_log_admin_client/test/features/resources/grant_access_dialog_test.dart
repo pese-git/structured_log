@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/resource_dialogs.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
-import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
 
 /// The «Предоставить доступ» dialog's own behaviour (13.5, full version):
 /// the recipient can now be a user or a team, and the role choices narrow to
@@ -43,8 +44,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      FluentApp(
-        theme: AdminTheme.light(),
+      localizedApp(
         home: ScaffoldPage(
           content: Center(
             child: GrantAccessDialog(

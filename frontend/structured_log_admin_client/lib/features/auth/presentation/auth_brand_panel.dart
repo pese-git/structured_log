@@ -1,6 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// The blue half of the screens shown before the app proper.
 ///
 /// Shared by the login screen and the forced change-password screen, which
@@ -51,7 +53,7 @@ class AuthBrandPanel extends StatelessWidget {
               ),
               const SizedBox(height: AdminSpacing.x4),
               Text(
-                'Панель администрирования',
+                context.l10n.authBrandSubtitle,
                 style: AdminTypography.body.copyWith(
                   color: colors.surface.withValues(alpha: 0.85),
                 ),

@@ -40,7 +40,7 @@ class AdminConfirmDialog extends StatelessWidget {
     required this.confirmLabel,
     required this.onConfirm,
     required this.onCancel,
-    this.cancelLabel = 'Отмена',
+    this.cancelLabel = 'Cancel',
     this.content,
     this.destructive = false,
   });

@@ -5,6 +5,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'app_harness.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/testing/mock_server.dart';
 
 /// `AccountSettings.dc.html`, reached as a page rather than the dialog it
@@ -28,6 +29,31 @@ void main() {
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Отображаемое имя'), findsOneWidget);
     expect(find.text('—'), findsNWidgets(2));
+    await closeApp(tester);
+  });
+
+  testWidgets('the language card switches the whole app, and remembers it', (
+    tester,
+  ) async {
+    final store = InMemoryLocaleStore('ru');
+    final controller = LocaleController(store: store);
+    await pumpApp(tester, server, signedIn: true, localeController: controller);
+    await openAccountSettings(tester);
+
+    expect(find.text('Язык'), findsOneWidget);
+    expect(find.text('Группы'), findsOneWidget);
+
+    await tester.tap(find.byType(ComboBox<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('English').last);
+    await tester.pumpAndSettle();
+
+    expect(controller.locale, const Locale('en'));
+    expect(store.read(), 'en', reason: 'the choice outlives the window');
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Groups'), findsOneWidget);
+    expect(find.text('Группы'), findsNothing);
+    expect(find.text('Account settings'), findsWidgets);
     await closeApp(tester);
   });
 

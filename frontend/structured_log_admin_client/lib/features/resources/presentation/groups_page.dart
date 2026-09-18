@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/formatting.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import 'groups_cubit.dart';
 import 'resource_dialogs.dart';
@@ -46,7 +48,7 @@ class GroupsPage extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          'Группы',
+                          context.l10n.resGroups,
                           overflow: TextOverflow.ellipsis,
                           style: AdminTypography.pageTitle.copyWith(
                             color: colors.text,
@@ -55,7 +57,9 @@ class GroupsPage extends StatelessWidget {
                       ),
                       const SizedBox(width: AdminSpacing.x12),
                       AdminButton(
-                        label: compact ? 'Группа' : 'Создать группу',
+                        label: compact
+                            ? context.l10n.resGroup
+                            : context.l10n.resCreateGroup,
                         icon: FluentIcons.add,
                         variant: AdminButtonVariant.accent,
                         size: AdminButtonSize.dialog,
@@ -81,17 +85,15 @@ class GroupsPage extends StatelessWidget {
     if (state.failure != null) {
       return AdminEmptyState(
         icon: FluentIcons.error_badge,
-        title: 'Не удалось загрузить группы',
-        description: describeApiFailure(state.failure!),
+        title: context.l10n.resGroupsLoadFailed,
+        description: describeApiFailure(context.l10n, state.failure!),
       );
     }
     if (state.isEmpty) {
-      return const AdminEmptyState(
+      return AdminEmptyState(
         icon: FluentIcons.group,
-        title: 'Групп пока нет',
-        description:
-            'Группа владеет проектами. Создайте первую, чтобы завести в ней '
-            'проект и начать принимать логи.',
+        title: context.l10n.resNoGroups,
+        description: context.l10n.resNoGroupsHint,
       );
     }
 
@@ -103,11 +105,13 @@ class GroupsPage extends StatelessWidget {
         return AdminResourceRow(
           icon: FluentIcons.group,
           title: group.name,
-          subtitle: 'Создана ${formatDate(group.createdAt)}',
+          subtitle: context.l10n.resCreatedOn(
+            formatDate(context.l10n, group.createdAt),
+          ),
           onPressed: () => onOpen(group),
           actions: [
             AdminButton(
-              label: 'Открыть',
+              label: context.l10n.resOpen,
               size: AdminButtonSize.tonal,
               onPressed: () => onOpen(group),
             ),
@@ -143,16 +147,17 @@ class GroupsPage extends StatelessWidget {
               });
             }
             return NameDialog(
-              title: 'Новая группа',
-              fieldLabel: 'Название группы',
-              confirmLabel: 'Создать группу',
-              description:
-                  'После создания группа не имеет владельца — выдайте роль '
-                  'owner нужному пользователю или команде на экране группы.',
+              title: builderContext.l10n.resNewGroup,
+              fieldLabel: builderContext.l10n.resGroupNameLabel,
+              confirmLabel: builderContext.l10n.resCreateGroup,
+              description: builderContext.l10n.resNewGroupNote,
               submitting: state.creating,
               errorText: state.createFailure == null
                   ? null
-                  : describeApiFailure(state.createFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.createFailure!,
+                    ),
               onSubmit: (name) {
                 if (name.isNotEmpty) cubit.create(name);
               },

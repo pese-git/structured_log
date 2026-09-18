@@ -15,7 +15,8 @@ import 'package:structured_log_admin_client/features/log_browser/presentation/lo
 import 'package:structured_log_admin_client/features/log_browser/presentation/log_feed_bloc.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/log_dto.dart';
-import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
 
 class _FakeRepository implements LogBrowserRepository {
   final calls = <({LogScope scope, LogFilter filter, String? cursor})>[];
@@ -76,13 +77,14 @@ LogEntryDto _live(int id) => LogEntryDto(
   context: const {},
 );
 
-Widget _host(LogFeedBloc bloc) => FluentApp(
-  theme: AdminTheme.light(),
-  home: ScaffoldPage(
-    padding: EdgeInsets.zero,
-    content: BlocProvider.value(value: bloc, child: const LogBrowserPage()),
-  ),
-);
+Widget _host(LogFeedBloc bloc, {Locale locale = const Locale('ru')}) =>
+    localizedApp(
+      locale: locale,
+      home: ScaffoldPage(
+        padding: EdgeInsets.zero,
+        content: BlocProvider.value(value: bloc, child: const LogBrowserPage()),
+      ),
+    );
 
 void main() {
   late _FakeRepository repository;
@@ -449,6 +451,47 @@ void main() {
         reason: 'the detail pane is there, waiting, when there is room for it',
       );
       expect(find.text('К ленте'), findsNothing);
+    });
+  });
+
+  group('english', () {
+    testWidgets('the selector and the feed chrome read in English', (
+      tester,
+    ) async {
+      repository.entries = [_entry()];
+      useWideSurface(tester);
+      await tester.pumpWidget(_host(makeBloc(), locale: const Locale('en')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose a scope'), findsOneWidget);
+      expect(find.text('Выберите область'), findsNothing);
+
+      await tester.tap(find.text('payments'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Project: payments'), findsOneWidget);
+      expect(find.text('Any level'), findsOneWidget);
+      expect(find.text('Search'), findsOneWidget);
+      expect(find.text('Select an entry'), findsOneWidget);
+      expect(find.text('Live'), findsOneWidget);
+      expect(find.text('Найти'), findsNothing);
+    });
+
+    testWidgets('the pause strip pluralises in English', (tester) async {
+      repository.entries = [_entry()];
+      useWideSurface(tester);
+      await tester.pumpWidget(_host(makeBloc(), locale: const Locale('en')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('payments'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Pause'));
+      await tester.pumpAndSettle();
+      repository.live!.add(LiveFeedEvent.entry(_live(918274)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Paused'), findsOneWidget);
+      expect(find.text('Feed paused · 1 entry buffered'), findsOneWidget);
     });
   });
 }

@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../domain/auth_failure.dart';
 import 'change_password_cubit.dart';
 
@@ -52,13 +53,13 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
           children: [
             if (state.failure != null) ...[
               AdminBanner(
-                message: _failureText(state.failure!),
+                message: _failureText(context.l10n, state.failure!),
                 tone: AdminBannerTone.error,
               ),
               const SizedBox(height: AdminSpacing.x18),
             ],
             AdminTextField(
-              label: 'Текущий (временный) пароль',
+              label: context.l10n.authCurrentPasswordLabel,
               controller: _current,
               obscure: true,
               autofocus: true,
@@ -66,19 +67,21 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Новый пароль',
+              label: context.l10n.authNewPasswordLabel,
               controller: _next,
               obscure: true,
               enabled: !state.submitting,
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Повторите новый пароль',
+              label: context.l10n.authRepeatPasswordLabel,
               controller: _repeat,
               obscure: true,
               enabled: !state.submitting,
               onSubmitted: _submit,
-              errorText: state.mismatch ? 'Пароли не совпадают' : null,
+              errorText: state.mismatch
+                  ? context.l10n.authPasswordsMismatch
+                  : null,
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminButton(
@@ -93,15 +96,18 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
     );
   }
 
-  static String _failureText(AuthFailure failure) => switch (failure) {
+  static String _failureText(
+    AppLocalizations l10n,
+    AuthFailure failure,
+  ) => switch (failure) {
     // The server says `invalid_grant` here for one thing only, and it is not
     // about the session: the current password was wrong.
-    InvalidCredentialsFailure() =>
-      'Текущий пароль неверен. Введите тот, который сообщил администратор.',
-    RateLimitedAuthFailure(:final retryAfter) =>
-      'Слишком много попыток. Попробуйте снова через ${retryAfter.inSeconds} с.',
-    NetworkAuthFailure() => 'Сервер недоступен. Проверьте подключение.',
+    InvalidCredentialsFailure() => l10n.authChangeWrongCurrent,
+    RateLimitedAuthFailure(:final retryAfter) => l10n.authChangeRateLimited(
+      retryAfter.inSeconds,
+    ),
+    NetworkAuthFailure() => l10n.authChangeNetwork,
     EmailNotVerifiedFailure() ||
-    UnexpectedAuthFailure() => 'Не удалось сменить пароль. Попробуйте ещё раз.',
+    UnexpectedAuthFailure() => l10n.authChangeUnexpected,
   };
 }

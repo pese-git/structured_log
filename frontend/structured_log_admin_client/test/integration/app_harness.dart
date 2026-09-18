@@ -4,6 +4,7 @@ import 'package:cherrypick/cherrypick.dart';
 // then compile and match nothing at all.
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/auth/session_controller.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
@@ -49,12 +50,16 @@ class AppHarness {
 /// A flow written as ordered steps opens the app again at each of them, which
 /// is what coming back to it looks like, and the session survives between them
 /// for the same reason a real one would: the store outlives the window.
+///
+/// The app is Russian unless [localeController] says otherwise — the flows
+/// were written against the Russian text.
 Future<AppHarness> pumpApp(
   WidgetTester tester,
   MockServer server, {
   bool signedIn = false,
   InMemoryTokenStorage? storage,
   Size surface = const Size(1440, 900),
+  LocaleController? localeController,
 }) async {
   // The screens are laid out against artboards 1160–1440 wide. At the default
   // 800 the shell shows a rail instead of a labelled nav pane, the log screen
@@ -86,7 +91,14 @@ Future<AppHarness> pumpApp(
     onPasswordChangeRequired: session.passwordChangeRequired,
   );
 
-  await tester.pumpWidget(AdminApp(scope: scope, session: session));
+  await tester.pumpWidget(
+    AdminApp(
+      scope: scope,
+      session: session,
+      localeController:
+          localeController ?? LocaleController(initial: const Locale('ru')),
+    ),
+  );
   await tester.pumpAndSettle();
 
   return AppHarness._(

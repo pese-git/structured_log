@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/log_dto.dart';
 import 'log_level_mapping.dart';
 
@@ -64,7 +65,7 @@ class LogEntryDetailPane extends StatelessWidget {
               ),
               const SizedBox(width: AdminSpacing.x12),
               AdminButton(
-                label: 'Копировать',
+                label: context.l10n.logsCopy,
                 icon: FluentIcons.copy,
                 size: AdminButtonSize.tonal,
                 // The whole entry at once, as the spec asks: picking fields
@@ -88,12 +89,15 @@ class LogEntryDetailPane extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AdminSpacing.x18),
-          _Section(title: 'СТАНДАРТНЫЕ ПОЛЯ', rows: _standardRows()),
+          _Section(
+            title: context.l10n.logsStandardFields,
+            rows: _standardRows(),
+          ),
           if (entry.context.isNotEmpty) ...[
             const SizedBox(height: AdminSpacing.x18),
             // The point of the pane: fields the application chose, shown on
             // equal footing with the ones the server knows about.
-            _Section(title: 'КОНТЕКСТ', rows: _contextRows()),
+            _Section(title: context.l10n.logsContext, rows: _contextRows()),
           ],
         ],
       ),

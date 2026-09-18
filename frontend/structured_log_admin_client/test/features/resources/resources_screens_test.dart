@@ -15,7 +15,8 @@ import 'package:structured_log_admin_client/features/role_assignments/domain/rol
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
-import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
 
 /// The screens, driven through the widgets rather than the cubits.
 ///
@@ -193,10 +194,11 @@ class _FakeRoleAssignments implements RoleAssignmentsRepository {
   );
 }
 
-Widget _host(Widget child) => FluentApp(
-  theme: AdminTheme.light(),
-  home: ScaffoldPage(padding: EdgeInsets.zero, content: child),
-);
+Widget _host(Widget child, {Locale locale = const Locale('ru')}) =>
+    localizedApp(
+      locale: locale,
+      home: ScaffoldPage(padding: EdgeInsets.zero, content: child),
+    );
 
 void main() {
   late _FakeRepository repository;
@@ -237,6 +239,28 @@ void main() {
       await pump(tester);
 
       expect(find.text('Групп пока нет'), findsOneWidget);
+    });
+
+    testWidgets('the English locale shows English text, not Russian', (
+      tester,
+    ) async {
+      useWideSurface(tester);
+      final cubit = GroupsCubit(ManageGroups(repository))..load();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        _host(
+          BlocProvider.value(
+            value: cubit,
+            child: GroupsPage(onOpen: (_) {}),
+          ),
+          locale: const Locale('en'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No groups yet'), findsOneWidget);
+      expect(find.text('Create group'), findsOneWidget);
+      expect(find.text('Групп пока нет'), findsNothing);
     });
 
     testWidgets('a name typed into the dialog creates the group', (

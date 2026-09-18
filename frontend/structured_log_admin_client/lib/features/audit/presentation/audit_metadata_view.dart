@@ -1,6 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// One readable line of an audit record's `metadata`.
 typedef AuditDetail = ({String key, String value});
 
@@ -12,18 +14,21 @@ typedef AuditDetail = ({String key, String value});
 /// and the literal rendering would lose the point:
 ///
 /// - `before`/`after`, which a quota change writes: the value of that record is
-///   the pair, so it reads as `max_entries: 2000 → без лимита` on one line
+///   the pair, so it reads as `max_entries: 2000 → no limit` on one line
 ///   rather than as two unrelated nested objects;
 /// - a `null` inside a quota, which means "no limit" and not "unknown".
 ///
 /// Everything else is flattened one level with a dotted key, which keeps a
 /// nested object legible without inventing a tree widget for a field that is
 /// usually four scalars.
-List<AuditDetail> readableMetadata(Map<String, dynamic> metadata) {
+List<AuditDetail> readableMetadata(
+  AppLocalizations l10n,
+  Map<String, dynamic> metadata,
+) {
   final before = metadata['before'];
   final after = metadata['after'];
   if (before is Map && after is Map) {
-    return _changes(before, after);
+    return _changes(l10n, before, after);
   }
 
   final details = <AuditDetail>[];
@@ -33,22 +38,23 @@ List<AuditDetail> readableMetadata(Map<String, dynamic> metadata) {
       for (final nested in value.entries) {
         details.add((
           key: '${entry.key}.${nested.key}',
-          value: _scalar(nested.value),
+          value: _scalar(l10n, nested.value),
         ));
       }
     } else {
-      details.add((key: entry.key, value: _scalar(value)));
+      details.add((key: entry.key, value: _scalar(l10n, value)));
     }
   }
   return details;
 }
 
-/// The keys that changed, as `было → стало`.
+/// The keys that changed, as `before → after`.
 ///
 /// Keys whose value did not move are left out: a quota record carries the whole
 /// quota on both sides, and listing the two thirds of it that stayed put buries
 /// the third that did not.
 List<AuditDetail> _changes(
+  AppLocalizations l10n,
   Map<Object?, Object?> before,
   Map<Object?, Object?> after,
 ) {
@@ -61,25 +67,32 @@ List<AuditDetail> _changes(
     final was = before[key];
     final now = after[key];
     if (was == now) continue;
-    details.add((key: key, value: '${_limit(was)} → ${_limit(now)}'));
+    details.add((
+      key: key,
+      value: '${_limit(l10n, was)} → ${_limit(l10n, now)}',
+    ));
   }
   if (details.isEmpty) {
     // The endpoint was called and nothing moved. Saying so beats an empty cell,
     // which reads as a record with no details at all.
-    details.add((key: 'изменений', value: 'нет'));
+    details.add((
+      key: l10n.auditMetaNoChangesKey,
+      value: l10n.auditMetaNoChangesValue,
+    ));
   }
   return details;
 }
 
 /// Inside a quota, `null` is a stated value — "no limit" — not a gap.
-String _limit(Object? value) => value == null ? 'без лимита' : _scalar(value);
+String _limit(AppLocalizations l10n, Object? value) =>
+    value == null ? l10n.auditMetaNoLimit : _scalar(l10n, value);
 
-String _scalar(Object? value) => switch (value) {
+String _scalar(AppLocalizations l10n, Object? value) => switch (value) {
   null => '—',
-  true => 'да',
-  false => 'нет',
+  true => l10n.auditMetaYes,
+  false => l10n.auditMetaNo,
   String() => value,
-  List() => value.map(_scalar).join(', '),
+  List() => value.map((item) => _scalar(l10n, item)).join(', '),
   _ => '$value',
 };
 
@@ -97,7 +110,7 @@ class AuditMetadataView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
-    final details = readableMetadata(metadata);
+    final details = readableMetadata(context.l10n, metadata);
 
     if (details.isEmpty) {
       return Text(

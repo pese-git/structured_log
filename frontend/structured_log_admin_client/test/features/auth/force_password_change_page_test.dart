@@ -7,7 +7,8 @@ import 'package:structured_log_admin_client/features/auth/domain/auth_failure.da
 import 'package:structured_log_admin_client/features/auth/domain/auth_repository.dart';
 import 'package:structured_log_admin_client/features/auth/presentation/change_password_cubit.dart';
 import 'package:structured_log_admin_client/features/auth/presentation/force_password_change_page.dart';
-import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
 
 class _FakeRepository implements AuthRepository {
   Either<AuthFailure, Unit> answer = right(unit);
@@ -48,15 +49,15 @@ void main() {
     signedOut = 0;
   });
 
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(WidgetTester tester, {Locale? locale}) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      FluentApp(
-        theme: AdminTheme.light(),
+      localizedApp(
+        locale: locale ?? const Locale('ru'),
         home: BlocProvider(
           create: (_) => ChangePasswordCubit(
             changePassword: ChangePassword(repository),
@@ -144,5 +145,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(signedOut, 1);
+  });
+
+  testWidgets('renders in English when the locale is English', (tester) async {
+    await pump(tester, locale: const Locale('en'));
+
+    expect(find.text('Change your password'), findsOneWidget);
+    expect(find.text('Change password and continue'), findsOneWidget);
+    expect(find.text('Sign out'), findsOneWidget);
+    expect(find.text('Смените пароль'), findsNothing);
+    expect(find.text('Выйти'), findsNothing);
   });
 }

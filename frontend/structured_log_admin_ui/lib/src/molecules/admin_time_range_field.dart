@@ -56,11 +56,11 @@ class AdminTimeRangeField extends StatelessWidget {
     required this.formatTime,
     this.from,
     this.to,
-    this.fromLabel = 'С',
-    this.toLabel = 'По',
-    this.anyLabel = 'любое',
-    this.clearLabel = 'Любое время',
-    this.applyLabel = 'Применить',
+    this.fromLabel = 'From',
+    this.toLabel = 'To',
+    this.anyLabel = 'any',
+    this.clearLabel = 'Any time',
+    this.applyLabel = 'Apply',
   });
 
   @override
@@ -126,7 +126,7 @@ class _BoundState extends State<_Bound> {
   }
 
   void _open() {
-    // Staged locally until "Применить" — unlike the calendar day in
+    // Staged locally until "Apply" — unlike the calendar day in
     // AdminDateRangeField, a single pick (just the hour, say) does not make
     // a bound worth committing.
     final anchor = widget.value ?? DateTime.now();

@@ -29,6 +29,14 @@ request before it leaves the page. The client is served beside the API behind
 one origin ([deploy/](../../deploy/)), and its bundle is built with an empty
 base URL. Opening the API up is a change to the server, not a proxy setting.
 
+### Languages
+
+English and Russian. The app follows the browser's language (English for any
+other) until someone picks one under **Account settings → Language**; the
+choice is kept in the browser's `localStorage`. Texts live in `lib/l10n/*.arb`
+and are read through `context.l10n`; after editing them run `flutter gen-l10n`
+(the generated files are committed).
+
 ### The audit screen
 
 Administrative acts and authentication events in one table under one set of

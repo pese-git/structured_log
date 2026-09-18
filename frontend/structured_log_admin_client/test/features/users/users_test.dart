@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:structured_log_admin_client/features/audit/application/query_audit_log.dart';
@@ -9,6 +10,7 @@ import 'package:structured_log_admin_client/features/role_assignments/domain/rol
 import 'package:structured_log_admin_client/features/users/application/manage_users.dart';
 import 'package:structured_log_admin_client/features/users/domain/users_repository.dart';
 import 'package:structured_log_admin_client/features/users/presentation/user_failure_text.dart';
+import 'package:structured_log_admin_client/l10n/app_localizations.dart';
 import 'package:structured_log_admin_client/features/users/presentation/users_cubit.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/audit_dto.dart';
@@ -204,6 +206,7 @@ class _FakeAuditRepository implements AuditRepository {
 }
 
 void main() {
+  final l10n = lookupAppLocalizations(const Locale('ru'));
   late _FakeRepository repository;
   late _FakeResources resources;
   late _FakeRoleAssignments roleAssignments;
@@ -341,7 +344,7 @@ void main() {
       await cubit.setBlocked(1, false);
 
       expect(
-        describeUserFailure(cubit.state.actionFailure!),
+        describeUserFailure(l10n, cubit.state.actionFailure!),
         contains('удалена'),
       );
     });
@@ -385,7 +388,7 @@ void main() {
       await cubit.delete(1);
 
       expect(
-        describeUserFailure(cubit.state.actionFailure!),
+        describeUserFailure(l10n, cubit.state.actionFailure!),
         contains('Основного администратора'),
       );
     });

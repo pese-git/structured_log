@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/formatting.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import 'project_detail_cubit.dart';
@@ -43,10 +45,10 @@ class ProjectDetailPage extends StatelessWidget {
         if (project == null) {
           return AdminEmptyState(
             icon: FluentIcons.error_badge,
-            title: 'Не удалось загрузить проект',
+            title: context.l10n.resProjectLoadFailed,
             description: state.failure == null
-                ? 'Попробуйте ещё раз.'
-                : describeApiFailure(state.failure!),
+                ? context.l10n.resTryAgain
+                : describeApiFailure(context.l10n, state.failure!),
           );
         }
 
@@ -69,11 +71,8 @@ class ProjectDetailPage extends StatelessWidget {
               ),
               if (project.isBlocked) ...[
                 const SizedBox(height: AdminSpacing.x14),
-                const AdminBanner(
-                  message:
-                      'Проект заблокирован администратором: приём новых логов '
-                      'и запрос уже сохранённых логов этого проекта отключены '
-                      'до разблокировки. Секретные ключи проекта не отозваны.',
+                AdminBanner(
+                  message: context.l10n.resProjectBlockedBanner,
                   tone: AdminBannerTone.warning,
                 ),
               ],
@@ -114,7 +113,7 @@ class _Header extends StatelessWidget {
       children: [
         ResourceBreadcrumb(
           parts: [
-            (label: 'Группы', onPressed: onBackToGroups),
+            (label: context.l10n.resGroups, onPressed: onBackToGroups),
             (label: groupName, onPressed: null),
             (label: project.name, onPressed: null),
           ],
@@ -131,8 +130,8 @@ class _Header extends StatelessWidget {
             ),
             if (project.isBlocked) ...[
               const SizedBox(width: AdminSpacing.x12),
-              const AdminStatusTag(
-                label: 'Заблокирован',
+              AdminStatusTag(
+                label: context.l10n.resBlocked,
                 tone: AdminStatusTone.error,
               ),
             ],
@@ -143,14 +142,16 @@ class _Header extends StatelessWidget {
             // only earn them a 403.
             if (isAdmin) ...[
               AdminButton(
-                label: project.isBlocked ? 'Разблокировать' : 'Заблокировать',
+                label: project.isBlocked
+                    ? context.l10n.resUnblock
+                    : context.l10n.resBlock,
                 size: AdminButtonSize.dialog,
                 onPressed: () => _toggleBlocked(context, project),
               ),
               const SizedBox(width: AdminSpacing.x10),
             ],
             AdminButton(
-              label: 'Открыть логи',
+              label: context.l10n.resOpenLogs,
               icon: FluentIcons.search,
               variant: AdminButtonVariant.accent,
               size: AdminButtonSize.dialog,
@@ -160,7 +161,7 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: AdminSpacing.x4),
         Text(
-          'Группа: $groupName',
+          context.l10n.resGroupPrefix(groupName),
           style: AdminTypography.bodySmall.copyWith(
             color: colors.textSecondary,
           ),
@@ -181,12 +182,10 @@ class _Header extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Заблокировать проект «${project.name}»?',
-        message:
-            'Приём новых логов и запрос уже сохранённых логов этого проекта '
-            'будут отключены до разблокировки. Секретные ключи проекта не '
-            'отзываются.',
-        confirmLabel: 'Заблокировать',
+        title: context.l10n.resBlockTitle(project.name),
+        message: context.l10n.resBlockMessage,
+        confirmLabel: context.l10n.resBlock,
+        cancelLabel: context.l10n.resCancel,
         destructive: true,
         onConfirm: () => Navigator.of(dialogContext).pop(true),
         onCancel: () => Navigator.of(dialogContext).pop(false),
@@ -214,14 +213,14 @@ class _Quota extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Квота и использование',
+                context.l10n.resQuotaAndUsage,
                 overflow: TextOverflow.ellipsis,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
             ),
             const SizedBox(width: AdminSpacing.x12),
             AdminButton(
-              label: 'Изменить квоту',
+              label: context.l10n.resEditQuota,
               icon: FluentIcons.edit,
               onPressed: () => _edit(context),
             ),
@@ -239,14 +238,14 @@ class _Quota extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               AdminKeyValueRow(
-                label: 'Срок хранения (retention_days)',
-                value: '${project.retentionDays} дней',
+                label: context.l10n.resRetentionRow,
+                value: context.l10n.resDaysCount(project.retentionDays),
               ),
               const SizedBox(height: AdminSpacing.x14),
               // Usage beside the limit, never one without the other — the
               // spec asks for "842 / 1000" rather than either half alone.
               AdminQuotaBar(
-                label: 'Записей (max_entries)',
+                label: context.l10n.resEntriesBar,
                 usageLabel: formatCount(entryCount),
                 limitLabel: project.maxEntries == null
                     ? null
@@ -257,11 +256,11 @@ class _Quota extends StatelessWidget {
               ),
               const SizedBox(height: AdminSpacing.x14),
               AdminQuotaBar(
-                label: 'Объём (max_bytes)',
-                usageLabel: formatBytes(totalBytes),
+                label: context.l10n.resSizeBar,
+                usageLabel: formatBytes(context.l10n, totalBytes),
                 limitLabel: project.maxBytes == null
                     ? null
-                    : formatBytes(project.maxBytes!),
+                    : formatBytes(context.l10n, project.maxBytes!),
                 fraction: project.maxBytes == null || project.maxBytes == 0
                     ? null
                     : totalBytes / project.maxBytes!,
@@ -289,7 +288,10 @@ class _Quota extends StatelessWidget {
               submitting: state.saving,
               errorText: state.actionFailure == null
                   ? null
-                  : describeApiFailure(state.actionFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.actionFailure!,
+                    ),
               onSave: (quota) async {
                 await cubit.updateQuota(
                   retentionDays: quota.retentionDays,
@@ -330,14 +332,14 @@ class _SecretKeys extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Секретные ключи проекта',
+                context.l10n.resSecretKeys,
                 overflow: TextOverflow.ellipsis,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
             ),
             const SizedBox(width: AdminSpacing.x12),
             AdminButton(
-              label: 'Создать ключ',
+              label: context.l10n.resCreateKey,
               icon: FluentIcons.add,
               variant: AdminButtonVariant.accent,
               onPressed: () => _create(context),
@@ -346,34 +348,37 @@ class _SecretKeys extends StatelessWidget {
         ),
         const SizedBox(height: AdminSpacing.x12),
         if (state.keys.isEmpty)
-          const AdminEmptyState(
+          AdminEmptyState(
             icon: FluentIcons.permissions,
-            title: 'Секретных ключей пока нет',
-            description:
-                'Создайте первый, чтобы приложение могло присылать логи.',
+            title: context.l10n.resNoKeys,
+            description: context.l10n.resNoKeysHint,
           )
         else
           for (final key in state.keys) ...[
             AdminResourceRow(
               icon: FluentIcons.permissions,
               title: key.label,
-              subtitle: 'Создан ${formatDate(key.createdAt)}',
+              subtitle: context.l10n.resKeyCreatedOn(
+                formatDate(context.l10n, key.createdAt),
+              ),
               tags: [
                 if (key.revokedAt == null)
-                  const AdminStatusTag(
-                    label: 'Активен',
+                  AdminStatusTag(
+                    label: context.l10n.resActive,
                     tone: AdminStatusTone.success,
                   )
                 else
                   AdminStatusTag(
-                    label: 'Отозван ${formatDate(key.revokedAt!)}',
+                    label: context.l10n.resKeyRevokedOn(
+                      formatDate(context.l10n, key.revokedAt!),
+                    ),
                     tone: AdminStatusTone.neutral,
                   ),
               ],
               actions: [
                 if (key.revokedAt == null)
                   AdminButton(
-                    label: 'Отозвать',
+                    label: context.l10n.resRevoke,
                     size: AdminButtonSize.tonal,
                     onPressed: () => _revoke(context, key),
                   ),
@@ -414,16 +419,17 @@ class _SecretKeys extends StatelessWidget {
               });
             }
             return NameDialog(
-              title: 'Новый секретный ключ',
-              fieldLabel: 'Метка',
-              confirmLabel: 'Создать ключ',
-              description:
-                  'Метка нужна, чтобы потом понять, какое приложение им '
-                  'пользуется. Значение ключа будет показано один раз.',
+              title: builderContext.l10n.resNewKey,
+              fieldLabel: builderContext.l10n.resKeyLabelField,
+              confirmLabel: builderContext.l10n.resCreateKey,
+              description: builderContext.l10n.resNewKeyNote,
               submitting: state.saving,
               errorText: state.actionFailure == null
                   ? null
-                  : describeApiFailure(state.actionFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.actionFailure!,
+                    ),
               onSubmit: (label) {
                 if (label.isNotEmpty) cubit.createKey(label);
               },
@@ -458,11 +464,10 @@ class _SecretKeys extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Отозвать ключ «${key.label}»?',
-        message:
-            'Приложения, которые присылают логи с этим ключом, сразу получат '
-            'отказ. Отзыв необратим — при необходимости создайте новый ключ.',
-        confirmLabel: 'Отозвать',
+        title: context.l10n.resRevokeKeyTitle(key.label),
+        message: context.l10n.resRevokeKeyMessage,
+        confirmLabel: context.l10n.resRevoke,
+        cancelLabel: context.l10n.resCancel,
         destructive: true,
         onConfirm: () => Navigator.of(dialogContext).pop(true),
         onCancel: () => Navigator.of(dialogContext).pop(false),
@@ -494,14 +499,14 @@ class _Access extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Доступ',
+                context.l10n.resAccess,
                 overflow: TextOverflow.ellipsis,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
             ),
             const SizedBox(width: AdminSpacing.x12),
             AdminButton(
-              label: 'Предоставить доступ',
+              label: context.l10n.resGrantAccess,
               icon: FluentIcons.add,
               onPressed: () => _grant(context),
             ),
@@ -513,28 +518,26 @@ class _Access extends StatelessWidget {
         // while it's open, and clears with it either way when it closes.
         if (state.accessFailure != null) ...[
           AdminBanner(
-            message: describeApiFailure(state.accessFailure!),
+            message: describeApiFailure(context.l10n, state.accessFailure!),
             tone: AdminBannerTone.error,
           ),
           const SizedBox(height: AdminSpacing.x12),
         ],
         if (state.roleAssignments.isEmpty)
-          const AdminEmptyState(
+          AdminEmptyState(
             icon: FluentIcons.permissions,
-            title: 'Доступа пока никому не выдано',
-            description:
-                'Предоставьте роль owner или user, чтобы открыть доступ к '
-                'этому проекту.',
+            title: context.l10n.resNoAccess,
+            description: context.l10n.resNoAccessProjectHint,
           )
         else
           for (final grant in state.roleAssignments) ...[
             AdminResourceRow(
               icon: FluentIcons.contact,
-              title: subjectLabel(grant),
+              title: subjectLabel(context.l10n, grant),
               subtitle: grant.role,
               actions: [
                 AdminButton(
-                  label: 'Отозвать',
+                  label: context.l10n.resRevoke,
                   size: AdminButtonSize.tonal,
                   onPressed: () => _revoke(context, grant),
                 ),
@@ -555,12 +558,15 @@ class _Access extends StatelessWidget {
         child: BlocBuilder<ProjectDetailCubit, ProjectDetailState>(
           builder: (builderContext, state) {
             return GrantAccessDialog(
-              scopeLabel: 'Проект: ${project.name}',
+              scopeLabel: builderContext.l10n.resProjectPrefix(project.name),
               submitting: state.grantingAccess,
               isGlobalAdmin: isAdmin,
               errorText: state.accessFailure == null
                   ? null
-                  : describeApiFailure(state.accessFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.accessFailure!,
+                    ),
               searchUsers: cubit.searchUsers,
               searchTeams: cubit.searchTeams,
               onGrant: (values) async {
@@ -585,18 +591,19 @@ class _Access extends StatelessWidget {
 
   Future<void> _revoke(BuildContext context, RoleAssignmentDto grant) async {
     final cubit = context.read<ProjectDetailCubit>();
+    final l10n = context.l10n;
     final subject =
         grant.subjectName ??
         (grant.subjectType == 'team'
-            ? 'команды #${grant.subjectId}'
-            : 'пользователя #${grant.subjectId}');
+            ? l10n.resSubjectTeamGen(grant.subjectId)
+            : l10n.resSubjectUserGen(grant.subjectId));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Отозвать доступ у «$subject»?',
-        message:
-            'Роль «${grant.role}» на этот проект будет отозвана немедленно.',
-        confirmLabel: 'Отозвать',
+        title: l10n.resRevokeAccessTitle(subject),
+        message: l10n.resRevokeRoleProject(grant.role),
+        confirmLabel: l10n.resRevoke,
+        cancelLabel: l10n.resCancel,
         destructive: true,
         onConfirm: () => Navigator.of(dialogContext).pop(true),
         onCancel: () => Navigator.of(dialogContext).pop(false),

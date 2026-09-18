@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import 'group_detail_cubit.dart';
@@ -48,7 +49,7 @@ class GroupDetailPage extends StatelessWidget {
             children: [
               ResourceBreadcrumb(
                 parts: [
-                  (label: 'Группы', onPressed: onBack),
+                  (label: context.l10n.resGroups, onPressed: onBack),
                   (label: groupName, onPressed: null),
                 ],
               ),
@@ -125,7 +126,10 @@ class GroupDetailPage extends StatelessWidget {
               submitting: state.creating,
               errorText: state.createFailure == null
                   ? null
-                  : describeApiFailure(state.createFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.createFailure!,
+                    ),
               onCreate: (name, quota) {
                 if (name.isEmpty) return;
                 cubit.create(
@@ -162,14 +166,14 @@ class _Teams extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Команды',
+                context.l10n.resTeams,
                 overflow: TextOverflow.ellipsis,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
             ),
             const SizedBox(width: AdminSpacing.x12),
             AdminButton(
-              label: 'Команда',
+              label: context.l10n.resTeam,
               icon: FluentIcons.add,
               onPressed: () => _create(context),
             ),
@@ -177,12 +181,10 @@ class _Teams extends StatelessWidget {
         ),
         const SizedBox(height: AdminSpacing.x12),
         if (state.teams.isEmpty)
-          const AdminEmptyState(
+          AdminEmptyState(
             icon: FluentIcons.people,
-            title: 'Команд пока нет',
-            description:
-                'Команда позволяет выдать роль сразу нескольким '
-                'пользователям — всем её текущим участникам.',
+            title: context.l10n.resNoTeams,
+            description: context.l10n.resNoTeamsHint,
           )
         else
           for (final team in state.teams) ...[
@@ -192,7 +194,7 @@ class _Teams extends StatelessWidget {
               onPressed: () => _openMembers(context, team),
               actions: [
                 AdminButton(
-                  label: 'Состав',
+                  label: context.l10n.resMembers,
                   size: AdminButtonSize.tonal,
                   onPressed: () => _openMembers(context, team),
                 ),
@@ -221,17 +223,18 @@ class _Teams extends StatelessWidget {
               });
             }
             return NameDialog(
-              title: 'Новая команда',
-              fieldLabel: 'Название команды',
-              confirmLabel: 'Создать команду',
+              title: builderContext.l10n.resNewTeam,
+              fieldLabel: builderContext.l10n.resTeamNameLabel,
+              confirmLabel: builderContext.l10n.resCreateTeam,
               groupLabel: groupName,
-              description:
-                  'После создания команда пуста — добавьте участников на '
-                  'экране «Состав команды».',
+              description: builderContext.l10n.resNewTeamNote,
               submitting: state.creatingTeam,
               errorText: state.createTeamFailure == null
                   ? null
-                  : describeApiFailure(state.createTeamFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.createTeamFailure!,
+                    ),
               onSubmit: (name) {
                 if (name.isNotEmpty) cubit.createTeam(name);
               },
@@ -262,7 +265,10 @@ class _Teams extends StatelessWidget {
               changing: state.changingTeamMembers,
               errorText: state.teamMembersFailure == null
                   ? null
-                  : describeApiFailure(state.teamMembersFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.teamMembersFailure!,
+                    ),
               searchUsers: cubit.searchUsers,
               onAdd: cubit.addTeamMember,
               onRemove: cubit.removeTeamMember,
@@ -298,43 +304,41 @@ class _Projects extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Проекты',
+                context.l10n.resProjects,
                 overflow: TextOverflow.ellipsis,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
             ),
             const SizedBox(width: AdminSpacing.x12),
             AdminButton(
-              label: 'Проект',
+              label: context.l10n.resProjectShort,
               icon: FluentIcons.add,
               onPressed: onCreate,
             ),
           ],
         ),
         const SizedBox(height: AdminSpacing.x12),
-        _body(),
+        _body(context),
       ],
     );
   }
 
-  Widget _body() {
+  Widget _body(BuildContext context) {
     if (state.loading) {
       return const Center(child: AdminLoadingIndicator());
     }
     if (state.failure != null) {
       return AdminEmptyState(
         icon: FluentIcons.error_badge,
-        title: 'Не удалось загрузить проекты',
-        description: describeApiFailure(state.failure!),
+        title: context.l10n.resProjectsLoadFailed,
+        description: describeApiFailure(context.l10n, state.failure!),
       );
     }
     if (state.isEmpty) {
-      return const AdminEmptyState(
+      return AdminEmptyState(
         icon: FluentIcons.build_queue,
-        title: 'Проектов пока нет',
-        description:
-            'Создайте первый — он будет принимать логи по '
-            'секретному ключу.',
+        title: context.l10n.resNoProjects,
+        description: context.l10n.resNoProjectsHint,
       );
     }
 
@@ -345,18 +349,18 @@ class _Projects extends StatelessWidget {
           AdminResourceRow(
             icon: FluentIcons.build_queue,
             title: project.name,
-            subtitle: _quotaLine(project),
+            subtitle: _quotaLine(context.l10n, project),
             tags: [
               if (project.isBlocked)
-                const AdminStatusTag(
-                  label: 'Заблокирован',
+                AdminStatusTag(
+                  label: context.l10n.resBlocked,
                   tone: AdminStatusTone.error,
                 ),
             ],
             onPressed: () => onOpenProject(project),
             actions: [
               AdminButton(
-                label: 'Открыть',
+                label: context.l10n.resOpen,
                 size: AdminButtonSize.tonal,
                 onPressed: () => onOpenProject(project),
               ),
@@ -371,11 +375,11 @@ class _Projects extends StatelessWidget {
   /// The list endpoint carries no usage counters — only the project's own
   /// endpoint computes them — so this line states the limits, and the project
   /// screen states the usage against them.
-  static String _quotaLine(ProjectDto project) {
+  static String _quotaLine(AppLocalizations l10n, ProjectDto project) {
     final entries = project.maxEntries == null
-        ? 'без лимита записей'
-        : 'лимит ${formatCount(project.maxEntries!)} записей';
-    return '$entries · retention ${project.retentionDays} дней';
+        ? l10n.resQuotaNoEntryLimit
+        : l10n.resQuotaEntryLimit(formatCount(project.maxEntries!));
+    return l10n.resQuotaLine(entries, l10n.resDaysCount(project.retentionDays));
   }
 }
 
@@ -401,14 +405,14 @@ class _Access extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Доступ',
+                context.l10n.resAccess,
                 overflow: TextOverflow.ellipsis,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
             ),
             const SizedBox(width: AdminSpacing.x12),
             AdminButton(
-              label: 'Предоставить доступ',
+              label: context.l10n.resGrantAccess,
               icon: FluentIcons.add,
               onPressed: () => _grant(context),
             ),
@@ -420,28 +424,26 @@ class _Access extends StatelessWidget {
         // while it's open, and clears with it either way when it closes.
         if (state.accessFailure != null) ...[
           AdminBanner(
-            message: describeApiFailure(state.accessFailure!),
+            message: describeApiFailure(context.l10n, state.accessFailure!),
             tone: AdminBannerTone.error,
           ),
           const SizedBox(height: AdminSpacing.x12),
         ],
         if (state.roleAssignments.isEmpty)
-          const AdminEmptyState(
+          AdminEmptyState(
             icon: FluentIcons.permissions,
-            title: 'Доступа пока никому не выдано',
-            description:
-                'Предоставьте роль owner или user, чтобы открыть доступ к '
-                'этой группе и её проектам.',
+            title: context.l10n.resNoAccess,
+            description: context.l10n.resNoAccessGroupHint,
           )
         else
           for (final grant in state.roleAssignments) ...[
             AdminResourceRow(
               icon: FluentIcons.contact,
-              title: subjectLabel(grant),
+              title: subjectLabel(context.l10n, grant),
               subtitle: grant.role,
               actions: [
                 AdminButton(
-                  label: 'Отозвать',
+                  label: context.l10n.resRevoke,
                   size: AdminButtonSize.tonal,
                   onPressed: () => _revoke(context, grant),
                 ),
@@ -462,12 +464,15 @@ class _Access extends StatelessWidget {
         child: BlocBuilder<GroupDetailCubit, GroupDetailState>(
           builder: (builderContext, state) {
             return GrantAccessDialog(
-              scopeLabel: 'Группа: $groupName',
+              scopeLabel: builderContext.l10n.resGroupPrefix(groupName),
               submitting: state.grantingAccess,
               isGlobalAdmin: isAdmin,
               errorText: state.accessFailure == null
                   ? null
-                  : describeApiFailure(state.accessFailure!),
+                  : describeApiFailure(
+                      builderContext.l10n,
+                      state.accessFailure!,
+                    ),
               searchUsers: cubit.searchUsers,
               searchTeams: cubit.searchTeams,
               onGrant: (values) async {
@@ -494,18 +499,19 @@ class _Access extends StatelessWidget {
 
   Future<void> _revoke(BuildContext context, RoleAssignmentDto grant) async {
     final cubit = context.read<GroupDetailCubit>();
+    final l10n = context.l10n;
     final subject =
         grant.subjectName ??
         (grant.subjectType == 'team'
-            ? 'команды #${grant.subjectId}'
-            : 'пользователя #${grant.subjectId}');
+            ? l10n.resSubjectTeamGen(grant.subjectId)
+            : l10n.resSubjectUserGen(grant.subjectId));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Отозвать доступ у «$subject»?',
-        message:
-            'Роль «${grant.role}» на эту группу будет отозвана немедленно.',
-        confirmLabel: 'Отозвать',
+        title: l10n.resRevokeAccessTitle(subject),
+        message: l10n.resRevokeRoleGroup(grant.role),
+        confirmLabel: l10n.resRevoke,
+        cancelLabel: l10n.resCancel,
         destructive: true,
         onConfirm: () => Navigator.of(dialogContext).pop(true),
         onCancel: () => Navigator.of(dialogContext).pop(false),

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 // then compile and match nothing at all.
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/auth/session_controller.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
@@ -46,7 +47,11 @@ _buildApp(
     onSessionExpired: session.expire,
   );
   return (
-    app: AdminApp(scope: scope, session: session),
+    app: AdminApp(
+      scope: scope,
+      session: session,
+      localeController: LocaleController(initial: const Locale('ru')),
+    ),
     session: session,
     storage: storage,
   );
