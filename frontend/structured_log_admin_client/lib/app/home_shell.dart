@@ -173,6 +173,7 @@ class _HomeShellState extends State<HomeShell> {
         _Destination.groups => ResourcesSection(
           scope: _resourcesScope,
           onOpenLogs: _openLogsFor,
+          isAdmin: _isAdmin,
         ),
         _Destination.users => BlocProvider(
           create: (_) => _usersScope.resolve<UsersCubit>()..load(),

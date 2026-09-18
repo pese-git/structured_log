@@ -217,6 +217,7 @@ class UsersCubit extends Cubit<UsersState> {
     if (state.saving) return;
     emit(state.copyWith(saving: true, actionFailure: null));
     final result = await _roleAssignments.grant(
+      subjectType: 'user',
       subjectId: userId,
       role: role,
       scopeType: scopeType,

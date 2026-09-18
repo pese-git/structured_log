@@ -45,9 +45,9 @@ class MockServer implements HttpClientAdapter {
 
   /// The signed-in account. A second one can now exist in [users] — created
   /// through `POST /v1/users` like the server does it — but only this one can
-  /// ever sign in: teams and a way to issue a session for someone else still
-  /// have no endpoints in this stage, so a row in [users] is a subject to
-  /// manage, never a session to become.
+  /// ever sign in: there is still no way to issue a session for someone else
+  /// in this stage, so a row in [users] is a subject to manage, never a
+  /// session to become.
   final String username;
 
   /// What the access token claims this account may do, in the shape the server
@@ -75,6 +75,11 @@ class MockServer implements HttpClientAdapter {
   final groups = <Map<String, dynamic>>[];
   final projects = <Map<String, dynamic>>[];
   final secretKeys = <Map<String, dynamic>>[];
+  final teams = <Map<String, dynamic>>[];
+
+  /// `{team_id, user_id}` pairs — `TeamMembers`' own shape has no `id` of its
+  /// own, composite-keyed on the server, so neither does this.
+  final teamMembers = <Map<String, dynamic>>[];
 
   /// Accounts other than the signed-in one — `is_active`/`deleted_at` follow
   /// the same field names the server uses, so `UserDto.isBlocked`/`isDeleted`
@@ -275,6 +280,24 @@ class MockServer implements HttpClientAdapter {
         request,
         int.parse(id),
       ),
+      ('GET', ['v1', 'groups', final id, 'teams']) => _listTeams(
+        request,
+        int.parse(id),
+      ),
+      ('POST', ['v1', 'groups', final id, 'teams']) => _createTeam(
+        request,
+        int.parse(id),
+      ),
+      ('GET', ['v1', 'teams', final id, 'members']) => _listTeamMembers(
+        request,
+        int.parse(id),
+      ),
+      ('POST', ['v1', 'teams', final id, 'members']) => _addTeamMember(
+        request,
+        int.parse(id),
+      ),
+      ('DELETE', ['v1', 'teams', final id, 'members', final userId]) =>
+        _removeTeamMember(request, int.parse(id), int.parse(userId)),
 
       ('GET', ['v1', 'projects']) => _listProjects(request),
       ('GET', ['v1', 'projects', final id]) => _getProject(
@@ -477,6 +500,58 @@ class MockServer implements HttpClientAdapter {
     return MockReply(201, body: _withoutUsage(project));
   }
 
+  MockReply _listTeams(RecordedRequest request, int groupId) {
+    _requireUser(request);
+    final visible = teams.where((t) => t['group_id'] == groupId).toList();
+    return MockReply(200, body: {'items': visible});
+  }
+
+  MockReply _createTeam(RecordedRequest request, int groupId) {
+    _requireAdmin(request);
+    final team = {
+      'id': _nextId(teams),
+      'group_id': groupId,
+      'name': request.json['name'],
+      'created_at': _now(),
+    };
+    teams.add(team);
+    return MockReply(201, body: team);
+  }
+
+  MockReply _listTeamMembers(RecordedRequest request, int teamId) {
+    _requireUser(request);
+    final memberIds = teamMembers
+        .where((m) => m['team_id'] == teamId)
+        .map((m) => m['user_id']);
+    final items = [
+      for (final id in memberIds)
+        {'user_id': id, 'username': _user(id as int)['username']},
+    ];
+    return MockReply(200, body: {'items': items});
+  }
+
+  MockReply _addTeamMember(RecordedRequest request, int teamId) {
+    _requireAdmin(request);
+    final userId = request.json['user_id'];
+    _user(userId as int); // 404 if the user doesn't exist.
+    final already = teamMembers.any(
+      (m) => m['team_id'] == teamId && m['user_id'] == userId,
+    );
+    if (!already) teamMembers.add({'team_id': teamId, 'user_id': userId});
+    return const MockReply(204);
+  }
+
+  MockReply _removeTeamMember(RecordedRequest request, int teamId, int userId) {
+    _requireAdmin(request);
+    final membership = teamMembers.firstWhere(
+      (m) => m['team_id'] == teamId && m['user_id'] == userId,
+      orElse: () =>
+          throw _Refusal(const MockReply(404, body: {'error': 'not_found'})),
+    );
+    teamMembers.remove(membership);
+    return const MockReply(204);
+  }
+
   MockReply _patchProject(RecordedRequest request, int id) {
     _requireUser(request);
     final project = _project(id);
@@ -646,11 +721,15 @@ class MockServer implements HttpClientAdapter {
   MockReply _createRoleAssignment(RecordedRequest request) {
     _requireAdmin(request);
     final body = request.json;
-    if (body['subject_type'] != 'user') {
+    final subjectType = body['subject_type'];
+    if (subjectType != 'user' && subjectType != 'team') {
       return const MockReply(400, body: {'error': 'invalid_request'});
     }
     final subjectId = body['subject_id'];
-    if (subjectId is! int || !users.any((u) => u['id'] == subjectId)) {
+    final subjectExists = subjectType == 'user'
+        ? users.any((u) => u['id'] == subjectId)
+        : teams.any((t) => t['id'] == subjectId);
+    if (subjectId is! int || !subjectExists) {
       return const MockReply(404, body: {'error': 'not_found'});
     }
     final scopeType = body['scope_type'];
@@ -661,7 +740,7 @@ class MockServer implements HttpClientAdapter {
 
     final assignment = {
       'id': _nextId(roleAssignments),
-      'subject_type': 'user',
+      'subject_type': subjectType,
       'subject_id': subjectId,
       'role': body['role'],
       'scope_type': scopeType,
@@ -712,6 +791,8 @@ class MockServer implements HttpClientAdapter {
       String? subjectName;
       if (a['subject_type'] == 'user') {
         subjectName = findById(users, a['subject_id'])?['username'] as String?;
+      } else if (a['subject_type'] == 'team') {
+        subjectName = findById(teams, a['subject_id'])?['name'] as String?;
       }
 
       items.add({...a, 'scope_name': scopeName, 'subject_name': subjectName});

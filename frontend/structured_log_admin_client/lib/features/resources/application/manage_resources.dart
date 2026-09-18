@@ -72,6 +72,33 @@ class ManageProjects {
       _repository.unblockProject(projectId);
 }
 
+class ManageTeams {
+  final ResourcesRepository _repository;
+
+  const ManageTeams(this._repository);
+
+  Future<Either<ApiFailure, List<TeamDto>>> inGroup(int groupId) =>
+      _repository.teamsOf(groupId);
+
+  Future<Either<ApiFailure, TeamDto>> create({
+    required int groupId,
+    required String name,
+  }) => _repository.createTeam(groupId: groupId, name: name);
+
+  Future<Either<ApiFailure, List<TeamMemberDto>>> members(int teamId) =>
+      _repository.teamMembers(teamId);
+
+  Future<Either<ApiFailure, Unit>> addMember({
+    required int teamId,
+    required int userId,
+  }) => _repository.addTeamMember(teamId: teamId, userId: userId);
+
+  Future<Either<ApiFailure, Unit>> removeMember({
+    required int teamId,
+    required int userId,
+  }) => _repository.removeTeamMember(teamId: teamId, userId: userId);
+}
+
 class ManageSecretKeys {
   final ResourcesRepository _repository;
 

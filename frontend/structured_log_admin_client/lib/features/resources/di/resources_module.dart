@@ -35,6 +35,9 @@ class ResourcesModule extends Module {
     bind<ManageProjects>().toProvide(
       () => ManageProjects(currentScope.resolve<ResourcesRepository>()),
     );
+    bind<ManageTeams>().toProvide(
+      () => ManageTeams(currentScope.resolve<ResourcesRepository>()),
+    );
     bind<ManageSecretKeys>().toProvide(
       () => ManageSecretKeys(currentScope.resolve<ResourcesRepository>()),
     );

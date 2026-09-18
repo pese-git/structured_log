@@ -41,6 +41,55 @@ abstract class CreateGroupRequestDto with _$CreateGroupRequestDto {
 }
 
 @freezed
+abstract class TeamDto with _$TeamDto {
+  const factory TeamDto({
+    required int id,
+    @JsonKey(name: 'group_id') required int groupId,
+    required String name,
+    @JsonKey(name: 'created_at') required DateTime createdAt,
+  }) = _TeamDto;
+
+  factory TeamDto.fromJson(Map<String, dynamic> json) =>
+      _$TeamDtoFromJson(json);
+}
+
+@freezed
+abstract class CreateTeamRequestDto with _$CreateTeamRequestDto {
+  const factory CreateTeamRequestDto({required String name}) =
+      _CreateTeamRequestDto;
+
+  factory CreateTeamRequestDto.fromJson(Map<String, dynamic> json) =>
+      _$CreateTeamRequestDtoFromJson(json);
+}
+
+/// A team's member, as `GET /v1/teams/{id}/members` returns it — just enough
+/// to show and pick one, not a full [UserDto]: whoever manages a team's
+/// composition (an `owner`, not necessarily `admin`) has no general right to
+/// read arbitrary user accounts, only to know who is in their own team
+/// (`teams_route.dart`).
+@freezed
+abstract class TeamMemberDto with _$TeamMemberDto {
+  const factory TeamMemberDto({
+    @JsonKey(name: 'user_id') required int userId,
+    required String username,
+  }) = _TeamMemberDto;
+
+  factory TeamMemberDto.fromJson(Map<String, dynamic> json) =>
+      _$TeamMemberDtoFromJson(json);
+}
+
+/// `POST /v1/teams/{id}/members`.
+@freezed
+abstract class AddTeamMemberRequestDto with _$AddTeamMemberRequestDto {
+  const factory AddTeamMemberRequestDto({
+    @JsonKey(name: 'user_id') required int userId,
+  }) = _AddTeamMemberRequestDto;
+
+  factory AddTeamMemberRequestDto.fromJson(Map<String, dynamic> json) =>
+      _$AddTeamMemberRequestDtoFromJson(json);
+}
+
+@freezed
 abstract class ProjectDto with _$ProjectDto {
   const factory ProjectDto({
     required int id,
@@ -159,4 +208,23 @@ abstract class SecretKeyListDto with _$SecretKeyListDto {
 
   factory SecretKeyListDto.fromJson(Map<String, dynamic> json) =>
       _$SecretKeyListDtoFromJson(json);
+}
+
+@freezed
+abstract class TeamListDto with _$TeamListDto {
+  const factory TeamListDto({@Default(<TeamDto>[]) List<TeamDto> items}) =
+      _TeamListDto;
+
+  factory TeamListDto.fromJson(Map<String, dynamic> json) =>
+      _$TeamListDtoFromJson(json);
+}
+
+@freezed
+abstract class TeamMemberListDto with _$TeamMemberListDto {
+  const factory TeamMemberListDto({
+    @Default(<TeamMemberDto>[]) List<TeamMemberDto> items,
+  }) = _TeamMemberListDto;
+
+  factory TeamMemberListDto.fromJson(Map<String, dynamic> json) =>
+      _$TeamMemberListDtoFromJson(json);
 }

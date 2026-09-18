@@ -10,16 +10,16 @@ Not published — it is an application, not a library.
 ## State
 
 Working today: sign-in (including the forced first-login password change),
-groups, projects and their quotas, secret keys, the log browser with its live
-feed, account settings, the audit log, and user management — create, edit,
-block/unblock, delete, plus a reduced role-grant form (`admin` only,
-one user at a time; there is no endpoint yet to list a user's existing
-grants).
+groups, projects and their quotas, secret keys, teams and their membership,
+the log browser with its live feed, account settings, the audit log, user
+management (create, edit, block/unblock, delete), and role assignment — a
+group/project's «Доступ» section grants to a user or a team, narrowing its
+role choices to what the caller's own token claims allow (a hint, not
+enforcement — the server decides regardless); the reduced form on the user's
+own screen stays `admin`-only, one user at a time.
 
-Not here: teams, the full role-assignment rule (an `owner` granting roles
-within their own group), self-registration, password recovery and email
-verification. The server has no endpoints behind them yet, and a screen that
-opens onto nothing is worse than one that is not offered —
+Not here: self-registration, password recovery and email verification. A
+screen that opens onto nothing is worse than one that is not offered —
 [tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) says
 exactly what is and isn't done.
 

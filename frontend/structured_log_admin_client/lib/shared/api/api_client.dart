@@ -40,6 +40,7 @@ class ApiClient {
   final AuthApi auth;
   final AuditApi audit;
   final GroupsApi groups;
+  final TeamsApi teams;
   final ProjectsApi projects;
   final SecretKeysApi secretKeys;
   final LogsApi logs;
@@ -52,6 +53,7 @@ class ApiClient {
     required this.auth,
     required this.audit,
     required this.groups,
+    required this.teams,
     required this.projects,
     required this.secretKeys,
     required this.logs,
@@ -141,6 +143,7 @@ class ApiClient {
       auth: AuthApi(dio),
       audit: AuditApi(dio),
       groups: GroupsApi(dio),
+      teams: TeamsApi(dio),
       projects: ProjectsApi(dio),
       secretKeys: SecretKeysApi(dio),
       logs: LogsApi(dio),

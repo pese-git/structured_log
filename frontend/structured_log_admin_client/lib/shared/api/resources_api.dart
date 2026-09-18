@@ -33,6 +33,43 @@ abstract class GroupsApi {
   );
 }
 
+/// `/v1/groups/{groupId}/teams` and `/v1/teams/{teamId}/members`.
+@RestApi()
+abstract class TeamsApi {
+  factory TeamsApi(Dio dio, {String baseUrl}) = _TeamsApi;
+
+  /// Every team of one group — any role with read access to it, not just
+  /// `owner`/`admin` (`teams_route.dart`, 5.9).
+  @GET('/v1/groups/{groupId}/teams')
+  Future<TeamListDto> list(@Path('groupId') int groupId);
+
+  /// `owner` of the group, or `admin`.
+  @POST('/v1/groups/{groupId}/teams')
+  Future<TeamDto> create(
+    @Path('groupId') int groupId,
+    @Body() CreateTeamRequestDto body,
+  );
+
+  /// Same read rule as [list] — the composition dialog needs to show who is
+  /// already a member before offering to add or remove one.
+  @GET('/v1/teams/{teamId}/members')
+  Future<TeamMemberListDto> members(@Path('teamId') int teamId);
+
+  /// `owner` of the team's group, or `admin`. Idempotent on the server —
+  /// adding an existing member is not an error.
+  @POST('/v1/teams/{teamId}/members')
+  Future<void> addMember(
+    @Path('teamId') int teamId,
+    @Body() AddTeamMemberRequestDto body,
+  );
+
+  @DELETE('/v1/teams/{teamId}/members/{userId}')
+  Future<void> removeMember(
+    @Path('teamId') int teamId,
+    @Path('userId') int userId,
+  );
+}
+
 /// `/v1/projects/*`.
 @RestApi()
 abstract class ProjectsApi {

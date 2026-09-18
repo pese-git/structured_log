@@ -151,12 +151,14 @@ class UserRoutes {
     return jsonOk(userJson(user), statusCode: 201);
   }
 
-  /// `admin` only.
+  /// `admin`, or any `owner` of at least one group — [canSearchUsers]
+  /// (уточнение 18.09.2026: the grant/add-member recipient picker needs
+  /// this, not just admin's own Users screen).
   @Route.get('/v1/users')
   Future<Response> listUsers(Request request) async {
     final identity = request.requireUser();
     final roles = await resolveRoles(_authorizer, identity);
-    if (!isGlobalAdmin(roles)) throw ApiError.forbidden();
+    if (!canSearchUsers(roles)) throw ApiError.forbidden();
 
     final params = request.url.queryParameters;
     final limit = params['limit'] != null ? int.parse(params['limit']!) : 50;

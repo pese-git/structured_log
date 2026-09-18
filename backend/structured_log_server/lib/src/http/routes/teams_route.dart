@@ -52,6 +52,67 @@ class TeamRoutes {
 
   Router get router => _$TeamRoutesRouter(this);
 
+  /// Any role with read access to `:groupId` (`admin`/`owner`/`user` —
+  /// `log-server-rbac`, "user... SHALL быть доступно только чтение (GET)").
+  /// Discovered missing while starting 13.2a — 5.3 built the three mutating
+  /// endpoints design.md named, but a list screen needs something to list
+  /// (the same gap 5.8 found for projects).
+  @Route.get('/v1/groups/<groupId>/teams')
+  Future<Response> listTeams(Request request, String groupId) async {
+    final identity = request.requireUser();
+    final group = await _requireGroup(_db, parsePathId(groupId, 'groupId'));
+
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canRead(roles, targetType: ScopeType.group, targetId: group.id)) {
+      throw ApiError.forbidden();
+    }
+
+    final rows = await (_db.select(
+      _db.teams,
+    )..where((t) => t.groupId.equals(group.id)))
+        .get();
+    return jsonOk({'items': rows.map(teamJson).toList()});
+  }
+
+  /// Same read rule as [listTeams] — the composition screen needs to show
+  /// who is already a member before offering to add or remove one. Minimal
+  /// shape (`user_id`/`username`, not a full `UserDto`): whoever manages a
+  /// team's composition (an `owner`, not necessarily `admin`) has no general
+  /// right to read arbitrary user accounts, only to know who is in their own
+  /// team (same reasoning as `role_assignments_route.dart` resolving
+  /// `subject_name` instead of embedding a `UserDto`).
+  @Route.get('/v1/teams/<teamId>/members')
+  Future<Response> listTeamMembers(Request request, String teamId) async {
+    final identity = request.requireUser();
+    final team = await _requireTeam(_db, parsePathId(teamId, 'teamId'));
+
+    final roles = await resolveRoles(_authorizer, identity);
+    if (!canRead(
+      roles,
+      targetType: ScopeType.group,
+      targetId: team.groupId,
+    )) {
+      throw ApiError.forbidden();
+    }
+
+    final userIds = await (_db.selectOnly(_db.teamMembers)
+          ..addColumns([_db.teamMembers.userId])
+          ..where(_db.teamMembers.teamId.equals(team.id)))
+        .map((row) => row.read(_db.teamMembers.userId)!)
+        .get();
+    if (userIds.isEmpty) return jsonOk({'items': <Object?>[]});
+
+    final users = await (_db.select(
+      _db.users,
+    )..where((t) => t.id.isIn(userIds)))
+        .get();
+    return jsonOk({
+      'items': [
+        for (final u in users) {'user_id': u.id, 'username': u.username},
+      ],
+    });
+  }
+
   /// `owner` of `:groupId`, or `admin` (`log-server-rbac`, decision 6/7 —
   /// a `Team` belongs to exactly one group and only that group's owner, or
   /// `admin`, may create one in it).

@@ -455,6 +455,32 @@ void main() {
     });
   });
 
+  group('canSearchUsers', () {
+    test('admin may search', () {
+      expect(canSearchUsers([global(Role.admin)]), isTrue);
+    });
+
+    test('owner of any group may search, not just one it owns', () {
+      expect(canSearchUsers([onGroup(Role.owner, 1)]), isTrue);
+    });
+
+    test('a user role on a group may not search', () {
+      expect(canSearchUsers([onGroup(Role.user, 1)]), isFalse);
+    });
+
+    test('someone with no roles at all may not search', () {
+      expect(canSearchUsers(const []), isFalse);
+    });
+
+    test('an owner scoped to a project, not a group, may not search', () {
+      // A project-scoped owner grant is not how the roles table is meant to
+      // be populated (owner only ever targets group/global — see
+      // canCreateOrRevokeRoleAssignment), but the check should still read
+      // the scope type strictly rather than assume.
+      expect(canSearchUsers([onProject(Role.owner, 1)]), isFalse);
+    });
+  });
+
   group('resolveRoles', () {
     late StructuredLogDatabase db;
     late Authorizer authorizer;

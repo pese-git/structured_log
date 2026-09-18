@@ -36,6 +36,7 @@ class RoleAssignmentsRepositoryImpl implements RoleAssignmentsRepository {
 
   @override
   Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required String subjectType,
     required int subjectId,
     required String role,
     required String scopeType,
@@ -44,7 +45,7 @@ class RoleAssignmentsRepositoryImpl implements RoleAssignmentsRepository {
     return _attempt(
       () => _api.roleAssignments.create(
         CreateRoleAssignmentRequestDto(
-          subjectType: 'user',
+          subjectType: subjectType,
           subjectId: subjectId,
           role: role,
           scopeType: scopeType,

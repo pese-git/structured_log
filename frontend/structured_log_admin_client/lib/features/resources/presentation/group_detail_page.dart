@@ -9,21 +9,23 @@ import 'resource_dialogs.dart';
 import 'resource_failure_text.dart';
 import 'resources_section.dart';
 
-/// One group and the projects inside it (`GroupDetail.dc.html`).
+/// One group, the projects inside it, its teams, and who holds a role on it
+/// (`GroupDetail.dc.html`).
 ///
-/// The artboard also draws teams — still not here, the server has no
-/// endpoints for them in this stage. Role assignments (the artboard's
-/// «Доступ» section) are here now (уточнение 17.09.2026): who holds a role
-/// on this group, granted/revoked from this side, the mirror of the reduced
-/// grant form on the target user's own screen (`lib/features/users/`).
+/// Teams (13.2a) and role assignments (the artboard's «Доступ» section,
+/// уточнение 17.09.2026) are both here: who is in which team, granted/
+/// revoked from this side, the mirror of the reduced grant form on the
+/// target user's own screen (`lib/features/users/`).
 class GroupDetailPage extends StatelessWidget {
   final String groupName;
+  final bool isAdmin;
   final VoidCallback onBack;
   final ValueChanged<ProjectDto> onOpenProject;
 
   const GroupDetailPage({
     super.key,
     required this.groupName,
+    required this.isAdmin,
     required this.onBack,
     required this.onOpenProject,
   });
@@ -77,7 +79,9 @@ class GroupDetailPage extends StatelessWidget {
               const SizedBox(height: AdminSpacing.x12),
               _projects(context, state),
               const SizedBox(height: AdminSpacing.x24),
-              _Access(groupName: groupName, state: state),
+              _Teams(state: state),
+              const SizedBox(height: AdminSpacing.x24),
+              _Access(groupName: groupName, isAdmin: isAdmin, state: state),
             ],
           ),
         );
@@ -190,11 +194,141 @@ class GroupDetailPage extends StatelessWidget {
   }
 }
 
-class _Access extends StatelessWidget {
-  final String groupName;
+class _Teams extends StatelessWidget {
   final GroupDetailState state;
 
-  const _Access({required this.groupName, required this.state});
+  const _Teams({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Команды',
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
+            ),
+            const SizedBox(width: AdminSpacing.x12),
+            AdminButton(
+              label: 'Команда',
+              icon: FluentIcons.add,
+              onPressed: () => _create(context),
+            ),
+          ],
+        ),
+        const SizedBox(height: AdminSpacing.x12),
+        if (state.teams.isEmpty)
+          const AdminEmptyState(
+            icon: FluentIcons.people,
+            title: 'Команд пока нет',
+            description:
+                'Команда позволяет выдать роль сразу нескольким '
+                'пользователям — всем её текущим участникам.',
+          )
+        else
+          for (final team in state.teams) ...[
+            AdminResourceRow(
+              icon: FluentIcons.people,
+              title: team.name,
+              onPressed: () => _openMembers(context, team),
+              actions: [
+                AdminButton(
+                  label: 'Состав',
+                  size: AdminButtonSize.tonal,
+                  onPressed: () => _openMembers(context, team),
+                ),
+              ],
+            ),
+            const SizedBox(height: AdminSpacing.x10),
+          ],
+      ],
+    );
+  }
+
+  Future<void> _create(BuildContext context) async {
+    final cubit = context.read<GroupDetailCubit>();
+    var closing = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => BlocProvider.value(
+        value: cubit,
+        child: BlocBuilder<GroupDetailCubit, GroupDetailState>(
+          builder: (builderContext, state) {
+            // Once only — same reasoning as `GroupDetailPage._create`.
+            if (state.teamCreated && !closing) {
+              closing = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+              });
+            }
+            return NameDialog(
+              title: 'Новая команда',
+              fieldLabel: 'Название команды',
+              confirmLabel: 'Создать команду',
+              submitting: state.creatingTeam,
+              errorText: state.createTeamFailure == null
+                  ? null
+                  : describeApiFailure(state.createTeamFailure!),
+              onSubmit: (name) {
+                if (name.isNotEmpty) cubit.createTeam(name);
+              },
+              onCancel: () => Navigator.of(dialogContext).pop(),
+            );
+          },
+        ),
+      ),
+    );
+    cubit.teamDialogClosed();
+  }
+
+  Future<void> _openMembers(BuildContext context, TeamDto team) async {
+    final cubit = context.read<GroupDetailCubit>();
+    await cubit.openTeamMembers(team.id);
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => BlocProvider.value(
+        value: cubit,
+        child: BlocBuilder<GroupDetailCubit, GroupDetailState>(
+          builder: (builderContext, state) {
+            return TeamMembersDialog(
+              teamName: team.name,
+              members: state.teamMembers,
+              loading: state.loadingTeamMembers,
+              changing: state.changingTeamMembers,
+              errorText: state.teamMembersFailure == null
+                  ? null
+                  : describeApiFailure(state.teamMembersFailure!),
+              searchUsers: cubit.searchUsers,
+              onAdd: cubit.addTeamMember,
+              onRemove: cubit.removeTeamMember,
+              onClose: () => Navigator.of(dialogContext).pop(),
+            );
+          },
+        ),
+      ),
+    );
+    cubit.closeTeamMembers();
+  }
+}
+
+class _Access extends StatelessWidget {
+  final String groupName;
+  final bool isAdmin;
+  final GroupDetailState state;
+
+  const _Access({
+    required this.groupName,
+    required this.isAdmin,
+    required this.state,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +377,7 @@ class _Access extends StatelessWidget {
           for (final grant in state.roleAssignments) ...[
             AdminResourceRow(
               icon: FluentIcons.contact,
-              title: grant.subjectName ?? 'Пользователь #${grant.subjectId}',
+              title: subjectLabel(grant),
               subtitle: grant.role,
               actions: [
                 AdminButton(
@@ -270,13 +404,16 @@ class _Access extends StatelessWidget {
             return GrantAccessDialog(
               scopeLabel: 'Группа: $groupName',
               submitting: state.grantingAccess,
+              isGlobalAdmin: isAdmin,
               errorText: state.accessFailure == null
                   ? null
                   : describeApiFailure(state.accessFailure!),
               searchUsers: cubit.searchUsers,
+              searchTeams: cubit.searchTeams,
               onGrant: (values) async {
                 await cubit.grantAccess(
-                  userId: values.userId,
+                  subjectType: values.subjectType,
+                  subjectId: values.subjectId,
                   role: values.role,
                 );
                 if (!dialogContext.mounted) return;
@@ -297,7 +434,11 @@ class _Access extends StatelessWidget {
 
   Future<void> _revoke(BuildContext context, RoleAssignmentDto grant) async {
     final cubit = context.read<GroupDetailCubit>();
-    final subject = grant.subjectName ?? 'пользователя #${grant.subjectId}';
+    final subject =
+        grant.subjectName ??
+        (grant.subjectType == 'team'
+            ? 'команды #${grant.subjectId}'
+            : 'пользователя #${grant.subjectId}');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(

@@ -52,10 +52,18 @@ class ResourcesSection extends StatefulWidget {
   /// is "Открыть логи", and logs are the other section of the app.
   final void Function(int projectId, String projectName) onOpenLogs;
 
+  /// Whether the token in hand claims global `admin` — read once by
+  /// `HomeShell`, threaded down to the «Предоставить доступ» dialog to widen
+  /// its role choices (13.5, full version). Same "offer, never enforce"
+  /// caveat as everywhere else this claim is read: the server decides what a
+  /// grant attempt actually gets.
+  final bool isAdmin;
+
   const ResourcesSection({
     super.key,
     required this.scope,
     required this.onOpenLogs,
+    required this.isAdmin,
   });
 
   @override
@@ -83,10 +91,12 @@ class _ResourcesSectionState extends State<ResourcesSection> {
         create: (_) => GroupDetailCubit(
           projects: widget.scope.resolve<ManageProjects>(),
           roleAssignments: widget.scope.resolve<ManageRoleAssignments>(),
+          teams: widget.scope.resolve<ManageTeams>(),
           groupId: groupId,
         )..load(),
         child: GroupDetailPage(
           groupName: groupName,
+          isAdmin: widget.isAdmin,
           onBack: () => _go(const _Groups()),
           onOpenProject: (project) =>
               _go(_ProjectDetail(project.id, groupName)),
@@ -98,10 +108,12 @@ class _ResourcesSectionState extends State<ResourcesSection> {
           projects: widget.scope.resolve<ManageProjects>(),
           keys: widget.scope.resolve<ManageSecretKeys>(),
           roleAssignments: widget.scope.resolve<ManageRoleAssignments>(),
+          teams: widget.scope.resolve<ManageTeams>(),
           projectId: projectId,
         )..load(),
         child: ProjectDetailPage(
           groupName: groupName,
+          isAdmin: widget.isAdmin,
           onBackToGroups: () => _go(const _Groups()),
           onOpenLogs: widget.onOpenLogs,
         ),

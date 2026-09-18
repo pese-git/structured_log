@@ -21,12 +21,14 @@ class ManageRoleAssignments {
   }) => _repository.forScope(scopeType: scopeType, scopeId: scopeId);
 
   Future<Either<ApiFailure, RoleAssignmentDto>> grant({
+    required String subjectType,
     required int subjectId,
     required String role,
     required String scopeType,
     int? scopeId,
   }) {
     return _repository.grant(
+      subjectType: subjectType,
       subjectId: subjectId,
       role: role,
       scopeType: scopeType,

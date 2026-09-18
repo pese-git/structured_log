@@ -214,7 +214,8 @@ void main() {
       expect((body['items'] as List), hasLength(2));
     });
 
-    test('a non-admin is rejected with 403', () async {
+    test('a non-admin with no owner role anywhere is rejected with 403',
+        () async {
       await expectLater(
         routes.router.call(
           authenticatedRequest('GET', 'http://x/v1/users', roles: _noRoles),
@@ -222,6 +223,33 @@ void main() {
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
       );
     });
+
+    test(
+      'an owner of a group can search too — it feeds the grant/add-member '
+      'recipient picker, which 4.3/5.3/13.5 already let this owner use '
+      '(уточнение 18.09.2026, found live: the write side was opened, this '
+      'search was not)',
+      () async {
+        final alice = await insertUser(username: 'alice');
+        await insertUser(username: 'bob');
+
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/users?username=ali',
+            roles: const [
+              EffectiveRole(
+                  role: Role.owner, scopeType: ScopeType.group, scopeId: 1),
+            ],
+          ),
+        );
+
+        final body = await decodeJson(response);
+        final items = body['items'] as List;
+        expect(items, hasLength(1));
+        expect(items.single['id'], alice.id);
+      },
+    );
 
     test('paginates by cursor without skipping or repeating rows', () async {
       for (var i = 0; i < 5; i++) {
