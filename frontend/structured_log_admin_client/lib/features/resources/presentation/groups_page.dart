@@ -147,8 +147,8 @@ class GroupsPage extends StatelessWidget {
               fieldLabel: 'Название группы',
               confirmLabel: 'Создать группу',
               description:
-                  'Проекты создаются внутри группы. Создавать группы может '
-                  'только администратор.',
+                  'После создания группа не имеет владельца — выдайте роль '
+                  'owner нужному пользователю или команде на экране группы.',
               submitting: state.creating,
               errorText: state.createFailure == null
                   ? null

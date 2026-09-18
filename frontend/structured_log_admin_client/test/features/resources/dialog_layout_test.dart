@@ -63,6 +63,16 @@ void main() {
     onClose: _nothing,
   );
 
+  Widget teamMembersDialog() => TeamMembersDialog(
+    teamName: 'Backend Team',
+    groupName: 'Acme Corp',
+    members: const [],
+    searchUsers: (_) async => const [],
+    onAdd: (_) {},
+    onRemove: (_) {},
+    onClose: _nothing,
+  );
+
   /// Half the window is already far more than any of these need; the point is
   /// to catch a dialog that has stopped measuring itself at all, and a bound
   /// that tracked the current pixel counts would fail on every restyling.
@@ -110,6 +120,15 @@ void main() {
     );
 
     expectSizedToContent(tester, const Size(1440, 900));
+  });
+
+  testWidgets('the team members dialog names the group the team is in', (
+    tester,
+  ) async {
+    await show(tester, teamMembersDialog());
+
+    expect(find.text('Состав команды «Backend Team»'), findsOneWidget);
+    expect(find.text('Группа: Acme Corp'), findsOneWidget);
   });
 
   testWidgets('a window too short for the content scrolls it', (tester) async {

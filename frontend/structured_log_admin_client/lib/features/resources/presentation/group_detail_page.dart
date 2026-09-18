@@ -66,7 +66,7 @@ class GroupDetailPage extends StatelessWidget {
               // AGENTS.md on GroupDetail/ProjectDetail/AuditLog).
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final teams = _Teams(state: state);
+                  final teams = _Teams(groupName: groupName, state: state);
                   final projects = _Projects(
                     onOpenProject: onOpenProject,
                     onCreate: () => _create(context),
@@ -146,9 +146,10 @@ class GroupDetailPage extends StatelessWidget {
 }
 
 class _Teams extends StatelessWidget {
+  final String groupName;
   final GroupDetailState state;
 
-  const _Teams({required this.state});
+  const _Teams({required this.groupName, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +224,10 @@ class _Teams extends StatelessWidget {
               title: 'Новая команда',
               fieldLabel: 'Название команды',
               confirmLabel: 'Создать команду',
+              groupLabel: groupName,
+              description:
+                  'После создания команда пуста — добавьте участников на '
+                  'экране «Состав команды».',
               submitting: state.creatingTeam,
               errorText: state.createTeamFailure == null
                   ? null
@@ -251,6 +256,7 @@ class _Teams extends StatelessWidget {
           builder: (builderContext, state) {
             return TeamMembersDialog(
               teamName: team.name,
+              groupName: groupName,
               members: state.teamMembers,
               loading: state.loadingTeamMembers,
               changing: state.changingTeamMembers,
