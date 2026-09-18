@@ -98,9 +98,13 @@ void main() {
           'ran into the gate, and the gate chooses the screen',
     );
     expect(find.text('Группы'), findsNothing);
-    expect(
+    // The username is read off the access token asynchronously
+    // (`ChangePasswordCubit`'s own lookup), so it can lag a frame or two
+    // behind the gate's static copy above it — worth a wait of its own,
+    // not a bare `expect` right after the screen appears.
+    await _waitFor(
+      tester,
       find.textContaining('Вошли как admin'),
-      findsOneWidget,
       reason: 'the name comes out of the access token the sign-in returned',
     );
 
