@@ -118,6 +118,25 @@ bool canCreateOrRevokeRoleAssignment(
   });
 }
 
+/// Whether [roles] may call `GET /v1/users` — `admin` unconditionally, or
+/// anyone holding `RoleAssignment(role: owner, scope: group:*)` for at least
+/// one group, regardless of which one (уточнение 18.09.2026, found live: an
+/// owner whom [canCreateOrRevokeRoleAssignment] already lets grant a role to
+/// a user, or `addTeamMember`'s matching `canWrite` already lets add one to
+/// a team, still got 403 from this endpoint — the very search that fills
+/// `GrantAccessDialog`/`TeamMembersDialog`'s recipient picker, which the
+/// write-side rule was extended for in the first place). Not scoped to the
+/// owner's own group: the write side isn't either — an owner who already
+/// knows a user's id can grant them regardless of which group, if any, that
+/// user is a member of elsewhere, so withholding the name search a scope
+/// narrower would only make the picker miss people the owner could already
+/// target blindly.
+bool canSearchUsers(List<EffectiveRole> roles) {
+  if (isGlobalAdmin(roles)) return true;
+  return roles
+      .any((r) => r.role == Role.owner && r.scopeType == ScopeType.group);
+}
+
 /// Whether [roles] may *read* the role-assignment list for the group/project
 /// at ([scopeType], [scopeId]) — the «Доступ» section on
 /// `GroupDetailPage`/`ProjectDetailPage` (уточнение 17.09.2026): `admin`

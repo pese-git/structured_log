@@ -66,6 +66,17 @@ RBAC-логика SHALL уметь резолвить эффективные р�
 - **WHEN** пользователь с `RoleAssignment(role: owner, scope: group:G)` (без роли `admin`) отправляет `PATCH /v1/users/:id` для любого пользователя, включая пользователей своей группы
 - **THEN** сервер отвечает 403 и не изменяет запись
 
+### Requirement: Поиск пользователей по имени открыт также owner'у любой группы
+`GET /v1/users` SHALL быть доступен, помимо `RoleAssignment(role: admin, scope: global)`, любому пользователю, у которого есть `RoleAssignment(role: owner, scope: group:*)` хотя бы для одной группы, независимо от того, для какой именно — тем же способом, каким `?name=` на `GET /v1/groups`/`GET /v1/projects` служит подсказкой поиска получателя для `AdminSearchPicker`. Без этого owner, которому позволено выдать роль пользователю (раздел «Создание/отзыв `RoleAssignment`» выше) или добавить его в команду («Управление командами...» ниже), не может найти получателя по имени вообще (уточнение 18.09.2026, найдено живым прогоном).
+
+#### Scenario: owner ищет получателя по имени
+- **WHEN** пользователь с `RoleAssignment(role: owner, scope: group:G)` (без роли `admin`) отправляет `GET /v1/users?username=...`
+- **THEN** сервер отвечает списком подходящих пользователей, а не 403
+
+#### Scenario: пользователь без роли owner ни на одну группу не может искать пользователей
+- **WHEN** пользователь, у которого нет ни `RoleAssignment(role: admin, scope: global)`, ни `RoleAssignment(role: owner, scope: group:*)` ни на одну группу, отправляет `GET /v1/users`
+- **THEN** сервер отвечает 403
+
 ### Requirement: Управление командами, проектами, квотами и секретными ключами ограничено owner/admin в рамках группы
 `POST`/`PATCH`/`DELETE` на `teams`, `projects` (включая квоты `retention_days`/`max_entries`/`max_bytes`) и `project_secret_keys` внутри группы `G` SHALL быть доступны пользователям с `RoleAssignment(role: admin, scope: global)` или `RoleAssignment(role: owner, scope: group:G)` (прямо или через команду); пользователям только с ролью `user` на `G` или её проекты SHALL быть доступно только чтение (`GET`), не изменение.
 
