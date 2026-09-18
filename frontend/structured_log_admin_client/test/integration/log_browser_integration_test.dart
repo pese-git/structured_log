@@ -80,6 +80,24 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('"Open logs" on a project opens that project\'s logs, not the '
+      'selector', (tester) async {
+    await pumpApp(tester, server, signedIn: true);
+
+    // Groups → the group → its project → the project's own "Open logs".
+    await tester.tap(find.text('Открыть').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Открыть').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Открыть логи'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Выберите область'), findsNothing);
+    expect(find.text('Проект: payments'), findsOneWidget);
+    expect(logQueries().single.query['project_id'], '1');
+    await closeApp(tester);
+  });
+
   testWidgets('choosing a scope queries one project and shows what came back', (
     tester,
   ) async {

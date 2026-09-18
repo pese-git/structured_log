@@ -17,7 +17,9 @@ import '../features/audit/presentation/audit_page.dart';
 import '../features/dashboard/presentation/dashboard_cubit.dart';
 import '../features/dashboard/presentation/dashboard_page.dart';
 import '../features/log_browser/di/log_browser_module.dart';
+import '../features/log_browser/domain/log_scope.dart';
 import '../features/log_browser/presentation/log_browser_page.dart';
+import '../features/log_browser/presentation/log_feed_event.dart';
 import '../features/log_browser/presentation/log_feed_bloc.dart';
 import '../features/resources/application/manage_resources.dart';
 import '../features/resources/di/resources_module.dart';
@@ -111,6 +113,11 @@ class _HomeShellState extends State<HomeShell> {
   /// Changed when the log browser is opened from a project, which rebuilds it
   /// so it starts fresh rather than on whatever it was last showing.
   Key _logsKey = const ValueKey('logs');
+
+  /// The project the log browser opens on when it was reached from that
+  /// project's own screen — "Open logs" there means these logs, not a list of
+  /// scopes to choose from. `null` when reached from the nav.
+  LogScope? _logsInitialScope;
 
   /// Same idea as [_logsKey], for jumping from the dashboard straight into a
   /// group (`_openGroupFor`) instead of the group list.
@@ -208,6 +215,7 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _destination = _Destination.logs;
       _logsKey = ValueKey('logs-$projectId');
+      _logsInitialScope = LogScope.project(id: projectId, name: projectName);
     });
   }
 
@@ -298,7 +306,13 @@ class _HomeShellState extends State<HomeShell> {
         ),
         _Destination.logs => BlocProvider(
           key: _logsKey,
-          create: (_) => _logScope.resolve<LogFeedBloc>(),
+          create: (_) {
+            final bloc = _logScope.resolve<LogFeedBloc>();
+            if (_logsInitialScope case final scope?) {
+              bloc.add(LogFeedEvent.scopeSelected(scope));
+            }
+            return bloc;
+          },
           child: const LogBrowserPage(),
         ),
         _Destination.accountSettings => BlocProvider(

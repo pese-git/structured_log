@@ -406,6 +406,21 @@ void main() {
           onToChanged: onTo ?? (_) {},
         );
 
+    testWidgets('the calendar is as wide as the calendar, not as the window', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1))));
+      await tester.tap(find.text('From: 1.9'));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(FlyoutContent)).width, lessThan(400));
+    });
+
     testWidgets('an open end says so instead of showing a date',
         (tester) async {
       await tester.pumpWidget(_host(field(from: DateTime(2026, 9, 1))));
@@ -616,6 +631,23 @@ void main() {
         expect(reported!.minute, 45);
       },
     );
+
+    testWidgets('the flyout is as wide as its two pickers, not as the window', (
+      tester,
+    ) async {
+      // A `Column` with `stretch` takes everything the flyout is offered — on
+      // a wide window that was the whole width, pinned to the top edge.
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(_host(field()));
+      await tester.tap(find.text('From: any'));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(FlyoutContent)).width, lessThan(300));
+    });
 
     testWidgets('applying with no prior value anchors to today', (
       tester,

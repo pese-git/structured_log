@@ -118,49 +118,56 @@ class _BoundState extends State<_Bound> {
 
   void _open() {
     _flyout.showFlyout<void>(
+      // Under the box, like the artboards draw it; the default placement
+      // picked "above" and covered the toolbar the box sits in.
+      placementMode: FlyoutPlacementMode.bottomLeft,
       barrierColor: Colors.transparent,
       additionalOffset: AdminSpacing.x8,
       builder: (context) {
         final colors = AdminColors.of(FluentTheme.of(context).brightness);
         return FlyoutContent(
           padding: const EdgeInsets.all(AdminSpacing.x8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                width: 300,
-                height: 340,
-                child: CalendarView(
-                  initialStart: widget.value,
-                  minDate: widget.minDate,
-                  maxDate: widget.maxDate,
-                  onSelectionChanged: (selection) {
-                    final picked = selection.selectedDates.isEmpty
-                        ? null
-                        : selection.selectedDates.first;
-                    Navigator.of(context).pop();
-                    widget.onChanged(picked);
-                  },
-                ),
-              ),
-              const SizedBox(height: AdminSpacing.x8),
-              // Reopening the end has to be reachable from here: without it a
-              // reader who once picked a date can only move it, never take it
-              // back, and "since Monday, up to whenever" becomes unaskable.
-              Button(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  widget.onChanged(null);
-                },
-                child: Text(
-                  widget.clearLabel,
-                  style: AdminTypography.bodySmall.copyWith(
-                    color: colors.textSecondary,
+          // A fixed width: `stretch` would otherwise take everything the
+          // flyout is offered, which is the whole window.
+          child: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 340,
+                  child: CalendarView(
+                    initialStart: widget.value,
+                    minDate: widget.minDate,
+                    maxDate: widget.maxDate,
+                    onSelectionChanged: (selection) {
+                      final picked = selection.selectedDates.isEmpty
+                          ? null
+                          : selection.selectedDates.first;
+                      Navigator.of(context).pop();
+                      widget.onChanged(picked);
+                    },
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: AdminSpacing.x8),
+                // Reopening the end has to be reachable from here: without it a
+                // reader who once picked a date can only move it, never take it
+                // back, and "since Monday, up to whenever" becomes unaskable.
+                Button(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    widget.onChanged(null);
+                  },
+                  child: Text(
+                    widget.clearLabel,
+                    style: AdminTypography.bodySmall.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
