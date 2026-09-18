@@ -335,6 +335,7 @@ class MockServer implements HttpClientAdapter {
         int.parse(id),
         false,
       ),
+      ('DELETE', ['v1', 'users', 'me']) => _deleteMe(request),
       ('DELETE', ['v1', 'users', final id]) => _deleteUser(
         request,
         int.parse(id),
@@ -715,6 +716,49 @@ class MockServer implements HttpClientAdapter {
 
     user['deleted_at'] = _now();
     user['is_active'] = false;
+    return const MockReply(204);
+  }
+
+  /// The groups self-deletion should refuse over — `DELETE /v1/users/me`'s
+  /// own version of [_soleOwnerBlocks]. A separate field, not the same map
+  /// keyed by some id: the token this mock issues carries no numeric user
+  /// id (`preferred_username`/`roles` only — `_token`), so "me" has nothing
+  /// to key a shared map on.
+  List<Map<String, dynamic>>? _meSoleOwnerBlocks;
+
+  /// Makes `DELETE /v1/users/me` answer `409 sole_group_owner` naming
+  /// [blockingGroups] until called again with an empty list — the
+  /// self-deletion counterpart of [simulateSoleGroupOwner].
+  void simulateMeSoleGroupOwner(List<Map<String, dynamic>> blockingGroups) {
+    _meSoleOwnerBlocks = blockingGroups;
+  }
+
+  /// Password-gated, unlike [_deleteUser]: nobody else has confirmed this is
+  /// wanted (`users_route.dart`'s own reasoning for the real endpoint).
+  MockReply _deleteMe(RecordedRequest request) {
+    _requireSession(request);
+    final body = request.json;
+    if (body['password'] != password) {
+      return const MockReply(
+        401,
+        body: {
+          'error': 'invalid_grant',
+          'message': 'Current password is incorrect.',
+        },
+      );
+    }
+    final blocking = _meSoleOwnerBlocks;
+    if (blocking != null && blocking.isNotEmpty) {
+      return MockReply(
+        409,
+        body: {
+          'error': 'sole_group_owner',
+          'details': {'blocking_groups': blocking},
+        },
+      );
+    }
+    _liveAccess.clear();
+    _liveRefresh.clear();
     return const MockReply(204);
   }
 

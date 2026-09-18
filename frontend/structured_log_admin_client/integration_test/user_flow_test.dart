@@ -353,8 +353,8 @@ void main() {
   ) async {
     await openApp(tester);
 
-    await _press(tester, find.text('Аккаунт'));
-    await _press(tester, find.text('Выйти из аккаунта'));
+    await _press(tester, find.text(server.username));
+    await _press(tester, find.text('Выйти'));
 
     await _waitFor(tester, find.text('Вход в систему'));
     expect(

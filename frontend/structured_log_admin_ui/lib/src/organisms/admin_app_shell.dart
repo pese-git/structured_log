@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
+import '../molecules/admin_account_menu.dart';
 import '../tokens/tokens.dart';
 
 /// One entry in the navigation pane.
@@ -59,8 +60,13 @@ class AdminAppShell extends StatelessWidget {
   final String accountName;
   final String accountRole;
 
-  /// Pressed on the account block — the artboards put sign-out there.
-  final VoidCallback? onAccountPressed;
+  /// The account block opens a menu (`AccountMenu.dc.html`) rather than
+  /// acting on a single tap — "Настройки аккаунта" and "Выйти" are two
+  /// distinct actions, not one. Either callback left `null` drops that
+  /// item from the menu; both `null` makes the block inert, same as the
+  /// old `onAccountPressed: null`.
+  final VoidCallback? onOpenAccountSettings;
+  final VoidCallback? onSignOut;
 
   const AdminAppShell({
     super.key,
@@ -72,7 +78,8 @@ class AdminAppShell extends StatelessWidget {
     required this.accountName,
     required this.accountRole,
     this.productName = 'Structured Log',
-    this.onAccountPressed,
+    this.onOpenAccountSettings,
+    this.onSignOut,
   });
 
   @override
@@ -109,7 +116,8 @@ class AdminAppShell extends StatelessWidget {
                 productName: productName,
                 accountName: accountName,
                 accountRole: accountRole,
-                onAccountPressed: onAccountPressed,
+                onOpenAccountSettings: onOpenAccountSettings,
+                onSignOut: onSignOut,
               ),
             ),
             Expanded(
@@ -163,7 +171,8 @@ class _NavPane extends StatelessWidget {
   final String productName;
   final String accountName;
   final String accountRole;
-  final VoidCallback? onAccountPressed;
+  final VoidCallback? onOpenAccountSettings;
+  final VoidCallback? onSignOut;
 
   const _NavPane({
     required this.collapsed,
@@ -173,7 +182,8 @@ class _NavPane extends StatelessWidget {
     required this.productName,
     required this.accountName,
     required this.accountRole,
-    this.onAccountPressed,
+    this.onOpenAccountSettings,
+    this.onSignOut,
   });
 
   @override
@@ -251,74 +261,141 @@ class _NavPane extends StatelessWidget {
           ),
         ),
         Expanded(child: ListView(children: children)),
-        Container(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: colors.border)),
-          ),
-          child: HoverButton(
-            onPressed: onAccountPressed,
-            builder: (context, states) => Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: collapsed ? AdminSpacing.x8 : AdminSpacing.x14,
-                vertical: AdminSpacing.x12,
-              ),
-              color: states.isHovered ? colors.cardBg : null,
-              child: Row(
-                mainAxisAlignment: collapsed
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
-                children: [
-                  Container(
-                    width: AdminSizes.controlHeight,
-                    height: AdminSizes.controlHeight,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.accentTint,
-                      borderRadius: BorderRadius.circular(AdminRadius.pill),
-                    ),
-                    child: Text(
-                      _initials(accountName),
-                      style: AdminTypography.captionStrong.copyWith(
-                        color: colors.accentDark,
-                      ),
+        _AccountBlock(
+          collapsed: collapsed,
+          accountName: accountName,
+          accountRole: accountRole,
+          onOpenAccountSettings: onOpenAccountSettings,
+          onSignOut: onSignOut,
+        ),
+      ],
+    );
+  }
+}
+
+/// The account block at the foot of the nav pane — its own
+/// [FlyoutController], so the menu it opens (`AdminAccountMenu`) survives
+/// `AdminAppShell` rebuilding around it (every nav selection does).
+class _AccountBlock extends StatefulWidget {
+  final bool collapsed;
+  final String accountName;
+  final String accountRole;
+  final VoidCallback? onOpenAccountSettings;
+  final VoidCallback? onSignOut;
+
+  const _AccountBlock({
+    required this.collapsed,
+    required this.accountName,
+    required this.accountRole,
+    this.onOpenAccountSettings,
+    this.onSignOut,
+  });
+
+  @override
+  State<_AccountBlock> createState() => _AccountBlockState();
+}
+
+class _AccountBlockState extends State<_AccountBlock> {
+  final _controller = FlyoutController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _open() async {
+    await _controller.showFlyout<void>(
+      placementMode: FlyoutPlacementMode.topLeft,
+      builder: (flyoutContext) => AdminAccountMenu(
+        accountName: widget.accountName,
+        accountRole: widget.accountRole,
+        onOpenAccountSettings: () {
+          Navigator.of(flyoutContext).pop();
+          widget.onOpenAccountSettings?.call();
+        },
+        onSignOut: () {
+          Navigator.of(flyoutContext).pop();
+          widget.onSignOut?.call();
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    final interactive =
+        widget.onOpenAccountSettings != null || widget.onSignOut != null;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: FlyoutTarget(
+        controller: _controller,
+        child: HoverButton(
+          onPressed: interactive ? _open : null,
+          builder: (context, states) => Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.collapsed ? AdminSpacing.x8 : AdminSpacing.x14,
+              vertical: AdminSpacing.x12,
+            ),
+            color: states.isHovered ? colors.cardBg : null,
+            child: Row(
+              mainAxisAlignment: widget.collapsed
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
+              children: [
+                Container(
+                  width: AdminSizes.controlHeight,
+                  height: AdminSizes.controlHeight,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.accentTint,
+                    borderRadius: BorderRadius.circular(AdminRadius.pill),
+                  ),
+                  child: Text(
+                    _initials(widget.accountName),
+                    style: AdminTypography.captionStrong.copyWith(
+                      color: colors.accentDark,
                     ),
                   ),
-                  if (!collapsed) ...[
-                    const SizedBox(width: AdminSpacing.x10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            accountName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AdminTypography.bodySmall.copyWith(
-                              color: colors.text,
-                            ),
+                ),
+                if (!widget.collapsed) ...[
+                  const SizedBox(width: AdminSpacing.x10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.accountName,
+                          overflow: TextOverflow.ellipsis,
+                          style: AdminTypography.bodySmall.copyWith(
+                            color: colors.text,
                           ),
-                          Text(
-                            accountRole,
-                            overflow: TextOverflow.ellipsis,
-                            style: AdminTypography.caption.copyWith(
-                              color: colors.textTertiary,
-                            ),
+                        ),
+                        Text(
+                          widget.accountRole,
+                          overflow: TextOverflow.ellipsis,
+                          style: AdminTypography.caption.copyWith(
+                            color: colors.textTertiary,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    if (onAccountPressed != null)
-                      Icon(
-                        FluentIcons.sign_out,
-                        size: 16,
-                        color: colors.textSecondary,
-                      ),
-                  ],
+                  ),
+                  if (interactive)
+                    Icon(
+                      FluentIcons.chevron_down,
+                      size: 14,
+                      color: colors.textSecondary,
+                    ),
                 ],
-              ),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 

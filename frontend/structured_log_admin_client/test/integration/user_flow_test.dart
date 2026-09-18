@@ -242,9 +242,9 @@ void main() {
   ) async {
     await pumpApp(tester, server, storage: storage);
 
-    await tester.tap(find.text('Аккаунт'));
+    await tester.tap(find.text(server.username));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Выйти из аккаунта'));
+    await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();
 
     expect(find.text('Вход в систему'), findsOneWidget);

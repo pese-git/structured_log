@@ -326,6 +326,104 @@ void main() {
       expect(find.text('Пользователи'), findsNothing);
       expect(find.text('Администрирование'), findsNothing);
     });
+
+    testWidgets(
+      'the account block opens a menu instead of acting on its own tap',
+      (tester) async {
+        useWideSurface(tester);
+        var openedSettings = 0;
+        var signedOut = 0;
+        await tester.pumpWidget(
+          _host(
+            AdminAppShell(
+              sections: _sections,
+              selectedIndex: 0,
+              onSelected: (_) {},
+              accountName: 'Jana Novak',
+              accountRole: 'Администратор',
+              content: const SizedBox.shrink(),
+              onOpenAccountSettings: () => openedSettings++,
+              onSignOut: () => signedOut++,
+            ),
+          ),
+        );
+
+        // Closed: the menu items are not drawn until the block is pressed.
+        expect(find.text('Настройки аккаунта'), findsNothing);
+        expect(find.text('Выйти'), findsNothing);
+
+        await tester.tap(find.text('Jana Novak'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Настройки аккаунта'), findsOneWidget);
+        expect(find.text('Выйти'), findsOneWidget);
+        expect(openedSettings, 0, reason: 'opening the menu is not an action');
+        expect(signedOut, 0);
+
+        await tester.tap(find.text('Настройки аккаунта'));
+        await tester.pumpAndSettle();
+
+        expect(openedSettings, 1);
+        expect(signedOut, 0);
+        expect(
+          find.text('Выйти'),
+          findsNothing,
+          reason: 'picking an item closes the menu',
+        );
+      },
+    );
+
+    testWidgets(
+        'signing out from the menu fires onSignOut, not '
+        'onOpenAccountSettings', (tester) async {
+      useWideSurface(tester);
+      var openedSettings = 0;
+      var signedOut = 0;
+      await tester.pumpWidget(
+        _host(
+          AdminAppShell(
+            sections: _sections,
+            selectedIndex: 0,
+            onSelected: (_) {},
+            accountName: 'Jana Novak',
+            accountRole: 'Администратор',
+            content: const SizedBox.shrink(),
+            onOpenAccountSettings: () => openedSettings++,
+            onSignOut: () => signedOut++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Jana Novak'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Выйти'));
+      await tester.pumpAndSettle();
+
+      expect(signedOut, 1);
+      expect(openedSettings, 0);
+    });
+
+    testWidgets('with neither callback the account block is inert',
+        (tester) async {
+      useWideSurface(tester);
+      await tester.pumpWidget(
+        _host(
+          AdminAppShell(
+            sections: _sections,
+            selectedIndex: 0,
+            onSelected: (_) {},
+            accountName: 'Jana Novak',
+            accountRole: 'Администратор',
+            content: const SizedBox.shrink(),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Jana Novak'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Настройки аккаунта'), findsNothing);
+    });
   });
 
   group('AdminLogEntryRow', () {

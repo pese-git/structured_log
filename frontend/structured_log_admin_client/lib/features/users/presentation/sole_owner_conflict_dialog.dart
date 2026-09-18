@@ -19,16 +19,22 @@ import '../../resources/presentation/resource_dialogs.dart'
 /// simpler, and the reader's goal (transfer ownership) is a single action
 /// they can immediately retry the delete after, not a flow that needs this
 /// dialog to still be there when it is done.
+///
+/// [onGrantAccess] is `null` for a reader who cannot grant one themselves —
+/// `_AccountSettingsPage`'s own "Опасная зона" reuses this dialog for
+/// self-deletion, and a non-admin sole owner has no admin screen to reach
+/// `GrantAccessDialog` from. The row still names the blocking group; it
+/// just drops the button a reader could not use.
 class SoleOwnerConflictDialog extends StatelessWidget {
   final List<({int id, String name})> groups;
-  final void Function(({int id, String name}) group) onGrantAccess;
+  final void Function(({int id, String name}) group)? onGrantAccess;
   final VoidCallback onClose;
 
   const SoleOwnerConflictDialog({
     super.key,
     required this.groups,
-    required this.onGrantAccess,
     required this.onClose,
+    this.onGrantAccess,
   });
 
   @override
@@ -96,12 +102,14 @@ class SoleOwnerConflictDialog extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: AdminSpacing.x8),
-                    AdminButton(
-                      label: 'Выдать роль',
-                      size: AdminButtonSize.tonal,
-                      onPressed: () => onGrantAccess(group),
-                    ),
+                    if (onGrantAccess case final onGrantAccess?) ...[
+                      const SizedBox(width: AdminSpacing.x8),
+                      AdminButton(
+                        label: 'Выдать роль',
+                        size: AdminButtonSize.tonal,
+                        onPressed: () => onGrantAccess(group),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -32,3 +32,15 @@ abstract class ChangePasswordRequestDto with _$ChangePasswordRequestDto {
   factory ChangePasswordRequestDto.fromJson(Map<String, dynamic> json) =>
       _$ChangePasswordRequestDtoFromJson(json);
 }
+
+/// `DELETE /v1/users/me` — the caller's own current password, confirming
+/// they mean it (`DeleteAccountDialog.dc.html`). Unlike the admin path
+/// (`DELETE /v1/users/{id}`), nobody else has confirmed this is wanted.
+@freezed
+abstract class DeleteAccountRequestDto with _$DeleteAccountRequestDto {
+  const factory DeleteAccountRequestDto({required String password}) =
+      _DeleteAccountRequestDto;
+
+  factory DeleteAccountRequestDto.fromJson(Map<String, dynamic> json) =>
+      _$DeleteAccountRequestDtoFromJson(json);
+}
