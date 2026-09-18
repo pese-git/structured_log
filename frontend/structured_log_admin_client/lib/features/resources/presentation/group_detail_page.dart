@@ -59,27 +59,39 @@ class GroupDetailPage extends StatelessWidget {
                 style: AdminTypography.pageTitle.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Проекты',
-                      overflow: TextOverflow.ellipsis,
-                      style: AdminTypography.label.copyWith(color: colors.text),
-                    ),
-                  ),
-                  const SizedBox(width: AdminSpacing.x12),
-                  AdminButton(
-                    label: 'Проект',
-                    icon: FluentIcons.add,
-                    onPressed: () => _create(context),
-                  ),
-                ],
+              // `GroupDetail.dc.html` puts Команды/Проекты side by side —
+              // reproduced above `masterDetail`, the same threshold the
+              // resource rows themselves use for their own width; below it,
+              // stacked as before (narrow states are out of scope here, see
+              // AGENTS.md on GroupDetail/ProjectDetail/AuditLog).
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final teams = _Teams(state: state);
+                  final projects = _Projects(
+                    onOpenProject: onOpenProject,
+                    onCreate: () => _create(context),
+                    state: state,
+                  );
+                  if (constraints.maxWidth < AdminBreakpoints.masterDetail) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        teams,
+                        const SizedBox(height: AdminSpacing.x24),
+                        projects,
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: teams),
+                      const SizedBox(width: AdminSpacing.x18),
+                      Expanded(child: projects),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(height: AdminSpacing.x12),
-              _projects(context, state),
-              const SizedBox(height: AdminSpacing.x24),
-              _Teams(state: state),
               const SizedBox(height: AdminSpacing.x24),
               _Access(groupName: groupName, isAdmin: isAdmin, state: state),
             ],
@@ -87,67 +99,6 @@ class GroupDetailPage extends StatelessWidget {
         );
       },
     );
-  }
-
-  Widget _projects(BuildContext context, GroupDetailState state) {
-    if (state.loading) {
-      return const Center(child: AdminLoadingIndicator());
-    }
-    if (state.failure != null) {
-      return AdminEmptyState(
-        icon: FluentIcons.error_badge,
-        title: 'Не удалось загрузить проекты',
-        description: describeApiFailure(state.failure!),
-      );
-    }
-    if (state.isEmpty) {
-      return const AdminEmptyState(
-        icon: FluentIcons.build_queue,
-        title: 'Проектов пока нет',
-        description:
-            'Создайте первый — он будет принимать логи по '
-            'секретному ключу.',
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final project in state.projects) ...[
-          AdminResourceRow(
-            icon: FluentIcons.build_queue,
-            title: project.name,
-            subtitle: _quotaLine(project),
-            tags: [
-              if (project.isBlocked)
-                const AdminStatusTag(
-                  label: 'Заблокирован',
-                  tone: AdminStatusTone.error,
-                ),
-            ],
-            onPressed: () => onOpenProject(project),
-            actions: [
-              AdminButton(
-                label: 'Открыть',
-                size: AdminButtonSize.tonal,
-                onPressed: () => onOpenProject(project),
-              ),
-            ],
-          ),
-          const SizedBox(height: AdminSpacing.x10),
-        ],
-      ],
-    );
-  }
-
-  /// The list endpoint carries no usage counters — only the project's own
-  /// endpoint computes them — so this line states the limits, and the project
-  /// screen states the usage against them.
-  static String _quotaLine(ProjectDto project) {
-    final entries = project.maxEntries == null
-        ? 'без лимита записей'
-        : 'лимит ${formatCount(project.maxEntries!)} записей';
-    return '$entries · retention ${project.retentionDays} дней';
   }
 
   Future<void> _create(BuildContext context) async {
@@ -316,6 +267,109 @@ class _Teams extends StatelessWidget {
       ),
     );
     cubit.closeTeamMembers();
+  }
+}
+
+class _Projects extends StatelessWidget {
+  final ValueChanged<ProjectDto> onOpenProject;
+  final VoidCallback onCreate;
+  final GroupDetailState state;
+
+  const _Projects({
+    required this.onOpenProject,
+    required this.onCreate,
+    required this.state,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Проекты',
+                overflow: TextOverflow.ellipsis,
+                style: AdminTypography.label.copyWith(color: colors.text),
+              ),
+            ),
+            const SizedBox(width: AdminSpacing.x12),
+            AdminButton(
+              label: 'Проект',
+              icon: FluentIcons.add,
+              onPressed: onCreate,
+            ),
+          ],
+        ),
+        const SizedBox(height: AdminSpacing.x12),
+        _body(),
+      ],
+    );
+  }
+
+  Widget _body() {
+    if (state.loading) {
+      return const Center(child: AdminLoadingIndicator());
+    }
+    if (state.failure != null) {
+      return AdminEmptyState(
+        icon: FluentIcons.error_badge,
+        title: 'Не удалось загрузить проекты',
+        description: describeApiFailure(state.failure!),
+      );
+    }
+    if (state.isEmpty) {
+      return const AdminEmptyState(
+        icon: FluentIcons.build_queue,
+        title: 'Проектов пока нет',
+        description:
+            'Создайте первый — он будет принимать логи по '
+            'секретному ключу.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final project in state.projects) ...[
+          AdminResourceRow(
+            icon: FluentIcons.build_queue,
+            title: project.name,
+            subtitle: _quotaLine(project),
+            tags: [
+              if (project.isBlocked)
+                const AdminStatusTag(
+                  label: 'Заблокирован',
+                  tone: AdminStatusTone.error,
+                ),
+            ],
+            onPressed: () => onOpenProject(project),
+            actions: [
+              AdminButton(
+                label: 'Открыть',
+                size: AdminButtonSize.tonal,
+                onPressed: () => onOpenProject(project),
+              ),
+            ],
+          ),
+          const SizedBox(height: AdminSpacing.x10),
+        ],
+      ],
+    );
+  }
+
+  /// The list endpoint carries no usage counters — only the project's own
+  /// endpoint computes them — so this line states the limits, and the project
+  /// screen states the usage against them.
+  static String _quotaLine(ProjectDto project) {
+    final entries = project.maxEntries == null
+        ? 'без лимита записей'
+        : 'лимит ${formatCount(project.maxEntries!)} записей';
+    return '$entries · retention ${project.retentionDays} дней';
   }
 }
 

@@ -278,7 +278,10 @@ void main() {
   });
 
   group('one project', () {
-    Future<ProjectDetailCubit> pump(WidgetTester tester) async {
+    Future<ProjectDetailCubit> pump(
+      WidgetTester tester, {
+      bool isAdmin = false,
+    }) async {
       useWideSurface(tester);
       final cubit = ProjectDetailCubit(
         projects: ManageProjects(repository),
@@ -294,7 +297,7 @@ void main() {
             value: cubit,
             child: ProjectDetailPage(
               groupName: 'payments',
-              isAdmin: false,
+              isAdmin: isAdmin,
               onBackToGroups: () {},
               onOpenLogs: (_, _) {},
             ),
@@ -401,6 +404,18 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'the block/unblock button is offered only to admin — the owner of '
+      'the project itself would only get a 403',
+      (tester) async {
+        await pump(tester, isAdmin: false);
+        expect(find.text('Заблокировать'), findsNothing);
+
+        await pump(tester, isAdmin: true);
+        expect(find.text('Заблокировать'), findsOneWidget);
+      },
+    );
 
     testWidgets('a refused revoke is explained in a banner, not silently '
         'dropped', (tester) async {

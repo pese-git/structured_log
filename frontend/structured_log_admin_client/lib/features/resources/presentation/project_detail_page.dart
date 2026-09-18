@@ -63,6 +63,7 @@ class ProjectDetailPage extends StatelessWidget {
               _Header(
                 project: project,
                 groupName: groupName,
+                isAdmin: isAdmin,
                 onBackToGroups: onBackToGroups,
                 onOpenLogs: () => onOpenLogs(project.id, project.name),
               ),
@@ -93,12 +94,14 @@ class ProjectDetailPage extends StatelessWidget {
 class _Header extends StatelessWidget {
   final ProjectDto project;
   final String groupName;
+  final bool isAdmin;
   final VoidCallback onBackToGroups;
   final VoidCallback onOpenLogs;
 
   const _Header({
     required this.project,
     required this.groupName,
+    required this.isAdmin,
     required this.onBackToGroups,
     required this.onOpenLogs,
   });
@@ -134,12 +137,18 @@ class _Header extends StatelessWidget {
               ),
             ],
             const Spacer(),
-            AdminButton(
-              label: project.isBlocked ? 'Разблокировать' : 'Заблокировать',
-              size: AdminButtonSize.dialog,
-              onPressed: () => _toggleBlocked(context, project),
-            ),
-            const SizedBox(width: AdminSpacing.x10),
+            // `admin` only, even for the project's own `owner` — same rule
+            // `POST /v1/projects/:id/block` enforces
+            // (`projects_route.dart`); offering the button to an owner would
+            // only earn them a 403.
+            if (isAdmin) ...[
+              AdminButton(
+                label: project.isBlocked ? 'Разблокировать' : 'Заблокировать',
+                size: AdminButtonSize.dialog,
+                onPressed: () => _toggleBlocked(context, project),
+              ),
+              const SizedBox(width: AdminSpacing.x10),
+            ],
             AdminButton(
               label: 'Открыть логи',
               icon: FluentIcons.search,
