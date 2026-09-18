@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/formatting.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/audit_dto.dart';
 import 'audit_action_labels.dart';
 import 'audit_cubit.dart';
@@ -66,13 +68,12 @@ class _AuditPageState extends State<AuditPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Аудит',
+                context.l10n.auditTitle,
                 style: AdminTypography.pageTitle.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x4),
               Text(
-                'Журнал административных действий и входов — доступен только '
-                'администратору',
+                context.l10n.auditSubtitle,
                 style: AdminTypography.bodySmall.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -117,7 +118,7 @@ class _AuditPageState extends State<AuditPage> {
           width: 150,
           child: AdminSearchField(
             controller: _targetId,
-            placeholder: 'ID цели',
+            placeholder: context.l10n.auditFilterTargetId,
             // On submit, not per keystroke: every change is a new query from
             // the first page, and `1` on the way to `17` is a different
             // record, not a prefix of one.
@@ -130,7 +131,7 @@ class _AuditPageState extends State<AuditPage> {
           width: 150,
           child: AdminSearchField(
             controller: _actorId,
-            placeholder: 'ID инициатора',
+            placeholder: context.l10n.auditFilterActorId,
             onSubmitted: (value) =>
                 cubit.applyFilter(filter.copyWith(actorUserId: _id(value))),
             onCleared: () =>
@@ -140,7 +141,11 @@ class _AuditPageState extends State<AuditPage> {
         AdminDateRangeField(
           from: filter.from,
           to: filter.to,
-          formatDate: formatAuditDate,
+          formatDate: (date) => formatDayMonth(context.l10n, date),
+          fromLabel: context.l10n.auditDateFrom,
+          toLabel: context.l10n.auditDateTo,
+          anyLabel: context.l10n.auditDateAny,
+          clearLabel: context.l10n.auditDateClear,
           onFromChanged: (value) =>
               cubit.applyFilter(filter.copyWith(from: value)),
           onToChanged: (value) => cubit.applyFilter(filter.copyWith(to: value)),
@@ -149,7 +154,7 @@ class _AuditPageState extends State<AuditPage> {
       trailing: [
         if (filter.isActive)
           AdminButton(
-            label: 'Сбросить фильтры',
+            label: context.l10n.auditFilterReset,
             icon: FluentIcons.clear_filter,
             onPressed: () {
               _targetId.clear();
@@ -175,32 +180,29 @@ class _AuditPageState extends State<AuditPage> {
     if (state.failure != null && state.entries.isEmpty) {
       return AdminEmptyState(
         icon: FluentIcons.error_badge,
-        title: 'Журнал не загружен',
-        description: describeAuditFailure(state.failure!),
+        title: context.l10n.auditLoadFailedTitle,
+        description: describeAuditFailure(context.l10n, state.failure!),
       );
     }
     if (state.isEmptyByRetention) {
       return AdminEmptyState(
         icon: FluentIcons.history,
-        title: 'Записи за этот период уже удалены',
-        description:
-            'Выбранный период выходит за срок хранения: события '
-            'аутентификации хранятся '
-            '${describeRetention(state.authEventRetentionDays)}, '
-            'административные действия — '
-            '${describeRetention(state.auditRetentionDays)}. Это не значит, '
-            'что событий не было.',
+        title: context.l10n.auditPurgedTitle,
+        description: context.l10n.auditPurgedDescription(
+          describeRetention(context.l10n, state.authEventRetentionDays),
+          describeRetention(context.l10n, state.auditRetentionDays),
+        ),
       );
     }
     if (state.isEmpty) {
       return AdminEmptyState(
         icon: FluentIcons.text_document,
-        title: state.filter.isActive ? 'Ничего не найдено' : 'Записей пока нет',
+        title: state.filter.isActive
+            ? context.l10n.auditNothingFoundTitle
+            : context.l10n.auditEmptyTitle,
         description: state.filter.isActive
-            ? 'По заданным фильтрам записей аудита нет — попробуйте изменить '
-                  'период или сбросить фильтры'
-            : 'Здесь появятся административные действия и входы, как только '
-                  'они произойдут',
+            ? context.l10n.auditNothingFoundDescription
+            : context.l10n.auditEmptyDescription,
       );
     }
 
@@ -214,7 +216,7 @@ class _AuditPageState extends State<AuditPage> {
               child: state.loadingMore
                   ? const AdminLoadingIndicator()
                   : AdminButton(
-                      label: 'Показать ещё',
+                      label: context.l10n.auditLoadMore,
                       icon: FluentIcons.chevron_down,
                       onPressed: context.read<AuditCubit>().loadMore,
                     ),
@@ -228,26 +230,27 @@ class _AuditPageState extends State<AuditPage> {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
     return AdminTable(
-      columns: const [
-        AdminColumn('Время', width: 128),
-        AdminColumn('Инициатор', width: 150),
-        AdminColumn('Действие', width: 196),
-        AdminColumn('Цель', width: 210),
-        AdminColumn.flexible('Детали'),
+      columns: [
+        AdminColumn(context.l10n.auditColumnTime, width: 128),
+        AdminColumn(context.l10n.auditColumnActor, width: 150),
+        AdminColumn(context.l10n.auditColumnAction, width: 196),
+        AdminColumn(context.l10n.auditColumnTarget, width: 210),
+        AdminColumn.flexible(context.l10n.auditColumnDetails),
       ],
       rows: [
         for (final entry in state.entries)
-          _row(entry, colors, AuditAction.fromWire(entry.action)),
+          _row(context, entry, colors, AuditAction.fromWire(entry.action)),
       ],
     );
   }
 
   AdminTableRow _row(
+    BuildContext context,
     AuditEntryDto entry,
     AdminColors colors,
     AuditAction? action,
   ) {
-    final actor = auditActorText(entry);
+    final actor = auditActorText(context.l10n, entry);
 
     return AdminTableRow(
       // The canvas tints the two records that are about the system rather than
@@ -271,7 +274,7 @@ class _AuditPageState extends State<AuditPage> {
         ),
         _ActionTag(wire: entry.action, action: action),
         Text(
-          auditTargetText(entry),
+          auditTargetText(context.l10n, entry),
           style: AdminTypography.bodySmall.copyWith(color: colors.text),
         ),
         AuditMetadataView(metadata: entry.metadata),
@@ -299,18 +302,17 @@ class _RetentionStrip extends StatelessWidget {
         // and an operator who reads one as the other will look for records in
         // the wrong place (`specs/admin-client-audit-log`).
         AdminTag(
-          label:
-              'Административные действия: '
-              '${describeRetention(state.auditRetentionDays)}',
+          label: context.l10n.auditRetentionAdminTag(
+            describeRetention(context.l10n, state.auditRetentionDays),
+          ),
         ),
         AdminTag(
-          label:
-              'События аутентификации: '
-              '${describeRetention(state.authEventRetentionDays)}',
+          label: context.l10n.auditRetentionAuthTag(
+            describeRetention(context.l10n, state.authEventRetentionDays),
+          ),
         ),
         Text(
-          'Записи старше срока удаляются автоматически — каждая такая очистка '
-          'попадает в аудит как audit.purged',
+          context.l10n.auditRetentionNote,
           style: AdminTypography.caption.copyWith(color: colors.textTertiary),
         ),
       ],
@@ -321,7 +323,7 @@ class _RetentionStrip extends StatelessWidget {
 /// The action cell.
 ///
 /// Shows the wire value, which is what the reader filters by and what the API
-/// documents; the Russian name is the tooltip, because a tag wide enough for
+/// documents; the localized name is the tooltip, because a tag wide enough for
 /// both would not fit the column the artboard draws.
 class _ActionTag extends StatelessWidget {
   final String wire;
@@ -340,7 +342,10 @@ class _ActionTag extends StatelessWidget {
     // shown, with its raw value and no name: an audit log may not hide a row
     // it fails to recognise.
     if (action == null) return tag;
-    return Tooltip(message: auditActionLabel(action!), child: tag);
+    return Tooltip(
+      message: auditActionLabel(context.l10n, action!),
+      child: tag,
+    );
   }
 }
 
@@ -354,12 +359,12 @@ class _ActionPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     return ComboBox<AuditAction?>(
       value: selected,
-      placeholder: const Text('Действие: любое'),
+      placeholder: Text(context.l10n.auditFilterActionAny),
       isExpanded: true,
       items: [
-        const ComboBoxItem<AuditAction?>(
+        ComboBoxItem<AuditAction?>(
           value: null,
-          child: Text('Действие: любое'),
+          child: Text(context.l10n.auditFilterActionAny),
         ),
         for (final action in AuditAction.values)
           ComboBoxItem<AuditAction?>(
@@ -367,7 +372,9 @@ class _ActionPicker extends StatelessWidget {
             // Both, in the menu: the name is what makes twenty-five options
             // scannable, and the wire value is what the reader will recognise
             // from the table they are filtering.
-            child: Text('${auditActionLabel(action)} · ${action.wire}'),
+            child: Text(
+              '${auditActionLabel(context.l10n, action)} · ${action.wire}',
+            ),
           ),
       ],
       onChanged: onChanged,
@@ -385,17 +392,17 @@ class _TargetTypePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     return ComboBox<AuditTargetType?>(
       value: selected,
-      placeholder: const Text('Тип цели: любой'),
+      placeholder: Text(context.l10n.auditFilterTargetTypeAny),
       isExpanded: true,
       items: [
-        const ComboBoxItem<AuditTargetType?>(
+        ComboBoxItem<AuditTargetType?>(
           value: null,
-          child: Text('Тип цели: любой'),
+          child: Text(context.l10n.auditFilterTargetTypeAny),
         ),
         for (final type in AuditTargetType.values)
           ComboBoxItem<AuditTargetType?>(
             value: type,
-            child: Text(auditTargetTypeLabel(type)),
+            child: Text(auditTargetTypeLabel(context.l10n, type)),
           ),
       ],
       onChanged: onChanged,

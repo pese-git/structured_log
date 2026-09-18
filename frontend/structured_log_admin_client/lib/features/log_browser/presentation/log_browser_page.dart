@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/api_failure.dart';
 import '../domain/log_filter.dart';
 import '../domain/log_scope.dart';
@@ -117,8 +118,8 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
         if (options == null) {
           return AdminEmptyState(
             icon: FluentIcons.error_badge,
-            title: 'Не удалось загрузить список областей',
-            description: _failureText(state),
+            title: context.l10n.logsScopesLoadFailed,
+            description: _failureText(context.l10n, state),
           );
         }
 
@@ -203,12 +204,12 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
     );
   }
 
-  static String _failureText(LogFeedState state) {
+  static String _failureText(AppLocalizations l10n, LogFeedState state) {
     return switch (state.failure) {
-      null => 'Попробуйте обновить страницу.',
-      ForbiddenFailure() => 'Нет доступа к этой области.',
-      NetworkFailure() => 'Сервер недоступен. Проверьте подключение.',
-      _ => 'Попробуйте ещё раз.',
+      null => l10n.logsFailureRetryRefresh,
+      ForbiddenFailure() => l10n.logsFailureForbidden,
+      NetworkFailure() => l10n.logsFailureNetwork,
+      _ => l10n.logsFailureRetry,
     };
   }
 }
@@ -223,8 +224,8 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
     final label = switch (scope) {
-      ProjectScope(:final name) => 'Проект: $name',
-      GroupScope(:final name) => 'Группа: $name',
+      ProjectScope(:final name) => context.l10n.logsScopeProject(name),
+      GroupScope(:final name) => context.l10n.logsScopeGroup(name),
     };
 
     return LayoutBuilder(
@@ -254,7 +255,7 @@ class _Header extends StatelessWidget {
         return Row(
           children: [
             Text(
-              'Логи',
+              context.l10n.logsTitle,
               style: AdminTypography.pageTitle.copyWith(color: colors.text),
             ),
             SizedBox(width: compact ? AdminSpacing.x12 : AdminSpacing.x24),
@@ -262,7 +263,7 @@ class _Header extends StatelessWidget {
             const SizedBox(width: AdminSpacing.x10),
             if (compact)
               Tooltip(
-                message: 'Изменить область',
+                message: context.l10n.logsChangeScope,
                 child: AdminButton(
                   label: '',
                   icon: FluentIcons.switch_widget,
@@ -273,7 +274,7 @@ class _Header extends StatelessWidget {
               )
             else
               AdminButton(
-                label: 'Изменить область',
+                label: context.l10n.logsChangeScope,
                 onPressed: () => context.read<LogFeedBloc>().add(
                   const LogFeedEvent.scopeCleared(),
                 ),
@@ -302,7 +303,7 @@ class _FilterBar extends StatelessWidget {
     return AdminFilterBar(
       leading: AdminSearchField(
         controller: search,
-        placeholder: 'Поиск по событию',
+        placeholder: context.l10n.logsSearchPlaceholder,
         // Applied on submit rather than on every keystroke: each change is a
         // full query plus a new subscription, and the server's `q` runs as a
         // LIKE over stored JSON.
@@ -311,21 +312,21 @@ class _FilterBar extends StatelessWidget {
       ),
       filters: [
         AdminFilterChip(
-          value: _levelLabel(filter.minLevel),
+          value: _levelLabel(context.l10n, filter.minLevel),
           hasMenu: true,
           selected: filter.minLevel != null,
           onPressed: () => _pickLevel(bloc, filter),
         ),
         if (filter.category != null)
           AdminFilterChip(
-            label: 'Категория',
+            label: context.l10n.logsFilterCategory,
             value: filter.category!,
             selected: true,
             onCleared: () => apply(filter.copyWith(category: null)),
           ),
         if (filter.logger != null)
           AdminFilterChip(
-            label: 'Logger',
+            label: context.l10n.logsFilterLogger,
             value: filter.logger!,
             selected: true,
             onCleared: () => apply(filter.copyWith(logger: null)),
@@ -343,6 +344,11 @@ class _FilterBar extends StatelessWidget {
           from: filter.from,
           to: filter.to,
           formatTime: _formatTime,
+          fromLabel: context.l10n.logsTimeFrom,
+          toLabel: context.l10n.logsTimeTo,
+          anyLabel: context.l10n.logsTimeAny,
+          clearLabel: context.l10n.logsTimeAnyTime,
+          applyLabel: context.l10n.logsTimeApply,
           onFromChanged: (value) => apply(filter.copyWith(from: value)),
           onToChanged: (value) => apply(filter.copyWith(to: value)),
         ),
@@ -356,13 +362,13 @@ class _FilterBar extends StatelessWidget {
             ),
         if (_CorrelationField.values.any((field) => field.read(filter) == null))
           AdminButton(
-            label: '+ correlation id',
+            label: context.l10n.logsAddCorrelationId,
             onPressed: () => _addCorrelationId(context, bloc, filter),
           ),
       ],
       trailing: [
         AdminButton(
-          label: 'Найти',
+          label: context.l10n.logsSearch,
           variant: AdminButtonVariant.accent,
           onPressed: () => apply(
             filter.copyWith(search: search.text.isEmpty ? null : search.text),
@@ -370,18 +376,20 @@ class _FilterBar extends StatelessWidget {
         ),
         if (filter.isActive)
           AdminButton(
-            label: 'Сбросить',
+            label: context.l10n.logsReset,
             onPressed: () {
               search.clear();
               apply(const LogFilter());
             },
           ),
         AdminLivePill(
-          label: paused ? 'На паузе' : 'В реальном времени',
+          label: paused
+              ? context.l10n.logsLivePaused
+              : context.l10n.logsLiveRealtime,
           tone: paused ? AdminLiveTone.paused : AdminLiveTone.live,
         ),
         AdminButton(
-          label: paused ? 'Возобновить' : 'Пауза',
+          label: paused ? context.l10n.logsResume : context.l10n.logsPause,
           onPressed: () => bloc.add(
             paused
                 ? const LogFeedEvent.resumeRequested()
@@ -392,15 +400,15 @@ class _FilterBar extends StatelessWidget {
     );
   }
 
-  static String _levelLabel(String? level) {
+  static String _levelLabel(AppLocalizations l10n, String? level) {
     return switch (level) {
-      null => 'Любой уровень',
-      'trace' => 'Trace и выше',
-      'debug' => 'Debug и выше',
-      'info' => 'Info и выше',
-      'warning' => 'Warning и выше',
-      'error' => 'Error и выше',
-      'critical' => 'Только critical',
+      null => l10n.logsLevelAny,
+      'trace' => l10n.logsLevelTrace,
+      'debug' => l10n.logsLevelDebug,
+      'info' => l10n.logsLevelInfo,
+      'warning' => l10n.logsLevelWarning,
+      'error' => l10n.logsLevelError,
+      'critical' => l10n.logsLevelCritical,
       _ => level,
     };
   }
@@ -533,11 +541,13 @@ class _CorrelationIdDialogState extends State<_CorrelationIdDialog> {
 
   bool get _isNumberField => _field == _CorrelationField.connectionGeneration;
 
-  String? get _errorText {
+  String? _errorText(BuildContext context) {
     if (!_isNumberField) return null;
     final text = _value.text.trim();
     if (text.isEmpty) return null;
-    return int.tryParse(text) == null ? 'Значение должно быть числом' : null;
+    return int.tryParse(text) == null
+        ? context.l10n.logsCorrelationNotNumber
+        : null;
   }
 
   bool get _canSubmit {
@@ -553,7 +563,7 @@ class _CorrelationIdDialogState extends State<_CorrelationIdDialog> {
       builder: (context, setDialogState) => ContentDialog(
         constraints: const BoxConstraints(maxWidth: 420),
         title: Text(
-          'Фильтр по correlation id',
+          context.l10n.logsCorrelationDialogTitle,
           style: AdminTypography.sectionTitle.copyWith(color: colors.text),
         ),
         content: SingleChildScrollView(
@@ -561,7 +571,7 @@ class _CorrelationIdDialogState extends State<_CorrelationIdDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Поле',
+                context.l10n.logsCorrelationField,
                 style: AdminTypography.label.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x6),
@@ -578,23 +588,23 @@ class _CorrelationIdDialogState extends State<_CorrelationIdDialog> {
               ),
               const SizedBox(height: AdminSpacing.x14),
               AdminTextField(
-                label: 'Значение',
+                label: context.l10n.logsCorrelationValue,
                 controller: _value,
                 autofocus: true,
                 onChanged: (_) => setDialogState(() {}),
-                errorText: _errorText,
+                errorText: _errorText(context),
               ),
             ],
           ),
         ),
         actions: [
           AdminButton(
-            label: 'Отмена',
+            label: context.l10n.logsCancel,
             size: AdminButtonSize.dialog,
             onPressed: widget.onCancel,
           ),
           AdminButton(
-            label: 'Добавить',
+            label: context.l10n.logsAdd,
             variant: AdminButtonVariant.accent,
             size: AdminButtonSize.dialog,
             onPressed: _canSubmit
@@ -636,18 +646,20 @@ class _Feed extends StatelessWidget {
       // empty project.
       return AdminEmptyState(
         icon: FluentIcons.search,
-        title: state.filter.isActive ? 'Ничего не найдено' : 'Записей пока нет',
+        title: state.filter.isActive
+            ? context.l10n.logsEmptyNoResultsTitle
+            : context.l10n.logsEmptyNoEntriesTitle,
         description: state.filter.isActive
-            ? 'Под текущие фильтры не подходит ни одна запись.'
-            : 'Как только приложение пришлёт первую запись, она появится здесь.',
+            ? context.l10n.logsEmptyNoResultsBody
+            : context.l10n.logsEmptyNoEntriesBody,
       );
     }
 
     return Column(
       children: [
         if (state.loadingMore)
-          const AdminFeedStatusStrip.loadingOlder(
-            message: 'Загружаются более ранние записи…',
+          AdminFeedStatusStrip.loadingOlder(
+            message: context.l10n.logsLoadingOlder,
           ),
         Expanded(
           child: ListView.builder(
@@ -696,46 +708,39 @@ class _FeedStatus extends StatelessWidget {
 
     // A subscription the server closed for good outranks the mode: the feed
     // is not following anything, whatever the reader last asked for.
+    final l10n = context.l10n;
     final ended = state.liveEndReason;
     if (ended != null) {
       return AdminFeedStatusStrip.stalled(
-        message: 'Живая трансляция остановлена',
+        message: l10n.logsStalledTitle,
         description: ended == 'project_blocked'
-            ? 'Проект заблокирован — новые записи по нему больше не приходят. '
-                  'Показанное ниже осталось от последней загрузки.'
-            : 'Сервер закрыл подписку ($ended). Список ниже остался от '
-                  'последней загрузки.',
-        actionLabel: 'Перезагрузить и продолжить',
+            ? l10n.logsStalledProjectBlocked
+            : l10n.logsStalledClosed(ended),
+        actionLabel: l10n.logsReloadAndContinue,
         onAction: () => bloc.add(const LogFeedEvent.reloadRequested()),
       );
     }
 
     return switch (state.mode) {
-      FeedFollowing() => const AdminFeedStatusStrip.live(
-        message: 'Лента в реальном времени — новые записи появляются снизу',
-      ),
+      FeedFollowing() => AdminFeedStatusStrip.live(message: l10n.logsLiveFeed),
       FeedScrolledUp(:final unseen) when unseen > 0 =>
         AdminFeedStatusStrip.unseen(
-          message: '$unseen ${_newEntries(unseen)} · перейти к свежим',
+          message: l10n.logsUnseen(unseen),
           onAction: () {
             onToLiveEdge();
             bloc.add(const LogFeedEvent.scrolledToBottom());
           },
         ),
-      FeedScrolledUp() => const AdminFeedStatusStrip.live(
-        message: 'Лента в реальном времени — новые записи появляются снизу',
-      ),
+      FeedScrolledUp() => AdminFeedStatusStrip.live(message: l10n.logsLiveFeed),
       FeedPaused(overflowed: true) => AdminFeedStatusStrip.stalled(
-        message: 'Пауза длилась слишком долго',
-        description:
-            'Часть событий не поместилась в буфер. Возобновление перезагрузит '
-            'свежую страницу целиком, а не покажет неполный список.',
-        actionLabel: 'Перезагрузить и продолжить',
+        message: l10n.logsPausedTooLong,
+        description: l10n.logsPausedOverflowBody,
+        actionLabel: l10n.logsReloadAndContinue,
         onAction: () => bloc.add(const LogFeedEvent.resumeRequested()),
       ),
       FeedPaused(:final buffered) => AdminFeedStatusStrip.held(
-        message: 'Лента на паузе · накоплено $buffered ${_entries(buffered)}',
-        actionLabel: 'Возобновить',
+        message: l10n.logsPausedBuffered(buffered),
+        actionLabel: l10n.logsResume,
         onAction: () {
           bloc.add(const LogFeedEvent.resumeRequested());
           onToLiveEdge();
@@ -743,32 +748,7 @@ class _FeedStatus extends StatelessWidget {
       ),
     };
   }
-
-  /// Russian needs three forms: "12 новых записей" reads wrong for 1 and
-  /// for 22, and the canvas shows the count in both strips.
-  static String _newEntries(int count) => switch (_form(count)) {
-    _Plural.one => 'новая запись',
-    _Plural.few => 'новые записи',
-    _Plural.many => 'новых записей',
-  };
-
-  static String _entries(int count) => switch (_form(count)) {
-    _Plural.one => 'запись',
-    _Plural.few => 'записи',
-    _Plural.many => 'записей',
-  };
-
-  static _Plural _form(int count) {
-    final lastTwo = count % 100;
-    final last = count % 10;
-    if (lastTwo >= 11 && lastTwo <= 14) return _Plural.many;
-    if (last == 1) return _Plural.one;
-    if (last >= 2 && last <= 4) return _Plural.few;
-    return _Plural.many;
-  }
 }
-
-enum _Plural { one, few, many }
 
 /// The selected entry, filling the pane, with the way back to the feed.
 class _NarrowDetail extends StatelessWidget {
@@ -792,7 +772,7 @@ class _NarrowDetail extends StatelessWidget {
           child: Row(
             children: [
               AdminButton(
-                label: 'К ленте',
+                label: context.l10n.logsBackToFeed,
                 icon: FluentIcons.back,
                 onPressed: () => context.read<LogFeedBloc>().add(
                   const LogFeedEvent.entrySelected(null),
@@ -817,12 +797,10 @@ class _Detail extends StatelessWidget {
   Widget build(BuildContext context) {
     final entry = state.selectedEntry;
     if (entry == null) {
-      return const AdminEmptyState(
+      return AdminEmptyState(
         icon: FluentIcons.preview,
-        title: 'Выберите запись',
-        description:
-            'Слева — лента; здесь будет запись целиком, вместе с '
-            'произвольными полями, которые прислало приложение.',
+        title: context.l10n.logsSelectEntryTitle,
+        description: context.l10n.logsSelectEntryBody,
       );
     }
     return LogEntryDetailPane(

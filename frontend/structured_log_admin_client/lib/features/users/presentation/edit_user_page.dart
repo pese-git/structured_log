@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../resources/presentation/resources_section.dart'
     show ResourceBreadcrumb;
@@ -96,20 +97,22 @@ class _EditUserPageState extends State<EditUserPage> {
             children: [
               ResourceBreadcrumb(
                 parts: [
-                  (label: 'Пользователи', onPressed: widget.onBack),
+                  (
+                    label: context.l10n.usersPageTitle,
+                    onPressed: widget.onBack,
+                  ),
                   (label: name, onPressed: widget.onBack),
-                  (label: 'Изменить', onPressed: null),
+                  (label: context.l10n.usersEditBreadcrumb, onPressed: null),
                 ],
               ),
               const SizedBox(height: AdminSpacing.x10),
               Text(
-                'Изменить учётную запись',
+                context.l10n.usersEditTitle,
                 style: AdminTypography.pageTitle.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x4),
               Text(
-                'Доступно только администратору. Имя пользователя и роли этим '
-                'экраном не меняются.',
+                context.l10n.usersEditSubtitle,
                 style: AdminTypography.bodySmall.copyWith(
                   color: colors.textSecondary,
                 ),
@@ -122,7 +125,10 @@ class _EditUserPageState extends State<EditUserPage> {
                   children: [
                     if (state.actionFailure != null) ...[
                       AdminBanner(
-                        message: describeUserFailure(state.actionFailure!),
+                        message: describeUserFailure(
+                          context.l10n,
+                          state.actionFailure!,
+                        ),
                         tone: AdminBannerTone.error,
                       ),
                       const SizedBox(height: AdminSpacing.x14),
@@ -138,31 +144,29 @@ class _EditUserPageState extends State<EditUserPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           AdminKeyValueRow(
-                            label: 'Имя пользователя',
+                            label: context.l10n.usersFieldUsername,
                             value: user.username,
                             monospaceValue: true,
                           ),
                           AdminKeyValueRow(
-                            label: 'Email',
+                            label: context.l10n.usersFieldEmail,
                             value: user.email ?? '—',
                           ),
                           const SizedBox(height: AdminSpacing.x4),
                           AdminTextField(
-                            label: 'Отображаемое имя',
+                            label: context.l10n.usersFieldDisplayName,
                             controller: _displayName,
                           ),
                           const SizedBox(height: AdminSpacing.x14),
                           Text(
-                            'Новый пароль (необязательно)',
+                            context.l10n.usersNewPasswordLabel,
                             style: AdminTypography.label.copyWith(
                               color: colors.text,
                             ),
                           ),
                           const SizedBox(height: AdminSpacing.x6),
                           Text(
-                            'Немедленно завершит текущую сессию пользователя — '
-                            'при следующем входе потребуется сменить этот '
-                            'пароль на свой.',
+                            context.l10n.usersNewPasswordHint,
                             style: AdminTypography.caption.copyWith(
                               color: colors.textSecondary,
                               height: 1.45,
@@ -170,10 +174,10 @@ class _EditUserPageState extends State<EditUserPage> {
                           ),
                           const SizedBox(height: AdminSpacing.x10),
                           AdminTextField(
-                            label: 'Пароль',
+                            label: context.l10n.usersFieldPassword,
                             controller: _newPassword,
                             obscure: true,
-                            placeholder: 'Не менять',
+                            placeholder: context.l10n.usersKeepPassword,
                           ),
                         ],
                       ),
@@ -183,13 +187,13 @@ class _EditUserPageState extends State<EditUserPage> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         AdminButton(
-                          label: 'Отмена',
+                          label: context.l10n.usersCancel,
                           size: AdminButtonSize.dialog,
                           onPressed: state.saving ? null : widget.onBack,
                         ),
                         const SizedBox(width: AdminSpacing.x10),
                         AdminButton(
-                          label: 'Сохранить изменения',
+                          label: context.l10n.usersSaveChanges,
                           variant: AdminButtonVariant.accent,
                           size: AdminButtonSize.dialog,
                           onPressed: state.saving ? null : () => _save(context),

@@ -10,9 +10,16 @@ import 'package:structured_log_admin_client/features/audit/presentation/audit_cu
 import 'package:structured_log_admin_client/features/audit/presentation/audit_failure_text.dart';
 import 'package:structured_log_admin_client/features/audit/presentation/audit_metadata_view.dart';
 import 'package:structured_log_admin_client/features/audit/presentation/audit_page.dart';
+import 'package:structured_log_admin_client/l10n/formatting.dart';
+import 'package:structured_log_admin_client/l10n/l10n.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/audit_dto.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
+
+final _ru = lookupAppLocalizations(const Locale('ru'));
+final _en = lookupAppLocalizations(const Locale('en'));
 
 AuditEntryDto _entry({
   int id = 1,
@@ -56,7 +63,9 @@ void main() {
       // The switch is exhaustive, so the compiler already guarantees a branch
       // per action. What it cannot catch is an empty or duplicated one, which
       // would leave two different records reading identically in the menu.
-      final labels = AuditAction.values.map(auditActionLabel).toList();
+      final labels = AuditAction.values
+          .map((action) => auditActionLabel(_ru, action))
+          .toList();
 
       expect(labels.every((label) => label.isNotEmpty), isTrue);
       expect(labels.toSet(), hasLength(AuditAction.values.length));
@@ -130,14 +139,15 @@ void main() {
 
   group('actor and target', () {
     test('a record with an actor shows its id', () {
-      expect(auditActorText(_entry()).text, '#1');
-      expect(auditActorText(_entry()).absent, isFalse);
+      expect(auditActorText(_ru, _entry()).text, '#1');
+      expect(auditActorText(_ru, _entry()).absent, isFalse);
     });
 
     test('an attempt under a username that does not exist says so', () {
       // Not an empty id, and no request to resolve a name — there is no
       // account to resolve (`specs/admin-client-audit-log`).
       final actor = auditActorText(
+        _ru,
         _entry(
           actorUserId: null,
           action: 'auth.login_failed',
@@ -151,6 +161,7 @@ void main() {
 
     test('a record the server wrote about itself names the server', () {
       final actor = auditActorText(
+        _ru,
         _entry(actorUserId: null, action: 'audit.purged', targetType: 'audit'),
       );
 
@@ -159,9 +170,9 @@ void main() {
     });
 
     test('a target is its kind and its id, or its kind alone', () {
-      expect(auditTargetText(_entry()), 'группа #7');
+      expect(auditTargetText(_ru, _entry()), 'группа #7');
       expect(
-        auditTargetText(_entry(targetType: 'auth', targetId: null)),
+        auditTargetText(_ru, _entry(targetType: 'auth', targetId: null)),
         'аутентификация',
       );
     });
@@ -169,7 +180,7 @@ void main() {
 
   group('readableMetadata', () {
     test('a quota change reads as what moved', () {
-      final details = readableMetadata(const {
+      final details = readableMetadata(_ru, const {
         'before': {'retention_days': 30, 'max_entries': 2000},
         'after': {'retention_days': 30, 'max_entries': null},
       });
@@ -184,7 +195,7 @@ void main() {
     });
 
     test('a call that changed nothing says so rather than showing empty', () {
-      final details = readableMetadata(const {
+      final details = readableMetadata(_ru, const {
         'before': {'retention_days': 30},
         'after': {'retention_days': 30},
       });
@@ -193,7 +204,7 @@ void main() {
     });
 
     test('flat keys keep their order and their booleans read in words', () {
-      final details = readableMetadata(const {
+      final details = readableMetadata(_ru, const {
         'reason': 'invalid_password',
         'client_ip': '203.0.113.7',
         'unknown_user': true,
@@ -211,7 +222,7 @@ void main() {
     });
 
     test('a nested object is flattened, not stringified', () {
-      final details = readableMetadata(const {
+      final details = readableMetadata(_ru, const {
         'quota': {'max_entries': 1000},
       });
 
@@ -222,15 +233,15 @@ void main() {
 
   group('describeRetention', () {
     test('no limit is said in words, not as a number', () {
-      expect(describeRetention(null), 'без ограничения срока');
+      expect(describeRetention(_ru, null), 'без ограничения срока');
     });
 
     test('a period agrees with its number', () {
-      expect(describeRetention(1), '1 день');
-      expect(describeRetention(3), '3 дня');
-      expect(describeRetention(11), '11 дней');
-      expect(describeRetention(21), '21 день');
-      expect(describeRetention(365), '365 дней');
+      expect(describeRetention(_ru, 1), '1 день');
+      expect(describeRetention(_ru, 3), '3 дня');
+      expect(describeRetention(_ru, 11), '11 дней');
+      expect(describeRetention(_ru, 21), '21 день');
+      expect(describeRetention(_ru, 365), '365 дней');
     });
   });
 
@@ -242,7 +253,8 @@ void main() {
       final local = DateTime(2026, 9, 3, 9, 5);
 
       expect(formatAuditTime(local.toUtc()), '03.09.2026 09:05');
-      expect(formatAuditDate(local.toUtc()), '03 сен');
+      expect(formatDayMonth(_ru, local.toUtc()), '03 сен');
+      expect(formatDayMonth(_en, local.toUtc()), '03 Sep');
     });
   });
 
@@ -364,13 +376,14 @@ void main() {
   });
 
   group('AuditPage', () {
-    Widget host(AuditCubit cubit) => FluentApp(
-      theme: AdminTheme.light(),
-      home: ScaffoldPage(
-        padding: EdgeInsets.zero,
-        content: BlocProvider.value(value: cubit, child: const AuditPage()),
-      ),
-    );
+    Widget host(AuditCubit cubit, {Locale locale = const Locale('ru')}) =>
+        localizedApp(
+          locale: locale,
+          home: ScaffoldPage(
+            padding: EdgeInsets.zero,
+            content: BlocProvider.value(value: cubit, child: const AuditPage()),
+          ),
+        );
 
     testWidgets('a record shows its time, actor, action, target and details', (
       tester,
@@ -415,6 +428,35 @@ void main() {
       expect(find.text('проект #7'), findsOneWidget);
       expect(find.text('Административные действия: 365 дней'), findsOneWidget);
       expect(find.text('События аутентификации: 90 дней'), findsOneWidget);
+    });
+
+    testWidgets('renders in English when the locale is English', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final repository = _FakeRepository()
+        ..pages = [
+          AuditPageDto(
+            items: [_entry(targetType: 'project')],
+            auditRetentionDays: 365,
+            authEventRetentionDays: null,
+          ),
+        ];
+      final cubit = AuditCubit(QueryAuditLog(repository));
+      addTearDown(cubit.close);
+
+      await tester.pumpWidget(host(cubit, locale: const Locale('en')));
+      await cubit.load();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Audit'), findsOneWidget);
+      expect(find.text('project #7'), findsOneWidget);
+      expect(find.text('Administrative actions: 365 days'), findsOneWidget);
+      expect(find.text('Authentication events: no time limit'), findsOneWidget);
+      expect(find.text('Аудит'), findsNothing);
     });
 
     testWidgets('an empty result outside the retention names both periods', (

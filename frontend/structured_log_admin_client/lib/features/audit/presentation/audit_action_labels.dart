@@ -1,8 +1,9 @@
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/audit_dto.dart';
 
-/// What each action is called in Russian, and how loudly it should read.
+/// What each action is called in the interface language, and how loudly it should read.
 ///
 /// **The table shows the wire value, not this name** — `AuditLog.dc.html` draws
 /// `project.blocked` in the tag, and that is deliberate rather than an
@@ -11,38 +12,41 @@ import '../../../shared/api/dto/audit_dto.dart';
 /// whose displayed vocabulary differs from its queryable one makes those three
 /// things three different conversations.
 ///
-/// The Russian name is what the filter menu offers and what the tag says on
+/// The localized name is what the filter menu offers and what the tag says on
 /// hover, because a menu of twenty-five identifiers is not scannable.
 ///
 /// Both switches are exhaustive over [AuditAction], which is the point: adding
 /// an action to the client's copy of the server's set without deciding what it
 /// is called and how alarming it looks does not compile.
-String auditActionLabel(AuditAction action) => switch (action) {
-  AuditAction.userCreated => 'Пользователь создан',
-  AuditAction.userUpdated => 'Пользователь изменён',
-  AuditAction.userBlocked => 'Пользователь заблокирован',
-  AuditAction.userUnblocked => 'Пользователь разблокирован',
-  AuditAction.userDeleted => 'Пользователь удалён',
-  AuditAction.groupCreated => 'Группа создана',
-  AuditAction.teamCreated => 'Команда создана',
-  AuditAction.teamMemberAdded => 'Участник добавлен в команду',
-  AuditAction.teamMemberRemoved => 'Участник исключён из команды',
-  AuditAction.projectCreated => 'Проект создан',
-  AuditAction.projectQuotaUpdated => 'Квота проекта изменена',
-  AuditAction.projectBlocked => 'Проект заблокирован',
-  AuditAction.projectUnblocked => 'Проект разблокирован',
-  AuditAction.secretKeyCreated => 'Секретный ключ создан',
-  AuditAction.secretKeyRevoked => 'Секретный ключ отозван',
-  AuditAction.roleAssignmentCreated => 'Роль выдана',
-  AuditAction.roleAssignmentRevoked => 'Роль отозвана',
-  AuditAction.passwordChanged => 'Пароль изменён',
-  AuditAction.passwordResetConfirmed => 'Пароль восстановлен',
-  AuditAction.emailVerified => 'Email подтверждён',
-  AuditAction.authLoginSucceeded => 'Вход выполнен',
-  AuditAction.authLoginFailed => 'Неудачная попытка входа',
-  AuditAction.authLoggedOut => 'Выход',
-  AuditAction.authThrottled => 'Запросы ограничены',
-  AuditAction.auditPurged => 'Очистка аудита',
+String auditActionLabel(
+  AppLocalizations l10n,
+  AuditAction action,
+) => switch (action) {
+  AuditAction.userCreated => l10n.auditActionUserCreated,
+  AuditAction.userUpdated => l10n.auditActionUserUpdated,
+  AuditAction.userBlocked => l10n.auditActionUserBlocked,
+  AuditAction.userUnblocked => l10n.auditActionUserUnblocked,
+  AuditAction.userDeleted => l10n.auditActionUserDeleted,
+  AuditAction.groupCreated => l10n.auditActionGroupCreated,
+  AuditAction.teamCreated => l10n.auditActionTeamCreated,
+  AuditAction.teamMemberAdded => l10n.auditActionTeamMemberAdded,
+  AuditAction.teamMemberRemoved => l10n.auditActionTeamMemberRemoved,
+  AuditAction.projectCreated => l10n.auditActionProjectCreated,
+  AuditAction.projectQuotaUpdated => l10n.auditActionProjectQuotaUpdated,
+  AuditAction.projectBlocked => l10n.auditActionProjectBlocked,
+  AuditAction.projectUnblocked => l10n.auditActionProjectUnblocked,
+  AuditAction.secretKeyCreated => l10n.auditActionSecretKeyCreated,
+  AuditAction.secretKeyRevoked => l10n.auditActionSecretKeyRevoked,
+  AuditAction.roleAssignmentCreated => l10n.auditActionRoleAssignmentCreated,
+  AuditAction.roleAssignmentRevoked => l10n.auditActionRoleAssignmentRevoked,
+  AuditAction.passwordChanged => l10n.auditActionPasswordChanged,
+  AuditAction.passwordResetConfirmed => l10n.auditActionPasswordResetConfirmed,
+  AuditAction.emailVerified => l10n.auditActionEmailVerified,
+  AuditAction.authLoginSucceeded => l10n.auditActionAuthLoginSucceeded,
+  AuditAction.authLoginFailed => l10n.auditActionAuthLoginFailed,
+  AuditAction.authLoggedOut => l10n.auditActionAuthLoggedOut,
+  AuditAction.authThrottled => l10n.auditActionAuthThrottled,
+  AuditAction.auditPurged => l10n.auditActionAuditPurged,
 };
 
 /// How the tag is coloured.
@@ -85,16 +89,17 @@ AdminStatusTone auditActionTone(AuditAction action) => switch (action) {
 };
 
 /// What each kind of target is called.
-String auditTargetTypeLabel(AuditTargetType type) => switch (type) {
-  AuditTargetType.user => 'пользователь',
-  AuditTargetType.group => 'группа',
-  AuditTargetType.team => 'команда',
-  AuditTargetType.project => 'проект',
-  AuditTargetType.secretKey => 'ключ',
-  AuditTargetType.roleAssignment => 'назначение роли',
-  AuditTargetType.auth => 'аутентификация',
-  AuditTargetType.audit => 'аудит',
-};
+String auditTargetTypeLabel(AppLocalizations l10n, AuditTargetType type) =>
+    switch (type) {
+      AuditTargetType.user => l10n.auditTargetUser,
+      AuditTargetType.group => l10n.auditTargetGroup,
+      AuditTargetType.team => l10n.auditTargetTeam,
+      AuditTargetType.project => l10n.auditTargetProject,
+      AuditTargetType.secretKey => l10n.auditTargetSecretKey,
+      AuditTargetType.roleAssignment => l10n.auditTargetRoleAssignment,
+      AuditTargetType.auth => l10n.auditTargetAuth,
+      AuditTargetType.audit => l10n.auditTargetAudit,
+    };
 
 /// The target cell: what was acted on, as far as this client can tell.
 ///
@@ -103,10 +108,13 @@ String auditTargetTypeLabel(AuditTargetType type) => switch (type) {
 /// not `проект: staging-sandbox` as the artboard draws it. Showing the id is
 /// honest; inventing a lookup for it would not be, and guessing a name from a
 /// list the reader may not be allowed to see would be worse.
-String auditTargetText(AuditEntryDto entry) {
+String auditTargetText(AppLocalizations l10n, AuditEntryDto entry) {
   final type = AuditTargetType.fromWire(entry.targetType);
-  final name = type == null ? entry.targetType : auditTargetTypeLabel(type);
-  return entry.targetId == null ? name : '$name #${entry.targetId}';
+  final name = type == null
+      ? entry.targetType
+      : auditTargetTypeLabel(l10n, type);
+  final targetId = entry.targetId;
+  return targetId == null ? name : l10n.auditTargetWithId(name, targetId);
 }
 
 /// Who acted, in words.
@@ -119,12 +127,15 @@ String auditTargetText(AuditEntryDto entry) {
 ///
 /// A real actor is shown by id for the same reason the target is: this stage
 /// has no endpoint that turns a user id into a name.
-({String text, bool absent}) auditActorText(AuditEntryDto entry) {
+({String text, bool absent}) auditActorText(
+  AppLocalizations l10n,
+  AuditEntryDto entry,
+) {
   final actorUserId = entry.actorUserId;
   if (actorUserId != null) return (text: '#$actorUserId', absent: false);
 
   if (entry.metadata['unknown_user'] == true) {
-    return (text: 'учётной записи не существует', absent: true);
+    return (text: l10n.auditActorUnknownUser, absent: true);
   }
-  return (text: 'сервер', absent: true);
+  return (text: l10n.auditActorServer, absent: true);
 }

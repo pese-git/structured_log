@@ -1,3 +1,4 @@
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/api_failure.dart';
 
 /// What to tell someone about a refused request.
@@ -6,41 +7,19 @@ import '../../../shared/api/api_failure.dart';
 /// section and each of them means something specific here: a 403 is almost
 /// always "you are not an administrator", and a 409 is almost always a name
 /// already taken.
-String describeApiFailure(ApiFailure failure) => switch (failure) {
-  ForbiddenFailure() =>
-    'Недостаточно прав. Это действие доступно администратору, а для проектов '
-        'внутри группы — ещё и её владельцу.',
-  ConflictFailure() => 'Такое имя уже занято. Выберите другое.',
-  InvalidRequestFailure(:final message) =>
-    message ?? 'Проверьте заполненные поля.',
-  NotFoundFailure() => 'Объект не найден — возможно, он уже удалён.',
-  UnauthorizedFailure() => 'Сессия истекла. Войдите заново.',
-  RateLimitedFailure(:final retryAfter) =>
-    'Слишком много попыток. Попробуйте через ${retryAfter.inSeconds} с.',
-  NetworkFailure() => 'Сервер недоступен. Проверьте подключение.',
-  ServerFailure(:final statusCode) =>
-    'Сервер ответил ошибкой ($statusCode). Попробуйте ещё раз.',
-};
-
-/// `14 фев 2025`, as the artboards write dates.
-String formatDate(DateTime utc) {
-  const months = [
-    'янв',
-    'фев',
-    'мар',
-    'апр',
-    'мая',
-    'июн',
-    'июл',
-    'авг',
-    'сен',
-    'окт',
-    'ноя',
-    'дек',
-  ];
-  final local = utc.toLocal();
-  return '${local.day} ${months[local.month - 1]} ${local.year}';
-}
+String describeApiFailure(AppLocalizations l10n, ApiFailure failure) =>
+    switch (failure) {
+      ForbiddenFailure() => l10n.resFailForbidden,
+      ConflictFailure() => l10n.resFailConflict,
+      InvalidRequestFailure(:final message) => message ?? l10n.resFailInvalid,
+      NotFoundFailure() => l10n.resFailNotFound,
+      UnauthorizedFailure() => l10n.resFailUnauthorized,
+      RateLimitedFailure(:final retryAfter) => l10n.resFailRateLimited(
+        retryAfter.inSeconds,
+      ),
+      NetworkFailure() => l10n.resFailNetwork,
+      ServerFailure(:final statusCode) => l10n.resFailServer(statusCode),
+    };
 
 /// `1 000 000`, grouped as the artboards group numbers.
 ///
@@ -60,8 +39,8 @@ String formatCount(int value) {
 /// Bytes as the quota dialog states them — megabytes, because that is the
 /// unit the field is labelled in. The space before the unit is non-breaking
 /// for the same reason as the digit grouping: "5" and "МБ" are one value.
-String formatBytes(int bytes) {
+String formatBytes(AppLocalizations l10n, int bytes) {
   const megabyte = 1024 * 1024;
-  if (bytes >= megabyte) return '${formatCount(bytes ~/ megabyte)}\u00A0МБ';
-  return '${formatCount(bytes ~/ 1024)}\u00A0КБ';
+  if (bytes >= megabyte) return l10n.resBytesMb(formatCount(bytes ~/ megabyte));
+  return l10n.resBytesKb(formatCount(bytes ~/ 1024));
 }

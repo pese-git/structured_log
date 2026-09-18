@@ -1,0 +1,1858 @@
+{
+  "@@locale": "en",
+  "auditActionUserCreated": "User created",
+  "@auditActionUserCreated": {
+    "description": "Audit action display name"
+  },
+  "auditActionUserUpdated": "User updated",
+  "@auditActionUserUpdated": {
+    "description": "Audit action display name"
+  },
+  "auditActionUserBlocked": "User blocked",
+  "@auditActionUserBlocked": {
+    "description": "Audit action display name"
+  },
+  "auditActionUserUnblocked": "User unblocked",
+  "@auditActionUserUnblocked": {
+    "description": "Audit action display name"
+  },
+  "auditActionUserDeleted": "User deleted",
+  "@auditActionUserDeleted": {
+    "description": "Audit action display name"
+  },
+  "auditActionGroupCreated": "Group created",
+  "@auditActionGroupCreated": {
+    "description": "Audit action display name"
+  },
+  "auditActionTeamCreated": "Team created",
+  "@auditActionTeamCreated": {
+    "description": "Audit action display name"
+  },
+  "auditActionTeamMemberAdded": "Member added to team",
+  "@auditActionTeamMemberAdded": {
+    "description": "Audit action display name"
+  },
+  "auditActionTeamMemberRemoved": "Member removed from team",
+  "@auditActionTeamMemberRemoved": {
+    "description": "Audit action display name"
+  },
+  "auditActionProjectCreated": "Project created",
+  "@auditActionProjectCreated": {
+    "description": "Audit action display name"
+  },
+  "auditActionProjectQuotaUpdated": "Project quota changed",
+  "@auditActionProjectQuotaUpdated": {
+    "description": "Audit action display name"
+  },
+  "auditActionProjectBlocked": "Project blocked",
+  "@auditActionProjectBlocked": {
+    "description": "Audit action display name"
+  },
+  "auditActionProjectUnblocked": "Project unblocked",
+  "@auditActionProjectUnblocked": {
+    "description": "Audit action display name"
+  },
+  "auditActionSecretKeyCreated": "Secret key created",
+  "@auditActionSecretKeyCreated": {
+    "description": "Audit action display name"
+  },
+  "auditActionSecretKeyRevoked": "Secret key revoked",
+  "@auditActionSecretKeyRevoked": {
+    "description": "Audit action display name"
+  },
+  "auditActionRoleAssignmentCreated": "Role granted",
+  "@auditActionRoleAssignmentCreated": {
+    "description": "Audit action display name"
+  },
+  "auditActionRoleAssignmentRevoked": "Role revoked",
+  "@auditActionRoleAssignmentRevoked": {
+    "description": "Audit action display name"
+  },
+  "auditActionPasswordChanged": "Password changed",
+  "@auditActionPasswordChanged": {
+    "description": "Audit action display name"
+  },
+  "auditActionPasswordResetConfirmed": "Password reset",
+  "@auditActionPasswordResetConfirmed": {
+    "description": "Audit action display name"
+  },
+  "auditActionEmailVerified": "Email verified",
+  "@auditActionEmailVerified": {
+    "description": "Audit action display name"
+  },
+  "auditActionAuthLoginSucceeded": "Signed in",
+  "@auditActionAuthLoginSucceeded": {
+    "description": "Audit action display name"
+  },
+  "auditActionAuthLoginFailed": "Failed sign-in attempt",
+  "@auditActionAuthLoginFailed": {
+    "description": "Audit action display name"
+  },
+  "auditActionAuthLoggedOut": "Signed out",
+  "@auditActionAuthLoggedOut": {
+    "description": "Audit action display name"
+  },
+  "auditActionAuthThrottled": "Requests throttled",
+  "@auditActionAuthThrottled": {
+    "description": "Audit action display name"
+  },
+  "auditActionAuditPurged": "Audit purged",
+  "@auditActionAuditPurged": {
+    "description": "Audit action display name"
+  },
+  "auditTargetUser": "user",
+  "@auditTargetUser": {
+    "description": "Audit target type name"
+  },
+  "auditTargetGroup": "group",
+  "@auditTargetGroup": {
+    "description": "Audit target type name"
+  },
+  "auditTargetTeam": "team",
+  "@auditTargetTeam": {
+    "description": "Audit target type name"
+  },
+  "auditTargetProject": "project",
+  "@auditTargetProject": {
+    "description": "Audit target type name"
+  },
+  "auditTargetSecretKey": "key",
+  "@auditTargetSecretKey": {
+    "description": "Audit target type name"
+  },
+  "auditTargetRoleAssignment": "role assignment",
+  "@auditTargetRoleAssignment": {
+    "description": "Audit target type name"
+  },
+  "auditTargetAuth": "authentication",
+  "@auditTargetAuth": {
+    "description": "Audit target type name"
+  },
+  "auditTargetAudit": "audit",
+  "@auditTargetAudit": {
+    "description": "Audit target type name"
+  },
+  "auditTargetWithId": "{name} #{id}",
+  "@auditTargetWithId": {
+    "description": "Target cell: type name and id",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "auditActorUnknownUser": "account does not exist",
+  "@auditActorUnknownUser": {
+    "description": "Actor cell when login used a nonexistent username"
+  },
+  "auditActorServer": "server",
+  "@auditActorServer": {
+    "description": "Actor cell when the server itself acted"
+  },
+  "auditFailureForbidden": "The audit log is available to administrators only. It spans all groups and projects, so there is no partial access.",
+  "@auditFailureForbidden": {
+    "description": "403 on audit"
+  },
+  "auditFailureInvalidRequest": "The server rejected a request with these filters.",
+  "@auditFailureInvalidRequest": {
+    "description": "400 fallback"
+  },
+  "auditFailureNotFound": "The audit endpoint is not available on this server.",
+  "@auditFailureNotFound": {
+    "description": "404"
+  },
+  "auditFailureUnauthorized": "Your session has expired. Sign in again.",
+  "@auditFailureUnauthorized": {
+    "description": "401"
+  },
+  "auditFailureConflict": "The server responded with a conflict. Try again.",
+  "@auditFailureConflict": {
+    "description": "409"
+  },
+  "auditFailureRateLimited": "Too many requests. Try again in {seconds} s.",
+  "@auditFailureRateLimited": {
+    "description": "429",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "auditFailureNetwork": "Server unavailable. Check your connection.",
+  "@auditFailureNetwork": {
+    "description": "network"
+  },
+  "auditFailureServer": "The server responded with an error ({statusCode}). Try again.",
+  "@auditFailureServer": {
+    "description": "5xx",
+    "placeholders": {
+      "statusCode": {
+        "type": "int"
+      }
+    }
+  },
+  "auditRetentionForever": "no time limit",
+  "@auditRetentionForever": {
+    "description": "Retention: kept forever"
+  },
+  "auditRetentionDays": "{n, plural, one{{n} day} other{{n} days}}",
+  "@auditRetentionDays": {
+    "description": "Retention period in days",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "auditMetaNoChangesKey": "changes",
+  "@auditMetaNoChangesKey": {
+    "description": "Metadata key when before/after are equal"
+  },
+  "auditMetaNoChangesValue": "none",
+  "@auditMetaNoChangesValue": {
+    "description": "Metadata value when nothing changed"
+  },
+  "auditMetaNoLimit": "no limit",
+  "@auditMetaNoLimit": {
+    "description": "Quota null value"
+  },
+  "auditMetaYes": "yes",
+  "@auditMetaYes": {
+    "description": "Boolean true"
+  },
+  "auditMetaNo": "no",
+  "@auditMetaNo": {
+    "description": "Boolean false"
+  },
+  "auditTitle": "Audit",
+  "@auditTitle": {
+    "description": "Page title"
+  },
+  "auditSubtitle": "Log of administrative actions and sign-ins — administrators only",
+  "@auditSubtitle": {
+    "description": "Page subtitle"
+  },
+  "auditFilterTargetId": "Target ID",
+  "@auditFilterTargetId": {
+    "description": "Placeholder"
+  },
+  "auditFilterActorId": "Actor ID",
+  "@auditFilterActorId": {
+    "description": "Placeholder"
+  },
+  "auditFilterReset": "Reset filters",
+  "@auditFilterReset": {
+    "description": "Button"
+  },
+  "auditFilterActionAny": "Action: any",
+  "@auditFilterActionAny": {
+    "description": "Combo placeholder"
+  },
+  "auditFilterTargetTypeAny": "Target type: any",
+  "@auditFilterTargetTypeAny": {
+    "description": "Combo placeholder"
+  },
+  "auditDateFrom": "From",
+  "@auditDateFrom": {
+    "description": "Date range from label"
+  },
+  "auditDateTo": "To",
+  "@auditDateTo": {
+    "description": "Date range to label"
+  },
+  "auditDateAny": "any",
+  "@auditDateAny": {
+    "description": "Date range unset"
+  },
+  "auditDateClear": "Any date",
+  "@auditDateClear": {
+    "description": "Date range clear"
+  },
+  "auditLoadFailedTitle": "Log not loaded",
+  "@auditLoadFailedTitle": {
+    "description": "Empty state"
+  },
+  "auditPurgedTitle": "These records have already been deleted",
+  "@auditPurgedTitle": {
+    "description": "Empty state"
+  },
+  "auditPurgedDescription": "The selected period is beyond the retention window: authentication events are kept for {authRetention}, administrative actions for {auditRetention}. This does not mean nothing happened.",
+  "@auditPurgedDescription": {
+    "description": "Empty state; retention values are localized phrases",
+    "placeholders": {
+      "authRetention": {
+        "type": "String"
+      },
+      "auditRetention": {
+        "type": "String"
+      }
+    }
+  },
+  "auditNothingFoundTitle": "Nothing found",
+  "@auditNothingFoundTitle": {
+    "description": "Empty state"
+  },
+  "auditEmptyTitle": "No records yet",
+  "@auditEmptyTitle": {
+    "description": "Empty state"
+  },
+  "auditNothingFoundDescription": "No audit records match these filters — try changing the period or resetting the filters",
+  "@auditNothingFoundDescription": {
+    "description": "Empty state"
+  },
+  "auditEmptyDescription": "Administrative actions and sign-ins will appear here as soon as they happen",
+  "@auditEmptyDescription": {
+    "description": "Empty state"
+  },
+  "auditLoadMore": "Show more",
+  "@auditLoadMore": {
+    "description": "Button"
+  },
+  "auditColumnTime": "Time",
+  "@auditColumnTime": {
+    "description": "Column"
+  },
+  "auditColumnActor": "Actor",
+  "@auditColumnActor": {
+    "description": "Column"
+  },
+  "auditColumnAction": "Action",
+  "@auditColumnAction": {
+    "description": "Column"
+  },
+  "auditColumnTarget": "Target",
+  "@auditColumnTarget": {
+    "description": "Column"
+  },
+  "auditColumnDetails": "Details",
+  "@auditColumnDetails": {
+    "description": "Column"
+  },
+  "auditRetentionAdminTag": "Administrative actions: {retention}",
+  "@auditRetentionAdminTag": {
+    "description": "Retention tag",
+    "placeholders": {
+      "retention": {
+        "type": "String"
+      }
+    }
+  },
+  "auditRetentionAuthTag": "Authentication events: {retention}",
+  "@auditRetentionAuthTag": {
+    "description": "Retention tag",
+    "placeholders": {
+      "retention": {
+        "type": "String"
+      }
+    }
+  },
+  "auditRetentionNote": "Records older than the retention period are deleted automatically — each purge is recorded in the audit as audit.purged",
+  "@auditRetentionNote": {
+    "description": "Note"
+  },
+  "authBrandSubtitle": "Administration panel",
+  "@authBrandSubtitle": {
+    "description": "Brand panel subtitle under the product name"
+  },
+  "authLoginBrandDescription": "Centralized collection and search of structured logs from multiple projects and teams — without a third-party SaaS.",
+  "@authLoginBrandDescription": {
+    "description": "Brand panel paragraph on the login screen"
+  },
+  "authLoginTitle": "Sign in",
+  "@authLoginTitle": {
+    "description": "Login form title"
+  },
+  "authLoginSubtitle": "Enter the credentials issued by your administrator",
+  "@authLoginSubtitle": {
+    "description": "Login form subtitle"
+  },
+  "authSessionExpiredBanner": "Session ended — please sign in again. This happens when an administrator changed your permissions or the session expired.",
+  "@authSessionExpiredBanner": {
+    "description": "Banner shown when the session could not be renewed"
+  },
+  "authUsernameLabel": "Username",
+  "@authUsernameLabel": {
+    "description": "Username field label"
+  },
+  "authPasswordLabel": "Password",
+  "@authPasswordLabel": {
+    "description": "Password field label"
+  },
+  "authServerLine": "Server: {host}",
+  "@authServerLine": {
+    "description": "Server hostname line under the login form",
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "authSubmittingLabel": "Signing in…",
+  "@authSubmittingLabel": {
+    "description": "Login button while request in flight"
+  },
+  "authSignInWithWait": "Sign in · {wait}",
+  "@authSignInWithWait": {
+    "description": "Login button while rate limiter counts down",
+    "placeholders": {
+      "wait": {
+        "type": "String"
+      }
+    }
+  },
+  "authSignIn": "Sign in",
+  "@authSignIn": {
+    "description": "Login button"
+  },
+  "authInvalidCredentials": "Incorrect username or password. Please try again.",
+  "@authInvalidCredentials": {
+    "description": "Login failure: invalid credentials"
+  },
+  "authEmailNotVerified": "This account's email has not been verified yet — signing in is not possible until it is. Check your email for the code.",
+  "@authEmailNotVerified": {
+    "description": "Login failure: email not verified"
+  },
+  "authRateLimited": "Too many sign-in attempts. The next one will be accepted in {wait}.",
+  "@authRateLimited": {
+    "description": "Login failure: rate limited",
+    "placeholders": {
+      "wait": {
+        "type": "String"
+      }
+    }
+  },
+  "authNetworkFailure": "Could not reach the server. Check the server address and your network connection.",
+  "@authNetworkFailure": {
+    "description": "Login failure: network"
+  },
+  "authUnexpectedFailure": "Could not sign in — the server responded unexpectedly. Try again, and if it keeps happening, check the server log.",
+  "@authUnexpectedFailure": {
+    "description": "Login failure: unexpected"
+  },
+  "authForceBrandDescription": "A password set by an administrator is always temporary. Until it is changed, the rest of the app is closed — only changing the password and signing out are available.",
+  "@authForceBrandDescription": {
+    "description": "Brand panel paragraph on the forced password change screen"
+  },
+  "authForceTitle": "Change your password",
+  "@authForceTitle": {
+    "description": "Forced change screen title"
+  },
+  "authForceIntro": "Your password was set by an administrator, so it is considered temporary. Until it is changed, the other sections are unavailable.",
+  "@authForceIntro": {
+    "description": "Forced change screen intro"
+  },
+  "authForceSubmit": "Change password and continue",
+  "@authForceSubmit": {
+    "description": "Forced change submit button"
+  },
+  "authSignedIn": "Signed in",
+  "@authSignedIn": {
+    "description": "Caption when username is unknown"
+  },
+  "authSignedInAs": "Signed in as {username}",
+  "@authSignedInAs": {
+    "description": "Caption with the username",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "authSignOut": "Sign out",
+  "@authSignOut": {
+    "description": "Sign out link"
+  },
+  "authChangedTitle": "Password changed",
+  "@authChangedTitle": {
+    "description": "Success title"
+  },
+  "authChangedBody": "The temporary password is no longer valid. The rest of the app is available again.",
+  "@authChangedBody": {
+    "description": "Success body"
+  },
+  "authChangedContinue": "Go to the app",
+  "@authChangedContinue": {
+    "description": "Success continue button"
+  },
+  "authCurrentPasswordLabel": "Current (temporary) password",
+  "@authCurrentPasswordLabel": {
+    "description": "Change form current password label"
+  },
+  "authNewPasswordLabel": "New password",
+  "@authNewPasswordLabel": {
+    "description": "Change form new password label"
+  },
+  "authRepeatPasswordLabel": "Repeat new password",
+  "@authRepeatPasswordLabel": {
+    "description": "Change form repeat label"
+  },
+  "authPasswordsMismatch": "Passwords do not match",
+  "@authPasswordsMismatch": {
+    "description": "Mismatch field error"
+  },
+  "authChangeWrongCurrent": "The current password is incorrect. Enter the one your administrator gave you.",
+  "@authChangeWrongCurrent": {
+    "description": "Change failure: wrong current password"
+  },
+  "authChangeRateLimited": "Too many attempts. Try again in {seconds} s.",
+  "@authChangeRateLimited": {
+    "description": "Change failure: rate limited",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "authChangeNetwork": "Server unavailable. Check your connection.",
+  "@authChangeNetwork": {
+    "description": "Change failure: network"
+  },
+  "authChangeUnexpected": "Could not change the password. Please try again.",
+  "@authChangeUnexpected": {
+    "description": "Change failure: other"
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Cancel button of a confirmation dialog"
+  },
+  "appTitle": "Structured Log",
+  "monthShort": "{month, select, 1{Jan} 2{Feb} 3{Mar} 4{Apr} 5{May} 6{Jun} 7{Jul} 8{Aug} 9{Sep} 10{Oct} 11{Nov} 12{Dec} other{}}",
+  "@monthShort": {
+    "description": "Three-letter month abbreviation; month is 1-12 as a string",
+    "placeholders": {
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "formatDateShort": "{day} {month} {year}",
+  "@formatDateShort": {
+    "description": "A date such as '14 Feb 2025'",
+    "placeholders": {
+      "day": {
+        "type": "int"
+      },
+      "month": {
+        "type": "String"
+      },
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "formatDayMonth": "{day} {month}",
+  "@formatDayMonth": {
+    "description": "A day and month such as '01 Sep'",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
+  "dashTitle": "Dashboard",
+  "@dashTitle": {
+    "description": "dashTitle"
+  },
+  "dashLoadFailed": "Could not load the dashboard",
+  "@dashLoadFailed": {
+    "description": "dashLoadFailed"
+  },
+  "dashGreeting": "Hello, {username}",
+  "@dashGreeting": {
+    "description": "dashGreeting",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "dashSubtitle": "Administrator · quick access to what you manage and what you can view",
+  "@dashSubtitle": {
+    "description": "dashSubtitle"
+  },
+  "dashAllGroups": "All server groups",
+  "@dashAllGroups": {
+    "description": "dashAllGroups"
+  },
+  "dashNoGroups": "No groups yet",
+  "@dashNoGroups": {
+    "description": "dashNoGroups"
+  },
+  "dashNoGroupsHint": "Groups will appear here as soon as someone creates them.",
+  "@dashNoGroupsHint": {
+    "description": "dashNoGroupsHint"
+  },
+  "dashProjects": "Projects",
+  "@dashProjects": {
+    "description": "dashProjects"
+  },
+  "dashNoProjects": "No projects yet",
+  "@dashNoProjects": {
+    "description": "dashNoProjects"
+  },
+  "dashNoProjectsHint": "Projects will appear here as soon as someone creates them inside a group.",
+  "@dashNoProjectsHint": {
+    "description": "dashNoProjectsHint"
+  },
+  "dashCreatedOn": "Created {date}",
+  "@dashCreatedOn": {
+    "description": "dashCreatedOn",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "dashOpen": "Open",
+  "@dashOpen": {
+    "description": "dashOpen"
+  },
+  "dashEntries": "Entries",
+  "@dashEntries": {
+    "description": "dashEntries"
+  },
+  "dashViewLogs": "View logs",
+  "@dashViewLogs": {
+    "description": "dashViewLogs"
+  },
+  "logsScopesLoadFailed": "Could not load the list of scopes",
+  "@logsScopesLoadFailed": {
+    "description": "Empty-state title when the scope list fails to load"
+  },
+  "logsFailureRetryRefresh": "Try refreshing the page.",
+  "@logsFailureRetryRefresh": {
+    "description": "Scope load failure hint, unknown cause"
+  },
+  "logsFailureForbidden": "You do not have access to this scope.",
+  "@logsFailureForbidden": {
+    "description": "Scope load failure: forbidden"
+  },
+  "logsFailureNetwork": "The server is unreachable. Check your connection.",
+  "@logsFailureNetwork": {
+    "description": "Scope load failure: network"
+  },
+  "logsFailureRetry": "Try again.",
+  "@logsFailureRetry": {
+    "description": "Scope load failure: generic"
+  },
+  "logsScopeProject": "Project: {name}",
+  "@logsScopeProject": {
+    "description": "Header pill for a project scope",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "logsScopeGroup": "Group: {name}",
+  "@logsScopeGroup": {
+    "description": "Header pill for a group scope",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "logsTitle": "Logs",
+  "@logsTitle": {
+    "description": "Page title"
+  },
+  "logsChangeScope": "Change scope",
+  "@logsChangeScope": {
+    "description": "Button and tooltip returning to the scope selector"
+  },
+  "logsSearchPlaceholder": "Search by event",
+  "@logsSearchPlaceholder": {
+    "description": "Search field placeholder"
+  },
+  "logsFilterCategory": "Category",
+  "@logsFilterCategory": {
+    "description": "Filter chip label for category"
+  },
+  "logsFilterLogger": "Logger",
+  "@logsFilterLogger": {
+    "description": "Filter chip label for logger"
+  },
+  "logsTimeFrom": "From",
+  "@logsTimeFrom": {
+    "description": "Time range: from label"
+  },
+  "logsTimeTo": "To",
+  "@logsTimeTo": {
+    "description": "Time range: to label"
+  },
+  "logsTimeAny": "any",
+  "@logsTimeAny": {
+    "description": "Time range: unset bound"
+  },
+  "logsTimeAnyTime": "Any time",
+  "@logsTimeAnyTime": {
+    "description": "Time range: clear action"
+  },
+  "logsTimeApply": "Apply",
+  "@logsTimeApply": {
+    "description": "Time range: apply action"
+  },
+  "logsAddCorrelationId": "+ correlation id",
+  "@logsAddCorrelationId": {
+    "description": "Button opening the correlation id filter dialog"
+  },
+  "logsSearch": "Search",
+  "@logsSearch": {
+    "description": "Apply search button"
+  },
+  "logsReset": "Reset",
+  "@logsReset": {
+    "description": "Reset filters button"
+  },
+  "logsLivePaused": "Paused",
+  "@logsLivePaused": {
+    "description": "Live pill while paused"
+  },
+  "logsLiveRealtime": "Live",
+  "@logsLiveRealtime": {
+    "description": "Live pill while following"
+  },
+  "logsResume": "Resume",
+  "@logsResume": {
+    "description": "Resume live feed button"
+  },
+  "logsPause": "Pause",
+  "@logsPause": {
+    "description": "Pause live feed button"
+  },
+  "logsLevelAny": "Any level",
+  "@logsLevelAny": {
+    "description": "Level filter: no floor"
+  },
+  "logsLevelTrace": "Trace and above",
+  "@logsLevelTrace": {
+    "description": "Level filter: trace floor"
+  },
+  "logsLevelDebug": "Debug and above",
+  "@logsLevelDebug": {
+    "description": "Level filter: debug floor"
+  },
+  "logsLevelInfo": "Info and above",
+  "@logsLevelInfo": {
+    "description": "Level filter: info floor"
+  },
+  "logsLevelWarning": "Warning and above",
+  "@logsLevelWarning": {
+    "description": "Level filter: warning floor"
+  },
+  "logsLevelError": "Error and above",
+  "@logsLevelError": {
+    "description": "Level filter: error floor"
+  },
+  "logsLevelCritical": "Critical only",
+  "@logsLevelCritical": {
+    "description": "Level filter: critical only"
+  },
+  "logsCorrelationDialogTitle": "Filter by correlation id",
+  "@logsCorrelationDialogTitle": {
+    "description": "Correlation id dialog title"
+  },
+  "logsCorrelationField": "Field",
+  "@logsCorrelationField": {
+    "description": "Correlation dialog: field selector label"
+  },
+  "logsCorrelationValue": "Value",
+  "@logsCorrelationValue": {
+    "description": "Correlation dialog: value input label"
+  },
+  "logsCorrelationNotNumber": "The value must be a number",
+  "@logsCorrelationNotNumber": {
+    "description": "Correlation dialog: validation error for numeric field"
+  },
+  "logsCancel": "Cancel",
+  "@logsCancel": {
+    "description": "Dialog cancel button"
+  },
+  "logsAdd": "Add",
+  "@logsAdd": {
+    "description": "Dialog add button"
+  },
+  "logsEmptyNoResultsTitle": "Nothing found",
+  "@logsEmptyNoResultsTitle": {
+    "description": "Feed empty state title with filters"
+  },
+  "logsEmptyNoEntriesTitle": "No entries yet",
+  "@logsEmptyNoEntriesTitle": {
+    "description": "Feed empty state title without filters"
+  },
+  "logsEmptyNoResultsBody": "No entry matches the current filters.",
+  "@logsEmptyNoResultsBody": {
+    "description": "Feed empty state body with filters"
+  },
+  "logsEmptyNoEntriesBody": "As soon as the application sends its first entry, it will appear here.",
+  "@logsEmptyNoEntriesBody": {
+    "description": "Feed empty state body without filters"
+  },
+  "logsLoadingOlder": "Loading earlier entries…",
+  "@logsLoadingOlder": {
+    "description": "Strip while an older page loads"
+  },
+  "logsStalledTitle": "Live stream stopped",
+  "@logsStalledTitle": {
+    "description": "Strip: subscription ended"
+  },
+  "logsStalledProjectBlocked": "The project is blocked, so no new entries arrive for it. What is shown below is left over from the last load.",
+  "@logsStalledProjectBlocked": {
+    "description": "Strip description: project blocked"
+  },
+  "logsStalledClosed": "The server closed the subscription ({reason}). The list below is left over from the last load.",
+  "@logsStalledClosed": {
+    "description": "Strip description: server closed subscription",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "logsReloadAndContinue": "Reload and continue",
+  "@logsReloadAndContinue": {
+    "description": "Strip action: reload"
+  },
+  "logsLiveFeed": "Live feed — new entries appear at the bottom",
+  "@logsLiveFeed": {
+    "description": "Strip while following"
+  },
+  "logsUnseen": "{count, plural, one{{count} new entry} other{{count} new entries}} · jump to latest",
+  "@logsUnseen": {
+    "description": "Strip: entries arrived while scrolled up",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logsPausedTooLong": "Paused for too long",
+  "@logsPausedTooLong": {
+    "description": "Strip: buffer overflowed while paused"
+  },
+  "logsPausedOverflowBody": "Some events did not fit in the buffer. Resuming reloads a fresh page in full instead of showing an incomplete list.",
+  "@logsPausedOverflowBody": {
+    "description": "Strip description: overflow"
+  },
+  "logsPausedBuffered": "Feed paused · {count, plural, one{{count} entry} other{{count} entries}} buffered",
+  "@logsPausedBuffered": {
+    "description": "Strip: paused with buffered entries",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "logsBackToFeed": "Back to feed",
+  "@logsBackToFeed": {
+    "description": "Narrow detail: back button"
+  },
+  "logsSelectEntryTitle": "Select an entry",
+  "@logsSelectEntryTitle": {
+    "description": "Detail empty state title"
+  },
+  "logsSelectEntryBody": "The feed is on the left; here you will see the whole entry, including the custom fields the application sent.",
+  "@logsSelectEntryBody": {
+    "description": "Detail empty state body"
+  },
+  "logsNoScopesTitle": "No scopes available",
+  "@logsNoScopesTitle": {
+    "description": "Scope selector empty state title"
+  },
+  "logsNoScopesBody": "Logs are visible in the projects and groups where you have a role. Ask an administrator to grant access.",
+  "@logsNoScopesBody": {
+    "description": "Scope selector empty state body"
+  },
+  "logsPickScopeTitle": "Choose a scope",
+  "@logsPickScopeTitle": {
+    "description": "Scope selector heading"
+  },
+  "logsPickScopeBody": "Logs are queried for a single project or a single group — not several combined.",
+  "@logsPickScopeBody": {
+    "description": "Scope selector explanation"
+  },
+  "logsProjects": "Projects",
+  "@logsProjects": {
+    "description": "Scope selector section title"
+  },
+  "logsGroups": "Groups",
+  "@logsGroups": {
+    "description": "Scope selector section title"
+  },
+  "logsBlocked": "blocked",
+  "@logsBlocked": {
+    "description": "Tag on a blocked project"
+  },
+  "logsCopy": "Copy",
+  "@logsCopy": {
+    "description": "Detail pane copy button"
+  },
+  "logsStandardFields": "STANDARD FIELDS",
+  "@logsStandardFields": {
+    "description": "Detail pane section title"
+  },
+  "logsContext": "CONTEXT",
+  "@logsContext": {
+    "description": "Detail pane section title"
+  },
+  "resCancel": "Cancel",
+  "@resCancel": {
+    "description": "resCancel"
+  },
+  "resOpen": "Open",
+  "@resOpen": {
+    "description": "resOpen"
+  },
+  "resRevoke": "Revoke",
+  "@resRevoke": {
+    "description": "resRevoke"
+  },
+  "resClose": "Close",
+  "@resClose": {
+    "description": "resClose"
+  },
+  "resAdd": "Add",
+  "@resAdd": {
+    "description": "resAdd"
+  },
+  "resDelete": "Remove",
+  "@resDelete": {
+    "description": "resDelete"
+  },
+  "resSave": "Save",
+  "@resSave": {
+    "description": "resSave"
+  },
+  "resGroup": "Group",
+  "@resGroup": {
+    "description": "resGroup"
+  },
+  "resBlocked": "Blocked",
+  "@resBlocked": {
+    "description": "resBlocked"
+  },
+  "resActive": "Active",
+  "@resActive": {
+    "description": "resActive"
+  },
+  "resGroupPrefix": "Group: {name}",
+  "@resGroupPrefix": {
+    "description": "resGroupPrefix",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "resProjectPrefix": "Project: {name}",
+  "@resProjectPrefix": {
+    "description": "resProjectPrefix",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "resFailForbidden": "Not enough permissions. This action is available to an administrator, and for projects inside a group also to its owner.",
+  "@resFailForbidden": {
+    "description": "resFailForbidden"
+  },
+  "resFailConflict": "That name is already taken. Choose another one.",
+  "@resFailConflict": {
+    "description": "resFailConflict"
+  },
+  "resFailInvalid": "Check the fields you filled in.",
+  "@resFailInvalid": {
+    "description": "resFailInvalid"
+  },
+  "resFailNotFound": "Object not found — it may have been deleted already.",
+  "@resFailNotFound": {
+    "description": "resFailNotFound"
+  },
+  "resFailUnauthorized": "Your session has expired. Sign in again.",
+  "@resFailUnauthorized": {
+    "description": "resFailUnauthorized"
+  },
+  "resFailRateLimited": "Too many attempts. Try again in {seconds} s.",
+  "@resFailRateLimited": {
+    "description": "resFailRateLimited",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "resFailNetwork": "The server is unreachable. Check your connection.",
+  "@resFailNetwork": {
+    "description": "resFailNetwork"
+  },
+  "resFailServer": "The server responded with an error ({status}). Try again.",
+  "@resFailServer": {
+    "description": "resFailServer",
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "resBytesMb": "{count} MB",
+  "@resBytesMb": {
+    "description": "resBytesMb",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "resBytesKb": "{count} KB",
+  "@resBytesKb": {
+    "description": "resBytesKb",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "resDaysCount": "{days, plural, one{{days} day} other{{days} days}}",
+  "@resDaysCount": {
+    "description": "resDaysCount",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "resSubjectTeam": "Team #{id}",
+  "@resSubjectTeam": {
+    "description": "resSubjectTeam",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "resSubjectUser": "User #{id}",
+  "@resSubjectUser": {
+    "description": "resSubjectUser",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "resSubjectTeamGen": "team #{id}",
+  "@resSubjectTeamGen": {
+    "description": "resSubjectTeamGen",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "resSubjectUserGen": "user #{id}",
+  "@resSubjectUserGen": {
+    "description": "resSubjectUserGen",
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "resNoLimit": "no limit",
+  "@resNoLimit": {
+    "description": "resNoLimit"
+  },
+  "resFieldRetention": "Retention period, days (retention_days)",
+  "@resFieldRetention": {
+    "description": "resFieldRetention"
+  },
+  "resFieldMaxEntries": "Entry limit (max_entries)",
+  "@resFieldMaxEntries": {
+    "description": "resFieldMaxEntries"
+  },
+  "resFieldMaxBytes": "Size limit, MB (max_bytes)",
+  "@resFieldMaxBytes": {
+    "description": "resFieldMaxBytes"
+  },
+  "resNewProject": "New project",
+  "@resNewProject": {
+    "description": "resNewProject"
+  },
+  "resProjectNameLabel": "Project name",
+  "@resProjectNameLabel": {
+    "description": "resProjectNameLabel"
+  },
+  "resNewProjectNote": "The secret key for log ingestion is created separately, on the project screen, after the project is created.",
+  "@resNewProjectNote": {
+    "description": "resNewProjectNote"
+  },
+  "resCreateProject": "Create project",
+  "@resCreateProject": {
+    "description": "resCreateProject"
+  },
+  "resEditQuota": "Change quota",
+  "@resEditQuota": {
+    "description": "resEditQuota"
+  },
+  "resKeyCreated": "Key created",
+  "@resKeyCreated": {
+    "description": "resKeyCreated"
+  },
+  "resKeyRevealSubtitle": "Project {project} · label “{label}”",
+  "@resKeyRevealSubtitle": {
+    "description": "resKeyRevealSubtitle",
+    "placeholders": {
+      "project": {
+        "type": "String"
+      },
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "resKeyRevealWarning": "The value is shown only once. After you close this window it will not be available anywhere — save it now.",
+  "@resKeyRevealWarning": {
+    "description": "resKeyRevealWarning"
+  },
+  "resKeySavedClose": "I have saved the key — close",
+  "@resKeySavedClose": {
+    "description": "resKeySavedClose"
+  },
+  "resGrantAccess": "Grant access",
+  "@resGrantAccess": {
+    "description": "resGrantAccess"
+  },
+  "resGrant": "Grant",
+  "@resGrant": {
+    "description": "resGrant"
+  },
+  "resRecipient": "Recipient",
+  "@resRecipient": {
+    "description": "resRecipient"
+  },
+  "resUser": "User",
+  "@resUser": {
+    "description": "resUser"
+  },
+  "resTeam": "Team",
+  "@resTeam": {
+    "description": "resTeam"
+  },
+  "resRecipientName": "Recipient name",
+  "@resRecipientName": {
+    "description": "resRecipientName"
+  },
+  "resSearchUserHint": "Start typing a username…",
+  "@resSearchUserHint": {
+    "description": "resSearchUserHint"
+  },
+  "resSearchTeamHint": "Start typing a team name…",
+  "@resSearchTeamHint": {
+    "description": "resSearchTeamHint"
+  },
+  "resRole": "Role",
+  "@resRole": {
+    "description": "resRole"
+  },
+  "resTeamMembersTitle": "Members of team “{team}”",
+  "@resTeamMembersTitle": {
+    "description": "resTeamMembersTitle",
+    "placeholders": {
+      "team": {
+        "type": "String"
+      }
+    }
+  },
+  "resAddMember": "Add member",
+  "@resAddMember": {
+    "description": "resAddMember"
+  },
+  "resNoMembers": "No members yet",
+  "@resNoMembers": {
+    "description": "resNoMembers"
+  },
+  "resNoMembersHint": "Add the first one using the search above.",
+  "@resNoMembersHint": {
+    "description": "resNoMembersHint"
+  },
+  "resGroups": "Groups",
+  "@resGroups": {
+    "description": "resGroups"
+  },
+  "resCreateGroup": "Create group",
+  "@resCreateGroup": {
+    "description": "resCreateGroup"
+  },
+  "resGroupsLoadFailed": "Could not load groups",
+  "@resGroupsLoadFailed": {
+    "description": "resGroupsLoadFailed"
+  },
+  "resNoGroups": "No groups yet",
+  "@resNoGroups": {
+    "description": "resNoGroups"
+  },
+  "resNoGroupsHint": "A group owns projects. Create the first one to add a project to it and start receiving logs.",
+  "@resNoGroupsHint": {
+    "description": "resNoGroupsHint"
+  },
+  "resCreatedOn": "Created {date}",
+  "@resCreatedOn": {
+    "description": "resCreatedOn",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "resKeyCreatedOn": "Created {date}",
+  "@resKeyCreatedOn": {
+    "description": "resKeyCreatedOn",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "resKeyRevokedOn": "Revoked {date}",
+  "@resKeyRevokedOn": {
+    "description": "resKeyRevokedOn",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "resNewGroup": "New group",
+  "@resNewGroup": {
+    "description": "resNewGroup"
+  },
+  "resGroupNameLabel": "Group name",
+  "@resGroupNameLabel": {
+    "description": "resGroupNameLabel"
+  },
+  "resNewGroupNote": "A new group has no owner — grant the owner role to a user or a team on the group screen.",
+  "@resNewGroupNote": {
+    "description": "resNewGroupNote"
+  },
+  "resTeams": "Teams",
+  "@resTeams": {
+    "description": "resTeams"
+  },
+  "resNoTeams": "No teams yet",
+  "@resNoTeams": {
+    "description": "resNoTeams"
+  },
+  "resNoTeamsHint": "A team lets you grant a role to several users at once — all of its current members.",
+  "@resNoTeamsHint": {
+    "description": "resNoTeamsHint"
+  },
+  "resMembers": "Members",
+  "@resMembers": {
+    "description": "resMembers"
+  },
+  "resNewTeam": "New team",
+  "@resNewTeam": {
+    "description": "resNewTeam"
+  },
+  "resTeamNameLabel": "Team name",
+  "@resTeamNameLabel": {
+    "description": "resTeamNameLabel"
+  },
+  "resCreateTeam": "Create team",
+  "@resCreateTeam": {
+    "description": "resCreateTeam"
+  },
+  "resNewTeamNote": "A new team is empty — add members on the “Team members” screen.",
+  "@resNewTeamNote": {
+    "description": "resNewTeamNote"
+  },
+  "resProjectShort": "Project",
+  "@resProjectShort": {
+    "description": "resProjectShort"
+  },
+  "resProjects": "Projects",
+  "@resProjects": {
+    "description": "resProjects"
+  },
+  "resProjectsLoadFailed": "Could not load projects",
+  "@resProjectsLoadFailed": {
+    "description": "resProjectsLoadFailed"
+  },
+  "resNoProjects": "No projects yet",
+  "@resNoProjects": {
+    "description": "resNoProjects"
+  },
+  "resNoProjectsHint": "Create the first one — it will receive logs using a secret key.",
+  "@resNoProjectsHint": {
+    "description": "resNoProjectsHint"
+  },
+  "resQuotaNoEntryLimit": "no entry limit",
+  "@resQuotaNoEntryLimit": {
+    "description": "resQuotaNoEntryLimit"
+  },
+  "resQuotaEntryLimit": "limit of {count} entries",
+  "@resQuotaEntryLimit": {
+    "description": "resQuotaEntryLimit",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "resQuotaLine": "{entries} · retention {days}",
+  "@resQuotaLine": {
+    "description": "resQuotaLine",
+    "placeholders": {
+      "entries": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "resAccess": "Access",
+  "@resAccess": {
+    "description": "resAccess"
+  },
+  "resNoAccess": "No access granted to anyone yet",
+  "@resNoAccess": {
+    "description": "resNoAccess"
+  },
+  "resNoAccessGroupHint": "Grant the owner or user role to open access to this group and its projects.",
+  "@resNoAccessGroupHint": {
+    "description": "resNoAccessGroupHint"
+  },
+  "resNoAccessProjectHint": "Grant the owner or user role to open access to this project.",
+  "@resNoAccessProjectHint": {
+    "description": "resNoAccessProjectHint"
+  },
+  "resRevokeAccessTitle": "Revoke access from “{subject}”?",
+  "@resRevokeAccessTitle": {
+    "description": "resRevokeAccessTitle",
+    "placeholders": {
+      "subject": {
+        "type": "String"
+      }
+    }
+  },
+  "resRevokeRoleGroup": "The “{role}” role on this group will be revoked immediately.",
+  "@resRevokeRoleGroup": {
+    "description": "resRevokeRoleGroup",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "resRevokeRoleProject": "The “{role}” role on this project will be revoked immediately.",
+  "@resRevokeRoleProject": {
+    "description": "resRevokeRoleProject",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "resProjectLoadFailed": "Could not load the project",
+  "@resProjectLoadFailed": {
+    "description": "resProjectLoadFailed"
+  },
+  "resTryAgain": "Try again.",
+  "@resTryAgain": {
+    "description": "resTryAgain"
+  },
+  "resProjectBlockedBanner": "The project is blocked by an administrator: ingesting new logs and reading this project's stored logs are disabled until it is unblocked. The project's secret keys are not revoked.",
+  "@resProjectBlockedBanner": {
+    "description": "resProjectBlockedBanner"
+  },
+  "resBlock": "Block",
+  "@resBlock": {
+    "description": "resBlock"
+  },
+  "resUnblock": "Unblock",
+  "@resUnblock": {
+    "description": "resUnblock"
+  },
+  "resOpenLogs": "Open logs",
+  "@resOpenLogs": {
+    "description": "resOpenLogs"
+  },
+  "resBlockTitle": "Block project “{name}”?",
+  "@resBlockTitle": {
+    "description": "resBlockTitle",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "resBlockMessage": "Ingesting new logs and reading this project's stored logs will be disabled until it is unblocked. The project's secret keys are not revoked.",
+  "@resBlockMessage": {
+    "description": "resBlockMessage"
+  },
+  "resQuotaAndUsage": "Quota and usage",
+  "@resQuotaAndUsage": {
+    "description": "resQuotaAndUsage"
+  },
+  "resRetentionRow": "Retention period (retention_days)",
+  "@resRetentionRow": {
+    "description": "resRetentionRow"
+  },
+  "resEntriesBar": "Entries (max_entries)",
+  "@resEntriesBar": {
+    "description": "resEntriesBar"
+  },
+  "resSizeBar": "Size (max_bytes)",
+  "@resSizeBar": {
+    "description": "resSizeBar"
+  },
+  "resSecretKeys": "Project secret keys",
+  "@resSecretKeys": {
+    "description": "resSecretKeys"
+  },
+  "resCreateKey": "Create key",
+  "@resCreateKey": {
+    "description": "resCreateKey"
+  },
+  "resNoKeys": "No secret keys yet",
+  "@resNoKeys": {
+    "description": "resNoKeys"
+  },
+  "resNoKeysHint": "Create the first one so that an application can send logs.",
+  "@resNoKeysHint": {
+    "description": "resNoKeysHint"
+  },
+  "resNewKey": "New secret key",
+  "@resNewKey": {
+    "description": "resNewKey"
+  },
+  "resKeyLabelField": "Label",
+  "@resKeyLabelField": {
+    "description": "resKeyLabelField"
+  },
+  "resNewKeyNote": "The label helps you tell later which application uses it. The key value will be shown once.",
+  "@resNewKeyNote": {
+    "description": "resNewKeyNote"
+  },
+  "resRevokeKeyTitle": "Revoke key “{label}”?",
+  "@resRevokeKeyTitle": {
+    "description": "resRevokeKeyTitle",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
+  "resRevokeKeyMessage": "Applications that send logs with this key will be refused immediately. Revoking cannot be undone — create a new key if needed.",
+  "@resRevokeKeyMessage": {
+    "description": "resRevokeKeyMessage"
+  },
+  "shellNavOverview": "Overview",
+  "shellNavDashboard": "Dashboard",
+  "shellNavAdministration": "Administration",
+  "shellNavGroups": "Groups",
+  "shellNavUsers": "Users",
+  "shellNavAudit": "Audit",
+  "shellNavLogs": "Logs",
+  "shellNavLogSearch": "Log search",
+  "shellAccountFallback": "Account",
+  "shellRoleAdmin": "Administrator",
+  "shellRoleUser": "User",
+  "shellAccountSettings": "Account settings",
+  "shellSignOut": "Sign out",
+  "shellDeleteInvalidPassword": "The current password is incorrect.",
+  "shellDeletePrimaryAdmin": "The primary administrator cannot be deleted — this account is protected permanently.",
+  "shellRateLimited": "Too many attempts. Try again in {seconds} s.",
+  "@shellRateLimited": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "shellNetworkFailure": "The server is unreachable. Check your connection.",
+  "shellDeleteFailed": "Could not delete the account. Try again.",
+  "shellDeleteTitle": "Delete account?",
+  "shellDeleteMessage": "This cannot be undone. Your account will be blocked permanently and all current sessions ended immediately. The username stays reserved.",
+  "shellDeleteConfirm": "Delete account",
+  "shellDeletePasswordLabel": "Confirm with your current password",
+  "shellSettingsTitle": "Account settings",
+  "shellSectionProfile": "Profile",
+  "shellUsername": "Username",
+  "shellEmail": "Email",
+  "shellDisplayName": "Display name",
+  "shellSectionSecurity": "Security",
+  "shellPasswordChanged": "Password changed. Your session is intact — you can keep working.",
+  "shellPasswordHintForm": "The current password is required. Changing it does not end your session — you stay in the app.",
+  "shellChangePassword": "Change password",
+  "shellPasswordHintRow": "The current password is required. Changing it does not end your session.",
+  "shellSectionDanger": "Danger zone",
+  "shellDeleteAccountTitle": "Delete account",
+  "shellDeleteAccountText": "Permanently deletes your account. All your sessions end immediately. This cannot be undone.",
+  "shellSectionLanguage": "Language",
+  "shellLanguageHint": "Interface language. Until you choose one, the app follows your browser.",
+  "shellLanguageSystem": "Browser default",
+  "shellLanguageEnglish": "English",
+  "shellLanguageRussian": "Русский",
+  "usersFailureCannotDeletePrimaryAdmin": "The primary administrator cannot be deleted — this account is protected permanently, no matter how many other administrators there are in the system.",
+  "@usersFailureCannotDeletePrimaryAdmin": {
+    "description": "Users: 403 cannot_delete_primary_admin"
+  },
+  "usersFailureForbidden": "Not enough permissions. This action is available to administrators only.",
+  "@usersFailureForbidden": {
+    "description": "Users: 403"
+  },
+  "usersFailureUsernameTaken": "This username is already taken. Choose another one.",
+  "@usersFailureUsernameTaken": {
+    "description": "Users: 409 username_taken"
+  },
+  "usersFailureDeletedAccount": "The account has been deleted and cannot be unblocked. Deletion is irreversible.",
+  "@usersFailureDeletedAccount": {
+    "description": "Users: 409 deleted_account"
+  },
+  "usersFailureSoleGroupOwner": "The user is the only owner of one or more groups. Assign another owner first.",
+  "@usersFailureSoleGroupOwner": {
+    "description": "Users: 409 sole_group_owner"
+  },
+  "usersFailureConflict": "Conflict while saving. Try again.",
+  "@usersFailureConflict": {
+    "description": "Users: other 409"
+  },
+  "usersFailureSelfDeletion": "You cannot delete yourself this way.",
+  "@usersFailureSelfDeletion": {
+    "description": "Users: 400 self_deletion_requires_me"
+  },
+  "usersFailureInvalidRequest": "Check the fields you filled in.",
+  "@usersFailureInvalidRequest": {
+    "description": "Users: 400 without server message"
+  },
+  "usersFailureNotFound": "User not found — perhaps someone else has already deleted it.",
+  "@usersFailureNotFound": {
+    "description": "Users: 404"
+  },
+  "usersFailureUnauthorized": "Your session has expired. Sign in again.",
+  "@usersFailureUnauthorized": {
+    "description": "Users: 401"
+  },
+  "usersFailureRateLimited": "Too many attempts. Try again in {seconds} s.",
+  "@usersFailureRateLimited": {
+    "description": "Users: 429",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "usersFailureNetwork": "The server is unavailable. Check your connection.",
+  "@usersFailureNetwork": {
+    "description": "Users: network failure"
+  },
+  "usersFailureServer": "The server responded with an error ({statusCode}). Try again.",
+  "@usersFailureServer": {
+    "description": "Users: 5xx",
+    "placeholders": {
+      "statusCode": {
+        "type": "int"
+      }
+    }
+  },
+  "usersPageTitle": "Users",
+  "@usersPageTitle": {
+    "description": "Users list title and breadcrumb root"
+  },
+  "usersCreateUser": "Create user",
+  "@usersCreateUser": {
+    "description": "Button and dialog confirm to create a user"
+  },
+  "usersLoadFailedTitle": "Could not load users",
+  "@usersLoadFailedTitle": {
+    "description": "Users list error title"
+  },
+  "usersEmptyTitle": "No users yet",
+  "@usersEmptyTitle": {
+    "description": "Users list empty title"
+  },
+  "usersEmptyDescription": "Accounts will appear here as soon as you create the first one.",
+  "@usersEmptyDescription": {
+    "description": "Users list empty description"
+  },
+  "usersShowMore": "Show more",
+  "@usersShowMore": {
+    "description": "Load more users button"
+  },
+  "usersCreatedOn": "Created {date}",
+  "@usersCreatedOn": {
+    "description": "Subtitle with creation date",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "usersStatusDeleted": "Deleted",
+  "@usersStatusDeleted": {
+    "description": "User status tag"
+  },
+  "usersStatusBlocked": "Blocked",
+  "@usersStatusBlocked": {
+    "description": "User status tag"
+  },
+  "usersStatusActive": "Active",
+  "@usersStatusActive": {
+    "description": "User status tag"
+  },
+  "usersPrimaryAdmin": "Primary administrator",
+  "@usersPrimaryAdmin": {
+    "description": "Tag for the primary admin"
+  },
+  "usersTemporaryPassword": "Temporary password",
+  "@usersTemporaryPassword": {
+    "description": "Tag: user must change password"
+  },
+  "usersOpen": "Open",
+  "@usersOpen": {
+    "description": "Row action"
+  },
+  "usersUnblock": "Unblock",
+  "@usersUnblock": {
+    "description": "Button"
+  },
+  "usersBlock": "Block",
+  "@usersBlock": {
+    "description": "Button and confirm label"
+  },
+  "usersDelete": "Delete",
+  "@usersDelete": {
+    "description": "Button and confirm label"
+  },
+  "usersCancel": "Cancel",
+  "@usersCancel": {
+    "description": "Cancel button in user dialogs and forms"
+  },
+  "usersEditBreadcrumb": "Edit",
+  "@usersEditBreadcrumb": {
+    "description": "Breadcrumb tail and edit button"
+  },
+  "usersEditTitle": "Edit account",
+  "@usersEditTitle": {
+    "description": "Edit page title"
+  },
+  "usersEditSubtitle": "Available to administrators only. This screen does not change the username or roles.",
+  "@usersEditSubtitle": {
+    "description": "Edit page hint"
+  },
+  "usersFieldUsername": "Username",
+  "@usersFieldUsername": {
+    "description": "Field label"
+  },
+  "usersFieldEmail": "Email",
+  "@usersFieldEmail": {
+    "description": "Field label"
+  },
+  "usersFieldDisplayName": "Display name",
+  "@usersFieldDisplayName": {
+    "description": "Field label"
+  },
+  "usersNewPasswordLabel": "New password (optional)",
+  "@usersNewPasswordLabel": {
+    "description": "Edit page password section title"
+  },
+  "usersNewPasswordHint": "Immediately ends the user's current session — at the next sign-in they will have to replace this password with their own.",
+  "@usersNewPasswordHint": {
+    "description": "Edit page password hint"
+  },
+  "usersFieldPassword": "Password",
+  "@usersFieldPassword": {
+    "description": "Field label"
+  },
+  "usersKeepPassword": "Leave unchanged",
+  "@usersKeepPassword": {
+    "description": "Password placeholder"
+  },
+  "usersSaveChanges": "Save changes",
+  "@usersSaveChanges": {
+    "description": "Edit page save button"
+  },
+  "usersCreateDialogTitle": "New user",
+  "@usersCreateDialogTitle": {
+    "description": "Create dialog title"
+  },
+  "usersFieldTemporaryPassword": "Temporary password",
+  "@usersFieldTemporaryPassword": {
+    "description": "Field label"
+  },
+  "usersFieldDisplayNameOptional": "Display name (optional)",
+  "@usersFieldDisplayNameOptional": {
+    "description": "Field label"
+  },
+  "usersTemporaryPasswordHint": "The user will have to change this password at first sign-in.",
+  "@usersTemporaryPasswordHint": {
+    "description": "Create dialog hint"
+  },
+  "usersBlockConfirmTitle": "Block \"{username}\"?",
+  "@usersBlockConfirmTitle": {
+    "description": "Block confirmation title",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "usersBlockConfirmMessage": "The user's current session ends immediately. Signing in will be impossible until they are unblocked.",
+  "@usersBlockConfirmMessage": {
+    "description": "Block confirmation body"
+  },
+  "usersDeleteConfirmTitle": "Delete \"{username}\"?",
+  "@usersDeleteConfirmTitle": {
+    "description": "Delete confirmation title",
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "usersDeleteConfirmMessage": "Irreversible: the account will cease to exist and all its sessions will end immediately. No password is asked for — this is your administrative action. Deletion cannot be undone; if needed you will have to create a new account.",
+  "@usersDeleteConfirmMessage": {
+    "description": "Delete confirmation body"
+  },
+  "usersSoleOwnerTitle": "Transfer ownership first",
+  "@usersSoleOwnerTitle": {
+    "description": "Sole owner dialog title"
+  },
+  "usersSoleOwnerDescription": "The user is the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.",
+  "@usersSoleOwnerDescription": {
+    "description": "Sole owner dialog body"
+  },
+  "usersSoleOwnerTag": "sole owner",
+  "@usersSoleOwnerTag": {
+    "description": "Tag on a group row"
+  },
+  "usersGrantRole": "Grant role",
+  "@usersGrantRole": {
+    "description": "Button"
+  },
+  "usersGotIt": "Got it",
+  "@usersGotIt": {
+    "description": "Dialog close button"
+  },
+  "usersScopeGroupLabel": "group: {name}",
+  "@usersScopeGroupLabel": {
+    "description": "Scope of a role assignment and label passed to the grant-access dialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "usersPrimaryAdminBanner": "This is the primary administrator account. It cannot be deleted — neither by another administrator nor by itself; the server rejects such a request with the code cannot_delete_primary_admin.",
+  "@usersPrimaryAdminBanner": {
+    "description": "Banner on the primary admin's page"
+  },
+  "usersProfileTitle": "Profile",
+  "@usersProfileTitle": {
+    "description": "Card title"
+  },
+  "usersFieldCreated": "Created",
+  "@usersFieldCreated": {
+    "description": "Field label"
+  },
+  "usersSecurityTitle": "Security",
+  "@usersSecurityTitle": {
+    "description": "Card title"
+  },
+  "usersPasswordTemporary": "Temporary — must be changed at next sign-in",
+  "@usersPasswordTemporary": {
+    "description": "Password state"
+  },
+  "usersPasswordSetByUser": "Set by the user",
+  "@usersPasswordSetByUser": {
+    "description": "Password state"
+  },
+  "usersRolesTitle": "Roles",
+  "@usersRolesTitle": {
+    "description": "Card title"
+  },
+  "usersNoRoles": "No roles granted yet.",
+  "@usersNoRoles": {
+    "description": "Empty roles card"
+  },
+  "usersRevoke": "Revoke",
+  "@usersRevoke": {
+    "description": "Button and confirm label"
+  },
+  "usersRevokeConfirmTitle": "Revoke the \"{role}\" role?",
+  "@usersRevokeConfirmTitle": {
+    "description": "Revoke confirmation title",
+    "placeholders": {
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "usersRevokeConfirmMessage": "Access ({scope}) will be revoked immediately.",
+  "@usersRevokeConfirmMessage": {
+    "description": "Revoke confirmation body",
+    "placeholders": {
+      "scope": {
+        "type": "String"
+      }
+    }
+  },
+  "usersScopeGlobal": "entire system",
+  "@usersScopeGlobal": {
+    "description": "Scope of a role assignment"
+  },
+  "usersScopeProjectLabel": "project: {name}",
+  "@usersScopeProjectLabel": {
+    "description": "Scope of a role assignment",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "usersScopeTypeGroup": "Group",
+  "@usersScopeTypeGroup": {
+    "description": "Scope type option and picker label"
+  },
+  "usersScopeTypeProject": "Project",
+  "@usersScopeTypeProject": {
+    "description": "Scope type option and picker label"
+  },
+  "usersScopePickerPlaceholder": "Start typing a name…",
+  "@usersScopePickerPlaceholder": {
+    "description": "Group/project picker placeholder"
+  },
+  "usersRecentAuditTitle": "Recent audit events",
+  "@usersRecentAuditTitle": {
+    "description": "Card title"
+  },
+  "usersNoAuditEvents": "No events yet.",
+  "@usersNoAuditEvents": {
+    "description": "Empty audit card"
+  },
+  "usersOpenInAudit": "Open in the audit with a filter for this user",
+  "@usersOpenInAudit": {
+    "description": "Link"
+  },
+  "authCurrentPasswordLabelOwn": "Current password",
+  "@authCurrentPasswordLabelOwn": {
+    "description": "Change form current password label when it is not a temporary one (account settings)"
+  },
+  "authChangeWrongCurrentOwn": "The current password is incorrect.",
+  "@authChangeWrongCurrentOwn": {
+    "description": "Change failure in account settings: wrong current password"
+  },
+  "usersSoleOwnerDescriptionSelf": "You are the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.",
+  "@usersSoleOwnerDescriptionSelf": {
+    "description": "Sole owner dialog body when the reader is deleting their own account"
+  }
+}

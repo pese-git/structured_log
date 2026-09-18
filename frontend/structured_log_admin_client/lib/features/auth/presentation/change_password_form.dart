@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../domain/auth_failure.dart';
 import 'change_password_cubit.dart';
 
@@ -15,7 +16,17 @@ class ChangePasswordForm extends StatefulWidget {
   /// settings simply saves.
   final String submitLabel;
 
-  const ChangePasswordForm({super.key, required this.submitLabel});
+  /// Whether the password being replaced is the temporary one an administrator
+  /// set. The forced screen says so and points at the administrator; in
+  /// account settings the current password is just the reader's own, and the
+  /// same words would send them looking for someone who never gave it.
+  final bool currentIsTemporary;
+
+  const ChangePasswordForm({
+    super.key,
+    required this.submitLabel,
+    this.currentIsTemporary = true,
+  });
 
   @override
   State<ChangePasswordForm> createState() => _ChangePasswordFormState();
@@ -52,13 +63,19 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
           children: [
             if (state.failure != null) ...[
               AdminBanner(
-                message: _failureText(state.failure!),
+                message: _failureText(
+                  context.l10n,
+                  state.failure!,
+                  currentIsTemporary: widget.currentIsTemporary,
+                ),
                 tone: AdminBannerTone.error,
               ),
               const SizedBox(height: AdminSpacing.x18),
             ],
             AdminTextField(
-              label: 'Текущий (временный) пароль',
+              label: widget.currentIsTemporary
+                  ? context.l10n.authCurrentPasswordLabel
+                  : context.l10n.authCurrentPasswordLabelOwn,
               controller: _current,
               obscure: true,
               autofocus: true,
@@ -66,19 +83,21 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Новый пароль',
+              label: context.l10n.authNewPasswordLabel,
               controller: _next,
               obscure: true,
               enabled: !state.submitting,
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Повторите новый пароль',
+              label: context.l10n.authRepeatPasswordLabel,
               controller: _repeat,
               obscure: true,
               enabled: !state.submitting,
               onSubmitted: _submit,
-              errorText: state.mismatch ? 'Пароли не совпадают' : null,
+              errorText: state.mismatch
+                  ? context.l10n.authPasswordsMismatch
+                  : null,
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminButton(
@@ -93,15 +112,22 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
     );
   }
 
-  static String _failureText(AuthFailure failure) => switch (failure) {
+  static String _failureText(
+    AppLocalizations l10n,
+    AuthFailure failure, {
+    required bool currentIsTemporary,
+  }) => switch (failure) {
     // The server says `invalid_grant` here for one thing only, and it is not
     // about the session: the current password was wrong.
     InvalidCredentialsFailure() =>
-      'Текущий пароль неверен. Введите тот, который сообщил администратор.',
-    RateLimitedAuthFailure(:final retryAfter) =>
-      'Слишком много попыток. Попробуйте снова через ${retryAfter.inSeconds} с.',
-    NetworkAuthFailure() => 'Сервер недоступен. Проверьте подключение.',
+      currentIsTemporary
+          ? l10n.authChangeWrongCurrent
+          : l10n.authChangeWrongCurrentOwn,
+    RateLimitedAuthFailure(:final retryAfter) => l10n.authChangeRateLimited(
+      retryAfter.inSeconds,
+    ),
+    NetworkAuthFailure() => l10n.authChangeNetwork,
     EmailNotVerifiedFailure() ||
-    UnexpectedAuthFailure() => 'Не удалось сменить пароль. Попробуйте ещё раз.',
+    UnexpectedAuthFailure() => l10n.authChangeUnexpected,
   };
 }

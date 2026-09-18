@@ -13,7 +13,9 @@ import '../features/auth/presentation/force_password_change_page.dart';
 import '../features/auth/presentation/login_cubit.dart';
 import '../features/auth/presentation/login_page.dart';
 import '../features/auth/presentation/login_state.dart';
+import '../l10n/l10n.dart';
 import '../shared/auth/session_controller.dart';
+import '../shared/l10n/locale_controller.dart';
 import 'home_shell.dart';
 import '../shared/config/app_config.dart';
 
@@ -30,16 +32,41 @@ class AdminApp extends StatelessWidget {
   /// Whether a session is live, and why it ended if it did.
   final SessionController session;
 
-  const AdminApp({super.key, required this.scope, required this.session});
+  /// The chosen language. Absent, the app follows the browser's — English
+  /// when that is a language the client has no translation of.
+  final LocaleController? localeController;
+
+  const AdminApp({
+    super.key,
+    required this.scope,
+    required this.session,
+    this.localeController,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final controller = localeController;
+    if (controller == null) return _app(null);
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => _app(controller.locale),
+    );
+  }
+
+  Widget _app(Locale? locale) {
     return FluentApp(
-      title: 'Structured Log',
+      onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
       theme: AdminTheme.light(),
       darkTheme: AdminTheme.dark(),
-      home: AuthGate(scope: scope, session: session),
+      locale: locale,
+      localizationsDelegates: adminLocalizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: AuthGate(
+        scope: scope,
+        session: session,
+        localeController: localeController,
+      ),
     );
   }
 }
@@ -51,8 +78,14 @@ class AdminApp extends StatelessWidget {
 class AuthGate extends StatefulWidget {
   final Scope scope;
   final SessionController session;
+  final LocaleController? localeController;
 
-  const AuthGate({super.key, required this.scope, required this.session});
+  const AuthGate({
+    super.key,
+    required this.scope,
+    required this.session,
+    this.localeController,
+  });
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -105,6 +138,7 @@ class _AuthGateState extends State<AuthGate> {
           child: LoginPage(
             serverLabel: _serverLabel,
             sessionExpired: widget.session.expired,
+            localeController: widget.localeController,
           ),
         ),
       );
@@ -122,11 +156,16 @@ class _AuthGateState extends State<AuthGate> {
         child: ForcePasswordChangePage(
           onChanged: widget.session.passwordChanged,
           onSignOut: _signOut,
+          localeController: widget.localeController,
         ),
       );
     }
 
-    return HomeShell(scope: widget.scope, session: widget.session);
+    return HomeShell(
+      scope: widget.scope,
+      session: widget.session,
+      localeController: widget.localeController,
+    );
   }
 
   Future<void> _signOut() async {

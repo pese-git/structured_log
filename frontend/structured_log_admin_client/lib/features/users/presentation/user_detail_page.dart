@@ -2,10 +2,10 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/formatting.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../audit/presentation/audit_failure_text.dart' show formatAuditTime;
-import '../../resources/presentation/resource_failure_text.dart'
-    show formatDate;
 import '../../resources/presentation/resources_section.dart'
     show ResourceBreadcrumb;
 import 'user_actions.dart';
@@ -101,19 +101,16 @@ class _UserDetailPageState extends State<UserDetailPage> {
               if (state.actionFailure != null) ...[
                 const SizedBox(height: AdminSpacing.x14),
                 AdminBanner(
-                  message: describeUserFailure(state.actionFailure!),
+                  message: describeUserFailure(
+                    context.l10n,
+                    state.actionFailure!,
+                  ),
                   tone: AdminBannerTone.error,
                 ),
               ],
               if (user.isPrimaryAdmin) ...[
                 const SizedBox(height: AdminSpacing.x14),
-                const AdminBanner(
-                  message:
-                      'Это основная учётная запись администратора. Удалить '
-                      'её нельзя — ни другому администратору, ни ей самой; '
-                      'сервер отклонит такой запрос с кодом '
-                      'cannot_delete_primary_admin.',
-                ),
+                AdminBanner(message: context.l10n.usersPrimaryAdminBanner),
               ],
               const SizedBox(height: AdminSpacing.x24),
               Row(
@@ -177,7 +174,7 @@ class _Header extends StatelessWidget {
       children: [
         ResourceBreadcrumb(
           parts: [
-            (label: 'Пользователи', onPressed: onBack),
+            (label: context.l10n.usersPageTitle, onPressed: onBack),
             (label: name, onPressed: null),
           ],
         ),
@@ -218,27 +215,29 @@ class _Header extends StatelessWidget {
                       ),
                       AdminTag(label: user.username),
                       if (user.isDeleted)
-                        const AdminStatusTag(
-                          label: 'Удалён',
+                        AdminStatusTag(
+                          label: context.l10n.usersStatusDeleted,
                           tone: AdminStatusTone.neutral,
                         )
                       else if (user.isBlocked)
-                        const AdminStatusTag(
-                          label: 'Заблокирован',
+                        AdminStatusTag(
+                          label: context.l10n.usersStatusBlocked,
                           tone: AdminStatusTone.error,
                         )
                       else
-                        const AdminStatusTag(
-                          label: 'Активен',
+                        AdminStatusTag(
+                          label: context.l10n.usersStatusActive,
                           tone: AdminStatusTone.success,
                         ),
                       if (user.isPrimaryAdmin)
-                        const AdminTag(label: 'Основной администратор'),
+                        AdminTag(label: context.l10n.usersPrimaryAdmin),
                     ],
                   ),
                   const SizedBox(height: AdminSpacing.x6),
                   Text(
-                    'Создан ${formatDate(user.createdAt)}',
+                    context.l10n.usersCreatedOn(
+                      formatDate(context.l10n, user.createdAt),
+                    ),
                     style: AdminTypography.bodySmall.copyWith(
                       color: colors.textSecondary,
                     ),
@@ -249,14 +248,16 @@ class _Header extends StatelessWidget {
             if (!user.isDeleted) ...[
               const SizedBox(width: AdminSpacing.x10),
               AdminButton(
-                label: 'Изменить',
+                label: context.l10n.usersEditBreadcrumb,
                 icon: FluentIcons.edit,
                 size: AdminButtonSize.dialog,
                 onPressed: onEdit,
               ),
               const SizedBox(width: AdminSpacing.x10),
               AdminButton(
-                label: user.isBlocked ? 'Разблокировать' : 'Заблокировать',
+                label: user.isBlocked
+                    ? context.l10n.usersUnblock
+                    : context.l10n.usersBlock,
                 size: AdminButtonSize.dialog,
                 onPressed: () => toggleUserBlocked(
                   context,
@@ -267,7 +268,7 @@ class _Header extends StatelessWidget {
               if (!user.isPrimaryAdmin) ...[
                 const SizedBox(width: AdminSpacing.x10),
                 AdminButton(
-                  label: 'Удалить',
+                  label: context.l10n.usersDelete,
                   size: AdminButtonSize.dialog,
                   onPressed: () => deleteUser(
                     context,
@@ -326,21 +327,27 @@ class _Profile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Профиль',
+      title: context.l10n.usersProfileTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AdminKeyValueRow(
-            label: 'Имя пользователя',
+            label: context.l10n.usersFieldUsername,
             value: user.username,
             monospaceValue: true,
           ),
-          AdminKeyValueRow(label: 'Email', value: user.email ?? '—'),
           AdminKeyValueRow(
-            label: 'Отображаемое имя',
+            label: context.l10n.usersFieldEmail,
+            value: user.email ?? '—',
+          ),
+          AdminKeyValueRow(
+            label: context.l10n.usersFieldDisplayName,
             value: user.displayName ?? '—',
           ),
-          AdminKeyValueRow(label: 'Создан', value: formatDate(user.createdAt)),
+          AdminKeyValueRow(
+            label: context.l10n.usersFieldCreated,
+            value: formatDate(context.l10n, user.createdAt),
+          ),
         ],
       ),
     );
@@ -355,12 +362,12 @@ class _Security extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Безопасность',
+      title: context.l10n.usersSecurityTitle,
       child: AdminKeyValueRow(
-        label: 'Пароль',
+        label: context.l10n.usersFieldPassword,
         value: user.mustChangePassword
-            ? 'Временный — потребует смены при следующем входе'
-            : 'Задан самим пользователем',
+            ? context.l10n.usersPasswordTemporary
+            : context.l10n.usersPasswordSetByUser,
       ),
     );
   }
@@ -377,13 +384,13 @@ class _Roles extends StatelessWidget {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
     return _Card(
-      title: 'Роли',
+      title: context.l10n.usersRolesTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (state.roleAssignments.isEmpty)
             Text(
-              'Ролей пока не выдано.',
+              context.l10n.usersNoRoles,
               style: AdminTypography.bodySmall.copyWith(
                 color: colors.textSecondary,
               ),
@@ -393,10 +400,10 @@ class _Roles extends StatelessWidget {
               AdminResourceRow(
                 icon: FluentIcons.permissions,
                 title: grant.role,
-                subtitle: scopeLabelOf(grant),
+                subtitle: scopeLabelOf(context.l10n, grant),
                 actions: [
                   AdminButton(
-                    label: 'Отозвать',
+                    label: context.l10n.usersRevoke,
                     size: AdminButtonSize.tonal,
                     onPressed: () => _revoke(context, grant),
                   ),
@@ -416,9 +423,12 @@ class _Roles extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Отозвать роль «${grant.role}»?',
-        message: 'Доступ (${scopeLabelOf(grant)}) будет отозван немедленно.',
-        confirmLabel: 'Отозвать',
+        title: context.l10n.usersRevokeConfirmTitle(grant.role),
+        message: context.l10n.usersRevokeConfirmMessage(
+          scopeLabelOf(context.l10n, grant),
+        ),
+        confirmLabel: context.l10n.usersRevoke,
+        cancelLabel: context.l10n.usersCancel,
         destructive: true,
         onConfirm: () => Navigator.of(dialogContext).pop(true),
         onCancel: () => Navigator.of(dialogContext).pop(false),
@@ -430,11 +440,12 @@ class _Roles extends StatelessWidget {
 
 /// `grant.scopeType`/`scopeName`/`scopeId`, as one phrase — shared between
 /// this page's roles card and its revoke confirmation.
-String scopeLabelOf(RoleAssignmentDto grant) {
+String scopeLabelOf(AppLocalizations l10n, RoleAssignmentDto grant) {
+  final name = grant.scopeName ?? '#${grant.scopeId}';
   return switch (grant.scopeType) {
-    'global' => 'вся система',
-    'group' => 'группа: ${grant.scopeName ?? '#${grant.scopeId}'}',
-    'project' => 'проект: ${grant.scopeName ?? '#${grant.scopeId}'}',
+    'global' => l10n.usersScopeGlobal,
+    'group' => l10n.usersScopeGroupLabel(name),
+    'project' => l10n.usersScopeProjectLabel(name),
     _ => grant.scopeType,
   };
 }
@@ -500,8 +511,10 @@ class _GrantRoleFormState extends State<_GrantRoleForm> {
           const SizedBox(height: AdminSpacing.x10),
           AdminSearchPicker<int>(
             key: ValueKey(_scopeType),
-            label: _scopeType == 'group' ? 'Группа' : 'Проект',
-            placeholder: 'Начните вводить название…',
+            label: _scopeType == 'group'
+                ? context.l10n.usersScopeTypeGroup
+                : context.l10n.usersScopeTypeProject,
+            placeholder: context.l10n.usersScopePickerPlaceholder,
             onSearch: (query) async {
               if (_scopeType == 'group') {
                 final items = await cubit.searchGroups(query);
@@ -523,7 +536,7 @@ class _GrantRoleFormState extends State<_GrantRoleForm> {
         Align(
           alignment: Alignment.centerRight,
           child: AdminButton(
-            label: 'Выдать роль',
+            label: context.l10n.usersGrantRole,
             size: AdminButtonSize.tonal,
             onPressed: () => _grant(context),
           ),
@@ -544,10 +557,10 @@ class _RolePicker extends StatelessWidget {
     return ComboBox<String>(
       value: value,
       isExpanded: true,
-      items: const [
-        ComboBoxItem(value: 'admin', child: Text('admin')),
-        ComboBoxItem(value: 'owner', child: Text('owner')),
-        ComboBoxItem(value: 'user', child: Text('user')),
+      items: [
+        ComboBoxItem(value: 'admin', child: const Text('admin')),
+        ComboBoxItem(value: 'owner', child: const Text('owner')),
+        ComboBoxItem(value: 'user', child: const Text('user')),
       ],
       onChanged: (v) {
         if (v != null) onChanged(v);
@@ -567,10 +580,10 @@ class _ScopeTypePicker extends StatelessWidget {
     return ComboBox<String>(
       value: value,
       isExpanded: true,
-      items: const [
-        ComboBoxItem(value: 'global', child: Text('global')),
-        ComboBoxItem(value: 'group', child: Text('group')),
-        ComboBoxItem(value: 'project', child: Text('project')),
+      items: [
+        ComboBoxItem(value: 'global', child: const Text('global')),
+        const ComboBoxItem(value: 'group', child: Text('group')),
+        ComboBoxItem(value: 'project', child: const Text('project')),
       ],
       onChanged: (v) {
         if (v != null) onChanged(v);
@@ -590,7 +603,7 @@ class _RecentAudit extends StatelessWidget {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
     return _Card(
-      title: 'Последние события аудита',
+      title: context.l10n.usersRecentAuditTitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -598,7 +611,7 @@ class _RecentAudit extends StatelessWidget {
             const Center(child: AdminLoadingIndicator())
           else if (state.recentAudit.isEmpty)
             Text(
-              'Событий пока нет.',
+              context.l10n.usersNoAuditEvents,
               style: AdminTypography.bodySmall.copyWith(
                 color: colors.textSecondary,
               ),
@@ -629,7 +642,7 @@ class _RecentAudit extends StatelessWidget {
             child: HyperlinkButton(
               onPressed: onOpenAudit,
               child: Text(
-                'Открыть в аудите с фильтром по этому пользователю',
+                context.l10n.usersOpenInAudit,
                 style: AdminTypography.caption.copyWith(color: colors.accent),
               ),
             ),

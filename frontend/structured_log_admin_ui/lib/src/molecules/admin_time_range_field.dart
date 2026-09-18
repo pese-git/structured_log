@@ -56,11 +56,11 @@ class AdminTimeRangeField extends StatelessWidget {
     required this.formatTime,
     this.from,
     this.to,
-    this.fromLabel = 'С',
-    this.toLabel = 'По',
-    this.anyLabel = 'любое',
-    this.clearLabel = 'Любое время',
-    this.applyLabel = 'Применить',
+    this.fromLabel = 'From',
+    this.toLabel = 'To',
+    this.anyLabel = 'any',
+    this.clearLabel = 'Any time',
+    this.applyLabel = 'Apply',
   });
 
   @override
@@ -126,7 +126,7 @@ class _BoundState extends State<_Bound> {
   }
 
   void _open() {
-    // Staged locally until "Применить" — unlike the calendar day in
+    // Staged locally until "Apply" — unlike the calendar day in
     // AdminDateRangeField, a single pick (just the hour, say) does not make
     // a bound worth committing.
     final anchor = widget.value ?? DateTime.now();
@@ -134,6 +134,9 @@ class _BoundState extends State<_Bound> {
     var minute = anchor.minute;
 
     _flyout.showFlyout<void>(
+      // Under the box, like the artboards draw it; the default placement
+      // picked "above" and covered the toolbar the box sits in.
+      placementMode: FlyoutPlacementMode.bottomLeft,
       barrierColor: Colors.transparent,
       additionalOffset: AdminSpacing.x8,
       builder: (context) {
@@ -142,92 +145,97 @@ class _BoundState extends State<_Bound> {
             final colors = AdminColors.of(FluentTheme.of(context).brightness);
             return FlyoutContent(
               padding: const EdgeInsets.all(AdminSpacing.x8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 180,
-                    child: Row(
+              // A fixed width: `stretch` would otherwise take everything the
+              // flyout is offered, which is the whole window.
+              child: SizedBox(
+                width: _flyoutWidth,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: _flyoutWidth,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ComboBox<int>(
+                              value: hour,
+                              isExpanded: true,
+                              items: [
+                                for (var h = 0; h < 24; h++)
+                                  ComboBoxItem(value: h, child: Text(_two(h))),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) setFlyoutState(() => hour = v);
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AdminSpacing.x6,
+                            ),
+                            child: Text(
+                              ':',
+                              style: AdminTypography.body.copyWith(
+                                color: colors.text,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: ComboBox<int>(
+                              value: minute,
+                              isExpanded: true,
+                              items: [
+                                for (var m = 0; m < 60; m++)
+                                  ComboBoxItem(value: m, child: Text(_two(m))),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) setFlyoutState(() => minute = v);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AdminSpacing.x8),
+                    Row(
                       children: [
                         Expanded(
-                          child: ComboBox<int>(
-                            value: hour,
-                            isExpanded: true,
-                            items: [
-                              for (var h = 0; h < 24; h++)
-                                ComboBoxItem(value: h, child: Text(_two(h))),
-                            ],
-                            onChanged: (v) {
-                              if (v != null) setFlyoutState(() => hour = v);
+                          child: Button(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              widget.onChanged(null);
                             },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AdminSpacing.x6,
-                          ),
-                          child: Text(
-                            ':',
-                            style: AdminTypography.body.copyWith(
-                              color: colors.text,
+                            child: Text(
+                              widget.clearLabel,
+                              style: AdminTypography.bodySmall.copyWith(
+                                color: colors.textSecondary,
+                              ),
                             ),
                           ),
                         ),
+                        const SizedBox(width: AdminSpacing.x8),
                         Expanded(
-                          child: ComboBox<int>(
-                            value: minute,
-                            isExpanded: true,
-                            items: [
-                              for (var m = 0; m < 60; m++)
-                                ComboBoxItem(value: m, child: Text(_two(m))),
-                            ],
-                            onChanged: (v) {
-                              if (v != null) setFlyoutState(() => minute = v);
+                          child: FilledButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              widget.onChanged(
+                                DateTime(
+                                  anchor.year,
+                                  anchor.month,
+                                  anchor.day,
+                                  hour,
+                                  minute,
+                                ),
+                              );
                             },
+                            child: Text(widget.applyLabel),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: AdminSpacing.x8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Button(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            widget.onChanged(null);
-                          },
-                          child: Text(
-                            widget.clearLabel,
-                            style: AdminTypography.bodySmall.copyWith(
-                              color: colors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AdminSpacing.x8),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            widget.onChanged(
-                              DateTime(
-                                anchor.year,
-                                anchor.month,
-                                anchor.day,
-                                hour,
-                                minute,
-                              ),
-                            );
-                          },
-                          child: Text(widget.applyLabel),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -235,6 +243,8 @@ class _BoundState extends State<_Bound> {
       },
     );
   }
+
+  static const _flyoutWidth = 220.0;
 
   static String _two(int value) => value.toString().padLeft(2, '0');
 

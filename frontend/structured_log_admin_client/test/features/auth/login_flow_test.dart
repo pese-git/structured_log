@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 // then compile and match nothing at all.
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/auth/session_controller.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
@@ -35,6 +36,7 @@ _buildApp(
   FakeReply Function(RequestOptions options) handler, {
   TokenPair? storedSession,
   String? baseUrl,
+  LocaleController? localeController,
 }) {
   final session = SessionController();
   final storage = InMemoryTokenStorage(storedSession);
@@ -46,7 +48,12 @@ _buildApp(
     onSessionExpired: session.expire,
   );
   return (
-    app: AdminApp(scope: scope, session: session),
+    app: AdminApp(
+      scope: scope,
+      session: session,
+      localeController:
+          localeController ?? LocaleController(initial: const Locale('ru')),
+    ),
     session: session,
     storage: storage,
   );
@@ -98,6 +105,24 @@ void main() {
       findsNothing,
       reason: 'the shell moves on without asking again',
     );
+  });
+
+  testWidgets('the corner switcher changes the language before anyone has '
+      'signed in', (tester) async {
+    useArtboardSurface(tester);
+    final controller = LocaleController(initial: const Locale('ru'));
+    final built = _buildApp((_) => _tokens, localeController: controller);
+
+    await tester.pumpWidget(built.app);
+    await tester.pumpAndSettle();
+    expect(find.text('Вход в систему'), findsOneWidget);
+
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(controller.locale, const Locale('en'));
+    expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('Вход в систему'), findsNothing);
   });
 
   testWidgets('wrong credentials keep the screen and store nothing', (

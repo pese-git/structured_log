@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../resources/presentation/resource_dialogs.dart'
@@ -30,11 +31,16 @@ class SoleOwnerConflictDialog extends StatelessWidget {
   final void Function(({int id, String name}) group)? onGrantAccess;
   final VoidCallback onClose;
 
+  /// The reader is deleting their own account, so the text says "you" instead
+  /// of "the user".
+  final bool ownAccount;
+
   const SoleOwnerConflictDialog({
     super.key,
     required this.groups,
     required this.onClose,
     this.onGrantAccess,
+    this.ownAccount = false,
   });
 
   @override
@@ -44,7 +50,7 @@ class SoleOwnerConflictDialog extends StatelessWidget {
     return ContentDialog(
       constraints: const BoxConstraints(maxWidth: 480),
       title: Text(
-        'Сначала передайте владение',
+        context.l10n.usersSoleOwnerTitle,
         style: AdminTypography.sectionTitle.copyWith(color: colors.text),
       ),
       content: SingleChildScrollView(
@@ -52,9 +58,9 @@ class SoleOwnerConflictDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Пользователь — единственный владелец (owner) следующих групп. '
-              'Выдайте роль владельца ещё кому-то в каждой из них, прежде '
-              'чем удаление станет возможным.',
+              ownAccount
+                  ? context.l10n.usersSoleOwnerDescriptionSelf
+                  : context.l10n.usersSoleOwnerDescription,
               style: AdminTypography.bodySmall.copyWith(
                 color: colors.textSecondary,
                 height: 1.5,
@@ -98,14 +104,14 @@ class SoleOwnerConflictDialog extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const AdminTag(label: 'единственный owner'),
+                          AdminTag(label: context.l10n.usersSoleOwnerTag),
                         ],
                       ),
                     ),
                     if (onGrantAccess case final onGrantAccess?) ...[
                       const SizedBox(width: AdminSpacing.x8),
                       AdminButton(
-                        label: 'Выдать роль',
+                        label: context.l10n.usersGrantRole,
                         size: AdminButtonSize.tonal,
                         onPressed: () => onGrantAccess(group),
                       ),
@@ -120,7 +126,7 @@ class SoleOwnerConflictDialog extends StatelessWidget {
       ),
       actions: [
         AdminButton(
-          label: 'Понятно',
+          label: context.l10n.usersGotIt,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: onClose,
@@ -152,7 +158,7 @@ Future<void> showGrantAccessToGroup(
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => GrantAccessDialog(
-      scopeLabel: 'группа: $groupName',
+      scopeLabel: dialogContext.l10n.usersScopeGroupLabel(groupName),
       // Reachable only from the Users screen, which the shell already
       // offers admin-only — same reasoning `EditUserPage`'s role card uses.
       isGlobalAdmin: true,

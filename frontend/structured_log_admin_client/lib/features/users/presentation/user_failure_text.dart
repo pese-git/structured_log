@@ -1,3 +1,4 @@
+import '../../../l10n/app_localizations.dart';
 import '../../../shared/api/api_failure.dart';
 
 /// What to tell someone about a refused request on the users screen.
@@ -7,34 +8,32 @@ import '../../../shared/api/api_failure.dart';
 /// name already taken, but here a 409 might just as well be
 /// `sole_group_owner` or `deleted_account` — codes that need their own words,
 /// not the resources screen's generic "name taken".
-String describeUserFailure(ApiFailure failure) => switch (failure) {
-  ForbiddenFailure(:final code) when code == 'cannot_delete_primary_admin' =>
-    'Основного администратора удалить нельзя — эта учётная запись защищена '
-        'навсегда, независимо от того, сколько других администраторов есть '
-        'в системе.',
-  ForbiddenFailure() =>
-    'Недостаточно прав. Это действие доступно только администратору.',
-  ConflictFailure(:final code) when code == 'username_taken' =>
-    'Такое имя пользователя уже занято. Выберите другое.',
-  ConflictFailure(:final code) when code == 'deleted_account' =>
-    'Учётная запись удалена — разблокировать её нельзя. Удаление необратимо.',
-  ConflictFailure(:final code) when code == 'sole_group_owner' =>
-    'Пользователь — единственный владелец одной или нескольких групп. '
-        'Сначала назначьте другого владельца.',
-  ConflictFailure() => 'Конфликт при сохранении. Попробуйте ещё раз.',
-  InvalidRequestFailure(:final code) when code == 'self_deletion_requires_me' =>
-    'Нельзя удалить самого себя этим способом.',
-  InvalidRequestFailure(:final message) =>
-    message ?? 'Проверьте заполненные поля.',
-  NotFoundFailure() =>
-    'Пользователь не найден — возможно, уже удалён кем-то другим.',
-  UnauthorizedFailure() => 'Сессия истекла. Войдите заново.',
-  RateLimitedFailure(:final retryAfter) =>
-    'Слишком много попыток. Попробуйте через ${retryAfter.inSeconds} с.',
-  NetworkFailure() => 'Сервер недоступен. Проверьте подключение.',
-  ServerFailure(:final statusCode) =>
-    'Сервер ответил ошибкой ($statusCode). Попробуйте ещё раз.',
-};
+String describeUserFailure(AppLocalizations l10n, ApiFailure failure) =>
+    switch (failure) {
+      ForbiddenFailure(:final code)
+          when code == 'cannot_delete_primary_admin' =>
+        l10n.usersFailureCannotDeletePrimaryAdmin,
+      ForbiddenFailure() => l10n.usersFailureForbidden,
+      ConflictFailure(:final code) when code == 'username_taken' =>
+        l10n.usersFailureUsernameTaken,
+      ConflictFailure(:final code) when code == 'deleted_account' =>
+        l10n.usersFailureDeletedAccount,
+      ConflictFailure(:final code) when code == 'sole_group_owner' =>
+        l10n.usersFailureSoleGroupOwner,
+      ConflictFailure() => l10n.usersFailureConflict,
+      InvalidRequestFailure(:final code)
+          when code == 'self_deletion_requires_me' =>
+        l10n.usersFailureSelfDeletion,
+      InvalidRequestFailure(:final message) =>
+        message ?? l10n.usersFailureInvalidRequest,
+      NotFoundFailure() => l10n.usersFailureNotFound,
+      UnauthorizedFailure() => l10n.usersFailureUnauthorized,
+      RateLimitedFailure(:final retryAfter) => l10n.usersFailureRateLimited(
+        retryAfter.inSeconds,
+      ),
+      NetworkFailure() => l10n.usersFailureNetwork,
+      ServerFailure(:final statusCode) => l10n.usersFailureServer(statusCode),
+    };
 
 /// The groups a `409 sole_group_owner` names as blocked by the deletion —
 /// `{"blocking_groups": [{"id": ..., "name": ..., "created_at": ...}, ...]}`

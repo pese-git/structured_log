@@ -2,6 +2,9 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
+import '../../../shared/l10n/locale_controller.dart';
+import 'auth_language_switch.dart';
 import '../domain/auth_failure.dart';
 import 'auth_brand_panel.dart';
 import 'login_cubit.dart';
@@ -29,10 +32,14 @@ class LoginPage extends StatefulWidget {
   /// rather than by opening the app. The artboard has its own banner for it.
   final bool sessionExpired;
 
+  /// The language switcher in the corner. Absent, there is no switcher.
+  final LocaleController? localeController;
+
   const LoginPage({
     super.key,
     required this.serverLabel,
     this.sessionExpired = false,
+    this.localeController,
   });
 
   @override
@@ -61,36 +68,47 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
-    return ScaffoldPage(
-      padding: EdgeInsets.zero,
-      content: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minWidth: MediaQuery.sizeOf(context).width,
-          ),
-          child: SizedBox(
-            width: 1160,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const AuthBrandPanel(
-                  description:
-                      'Централизованный сбор и поиск структурированных логов с '
-                      'нескольких проектов и команд — без стороннего SaaS.',
-                ),
-                Expanded(
-                  child: ColoredBox(
-                    color: colors.surface,
-                    child: Center(
-                      child: SizedBox(width: 340, child: _buildForm(colors)),
-                    ),
+    final scroller = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: MediaQuery.sizeOf(context).width),
+        child: SizedBox(
+          width: 1160,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AuthBrandPanel(
+                description: context.l10n.authLoginBrandDescription,
+              ),
+              Expanded(
+                child: ColoredBox(
+                  color: colors.surface,
+                  child: Center(
+                    child: SizedBox(width: 340, child: _buildForm(colors)),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+
+    // The switcher lives outside the horizontal scroller: inside it, in a
+    // window narrower than the artboard, it would sit past the right edge
+    // and be reachable only by scrolling.
+    return ScaffoldPage(
+      padding: EdgeInsets.zero,
+      content: Stack(
+        children: [
+          scroller,
+          if (widget.localeController case final controller?)
+            Positioned(
+              top: AdminSpacing.x12,
+              right: AdminSpacing.x18,
+              child: AuthLanguageSwitch(controller: controller),
+            ),
+        ],
       ),
     );
   }
@@ -104,12 +122,12 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Вход в систему',
+              context.l10n.authLoginTitle,
               style: AdminTypography.pageTitle.copyWith(color: colors.text),
             ),
             const SizedBox(height: AdminSpacing.x4),
             Text(
-              'Введите учётные данные, выданные администратором',
+              context.l10n.authLoginSubtitle,
               style: AdminTypography.body.copyWith(color: colors.textSecondary),
             ),
             // The expiry notice yields to a failure from an actual attempt:
@@ -123,16 +141,11 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ] else if (widget.sessionExpired) ...[
               const SizedBox(height: AdminSpacing.x18),
-              const AdminBanner(
-                message:
-                    'Сессия завершена — войдите снова. Так бывает, когда '
-                    'администратор изменил права или истёк срок действия '
-                    'сессии.',
-              ),
+              AdminBanner(message: context.l10n.authSessionExpiredBanner),
             ],
             const SizedBox(height: AdminSpacing.x18),
             AdminTextField(
-              label: 'Имя пользователя',
+              label: context.l10n.authUsernameLabel,
               controller: _username,
               autofocus: true,
               enabled: !state.submitting,
@@ -141,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminTextField(
-              label: 'Пароль',
+              label: context.l10n.authPasswordLabel,
               controller: _password,
               obscure: true,
               enabled: !state.submitting,
@@ -150,7 +163,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminButton(
-              label: _submitLabel(state),
+              label: _submitLabel(context.l10n, state),
               variant: AdminButtonVariant.accent,
               // A null callback is how the button renders disabled — while a
               // request is in flight, and while a limiter is counting down.
@@ -159,7 +172,7 @@ class _LoginPageState extends State<LoginPage> {
             if (widget.serverLabel != null) ...[
               const SizedBox(height: AdminSpacing.x18),
               Text(
-                'Сервер: ${widget.serverLabel}',
+                context.l10n.authServerLine(widget.serverLabel!),
                 textAlign: TextAlign.center,
                 style: AdminTypography.caption.copyWith(
                   color: colors.textTertiary,
@@ -172,12 +185,12 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  String _submitLabel(LoginState state) {
-    if (state.submitting) return 'Вход…';
+  String _submitLabel(AppLocalizations l10n, LoginState state) {
+    if (state.submitting) return l10n.authSubmittingLabel;
     if (state.retryAfter > Duration.zero) {
-      return 'Войти · ${_formatWait(state.retryAfter)}';
+      return l10n.authSignInWithWait(_formatWait(state.retryAfter));
     }
-    return 'Войти';
+    return l10n.authSignIn;
   }
 }
 
@@ -197,38 +210,30 @@ class _FailureBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (failure) {
-      InvalidCredentialsFailure() => const AdminBanner(
+      InvalidCredentialsFailure() => AdminBanner(
         tone: AdminBannerTone.error,
         // Which of the two was wrong is not said — the server does not say
         // either, and naming it would let anyone enumerate accounts.
-        message: 'Неверное имя пользователя или пароль. Попробуйте ещё раз.',
+        message: context.l10n.authInvalidCredentials,
       ),
-      EmailNotVerifiedFailure() => const AdminBanner(
-        message:
-            'Email этой учётной записи ещё не подтверждён — до '
-            'подтверждения вход невозможен. Проверьте письмо с кодом.',
+      EmailNotVerifiedFailure() => AdminBanner(
+        message: context.l10n.authEmailNotVerified,
       ),
       RateLimitedAuthFailure() => AdminBanner(
         tone: AdminBannerTone.warning,
-        message:
-            'Слишком много попыток входа. Следующая будет принята '
-            'через ${_formatWait(retryAfter)}.',
+        message: context.l10n.authRateLimited(_formatWait(retryAfter)),
       ),
       // Neither of the next two interpolates the failure's `message`. It is
       // the HTTP client's or the server's own diagnostic — English, long, and
       // about CORS preflights — which belongs in the log, not in front of
       // someone trying to sign in.
-      NetworkAuthFailure() => const AdminBanner(
+      NetworkAuthFailure() => AdminBanner(
         tone: AdminBannerTone.error,
-        message:
-            'Не удалось связаться с сервером. Проверьте адрес сервера '
-            'и подключение к сети.',
+        message: context.l10n.authNetworkFailure,
       ),
-      UnexpectedAuthFailure() => const AdminBanner(
+      UnexpectedAuthFailure() => AdminBanner(
         tone: AdminBannerTone.error,
-        message:
-            'Не удалось войти — сервер ответил неожиданно. Попробуйте ещё '
-            'раз, а если повторится — загляните в журнал сервера.',
+        message: context.l10n.authUnexpectedFailure,
       ),
     };
   }

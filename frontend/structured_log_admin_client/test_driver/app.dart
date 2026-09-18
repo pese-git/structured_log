@@ -1,5 +1,6 @@
 import 'package:flutter_driver/driver_extension.dart';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/auth/session_controller.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
@@ -168,5 +169,11 @@ void main() {
     onPasswordChangeRequired: session.passwordChangeRequired,
   );
 
-  runApp(AdminApp(scope: scope, session: session));
+  runApp(
+    AdminApp(
+      scope: scope,
+      session: session,
+      localeController: LocaleController(initial: const Locale('ru')),
+    ),
+  );
 }

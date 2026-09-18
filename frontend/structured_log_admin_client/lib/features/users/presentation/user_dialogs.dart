@@ -1,6 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
+
 /// `Новый пользователь` — username, a temporary password, and an optional
 /// display name. No `email` field: this stage's server does not accept one
 /// (`CreateUserRequestDto`).
@@ -54,7 +56,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
     return ContentDialog(
       constraints: const BoxConstraints(maxWidth: 440),
       title: Text(
-        'Новый пользователь',
+        context.l10n.usersCreateDialogTitle,
         style: AdminTypography.sectionTitle.copyWith(color: colors.text),
       ),
       // Scrolling for the reason every dialog in this app scrolls: a bare
@@ -72,24 +74,24 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
               const SizedBox(height: AdminSpacing.x14),
             ],
             AdminTextField(
-              label: 'Имя пользователя',
+              label: context.l10n.usersFieldUsername,
               controller: _username,
               autofocus: true,
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Временный пароль',
+              label: context.l10n.usersFieldTemporaryPassword,
               controller: _password,
               obscure: true,
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
-              label: 'Отображаемое имя (необязательно)',
+              label: context.l10n.usersFieldDisplayNameOptional,
               controller: _displayName,
             ),
             const SizedBox(height: AdminSpacing.x10),
             Text(
-              'Пользователю нужно будет сменить этот пароль при первом входе.',
+              context.l10n.usersTemporaryPasswordHint,
               style: AdminTypography.caption.copyWith(
                 color: colors.textSecondary,
                 height: 1.45,
@@ -100,12 +102,12 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       ),
       actions: [
         AdminButton(
-          label: 'Отмена',
+          label: context.l10n.usersCancel,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : widget.onCancel,
         ),
         AdminButton(
-          label: 'Создать пользователя',
+          label: context.l10n.usersCreateUser,
           variant: AdminButtonVariant.accent,
           size: AdminButtonSize.dialog,
           onPressed: widget.submitting ? null : _submit,

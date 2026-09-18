@@ -1,5 +1,7 @@
 import 'package:cherrypick/cherrypick.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/api/api_client.dart';
@@ -24,7 +26,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      AdminApp(scope: scope, session: SessionController()),
+      AdminApp(
+        scope: scope,
+        session: SessionController(),
+        localeController: LocaleController(initial: const Locale('ru')),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -88,7 +94,13 @@ void main() {
       onPasswordChangeRequired: session.passwordChangeRequired,
     );
 
-    await tester.pumpWidget(AdminApp(scope: scope, session: session));
+    await tester.pumpWidget(
+      AdminApp(
+        scope: scope,
+        session: session,
+        localeController: LocaleController(initial: const Locale('ru')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Смените пароль'), findsOneWidget);

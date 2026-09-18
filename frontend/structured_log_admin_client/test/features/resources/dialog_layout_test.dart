@@ -1,7 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/resource_dialogs.dart';
-import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
+
+import '../../support/localized_app.dart';
 
 /// A dialog is as tall as what it holds.
 ///
@@ -37,8 +38,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      FluentApp(
-        theme: AdminTheme.light(),
+      localizedApp(
         home: ScaffoldPage(content: Center(child: dialog)),
       ),
     );

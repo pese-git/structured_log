@@ -2,6 +2,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/formatting.dart';
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../resources/presentation/resource_failure_text.dart';
 import 'dashboard_cubit.dart';
@@ -52,7 +54,7 @@ class DashboardPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Дашборд',
+                context.l10n.dashTitle,
                 style: AdminTypography.pageTitle.copyWith(color: colors.text),
               ),
               const SizedBox(height: AdminSpacing.x18),
@@ -71,8 +73,8 @@ class DashboardPage extends StatelessWidget {
     if (state.failure != null) {
       return AdminEmptyState(
         icon: FluentIcons.error_badge,
-        title: 'Не удалось загрузить дашборд',
-        description: describeApiFailure(state.failure!),
+        title: context.l10n.dashLoadFailed,
+        description: describeApiFailure(context.l10n, state.failure!),
       );
     }
 
@@ -85,29 +87,27 @@ class DashboardPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Здравствуйте, $username',
+            context.l10n.dashGreeting(username),
             style: AdminTypography.sectionTitle.copyWith(color: colors.text),
           ),
           const SizedBox(height: AdminSpacing.x4),
           Text(
-            'Администратор · быстрый доступ к тому, чем вы управляете и что '
-            'можете просматривать',
+            context.l10n.dashSubtitle,
             style: AdminTypography.bodySmall.copyWith(
               color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: AdminSpacing.x24),
           Text(
-            'Все группы сервера',
+            context.l10n.dashAllGroups,
             style: AdminTypography.label.copyWith(color: colors.text),
           ),
           const SizedBox(height: AdminSpacing.x12),
           if (state.groups.isEmpty)
-            const AdminEmptyState(
+            AdminEmptyState(
               icon: FluentIcons.group,
-              title: 'Групп пока нет',
-              description:
-                  'Группы появятся здесь, как только кто-то их создаст.',
+              title: context.l10n.dashNoGroups,
+              description: context.l10n.dashNoGroupsHint,
             )
           else
             Wrap(
@@ -123,16 +123,15 @@ class DashboardPage extends StatelessWidget {
             ),
           const SizedBox(height: AdminSpacing.x24),
           Text(
-            'Проекты',
+            context.l10n.dashProjects,
             style: AdminTypography.label.copyWith(color: colors.text),
           ),
           const SizedBox(height: AdminSpacing.x12),
           if (state.projects.isEmpty)
-            const AdminEmptyState(
+            AdminEmptyState(
               icon: FluentIcons.database,
-              title: 'Проектов пока нет',
-              description:
-                  'Проекты появятся здесь, как только кто-то заведёт их внутри группы.',
+              title: context.l10n.dashNoProjects,
+              description: context.l10n.dashNoProjectsHint,
             )
           else
             Wrap(
@@ -188,14 +187,16 @@ class _GroupCard extends StatelessWidget {
           ),
           const SizedBox(height: AdminSpacing.x6),
           Text(
-            'Создана ${formatDate(group.createdAt)}',
+            context.l10n.dashCreatedOn(
+              formatDate(context.l10n, group.createdAt),
+            ),
             style: AdminTypography.caption.copyWith(
               color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: AdminSpacing.x10),
           AdminButton(
-            label: 'Открыть',
+            label: context.l10n.dashOpen,
             icon: FluentIcons.chevron_right,
             size: AdminButtonSize.tonal,
             onPressed: onOpen,
@@ -245,7 +246,7 @@ class _ProjectCard extends StatelessWidget {
           ),
           const SizedBox(height: AdminSpacing.x10),
           AdminQuotaBar(
-            label: 'Записей',
+            label: context.l10n.dashEntries,
             usageLabel: formatCount(entryCount),
             limitLabel: project.maxEntries == null
                 ? null
@@ -256,7 +257,7 @@ class _ProjectCard extends StatelessWidget {
           ),
           const SizedBox(height: AdminSpacing.x10),
           AdminButton(
-            label: 'Смотреть логи',
+            label: context.l10n.dashViewLogs,
             icon: FluentIcons.search,
             size: AdminButtonSize.tonal,
             onPressed: onOpenLogs,

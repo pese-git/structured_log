@@ -1,5 +1,7 @@
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:structured_log_admin_client/l10n/l10n.dart';
 import 'package:structured_log_admin_client/features/resources/application/manage_resources.dart';
 import 'package:structured_log_admin_client/features/resources/domain/resources_repository.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/group_detail_cubit.dart';
@@ -326,6 +328,9 @@ class _FakeRoleAssignments implements RoleAssignmentsRepository {
     '${invocation.memberName} is not used by resources_test.dart',
   );
 }
+
+final _ru = lookupAppLocalizations(const Locale('ru'));
+final _en = lookupAppLocalizations(const Locale('en'));
 
 void main() {
   late _FakeRepository repository;
@@ -814,14 +819,22 @@ void main() {
   group('what the screens say about a refusal', () {
     test('a 403 names the roles that would have been enough', () {
       expect(
-        describeApiFailure(const ApiFailure.forbidden(code: 'forbidden')),
+        describeApiFailure(_ru, const ApiFailure.forbidden(code: 'forbidden')),
         contains('администратору'),
       );
     });
 
+    test('the same refusal reads in English under the English locale', () {
+      expect(
+        describeApiFailure(_en, const ApiFailure.conflict(code: 'conflict')),
+        contains('already taken'),
+      );
+      expect(formatBytes(_en, 5 * 1024 * 1024), '5\u00A0MB');
+    });
+
     test('a 409 is a name already taken', () {
       expect(
-        describeApiFailure(const ApiFailure.conflict(code: 'conflict')),
+        describeApiFailure(_ru, const ApiFailure.conflict(code: 'conflict')),
         contains('уже занято'),
       );
     });
@@ -834,8 +847,8 @@ void main() {
     });
 
     test('bytes are stated in the unit the quota field uses', () {
-      expect(formatBytes(5 * 1024 * 1024), '5\u00A0МБ');
-      expect(formatBytes(2048), '2\u00A0КБ');
+      expect(formatBytes(_ru, 5 * 1024 * 1024), '5\u00A0МБ');
+      expect(formatBytes(_ru, 2048), '2\u00A0КБ');
     });
   });
 }

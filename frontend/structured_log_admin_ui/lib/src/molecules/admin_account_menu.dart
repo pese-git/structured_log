@@ -3,8 +3,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import '../tokens/tokens.dart';
 
 /// The flyout that opens from `AdminAppShell`'s account block — mirrors
-/// `AccountMenu.dc.html`: a small profile header, then "Настройки аккаунта"
-/// and "Выйти" as two distinct, labelled actions. Replaces the block's old
+/// `AccountMenu.dc.html`: a small profile header, then "Account settings"
+/// and "Sign out" as two distinct, labelled actions. Replaces the block's old
 /// single tap target, which opened account settings directly and buried
 /// sign-out as a button inside that dialog.
 class AdminAccountMenu extends StatelessWidget {
@@ -12,6 +12,8 @@ class AdminAccountMenu extends StatelessWidget {
   final String accountRole;
   final VoidCallback onOpenAccountSettings;
   final VoidCallback onSignOut;
+  final String accountSettingsLabel;
+  final String signOutLabel;
 
   const AdminAccountMenu({
     super.key,
@@ -19,6 +21,8 @@ class AdminAccountMenu extends StatelessWidget {
     required this.accountRole,
     required this.onOpenAccountSettings,
     required this.onSignOut,
+    this.accountSettingsLabel = 'Account settings',
+    this.signOutLabel = 'Sign out',
   });
 
   @override
@@ -89,7 +93,7 @@ class AdminAccountMenu extends StatelessWidget {
           const SizedBox(height: AdminSpacing.x4),
           _AccountMenuRow(
             icon: FluentIcons.settings,
-            label: 'Настройки аккаунта',
+            label: accountSettingsLabel,
             color: colors.text,
             hoverColor: colors.cardBg,
             onPressed: onOpenAccountSettings,
@@ -99,7 +103,7 @@ class AdminAccountMenu extends StatelessWidget {
           const SizedBox(height: AdminSpacing.x4),
           _AccountMenuRow(
             icon: FluentIcons.sign_out,
-            label: 'Выйти',
+            label: signOutLabel,
             color: colors.errorFg,
             hoverColor: colors.errorBg,
             onPressed: onSignOut,

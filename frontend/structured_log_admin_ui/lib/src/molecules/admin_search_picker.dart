@@ -55,7 +55,7 @@ class AdminSearchPicker<T> extends StatefulWidget {
     required this.label,
     required this.onSearch,
     required this.onSelected,
-    this.placeholder = 'Начните вводить название…',
+    this.placeholder = 'Start typing a name…',
     this.initialItem,
     this.errorText,
     this.enabled = true,

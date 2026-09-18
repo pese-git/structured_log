@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import 'sole_owner_conflict_dialog.dart';
 import 'user_failure_text.dart';
@@ -26,11 +27,10 @@ Future<void> toggleUserBlocked(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AdminConfirmDialog(
-      title: 'Заблокировать «${user.username}»?',
-      message:
-          'Текущая сессия пользователя завершится немедленно. Вход станет '
-          'невозможен до разблокировки.',
-      confirmLabel: 'Заблокировать',
+      title: context.l10n.usersBlockConfirmTitle(user.username),
+      message: context.l10n.usersBlockConfirmMessage,
+      confirmLabel: context.l10n.usersBlock,
+      cancelLabel: context.l10n.usersCancel,
       destructive: true,
       onConfirm: () => Navigator.of(dialogContext).pop(true),
       onCancel: () => Navigator.of(dialogContext).pop(false),
@@ -51,13 +51,10 @@ Future<void> deleteUser(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AdminConfirmDialog(
-      title: 'Удалить «${user.username}»?',
-      message:
-          'Необратимо: учётная запись перестанет существовать, все её '
-          'сессии будут завершены немедленно. Пароль не запрашивается — это '
-          'ваше административное действие. Отменить удаление нельзя — при '
-          'необходимости придётся создать новую учётную запись.',
-      confirmLabel: 'Удалить',
+      title: context.l10n.usersDeleteConfirmTitle(user.username),
+      message: context.l10n.usersDeleteConfirmMessage,
+      confirmLabel: context.l10n.usersDelete,
+      cancelLabel: context.l10n.usersCancel,
       destructive: true,
       onConfirm: () => Navigator.of(dialogContext).pop(true),
       onCancel: () => Navigator.of(dialogContext).pop(false),

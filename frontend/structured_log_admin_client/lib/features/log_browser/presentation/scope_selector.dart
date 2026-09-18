@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
+import '../../../l10n/l10n.dart';
 import '../domain/log_scope.dart';
 
 /// Picks the one scope to read.
@@ -26,12 +27,10 @@ class ScopeSelector extends StatelessWidget {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
     if (options.isEmpty) {
-      return const AdminEmptyState(
+      return AdminEmptyState(
         icon: FluentIcons.search,
-        title: 'Нет доступных областей',
-        description:
-            'Логи видны в проектах и группах, на которые у вас есть '
-            'роль. Попросите администратора выдать доступ.',
+        title: context.l10n.logsNoScopesTitle,
+        description: context.l10n.logsNoScopesBody,
       );
     }
 
@@ -43,13 +42,12 @@ class ScopeSelector extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Выберите область',
+              context.l10n.logsPickScopeTitle,
               style: AdminTypography.sectionTitle.copyWith(color: colors.text),
             ),
             const SizedBox(height: AdminSpacing.x4),
             Text(
-              'Логи запрашиваются по одному проекту или одной группе — '
-              'без объединения нескольких.',
+              context.l10n.logsPickScopeBody,
               style: AdminTypography.bodySmall.copyWith(
                 color: colors.textSecondary,
               ),
@@ -57,7 +55,7 @@ class ScopeSelector extends StatelessWidget {
             if (options.projects.isNotEmpty) ...[
               const SizedBox(height: AdminSpacing.x18),
               _Group(
-                title: 'Проекты',
+                title: context.l10n.logsProjects,
                 children: [
                   for (final project in options.projects)
                     _ScopeTile(
@@ -76,7 +74,7 @@ class ScopeSelector extends StatelessWidget {
             if (options.groups.isNotEmpty) ...[
               const SizedBox(height: AdminSpacing.x18),
               _Group(
-                title: 'Группы',
+                title: context.l10n.logsGroups,
                 children: [
                   for (final group in options.groups)
                     _ScopeTile(
@@ -167,8 +165,8 @@ class _ScopeTile extends StatelessWidget {
             ),
             if (blocked) ...[
               const SizedBox(width: AdminSpacing.x6),
-              const AdminStatusTag(
-                label: 'заблокирован',
+              AdminStatusTag(
+                label: context.l10n.logsBlocked,
                 tone: AdminStatusTone.error,
               ),
             ],

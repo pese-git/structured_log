@@ -2,6 +2,7 @@ import 'package:cherrypick/cherrypick.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:structured_log_admin_client/shared/l10n/locale_controller.dart';
 import 'package:structured_log_admin_client/app/app.dart';
 import 'package:structured_log_admin_client/shared/auth/session_controller.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
@@ -69,7 +70,13 @@ void main() {
       onSessionExpired: session.expire,
       onPasswordChangeRequired: session.passwordChangeRequired,
     );
-    await tester.pumpWidget(AdminApp(scope: scope, session: session));
+    await tester.pumpWidget(
+      AdminApp(
+        scope: scope,
+        session: session,
+        localeController: LocaleController(initial: const Locale('ru')),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 

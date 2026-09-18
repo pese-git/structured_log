@@ -14,6 +14,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Localization (English and Russian) through gen-l10n: ARB files in
+  # `lib/l10n/`, the generated `AppLocalizations` beside them.
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
   # UI: Fluent, and this client's own component library (design.md
   # decisions 38/39). fluent_ui is still a direct dependency — the screens use
@@ -84,3 +89,4 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true

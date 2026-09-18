@@ -17,7 +17,9 @@ import '../features/audit/presentation/audit_page.dart';
 import '../features/dashboard/presentation/dashboard_cubit.dart';
 import '../features/dashboard/presentation/dashboard_page.dart';
 import '../features/log_browser/di/log_browser_module.dart';
+import '../features/log_browser/domain/log_scope.dart';
 import '../features/log_browser/presentation/log_browser_page.dart';
+import '../features/log_browser/presentation/log_feed_event.dart';
 import '../features/log_browser/presentation/log_feed_bloc.dart';
 import '../features/resources/application/manage_resources.dart';
 import '../features/resources/di/resources_module.dart';
@@ -28,8 +30,10 @@ import '../features/users/presentation/user_failure_text.dart'
     show blockingGroups;
 import '../features/users/presentation/users_cubit.dart';
 import '../features/users/presentation/users_section.dart';
+import '../l10n/l10n.dart';
 import '../shared/api/api_failure.dart';
 import '../shared/auth/session_controller.dart';
+import '../shared/l10n/locale_controller.dart';
 
 /// The destinations the nav can offer, in the order it offers them.
 ///
@@ -66,7 +70,16 @@ class HomeShell extends StatefulWidget {
   final Scope scope;
   final SessionController session;
 
-  const HomeShell({super.key, required this.scope, required this.session});
+  /// The language switcher on the account settings page. Without one there is
+  /// nothing to switch, and the page leaves the card out.
+  final LocaleController? localeController;
+
+  const HomeShell({
+    super.key,
+    required this.scope,
+    required this.session,
+    this.localeController,
+  });
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -101,6 +114,11 @@ class _HomeShellState extends State<HomeShell> {
   /// so it starts fresh rather than on whatever it was last showing.
   Key _logsKey = const ValueKey('logs');
 
+  /// The project the log browser opens on when it was reached from that
+  /// project's own screen — "Open logs" there means these logs, not a list of
+  /// scopes to choose from. `null` when reached from the nav.
+  LogScope? _logsInitialScope;
+
   /// Same idea as [_logsKey], for jumping from the dashboard straight into a
   /// group (`_openGroupFor`) instead of the group list.
   Key _resourcesKey = const ValueKey('resources');
@@ -130,33 +148,42 @@ class _HomeShellState extends State<HomeShell> {
 
   /// The nav, flattened — the single list both the sections and the selected
   /// index are derived from.
-  List<_NavEntry> get _entries => [
+  List<_NavEntry> _entries(AppLocalizations l10n) => [
     if (_isAdmin)
-      const (
-        section: 'Обзор',
-        item: AdminNavItem(icon: FluentIcons.view_dashboard, label: 'Дашборд'),
+      (
+        section: l10n.shellNavOverview,
+        item: AdminNavItem(
+          icon: FluentIcons.view_dashboard,
+          label: l10n.shellNavDashboard,
+        ),
         destination: _Destination.dashboard,
       ),
-    const (
-      section: 'Администрирование',
-      item: AdminNavItem(icon: FluentIcons.group, label: 'Группы'),
+    (
+      section: l10n.shellNavAdministration,
+      item: AdminNavItem(icon: FluentIcons.group, label: l10n.shellNavGroups),
       destination: _Destination.groups,
     ),
     if (_isAdmin)
-      const (
-        section: 'Администрирование',
-        item: AdminNavItem(icon: FluentIcons.people, label: 'Пользователи'),
+      (
+        section: l10n.shellNavAdministration,
+        item: AdminNavItem(icon: FluentIcons.people, label: l10n.shellNavUsers),
         destination: _Destination.users,
       ),
     if (_isAdmin)
-      const (
-        section: 'Администрирование',
-        item: AdminNavItem(icon: FluentIcons.text_document, label: 'Аудит'),
+      (
+        section: l10n.shellNavAdministration,
+        item: AdminNavItem(
+          icon: FluentIcons.text_document,
+          label: l10n.shellNavAudit,
+        ),
         destination: _Destination.audit,
       ),
-    const (
-      section: 'Логи',
-      item: AdminNavItem(icon: FluentIcons.search, label: 'Поиск логов'),
+    (
+      section: l10n.shellNavLogs,
+      item: AdminNavItem(
+        icon: FluentIcons.search,
+        label: l10n.shellNavLogSearch,
+      ),
       destination: _Destination.logs,
     ),
   ];
@@ -188,6 +215,7 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _destination = _Destination.logs;
       _logsKey = ValueKey('logs-$projectId');
+      _logsInitialScope = LogScope.project(id: projectId, name: projectName);
     });
   }
 
@@ -209,7 +237,8 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = _entries;
+    final l10n = context.l10n;
+    final entries = _entries(l10n);
     final selected = entries.indexWhere((e) => e.destination == _destination);
 
     return AdminAppShell(
@@ -221,8 +250,10 @@ class _HomeShellState extends State<HomeShell> {
       // "Аккаунт" / "Настройки" for every viewer, which is what made a
       // single ambiguous tap target tolerable in the first place — a real
       // name/role is worth a real menu (`AdminAccountMenu`).
-      accountName: _username ?? 'Аккаунт',
-      accountRole: _isAdmin ? 'Администратор' : 'Пользователь',
+      accountName: _username ?? l10n.shellAccountFallback,
+      accountRole: _isAdmin ? l10n.shellRoleAdmin : l10n.shellRoleUser,
+      accountSettingsLabel: l10n.shellAccountSettings,
+      signOutLabel: l10n.shellSignOut,
       onOpenAccountSettings: _openAccountSettings,
       onSignOut: _signOut,
       // -1 both when a destination's item has gone away (must not read as
@@ -275,7 +306,13 @@ class _HomeShellState extends State<HomeShell> {
         ),
         _Destination.logs => BlocProvider(
           key: _logsKey,
-          create: (_) => _logScope.resolve<LogFeedBloc>(),
+          create: (_) {
+            final bloc = _logScope.resolve<LogFeedBloc>();
+            if (_logsInitialScope case final scope?) {
+              bloc.add(LogFeedEvent.scopeSelected(scope));
+            }
+            return bloc;
+          },
           child: const LogBrowserPage(),
         ),
         _Destination.accountSettings => BlocProvider(
@@ -285,6 +322,7 @@ class _HomeShellState extends State<HomeShell> {
           )..loadUsername(),
           child: _AccountSettingsPage(
             onDeleteAccount: () => _openDeleteAccount(context),
+            localeController: widget.localeController,
           ),
         ),
       },
@@ -322,6 +360,7 @@ class _HomeShellState extends State<HomeShell> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => SoleOwnerConflictDialog(
+        ownAccount: true,
         groups: groups,
         onClose: () => Navigator.of(dialogContext).pop(),
         // Granting a role needs `admin` or that group's own `owner`
@@ -413,36 +452,38 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     }
     setState(() {
       _submitting = false;
-      _errorText = result.match(_errorTextFor, (_) => null);
+      _errorText = result.match(
+        (failure) => _errorTextFor(context.l10n, failure),
+        (_) => null,
+      );
     });
   }
 
-  String _errorTextFor(ApiFailure failure) => switch (failure) {
-    UnauthorizedFailure(code: 'invalid_grant') => 'Текущий пароль неверен.',
-    ForbiddenFailure(code: 'cannot_delete_primary_admin') =>
-      'Основного администратора удалить нельзя — эта учётная запись '
-          'защищена навсегда.',
-    RateLimitedFailure(:final retryAfter) =>
-      'Слишком много попыток. Попробуйте снова через '
-          '${retryAfter.inSeconds} с.',
-    NetworkFailure() => 'Сервер недоступен. Проверьте подключение.',
-    _ => 'Не удалось удалить аккаунт. Попробуйте ещё раз.',
-  };
+  String _errorTextFor(AppLocalizations l10n, ApiFailure failure) =>
+      switch (failure) {
+        UnauthorizedFailure(code: 'invalid_grant') =>
+          l10n.shellDeleteInvalidPassword,
+        ForbiddenFailure(code: 'cannot_delete_primary_admin') =>
+          l10n.shellDeletePrimaryAdmin,
+        RateLimitedFailure(:final retryAfter) => l10n.shellRateLimited(
+          retryAfter.inSeconds,
+        ),
+        NetworkFailure() => l10n.shellNetworkFailure,
+        _ => l10n.shellDeleteFailed,
+      };
 
   @override
   Widget build(BuildContext context) {
     return AdminConfirmDialog(
-      title: 'Удалить аккаунт?',
-      message:
-          'Это необратимо. Ваша учётная запись будет заблокирована '
-          'навсегда, все текущие сессии завершены немедленно. Имя '
-          'пользователя останется зарезервированным.',
+      title: context.l10n.shellDeleteTitle,
+      message: context.l10n.shellDeleteMessage,
       destructive: true,
-      confirmLabel: 'Удалить аккаунт',
+      confirmLabel: context.l10n.shellDeleteConfirm,
+      cancelLabel: context.l10n.commonCancel,
       onConfirm: _submitting ? null : _submit,
       onCancel: () => Navigator.of(context).pop(),
       content: AdminTextField(
-        label: 'Подтвердите текущим паролем',
+        label: context.l10n.shellDeletePasswordLabel,
         controller: _password,
         obscure: true,
         autofocus: true,
@@ -480,8 +521,12 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
 /// the password form.
 class _AccountSettingsPage extends StatefulWidget {
   final VoidCallback onDeleteAccount;
+  final LocaleController? localeController;
 
-  const _AccountSettingsPage({required this.onDeleteAccount});
+  const _AccountSettingsPage({
+    required this.onDeleteAccount,
+    required this.localeController,
+  });
 
   @override
   State<_AccountSettingsPage> createState() => _AccountSettingsPageState();
@@ -495,6 +540,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    final l10n = context.l10n;
 
     return BlocBuilder<ChangePasswordCubit, ChangePasswordState>(
       builder: (context, state) {
@@ -511,12 +557,12 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Настройки аккаунта',
+                  l10n.shellSettingsTitle,
                   style: AdminTypography.pageTitle.copyWith(color: colors.text),
                 ),
                 const SizedBox(height: AdminSpacing.x18),
                 if (state.username != null) ...[
-                  _SectionLabel('Профиль', colors: colors),
+                  _SectionLabel(l10n.shellSectionProfile, colors: colors),
                   const SizedBox(height: AdminSpacing.x10),
                   _Card(
                     colors: colors,
@@ -524,7 +570,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         AdminKeyValueRow(
-                          label: 'Имя пользователя',
+                          label: l10n.shellUsername,
                           value: state.username!,
                           monospaceValue: true,
                         ),
@@ -532,9 +578,9 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                         // mockup fields have nowhere to come from. Shown
                         // rather than dropped, the way `UserDetailPage`
                         // shows a blank email as "—" for the same reason.
-                        const AdminKeyValueRow(label: 'Email', value: '—'),
-                        const AdminKeyValueRow(
-                          label: 'Отображаемое имя',
+                        AdminKeyValueRow(label: l10n.shellEmail, value: '—'),
+                        AdminKeyValueRow(
+                          label: l10n.shellDisplayName,
                           value: '—',
                         ),
                       ],
@@ -542,32 +588,36 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                   ),
                   const SizedBox(height: AdminSpacing.x18),
                 ],
-                _SectionLabel('Безопасность', colors: colors),
+                if (widget.localeController case final controller?) ...[
+                  _SectionLabel(l10n.shellSectionLanguage, colors: colors),
+                  const SizedBox(height: AdminSpacing.x10),
+                  _Card(
+                    colors: colors,
+                    child: _LanguageRow(controller: controller),
+                  ),
+                  const SizedBox(height: AdminSpacing.x18),
+                ],
+                _SectionLabel(l10n.shellSectionSecurity, colors: colors),
                 const SizedBox(height: AdminSpacing.x10),
                 _Card(
                   colors: colors,
                   child: state.changed
-                      ? const AdminBanner(
-                          message:
-                              'Пароль изменён. Сессия не прервана — можно '
-                              'продолжать работу.',
-                        )
+                      ? AdminBanner(message: l10n.shellPasswordChanged)
                       : _changingPassword
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Потребуется текущий пароль. Смена не '
-                              'завершает вашу сессию — вы останетесь в '
-                              'приложении.',
+                              l10n.shellPasswordHintForm,
                               style: AdminTypography.caption.copyWith(
                                 color: colors.textSecondary,
                                 height: 1.45,
                               ),
                             ),
                             const SizedBox(height: AdminSpacing.x14),
-                            const ChangePasswordForm(
-                              submitLabel: 'Сменить пароль',
+                            ChangePasswordForm(
+                              currentIsTemporary: false,
+                              submitLabel: l10n.shellChangePassword,
                             ),
                           ],
                         )
@@ -579,15 +629,14 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Сменить пароль',
+                                    l10n.shellChangePassword,
                                     style: AdminTypography.label.copyWith(
                                       color: colors.text,
                                     ),
                                   ),
                                   const SizedBox(height: AdminSpacing.x4),
                                   Text(
-                                    'Потребуется текущий пароль. Смена не '
-                                    'завершает вашу сессию.',
+                                    l10n.shellPasswordHintRow,
                                     style: AdminTypography.caption.copyWith(
                                       color: colors.textSecondary,
                                       height: 1.45,
@@ -598,7 +647,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                             ),
                             const SizedBox(width: AdminSpacing.x14),
                             AdminButton(
-                              label: 'Сменить пароль',
+                              label: l10n.shellChangePassword,
                               onPressed: () =>
                                   setState(() => _changingPassword = true),
                             ),
@@ -607,7 +656,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                 ),
                 const SizedBox(height: AdminSpacing.x18),
                 _SectionLabel(
-                  'Опасная зона',
+                  l10n.shellSectionDanger,
                   colors: colors,
                   color: colors.errorFg,
                 ),
@@ -623,16 +672,14 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Удалить аккаунт',
+                              l10n.shellDeleteAccountTitle,
                               style: AdminTypography.label.copyWith(
                                 color: colors.text,
                               ),
                             ),
                             const SizedBox(height: AdminSpacing.x4),
                             Text(
-                              'Безвозвратно удаляет вашу учётную запись. '
-                              'Все ваши сессии будут завершены немедленно. '
-                              'Действие нельзя отменить.',
+                              l10n.shellDeleteAccountText,
                               style: AdminTypography.caption.copyWith(
                                 color: colors.textSecondary,
                                 height: 1.45,
@@ -643,7 +690,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                       ),
                       const SizedBox(width: AdminSpacing.x14),
                       AdminButton(
-                        label: 'Удалить аккаунт',
+                        label: l10n.shellDeleteAccountTitle,
                         variant: AdminButtonVariant.danger,
                         onPressed: widget.onDeleteAccount,
                       ),
@@ -701,6 +748,74 @@ class _Card extends StatelessWidget {
         borderRadius: BorderRadius.circular(AdminRadius.card),
       ),
       child: child,
+    );
+  }
+}
+
+/// The language switcher: a hint on the left, the choice on the right — the
+/// same row shape as the other cards on this page.
+///
+/// "Browser default" is a real choice, not the absence of one: it is what puts
+/// a person back to following the browser after they tried a language.
+class _LanguageRow extends StatelessWidget {
+  final LocaleController controller;
+
+  const _LanguageRow({required this.controller});
+
+  static const _system = 'system';
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AdminColors.of(FluentTheme.of(context).brightness);
+    final l10n = context.l10n;
+
+    // Names are written in their own language, whichever one is showing:
+    // someone who landed on a language they cannot read must still be able to
+    // find their own.
+    String nameOf(Locale locale) => switch (locale.languageCode) {
+      'ru' => l10n.shellLanguageRussian,
+      'en' => l10n.shellLanguageEnglish,
+      _ => locale.languageCode,
+    };
+
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              l10n.shellLanguageHint,
+              style: AdminTypography.caption.copyWith(
+                color: colors.textSecondary,
+                height: 1.45,
+              ),
+            ),
+          ),
+          const SizedBox(width: AdminSpacing.x14),
+          SizedBox(
+            width: 200,
+            child: ComboBox<String>(
+              isExpanded: true,
+              value: controller.locale?.languageCode ?? _system,
+              items: [
+                ComboBoxItem(
+                  value: _system,
+                  child: Text(l10n.shellLanguageSystem),
+                ),
+                for (final locale in LocaleController.supported)
+                  ComboBoxItem(
+                    value: locale.languageCode,
+                    child: Text(nameOf(locale)),
+                  ),
+              ],
+              onChanged: (code) => controller.select(
+                code == null || code == _system ? null : Locale(code),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

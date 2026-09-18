@@ -4,6 +4,8 @@ import 'app/app.dart';
 import 'shared/auth/session_controller.dart';
 import 'shared/config/app_config.dart';
 import 'shared/di/app_module.dart';
+import 'shared/l10n/locale_controller.dart';
+import 'shared/l10n/locale_store.dart';
 import 'shared/logging/setup.dart';
 
 /// Where the server lives, supplied at build time:
@@ -39,5 +41,11 @@ void main() {
     onPasswordChangeRequired: session.passwordChangeRequired,
   );
 
-  runApp(AdminApp(scope: scope, session: session));
+  runApp(
+    AdminApp(
+      scope: scope,
+      session: session,
+      localeController: LocaleController(store: createLocaleStore()),
+    ),
+  );
 }
