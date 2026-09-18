@@ -59,11 +59,17 @@ class ResourcesSection extends StatefulWidget {
   /// grant attempt actually gets.
   final bool isAdmin;
 
+  /// Where the section starts, when it should not be the group list — the
+  /// dashboard's "Открыть" jumps straight into a group (`Main.dc.html`).
+  /// `null` starts at the group list, as before this existed.
+  final ({int id, String name})? initialGroup;
+
   const ResourcesSection({
     super.key,
     required this.scope,
     required this.onOpenLogs,
     required this.isAdmin,
+    this.initialGroup,
   });
 
   @override
@@ -71,7 +77,9 @@ class ResourcesSection extends StatefulWidget {
 }
 
 class _ResourcesSectionState extends State<ResourcesSection> {
-  _Location _at = const _Groups();
+  late _Location _at = widget.initialGroup == null
+      ? const _Groups()
+      : _GroupDetail(widget.initialGroup!.id, widget.initialGroup!.name);
 
   void _go(_Location location) => setState(() => _at = location);
 
