@@ -481,13 +481,18 @@ class SecretKeyRevealDialog extends StatelessWidget {
   }
 }
 
-/// One field and a name for it. Used for the group and the secret key, which
-/// the server asks nothing else about.
+/// One field and a name for it. Used for the group, the team, and the secret
+/// key, which the server asks nothing else about.
 class NameDialog extends StatefulWidget {
   final String title;
   final String fieldLabel;
   final String confirmLabel;
   final String? description;
+
+  /// The enclosing group, shown as a «Группа» tag above the field — the team
+  /// this dialog also creates has one, the group this dialog creates does
+  /// not (`CreateTeamDialog.dc.html` vs `Groups.dc.html`'s own dialog).
+  final String? groupLabel;
   final bool submitting;
   final String? errorText;
   final ValueChanged<String> onSubmit;
@@ -501,6 +506,7 @@ class NameDialog extends StatefulWidget {
     required this.onSubmit,
     required this.onCancel,
     this.description,
+    this.groupLabel,
     this.submitting = false,
     this.errorText,
   });
@@ -543,6 +549,15 @@ class _NameDialogState extends State<NameDialog> {
                 message: widget.errorText!,
                 tone: AdminBannerTone.error,
               ),
+              const SizedBox(height: AdminSpacing.x14),
+            ],
+            if (widget.groupLabel != null) ...[
+              Text(
+                'Группа',
+                style: AdminTypography.bodySmall.copyWith(color: colors.text),
+              ),
+              const SizedBox(height: AdminSpacing.x6),
+              AdminTag(label: widget.groupLabel!),
               const SizedBox(height: AdminSpacing.x14),
             ],
             AdminTextField(
@@ -779,6 +794,7 @@ class _SubjectTypePicker extends StatelessWidget {
 /// wraps this in the same `BlocBuilder` pattern as `_Access` above.
 class TeamMembersDialog extends StatefulWidget {
   final String teamName;
+  final String groupName;
   final List<TeamMemberDto> members;
   final bool loading;
   final bool changing;
@@ -791,6 +807,7 @@ class TeamMembersDialog extends StatefulWidget {
   const TeamMembersDialog({
     super.key,
     required this.teamName,
+    required this.groupName,
     required this.members,
     required this.searchUsers,
     required this.onAdd,
@@ -815,9 +832,21 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
 
     return ContentDialog(
       constraints: const BoxConstraints(maxWidth: 480),
-      title: Text(
-        'Состав команды «${widget.teamName}»',
-        style: AdminTypography.sectionTitle.copyWith(color: colors.text),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Состав команды «${widget.teamName}»',
+            style: AdminTypography.sectionTitle.copyWith(color: colors.text),
+          ),
+          const SizedBox(height: AdminSpacing.x4),
+          Text(
+            'Группа: ${widget.groupName}',
+            style: AdminTypography.bodySmall.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
       ),
       // Scrolling, like the quota dialogs above — same reasoning
       // (`test/features/resources/dialog_layout_test.dart`).

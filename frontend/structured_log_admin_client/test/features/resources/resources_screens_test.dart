@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:structured_log_admin_client/features/resources/application/manage_resources.dart';
 import 'package:structured_log_admin_client/features/resources/domain/resources_repository.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/group_detail_cubit.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/group_detail_page.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/groups_cubit.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/groups_page.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/project_detail_cubit.dart';
@@ -449,5 +451,54 @@ void main() {
         reason: 'the row a revoke was refused on is still there',
       );
     });
+  });
+
+  group("one group's detail", () {
+    Future<void> pump(WidgetTester tester) async {
+      useWideSurface(tester);
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: roleAssignments,
+        teams: ManageTeams(repository),
+        groupId: 1,
+      )..load();
+      addTearDown(cubit.close);
+      await tester.pumpWidget(
+        _host(
+          BlocProvider.value(
+            value: cubit,
+            child: GroupDetailPage(
+              groupName: 'Acme Corp',
+              isAdmin: false,
+              onBack: () {},
+              onOpenProject: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'creating a team names the group it belongs to, and what to do next',
+      (tester) async {
+        await pump(tester);
+
+        await tester.tap(find.text('Команда'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.descendant(
+            of: find.byType(ContentDialog),
+            matching: find.text('Acme Corp'),
+          ),
+          findsOneWidget,
+          reason:
+              'the group tag, so a reader with several groups open '
+              'knows which one this team is going into',
+        );
+        expect(find.textContaining('добавьте участников'), findsOneWidget);
+      },
+    );
   });
 }
