@@ -140,6 +140,7 @@ void main() {
     ownerUserId = user.id;
 
     final grant = (await adminRoleAssignments.grant(
+      subjectType: 'user',
       subjectId: ownerUserId,
       role: 'owner',
       scopeType: 'group',
@@ -249,6 +250,7 @@ void main() {
 
     final delegated =
         (await ownerRoleAssignments.grant(
+          subjectType: 'user',
           subjectId: teammate.id,
           role: 'user',
           scopeType: 'group',
@@ -267,6 +269,7 @@ void main() {
     );
 
     final deniedGrant = await ownerRoleAssignments.grant(
+      subjectType: 'user',
       subjectId: teammate.id,
       role: 'user',
       scopeType: 'group',

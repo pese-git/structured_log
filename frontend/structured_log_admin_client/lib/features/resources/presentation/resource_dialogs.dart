@@ -683,10 +683,14 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
             const SizedBox(height: AdminSpacing.x14),
             // Keyed on subject type so switching user ↔ team mounts a fresh
             // picker instead of reusing one still holding the other kind's
-            // text and results.
+            // text and results. Labelled generically, not 'Пользователь'/
+            // 'Команда' — the picker right above it already says which one
+            // this is; repeating it here only duplicated that text on
+            // screen (13.5, found by the browser-driven e2e test expecting
+            // one 'Пользователь', not two).
             AdminSearchPicker<int>(
               key: ValueKey(_subjectType),
-              label: _subjectType == 'user' ? 'Пользователь' : 'Команда',
+              label: 'Имя получателя',
               placeholder: _subjectType == 'user'
                   ? 'Начните вводить имя пользователя…'
                   : 'Начните вводить название команды…',
