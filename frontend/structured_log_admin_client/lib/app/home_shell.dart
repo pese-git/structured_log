@@ -9,6 +9,7 @@ import '../features/auth/di/auth_module.dart';
 import '../features/auth/presentation/change_password_cubit.dart';
 import '../features/auth/presentation/change_password_form.dart';
 import '../features/audit/di/audit_module.dart';
+import '../features/audit/domain/audit_filter.dart';
 import '../features/audit/presentation/audit_cubit.dart';
 import '../features/audit/presentation/audit_page.dart';
 import '../features/dashboard/presentation/dashboard_cubit.dart';
@@ -20,8 +21,7 @@ import '../features/resources/application/manage_resources.dart';
 import '../features/resources/di/resources_module.dart';
 import '../features/resources/presentation/resources_section.dart';
 import '../features/users/di/users_module.dart';
-import '../features/users/presentation/users_cubit.dart';
-import '../features/users/presentation/users_page.dart';
+import '../features/users/presentation/users_section.dart';
 import '../shared/auth/session_controller.dart';
 
 /// The destinations the nav can offer, in the order it offers them.
@@ -93,6 +93,12 @@ class _HomeShellState extends State<HomeShell> {
   /// group (`_openGroupFor`) instead of the group list.
   Key _resourcesKey = const ValueKey('resources');
   ({int id, String name})? _resourcesInitialGroup;
+
+  /// Same idea again, for `UserDetailPage`'s "Открыть в аудите" link
+  /// (`_openAuditFor`) — a fresh `AuditCubit` filtered to one actor instead
+  /// of the unfiltered journal.
+  Key _auditKey = const ValueKey('audit');
+  int? _auditInitialActorId;
 
   @override
   void initState() {
@@ -181,6 +187,14 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
+  void _openAuditFor(int actorUserId) {
+    setState(() {
+      _destination = _Destination.audit;
+      _auditInitialActorId = actorUserId;
+      _auditKey = ValueKey('audit-actor-$actorUserId');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = _entries;
@@ -220,12 +234,22 @@ class _HomeShellState extends State<HomeShell> {
           isAdmin: _isAdmin,
           initialGroup: _resourcesInitialGroup,
         ),
-        _Destination.users => BlocProvider(
-          create: (_) => _usersScope.resolve<UsersCubit>()..load(),
-          child: const UsersPage(),
+        _Destination.users => UsersSection(
+          scope: _usersScope,
+          onOpenAudit: _openAuditFor,
         ),
         _Destination.audit => BlocProvider(
-          create: (_) => _auditScope.resolve<AuditCubit>()..load(),
+          key: _auditKey,
+          create: (_) {
+            final cubit = _auditScope.resolve<AuditCubit>();
+            final actorId = _auditInitialActorId;
+            if (actorId == null) {
+              cubit.load();
+            } else {
+              cubit.applyFilter(AuditFilter(actorUserId: actorId));
+            }
+            return cubit;
+          },
           child: const AuditPage(),
         ),
         _Destination.logs => BlocProvider(

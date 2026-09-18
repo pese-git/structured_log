@@ -2,16 +2,17 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
-import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../resources/presentation/resource_failure_text.dart'
     show formatDate;
+import 'user_actions.dart';
 import 'user_dialogs.dart';
 import 'user_failure_text.dart';
 import 'users_cubit.dart';
 
-/// The list of users, and the way to create, edit, block/unblock and delete
-/// one (`Users.dc.html`).
+/// The list of users, and the way to create one; block/unblock, delete and
+/// edit move to `UserDetailPage`/`EditUserPage` once a row is open
+/// (`Users.dc.html`).
 ///
 /// Offered only to a reader whose access token carries the global admin
 /// role — but that decides what to offer, never what to allow: the server
@@ -19,7 +20,9 @@ import 'users_cubit.dart';
 /// screen renders that refusal rather than assuming it cannot happen
 /// (`HomeShell._isAdmin`).
 class UsersPage extends StatelessWidget {
-  const UsersPage({super.key});
+  final ValueChanged<UserDto> onOpen;
+
+  const UsersPage({super.key, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +93,7 @@ class UsersPage extends StatelessWidget {
     return ListView(
       children: [
         for (final user in state.users) ...[
-          _UserRow(user: user),
+          _UserRow(user: user, onOpen: onOpen),
           const SizedBox(height: AdminSpacing.x10),
         ],
         if (state.hasMore)
@@ -151,8 +154,9 @@ class UsersPage extends StatelessWidget {
 
 class _UserRow extends StatelessWidget {
   final UserDto user;
+  final ValueChanged<UserDto> onOpen;
 
-  const _UserRow({required this.user});
+  const _UserRow({required this.user, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +165,7 @@ class _UserRow extends StatelessWidget {
       identifier: user.username,
       title: user.displayName ?? user.username,
       subtitle: 'Создан ${formatDate(user.createdAt)}',
+      onPressed: () => onOpen(user),
       tags: [
         if (user.isDeleted)
           const AdminStatusTag(label: 'Удалён', tone: AdminStatusTone.neutral)
@@ -179,188 +184,36 @@ class _UserRow extends StatelessWidget {
             tone: AdminStatusTone.warning,
           ),
       ],
-      actions: user.isDeleted
-          ? const []
-          : [
-              AdminButton(
-                label: 'Изменить',
-                size: AdminButtonSize.tonal,
-                onPressed: () => _edit(context, user),
-              ),
-              AdminButton(
-                label: user.isBlocked ? 'Разблокировать' : 'Заблокировать',
-                size: AdminButtonSize.tonal,
-                onPressed: () => _toggleBlocked(context, user),
-              ),
-              // Deleting the primary administrator is refused server-side
-              // unconditionally, so the action is not offered at all — an
-              // absent action reads more honestly than one that always fails
-              // (`AdminResourceRow`'s own rule).
-              if (!user.isPrimaryAdmin)
-                AdminButton(
-                  label: 'Удалить',
-                  size: AdminButtonSize.tonal,
-                  onPressed: () => _delete(context, user),
-                ),
-            ],
-    );
-  }
-
-  Future<void> _edit(BuildContext context, UserDto user) async {
-    final cubit = context.read<UsersCubit>();
-    cubit.loadRoleAssignments(user.id);
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => BlocProvider.value(
-        value: cubit,
-        child: BlocBuilder<UsersCubit, UsersState>(
-          builder: (builderContext, state) {
-            // The row's own copy of `user` does not update while this dialog
-            // is open — it comes from the outer list, which only rebuilds
-            // once the dialog closes — so the dialog is seeded from it once
-            // and does not need to track later saves itself.
-            return EditUserDialog(
-              user: user,
-              submitting: state.saving,
-              errorText: state.actionFailure == null
-                  ? null
-                  : describeUserFailure(state.actionFailure!),
-              roleAssignments: state.roleAssignments,
-              onSaveDisplayName: (value) =>
-                  cubit.update(userId: user.id, displayName: value),
-              onSetPassword: (password, displayName) => cubit.update(
-                userId: user.id,
-                displayName: displayName,
-                password: password,
-              ),
-              onGrantRole: (grant) => cubit.grantRole(
-                userId: user.id,
-                role: grant.role,
-                scopeType: grant.scopeType,
-                scopeId: grant.scopeId,
-              ),
-              onRevokeRole: (assignmentId) =>
-                  cubit.revokeRole(assignmentId, user.id),
-              searchGroups: cubit.searchGroups,
-              searchProjects: cubit.searchProjects,
-              onClose: () => Navigator.of(dialogContext).pop(),
-            );
-          },
+      // "Изменить" is not offered here any more — "Открыть" (and the row
+      // itself, `onPressed` above) reaches `UserDetailPage`, and editing
+      // lives there now. Block/unblock and delete stay as a row shortcut,
+      // matching `Users.dc.html`.
+      actions: [
+        AdminButton(
+          label: 'Открыть',
+          size: AdminButtonSize.tonal,
+          onPressed: () => onOpen(user),
         ),
-      ),
-    );
-    cubit.clearActionFailure();
-  }
-
-  Future<void> _toggleBlocked(BuildContext context, UserDto user) async {
-    final cubit = context.read<UsersCubit>();
-    if (user.isBlocked) {
-      // Reversible and corrective — unblocking only restores what blocking
-      // took away, so it does not need the same confirmation blocking does.
-      await cubit.setBlocked(user.id, false);
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Заблокировать «${user.username}»?',
-        message:
-            'Текущая сессия пользователя завершится немедленно. Вход станет '
-            'невозможен до разблокировки.',
-        confirmLabel: 'Заблокировать',
-        destructive: true,
-        onConfirm: () => Navigator.of(dialogContext).pop(true),
-        onCancel: () => Navigator.of(dialogContext).pop(false),
-      ),
-    );
-    if (confirmed ?? false) await cubit.setBlocked(user.id, true);
-  }
-
-  Future<void> _delete(BuildContext context, UserDto user) async {
-    final cubit = context.read<UsersCubit>();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AdminConfirmDialog(
-        title: 'Удалить «${user.username}»?',
-        message:
-            'Необратимо: учётная запись перестанет существовать. Отменить '
-            'удаление нельзя — при необходимости придётся создать новую '
-            'учётную запись.',
-        confirmLabel: 'Удалить',
-        destructive: true,
-        onConfirm: () => Navigator.of(dialogContext).pop(true),
-        onCancel: () => Navigator.of(dialogContext).pop(false),
-      ),
-    );
-    if (!(confirmed ?? false)) return;
-
-    await cubit.delete(user.id);
-    final failure = cubit.state.actionFailure;
-    if (failure == null) return;
-    if (!context.mounted) return;
-    await _showDeleteRefused(context, failure);
-    cubit.clearActionFailure();
-  }
-
-  /// `409 sole_group_owner` names the groups a reader has to hand ownership
-  /// of before this deletion can succeed — shown as a list, not folded into
-  /// one sentence, because the whole point is telling the reader exactly
-  /// which groups to act on.
-  Future<void> _showDeleteRefused(
-    BuildContext context,
-    ApiFailure failure,
-  ) async {
-    final groups = blockingGroupNames(failure);
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final colors = AdminColors.of(FluentTheme.of(dialogContext).brightness);
-        return ContentDialog(
-          constraints: const BoxConstraints(maxWidth: 420),
-          title: Text(
-            'Не удалось удалить',
-            style: AdminTypography.sectionTitle.copyWith(color: colors.text),
+        if (!user.isDeleted) ...[
+          AdminButton(
+            label: user.isBlocked ? 'Разблокировать' : 'Заблокировать',
+            size: AdminButtonSize.tonal,
+            onPressed: () =>
+                toggleUserBlocked(context, context.read<UsersCubit>(), user),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  describeUserFailure(failure),
-                  style: AdminTypography.bodySmall.copyWith(
-                    color: colors.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-                if (groups.isNotEmpty) ...[
-                  const SizedBox(height: AdminSpacing.x12),
-                  for (final name in groups)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AdminSpacing.x2,
-                      ),
-                      child: Text(
-                        '· $name',
-                        style: AdminTypography.bodySmall.copyWith(
-                          color: colors.text,
-                        ),
-                      ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
+          // Deleting the primary administrator is refused server-side
+          // unconditionally, so the action is not offered at all — an
+          // absent action reads more honestly than one that always fails
+          // (`AdminResourceRow`'s own rule).
+          if (!user.isPrimaryAdmin)
             AdminButton(
-              label: 'Понятно',
-              variant: AdminButtonVariant.accent,
-              size: AdminButtonSize.dialog,
-              onPressed: () => Navigator.of(dialogContext).pop(),
+              label: 'Удалить',
+              size: AdminButtonSize.tonal,
+              onPressed: () =>
+                  deleteUser(context, context.read<UsersCubit>(), user),
             ),
-          ],
-        );
-      },
+        ],
+      ],
     );
   }
 }

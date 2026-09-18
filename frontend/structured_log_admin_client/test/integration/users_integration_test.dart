@@ -163,8 +163,8 @@ void main() {
     await tester.tap(find.text('Удалить').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Не удалось удалить'), findsOneWidget);
-    expect(find.text('· checkout-team'), findsOneWidget);
+    expect(find.text('Сначала передайте владение'), findsOneWidget);
+    expect(find.text('checkout-team'), findsOneWidget);
     expect(
       find.text('bob'),
       findsWidgets,
@@ -187,62 +187,30 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('editing the display name reaches the server and the dialog '
-      'stays open', (tester) async {
+  testWidgets('saving the display name and a new password together reaches the '
+      'server in one request and returns to the detail page', (tester) async {
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
 
+    await tester.tap(find.text('Открыть'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Изменить'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextBox).at(0), 'Bob Diaz');
-    await tester.tap(find.text('Сохранить имя'));
-    await tester.pumpAndSettle();
-
-    expect(lastRequest('PATCH', '/v1/users/5').json, {
-      'display_name': 'Bob Diaz',
-    });
-    expect(
-      find.text('Закрыть'),
-      findsOneWidget,
-      reason:
-          'saving a field does not close the dialog — there is more to '
-          'edit underneath it',
-    );
-    await tester.tap(find.text('Закрыть'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Bob Diaz'), findsOneWidget);
-    await closeApp(tester);
-  });
-
-  testWidgets('setting a password after saving the name does not revert it', (
-    tester,
-  ) async {
-    // A regression: the dialog's `onSetPassword` used to resend the [user]
-    // the row was built with — a snapshot from before this dialog opened —
-    // instead of what the display-name field actually holds now, silently
-    // undoing a save made earlier in the same session.
-    await pumpApp(tester, server, signedIn: true);
-    await openUsers(tester);
-
-    await tester.tap(find.text('Изменить'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextBox).at(0), 'Bob Diaz');
-    await tester.tap(find.text('Сохранить имя'));
-    await tester.pumpAndSettle();
-
     await tester.enterText(find.byType(TextBox).at(1), 'new-temp-pw');
-    await tester.tap(find.text('Установить пароль'));
+    await tester.tap(find.text('Сохранить изменения'));
     await tester.pumpAndSettle();
 
     expect(lastRequest('PATCH', '/v1/users/5').json, {
       'display_name': 'Bob Diaz',
       'password': 'new-temp-pw',
     });
-    await tester.tap(find.text('Закрыть'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Bob Diaz'), findsOneWidget);
+    expect(
+      find.text('Изменить учётную запись'),
+      findsNothing,
+      reason: 'a successful save returns to the detail page it came from',
+    );
+    expect(find.text('Bob Diaz'), findsWidgets);
     await closeApp(tester);
   });
 
@@ -250,7 +218,7 @@ void main() {
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
 
-    await tester.tap(find.text('Изменить'));
+    await tester.tap(find.text('Открыть'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выдать роль').last);
     await tester.pumpAndSettle();
@@ -262,8 +230,8 @@ void main() {
       'role': 'user',
       'scope_type': 'global',
     });
-    // The dialog no longer shows a one-shot banner — the grant reloads the
-    // list above the form, and the new row is the proof it succeeded.
+    // The page shows no one-shot banner — the grant reloads the list above
+    // the form, and the new row is the proof it succeeded.
     expect(find.text('вся система'), findsOneWidget);
     await closeApp(tester);
   });
@@ -277,10 +245,10 @@ void main() {
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
 
-    await tester.tap(find.text('Изменить'));
+    await tester.tap(find.text('Открыть'));
     await tester.pumpAndSettle();
 
-    // The scope-type picker is the second `ComboBox<String>` in the dialog —
+    // The scope-type picker is the second `ComboBox<String>` on the page —
     // the role picker is the first.
     await tester.tap(find.byType(ComboBox<String>).at(1));
     await tester.pumpAndSettle();
@@ -331,7 +299,7 @@ void main() {
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
 
-    await tester.tap(find.text('Изменить'));
+    await tester.tap(find.text('Открыть'));
     await tester.pumpAndSettle();
     await tester.tap(find.byType(ComboBox<String>).at(1));
     await tester.pumpAndSettle();
@@ -372,8 +340,8 @@ void main() {
     await closeApp(tester);
   });
 
-  testWidgets('the dialog lists existing grants, and revoking one reaches '
-      'the server', (tester) async {
+  testWidgets('the detail page lists existing grants, and revoking one '
+      'reaches the server', (tester) async {
     server.roleAssignments.add({
       'id': 4,
       'subject_type': 'user',
@@ -386,7 +354,7 @@ void main() {
     await pumpApp(tester, server, signedIn: true);
     await openUsers(tester);
 
-    await tester.tap(find.text('Изменить'));
+    await tester.tap(find.text('Открыть'));
     await tester.pumpAndSettle();
 
     expect(find.text('owner'), findsOneWidget);

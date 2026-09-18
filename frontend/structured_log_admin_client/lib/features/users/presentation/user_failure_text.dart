@@ -42,12 +42,17 @@ String describeUserFailure(ApiFailure failure) => switch (failure) {
 /// rather than through a DTO: this is the one place this client ever reads
 /// this shape, and a `GroupDto.fromJson` round-trip would buy nothing a
 /// direct map read does not already have.
-List<String> blockingGroupNames(ApiFailure failure) {
+///
+/// The id travels alongside the name — `SoleOwnerConflictDialog`'s
+/// «Выдать роль» button on each row needs it to open `GrantAccessDialog`
+/// already scoped to that group.
+List<({int id, String name})> blockingGroups(ApiFailure failure) {
   if (failure is! ConflictFailure) return const [];
   final groups = failure.details?['blocking_groups'];
   if (groups is! List) return const [];
   return [
     for (final group in groups)
-      if (group is Map && group['name'] is String) group['name'] as String,
+      if (group is Map && group['id'] is int && group['name'] is String)
+        (id: group['id'] as int, name: group['name'] as String),
   ];
 }
