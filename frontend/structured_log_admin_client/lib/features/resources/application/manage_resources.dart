@@ -31,6 +31,11 @@ class ManageProjects {
   Future<Either<ApiFailure, List<ProjectDto>>> inGroup(int groupId) =>
       _repository.projectsOf(groupId);
 
+  /// Every project the caller may read, flat across all groups — the
+  /// dashboard's project cards, which do not start from a chosen group.
+  Future<Either<ApiFailure, List<ProjectDto>>> search({String? name}) =>
+      _repository.searchProjects(name: name);
+
   /// With usage counters, which the list does not carry.
   Future<Either<ApiFailure, ProjectDto>> get(int projectId) =>
       _repository.project(projectId);

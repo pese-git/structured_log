@@ -31,6 +31,18 @@ class _AuditPageState extends State<AuditPage> {
   final _actorId = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // `HomeShell._openAuditFor` (`UserDetailPage`'s "Открыть в аудите"
+    // link) applies the actor filter on the cubit before this page is ever
+    // built, so the query is already right — this only seeds the field's
+    // own text to match, since it is a local controller the cubit's state
+    // does not drive.
+    final actorId = context.read<AuditCubit>().state.filter.actorUserId;
+    if (actorId != null) _actorId.text = actorId.toString();
+  }
+
+  @override
   void dispose() {
     _targetId.dispose();
     _actorId.dispose();

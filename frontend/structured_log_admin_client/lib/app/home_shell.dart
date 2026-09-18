@@ -9,16 +9,19 @@ import '../features/auth/di/auth_module.dart';
 import '../features/auth/presentation/change_password_cubit.dart';
 import '../features/auth/presentation/change_password_form.dart';
 import '../features/audit/di/audit_module.dart';
+import '../features/audit/domain/audit_filter.dart';
 import '../features/audit/presentation/audit_cubit.dart';
 import '../features/audit/presentation/audit_page.dart';
+import '../features/dashboard/presentation/dashboard_cubit.dart';
+import '../features/dashboard/presentation/dashboard_page.dart';
 import '../features/log_browser/di/log_browser_module.dart';
 import '../features/log_browser/presentation/log_browser_page.dart';
 import '../features/log_browser/presentation/log_feed_bloc.dart';
+import '../features/resources/application/manage_resources.dart';
 import '../features/resources/di/resources_module.dart';
 import '../features/resources/presentation/resources_section.dart';
 import '../features/users/di/users_module.dart';
-import '../features/users/presentation/users_cubit.dart';
-import '../features/users/presentation/users_page.dart';
+import '../features/users/presentation/users_section.dart';
 import '../shared/auth/session_controller.dart';
 
 /// The destinations the nav can offer, in the order it offers them.
@@ -28,7 +31,7 @@ import '../shared/auth/session_controller.dart';
 /// present item silently shifts the ones after it. Keeping the destination and
 /// its position in one list (see `_entries`) makes that impossible to get
 /// wrong rather than merely documented.
-enum _Destination { groups, users, audit, logs }
+enum _Destination { dashboard, groups, users, audit, logs }
 
 /// One nav item: which section it belongs to, how it is drawn, and where it
 /// goes.
@@ -40,12 +43,13 @@ typedef _NavEntry = ({
 
 /// What the application is once someone is signed in.
 ///
-/// Two sections, as the artboards group them: administration (groups, and
-/// through them projects and their keys — plus users and the audit log, both
-/// for an administrator) and logs. Teams and the dashboard still appear on
-/// the artboards' nav and are not here — the server has no endpoints behind
-/// them in this stage, and a nav item that opens an empty screen is worse
-/// than one that is not offered.
+/// Three sections, as the artboards group them: overview (the dashboard,
+/// `admin` only — see `DashboardPage`'s doc comment for why the other roles
+/// the mockup draws are not offered), administration (groups, and through
+/// them projects and their keys — plus users and the audit log, both for an
+/// administrator), and logs. Teams still appear on the artboards' nav and are
+/// not here — the server has no endpoint behind them in this stage, and a nav
+/// item that opens an empty screen is worse than one that is not offered.
 class HomeShell extends StatefulWidget {
   final Scope scope;
   final SessionController session;
@@ -76,9 +80,25 @@ class _HomeShellState extends State<HomeShell> {
   /// appearing a frame later is better than appearing and vanishing.
   var _isAdmin = false;
 
+  /// The dashboard's greeting, from the same unverified claim every other
+  /// screen names the signed-in reader with
+  /// (`shared/auth/access_token_claims.dart`).
+  String? _username;
+
   /// Changed when the log browser is opened from a project, which rebuilds it
   /// so it starts fresh rather than on whatever it was last showing.
   Key _logsKey = const ValueKey('logs');
+
+  /// Same idea as [_logsKey], for jumping from the dashboard straight into a
+  /// group (`_openGroupFor`) instead of the group list.
+  Key _resourcesKey = const ValueKey('resources');
+  ({int id, String name})? _resourcesInitialGroup;
+
+  /// Same idea again, for `UserDetailPage`'s "Открыть в аудите" link
+  /// (`_openAuditFor`) — a fresh `AuditCubit` filtered to one actor instead
+  /// of the unfiltered journal.
+  Key _auditKey = const ValueKey('audit');
+  int? _auditInitialActorId;
 
   @override
   void initState() {
@@ -88,13 +108,23 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _loadRole() async {
     final isAdmin = await _authScope.resolve<IsGlobalAdmin>()();
+    final username = await _authScope.resolve<CurrentUsername>()();
     if (!mounted) return;
-    setState(() => _isAdmin = isAdmin);
+    setState(() {
+      _isAdmin = isAdmin;
+      _username = username;
+    });
   }
 
   /// The nav, flattened — the single list both the sections and the selected
   /// index are derived from.
   List<_NavEntry> get _entries => [
+    if (_isAdmin)
+      const (
+        section: 'Обзор',
+        item: AdminNavItem(icon: FluentIcons.view_dashboard, label: 'Дашборд'),
+        destination: _Destination.dashboard,
+      ),
     const (
       section: 'Администрирование',
       item: AdminNavItem(icon: FluentIcons.group, label: 'Группы'),
@@ -149,6 +179,22 @@ class _HomeShellState extends State<HomeShell> {
     });
   }
 
+  void _openGroupFor(int groupId, String groupName) {
+    setState(() {
+      _destination = _Destination.groups;
+      _resourcesInitialGroup = (id: groupId, name: groupName);
+      _resourcesKey = ValueKey('resources-group-$groupId');
+    });
+  }
+
+  void _openAuditFor(int actorUserId) {
+    setState(() {
+      _destination = _Destination.audit;
+      _auditInitialActorId = actorUserId;
+      _auditKey = ValueKey('audit-actor-$actorUserId');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = _entries;
@@ -170,17 +216,40 @@ class _HomeShellState extends State<HomeShell> {
           setState(() => _destination = entries[index].destination),
       sections: _sectionsOf(entries),
       content: switch (_destination) {
+        _Destination.dashboard => BlocProvider(
+          create: (_) => DashboardCubit(
+            _resourcesScope.resolve<ManageGroups>(),
+            _resourcesScope.resolve<ManageProjects>(),
+          )..load(),
+          child: DashboardPage(
+            username: _username ?? '',
+            onOpenGroup: _openGroupFor,
+            onOpenLogs: _openLogsFor,
+          ),
+        ),
         _Destination.groups => ResourcesSection(
+          key: _resourcesKey,
           scope: _resourcesScope,
           onOpenLogs: _openLogsFor,
           isAdmin: _isAdmin,
+          initialGroup: _resourcesInitialGroup,
         ),
-        _Destination.users => BlocProvider(
-          create: (_) => _usersScope.resolve<UsersCubit>()..load(),
-          child: const UsersPage(),
+        _Destination.users => UsersSection(
+          scope: _usersScope,
+          onOpenAudit: _openAuditFor,
         ),
         _Destination.audit => BlocProvider(
-          create: (_) => _auditScope.resolve<AuditCubit>()..load(),
+          key: _auditKey,
+          create: (_) {
+            final cubit = _auditScope.resolve<AuditCubit>();
+            final actorId = _auditInitialActorId;
+            if (actorId == null) {
+              cubit.load();
+            } else {
+              cubit.applyFilter(AuditFilter(actorUserId: actorId));
+            }
+            return cubit;
+          },
           child: const AuditPage(),
         ),
         _Destination.logs => BlocProvider(

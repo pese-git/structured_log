@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:structured_log_admin_client/features/audit/application/query_audit_log.dart';
+import 'package:structured_log_admin_client/features/audit/domain/audit_filter.dart';
+import 'package:structured_log_admin_client/features/audit/domain/audit_repository.dart';
 import 'package:structured_log_admin_client/features/resources/domain/resources_repository.dart';
 import 'package:structured_log_admin_client/features/role_assignments/application/manage_role_assignments.dart';
 import 'package:structured_log_admin_client/features/role_assignments/domain/role_assignments_repository.dart';
@@ -8,6 +11,7 @@ import 'package:structured_log_admin_client/features/users/domain/users_reposito
 import 'package:structured_log_admin_client/features/users/presentation/user_failure_text.dart';
 import 'package:structured_log_admin_client/features/users/presentation/users_cubit.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
+import 'package:structured_log_admin_client/shared/api/dto/audit_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
@@ -180,20 +184,42 @@ class _FakeResources implements ResourcesRepository {
   );
 }
 
+/// Only [query] matters here — `UserDetailPage`'s audit card, the one thing
+/// this suite drives out of `AuditRepository`.
+class _FakeAuditRepository implements AuditRepository {
+  var pageResult = const AuditPageDto();
+  ApiFailure? refuseEverything;
+  final filters = <AuditFilter>[];
+
+  @override
+  Future<Either<ApiFailure, AuditPageDto>> query({
+    AuditFilter filter = const AuditFilter(),
+    String? cursor,
+    int? limit,
+  }) async {
+    filters.add(filter);
+    final failure = refuseEverything;
+    return failure == null ? right(pageResult) : left(failure);
+  }
+}
+
 void main() {
   late _FakeRepository repository;
   late _FakeResources resources;
   late _FakeRoleAssignments roleAssignments;
+  late _FakeAuditRepository auditRepository;
   late UsersCubit cubit;
 
   setUp(() {
     repository = _FakeRepository();
     resources = _FakeResources();
     roleAssignments = _FakeRoleAssignments();
+    auditRepository = _FakeAuditRepository();
     cubit = UsersCubit(
       ManageUsers(repository),
       resources,
       ManageRoleAssignments(roleAssignments),
+      QueryAuditLog(auditRepository),
     );
   });
   tearDown(() => cubit.close());
@@ -346,7 +372,9 @@ void main() {
       await cubit.delete(1);
 
       expect(cubit.state.users, hasLength(1));
-      expect(blockingGroupNames(cubit.state.actionFailure!), ['checkout-team']);
+      expect(blockingGroups(cubit.state.actionFailure!), [
+        (id: 3, name: 'checkout-team'),
+      ]);
     });
 
     test('cannot_delete_primary_admin is explained specifically', () async {
@@ -463,6 +491,63 @@ void main() {
         roleAssignments.calls,
         containsAllInOrder(['revoke:1', 'forUser:5']),
       );
+    });
+  });
+
+  group('loadRecentAudit', () {
+    test('filters by this user as actor, three at a time', () async {
+      auditRepository.pageResult = AuditPageDto(
+        items: [
+          AuditEntryDto(
+            id: 1,
+            action: 'auth.login_succeeded',
+            targetType: 'user',
+            createdAt: DateTime.utc(2026, 9, 16),
+            actorUserId: 7,
+          ),
+        ],
+      );
+
+      await cubit.loadRecentAudit(7);
+
+      expect(cubit.state.recentAudit, hasLength(1));
+      expect(cubit.state.loadingRecentAudit, isFalse);
+      expect(auditRepository.filters.single.actorUserId, 7);
+    });
+
+    test(
+      'a refused read leaves the card empty rather than failing the page',
+      () async {
+        auditRepository.refuseEverything = const ApiFailure.forbidden(
+          code: 'forbidden',
+        );
+
+        await cubit.loadRecentAudit(7);
+
+        expect(cubit.state.recentAudit, isEmpty);
+        expect(cubit.state.actionFailure, isNull);
+      },
+    );
+  });
+
+  group('clearActionFailure', () {
+    test('also drops the audit card', () async {
+      auditRepository.pageResult = AuditPageDto(
+        items: [
+          AuditEntryDto(
+            id: 1,
+            action: 'auth.login_succeeded',
+            targetType: 'user',
+            createdAt: DateTime.utc(2026, 9, 16),
+          ),
+        ],
+      );
+      await cubit.loadRecentAudit(7);
+      expect(cubit.state.recentAudit, isNotEmpty);
+
+      cubit.clearActionFailure();
+
+      expect(cubit.state.recentAudit, isEmpty);
     });
   });
 }

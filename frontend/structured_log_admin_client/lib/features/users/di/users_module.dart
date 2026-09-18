@@ -1,6 +1,9 @@
 import 'package:cherrypick/cherrypick.dart';
 
 import '../../../shared/api/api_client.dart';
+import '../../audit/application/query_audit_log.dart';
+import '../../audit/domain/audit_repository.dart';
+import '../../audit/infrastructure/audit_repository_impl.dart';
 import '../../resources/domain/resources_repository.dart';
 import '../../resources/infrastructure/resources_repository_impl.dart';
 import '../../role_assignments/application/manage_role_assignments.dart';
@@ -42,6 +45,13 @@ class UsersModule extends Module {
         )
         .singleton();
 
+    // Same rebinding again, for `UserDetailPage`'s "Последние события
+    // аудита" card — `AuditModule` binds the same classes for the audit
+    // screen itself.
+    bind<AuditRepository>()
+        .toProvide(() => AuditRepositoryImpl(currentScope.resolve<ApiClient>()))
+        .singleton();
+
     bind<ManageUsers>().toProvide(
       () => ManageUsers(currentScope.resolve<UsersRepository>()),
     );
@@ -49,6 +59,9 @@ class UsersModule extends Module {
       () => ManageRoleAssignments(
         currentScope.resolve<RoleAssignmentsRepository>(),
       ),
+    );
+    bind<QueryAuditLog>().toProvide(
+      () => QueryAuditLog(currentScope.resolve<AuditRepository>()),
     );
 
     // Not a singleton: the cubit belongs to the screen that opened it and is
@@ -58,6 +71,7 @@ class UsersModule extends Module {
         currentScope.resolve<ManageUsers>(),
         currentScope.resolve<ResourcesRepository>(),
         currentScope.resolve<ManageRoleAssignments>(),
+        currentScope.resolve<QueryAuditLog>(),
       ),
     );
   }

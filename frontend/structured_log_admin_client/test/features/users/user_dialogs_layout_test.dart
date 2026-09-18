@@ -1,13 +1,18 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/features/users/presentation/user_dialogs.dart';
-import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 /// The same invariant `dialog_layout_test.dart` checks for the resources
 /// dialogs: `ContentDialog` hands its content a **loose** `Flexible`, so a
 /// bare `Column` takes the whole window unless it is wrapped in a
-/// `SingleChildScrollView` — both dialogs here are.
+/// `SingleChildScrollView` — `CreateUserDialog` is.
+///
+/// The old `EditUserDialog`'s version of this check moved to
+/// `user_detail_page_test.dart`/`edit_user_page_test.dart`: both are now
+/// full pages, not dialogs, so they scroll by the same convention
+/// `ProjectDetailPage`/`GroupDetailPage` already use — a page-level
+/// `SingleChildScrollView`, not `ContentDialog`'s loose `Flexible`.
 void main() {
   Size boxOf(WidgetTester tester) => tester.getSize(
     find
@@ -54,42 +59,5 @@ void main() {
           '${height.round()} tall on a 900 window — it is filling the space '
           'rather than measuring its content',
     );
-  });
-
-  testWidgets('a window too short for the edit dialog scrolls it instead of '
-      'overflowing', (tester) async {
-    await show(
-      tester,
-      EditUserDialog(
-        user: UserDto(
-          id: 1,
-          username: 'bob',
-          mustChangePassword: false,
-          isActive: true,
-          isPrimaryAdmin: false,
-          createdAt: DateTime.utc(2026, 9, 16),
-        ),
-        onSaveDisplayName: (_) {},
-        onSetPassword: (_, _) {},
-        onGrantRole: (_) {},
-        onRevokeRole: (_) {},
-        searchGroups: (_) async => const [],
-        searchProjects: (_) async => const [],
-        onClose: () {},
-      ),
-      // Three sections — profile, password, role grant — comfortably
-      // exceed this on purpose: the assertion is that it scrolls rather
-      // than overflows, not that it stays small.
-      window: const Size(1440, 320),
-    );
-
-    expect(
-      boxOf(tester).height,
-      lessThanOrEqualTo(320),
-      reason:
-          'the dialog stays inside the window rather than overflowing '
-          'it',
-    );
-    expect(find.text('Профиль'), findsOneWidget);
   });
 }
