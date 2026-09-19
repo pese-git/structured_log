@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../domain/resources_repository.dart';
 
@@ -17,7 +18,11 @@ class ManageGroups {
 
   const ManageGroups(this._repository);
 
-  Future<Either<ApiFailure, List<GroupDto>>> list() => _repository.groups();
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> list({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) => _repository.groups(name: name, limit: limit, cursor: cursor);
 
   Future<Either<ApiFailure, GroupDto>> create(String name) =>
       _repository.createGroup(name);
@@ -28,13 +33,19 @@ class ManageProjects {
 
   const ManageProjects(this._repository);
 
-  Future<Either<ApiFailure, List<ProjectDto>>> inGroup(int groupId) =>
-      _repository.projectsOf(groupId);
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> inGroup(
+    int groupId, {
+    int? limit,
+    String? cursor,
+  }) => _repository.projectsOf(groupId, limit: limit, cursor: cursor);
 
   /// Every project the caller may read, flat across all groups — the
   /// dashboard's project cards, which do not start from a chosen group.
-  Future<Either<ApiFailure, List<ProjectDto>>> search({String? name}) =>
-      _repository.searchProjects(name: name);
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> search({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) => _repository.searchProjects(name: name, limit: limit, cursor: cursor);
 
   /// With usage counters, which the list does not carry.
   Future<Either<ApiFailure, ProjectDto>> get(int projectId) =>

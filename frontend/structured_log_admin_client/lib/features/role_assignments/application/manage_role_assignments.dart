@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../domain/role_assignments_repository.dart';
 
@@ -42,8 +43,11 @@ class ManageRoleAssignments {
   /// Degrades to an empty result on failure, same reasoning as
   /// `UsersCubit.searchGroups`/`searchProjects`: a search box coming up empty
   /// reads as "no matches yet", not as a form-level error.
-  Future<List<UserDto>> searchUsers(String query) async {
+  ///
+  /// One page: the picker shows it, and says so when there was more
+  /// ([CursorPage.hasMore]) instead of letting the cut read as the end.
+  Future<CursorPage<UserDto>> searchUsers(String query) async {
     final result = await _repository.searchUsers(query);
-    return result.getOrElse((_) => const []);
+    return result.getOrElse((_) => const CursorPage(<UserDto>[], null));
   }
 }

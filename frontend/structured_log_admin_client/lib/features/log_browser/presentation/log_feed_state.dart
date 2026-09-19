@@ -70,6 +70,9 @@ abstract class LogFeedState with _$LogFeedState {
     ScopeOptions? options,
     @Default(true) bool loadingOptions,
 
+    /// A further page of the selector's groups or projects is on its way.
+    @Default(false) bool loadingMoreScopes,
+
     /// The one scope being read. Until it is set the selector stands in place
     /// of the list and no request goes out (`specs/admin-client-log-browser`).
     LogScope? scope,

@@ -284,6 +284,43 @@ void main() {
       expect(firstIds.intersection(secondIds), isEmpty);
     });
 
+    test('an unusable limit or cursor is a 400, not an empty page', () async {
+      // `limit=0` used to slip through as a page of nothing and then read the
+      // last element of it.
+      await insertUser(username: 'alice');
+      for (final bad in ['limit=0', 'limit=-1', 'limit=abc', 'cursor=nope']) {
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'GET',
+              'http://x/v1/users?$bad',
+              roles: _admin,
+            ),
+          ),
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400),
+          ),
+          reason: bad,
+        );
+      }
+    });
+
+    test('a full last page carries no cursor', () async {
+      await insertUser(username: 'alice');
+      await insertUser(username: 'bob');
+      final page = await decodeJson(
+        await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/users?limit=2',
+            roles: _admin,
+          ),
+        ),
+      );
+      expect(page['items'], hasLength(2));
+      expect(page['next_cursor'], isNull);
+    });
+
     test('?username= narrows to users whose username contains it', () async {
       await insertUser(username: 'alice');
       await insertUser(username: 'bob');

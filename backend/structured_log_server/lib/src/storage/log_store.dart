@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import 'database.dart';
+import 'page.dart';
 import 'query.dart';
 
 /// Persists and queries [LogEntries] rows. Implemented by [DriftLogStore];
@@ -48,16 +49,31 @@ class DriftLogStore implements LogStore {
 
   @override
   Future<LogQueryPage> query(LogQuery query) async {
-    final built = buildLogQuerySql(query);
+    // One row past the limit, only to learn whether another page exists
+    // (`pageFromProbe`). The live stream's catch-up reads through here too
+    // (`afterId`): it never looks at the cursor, and the trimmed page is the
+    // same size it asked for.
+    final built = buildLogQuerySql(
+      LogQuery(
+        projectIds: query.projectIds,
+        filter: query.filter,
+        from: query.from,
+        to: query.to,
+        limit: query.limit + 1,
+        cursor: query.cursor,
+        afterId: query.afterId,
+      ),
+    );
     final rows = await _db.customSelect(
       built.sql,
       variables: built.variables,
       readsFrom: {_db.logEntries},
     ).get();
-    final entries = rows.map((row) => _db.logEntries.map(row.data)).toList();
-    return LogQueryPage(
-      entries: entries,
-      nextCursor: entries.isEmpty ? null : entries.last.id,
+    final page = pageFromProbe(
+      rows.map((row) => _db.logEntries.map(row.data)).toList(),
+      query.limit,
+      (entry) => entry.id,
     );
+    return LogQueryPage(entries: page.items, nextCursor: page.nextCursor);
   }
 }

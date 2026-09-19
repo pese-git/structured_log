@@ -30,11 +30,15 @@ class DashboardPage extends StatelessWidget {
   final void Function(int groupId, String groupName) onOpenGroup;
   final void Function(int projectId, String projectName) onOpenLogs;
 
+  /// Opens the groups screen, where the groups beyond the few shown here are.
+  final VoidCallback onShowAllGroups;
+
   const DashboardPage({
     super.key,
     required this.username,
     required this.onOpenGroup,
     required this.onOpenLogs,
+    required this.onShowAllGroups,
   });
 
   @override
@@ -78,8 +82,9 @@ class DashboardPage extends StatelessWidget {
       );
     }
 
-    // Admin sees every group, so a project's group is always among them —
-    // no extra request needed to name it on its card.
+    // The newest few groups are loaded, not all of them, so the group of an
+    // older project may not be among them: its card then shows a dash rather
+    // than costing a request per card.
     final groupNames = {for (final g in state.groups) g.id: g.name};
 
     return SingleChildScrollView(
@@ -121,6 +126,13 @@ class DashboardPage extends StatelessWidget {
                   ),
               ],
             ),
+          if (state.moreGroups) ...[
+            const SizedBox(height: AdminSpacing.x12),
+            AdminButton(
+              label: context.l10n.dashShowAllGroups,
+              onPressed: onShowAllGroups,
+            ),
+          ],
           const SizedBox(height: AdminSpacing.x24),
           Text(
             context.l10n.dashProjects,

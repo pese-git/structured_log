@@ -13,6 +13,8 @@ import 'package:structured_log_admin_client/features/role_assignments/domain/rol
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
+import 'package:structured_log_admin_client/shared/api/cursor_page.dart';
+import '../../support/paging.dart';
 
 GroupDto _group(int id, String name) =>
     GroupDto(id: id, name: name, createdAt: DateTime.utc(2026, 2, 14));
@@ -65,9 +67,13 @@ class _FakeRepository implements ResourcesRepository {
   }
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async {
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> groups({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) async {
     calls.add('groups');
-    return _answer(groupList);
+    return _answer(pageOf(groupList, limit: limit, cursor: cursor));
   }
 
   @override
@@ -81,17 +87,23 @@ class _FakeRepository implements ResourcesRepository {
   }
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) async {
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> projectsOf(
+    int groupId, {
+    int? limit,
+    String? cursor,
+  }) async {
     calls.add('projectsOf:$groupId');
-    return _answer(projectList);
+    return _answer(pageOf(projectList, limit: limit, cursor: cursor));
   }
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> searchProjects({
     String? name,
+    int? limit,
+    String? cursor,
   }) async {
     calls.add('searchProjects');
-    return _answer(projectList);
+    return _answer(pageOf(projectList, limit: limit, cursor: cursor));
   }
 
   @override
@@ -318,9 +330,11 @@ class _FakeRoleAssignments implements RoleAssignmentsRepository {
   }
 
   @override
-  Future<Either<ApiFailure, List<UserDto>>> searchUsers(String username) async {
+  Future<Either<ApiFailure, CursorPage<UserDto>>> searchUsers(
+    String username,
+  ) async {
     calls.add('searchUsers:$username');
-    return right(searchResult);
+    return right(CursorPage(searchResult, null));
   }
 
   @override
@@ -387,6 +401,79 @@ void main() {
       await cubit.load();
       expect(cubit.state.isEmpty, isFalse);
       expect(cubit.state.failure, isNotNull);
+    });
+  });
+
+  group('a list longer than one page', () {
+    // The fake serves the page size the cubits ask for (50): 120 rows is
+    // three pages, and the last row is the one a cubit that stopped after the
+    // first would lose without a sound.
+    test('groups are read page by page until the last one is in', () async {
+      repository.groupList = [
+        for (var i = 1; i <= 120; i++) _group(i, 'group $i'),
+      ];
+      final cubit = GroupsCubit(ManageGroups(repository));
+      addTearDown(cubit.close);
+
+      await cubit.load();
+      expect(cubit.state.groups, hasLength(50));
+      expect(cubit.state.hasMore, isTrue);
+
+      await cubit.loadMore();
+      expect(cubit.state.groups, hasLength(100));
+      expect(cubit.state.hasMore, isTrue);
+
+      await cubit.loadMore();
+      expect(cubit.state.groups, hasLength(120));
+      expect(cubit.state.groups.last.name, 'group 120');
+      expect(
+        cubit.state.hasMore,
+        isFalse,
+        reason: 'the last page carries no cursor, so there is nothing to ask',
+      );
+
+      await cubit.loadMore();
+      expect(
+        repository.calls.where((c) => c == 'groups'),
+        hasLength(3),
+        reason: 'with no cursor a further request must not go out',
+      );
+    });
+
+    test('a group is not read twice when loadMore is pressed twice', () async {
+      repository.groupList = [
+        for (var i = 1; i <= 120; i++) _group(i, 'group $i'),
+      ];
+      final cubit = GroupsCubit(ManageGroups(repository));
+      addTearDown(cubit.close);
+      await cubit.load();
+
+      await Future.wait([cubit.loadMore(), cubit.loadMore()]);
+
+      expect(cubit.state.groups.map((g) => g.id).toSet(), hasLength(100));
+      expect(cubit.state.groups, hasLength(100));
+    });
+
+    test("a group's projects are read page by page", () async {
+      repository.projectList = [
+        for (var i = 1; i <= 75; i++) _project(id: i, name: 'p$i'),
+      ];
+      final cubit = GroupDetailCubit(
+        projects: ManageProjects(repository),
+        roleAssignments: ManageRoleAssignments(roleAssignments),
+        teams: ManageTeams(repository),
+        groupId: 1,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.load();
+      expect(cubit.state.projects, hasLength(50));
+      expect(cubit.state.hasMoreProjects, isTrue);
+
+      await cubit.loadMoreProjects();
+      expect(cubit.state.projects, hasLength(75));
+      expect(cubit.state.projects.last.name, 'p75');
+      expect(cubit.state.hasMoreProjects, isFalse);
     });
   });
 
@@ -811,7 +898,8 @@ void main() {
 
       final result = await cubit.searchUsers('ali');
 
-      expect(result, isEmpty);
+      expect(result.items, isEmpty);
+      expect(result.hasMore, isFalse);
       expect(roleAssignments.calls, contains('searchUsers:ali'));
     });
   });

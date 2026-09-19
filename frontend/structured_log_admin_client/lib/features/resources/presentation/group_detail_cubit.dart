@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
@@ -14,6 +15,11 @@ abstract class GroupDetailState with _$GroupDetailState {
   const factory GroupDetailState({
     @Default(true) bool loading,
     @Default(<ProjectDto>[]) List<ProjectDto> projects,
+
+    /// Where the next page of this group's projects starts; `null` once the
+    /// last one is in.
+    String? projectsCursor,
+    @Default(false) bool loadingMoreProjects,
     @Default(false) bool creating,
     ApiFailure? failure,
     ApiFailure? createFailure,
@@ -43,6 +49,8 @@ abstract class GroupDetailState with _$GroupDetailState {
   const GroupDetailState._();
 
   bool get isEmpty => !loading && projects.isEmpty && failure == null;
+
+  bool get hasMoreProjects => projectsCursor != null;
 }
 
 /// One group's projects, its teams, and who has a role on it.
@@ -62,6 +70,10 @@ class GroupDetailCubit extends Cubit<GroupDetailState> {
        _teams = teams,
        super(const GroupDetailState());
 
+  /// The server's own default, passed explicitly so a reader of this file
+  /// does not have to know it to follow [loadMoreProjects].
+  static const _pageSize = 50;
+
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
     // All three, because the screen is not useful with the projects half
@@ -69,7 +81,7 @@ class GroupDetailCubit extends Cubit<GroupDetailState> {
     // degrade to the previous list rather than surfacing [failure]: the
     // project list is the reason this screen exists, «Команды»/«Доступ» are
     // sections on it.
-    final result = await _projects.inGroup(groupId);
+    final result = await _projects.inGroup(groupId, limit: _pageSize);
     final access = await _roleAssignments.forScope(
       scopeType: 'group',
       scopeId: groupId,
@@ -79,13 +91,40 @@ class GroupDetailCubit extends Cubit<GroupDetailState> {
 
     result.match(
       (failure) => emit(state.copyWith(loading: false, failure: failure)),
-      (projects) => emit(
+      (page) => emit(
         state.copyWith(
           loading: false,
-          projects: projects,
+          projects: page.items,
+          projectsCursor: page.nextCursor,
           roleAssignments: access.getOrElse((_) => state.roleAssignments),
           teams: teams.getOrElse((_) => state.teams),
           failure: null,
+        ),
+      ),
+    );
+  }
+
+  /// The next page of the group's projects, appended to what is shown.
+  Future<void> loadMoreProjects() async {
+    final cursor = state.projectsCursor;
+    if (cursor == null || state.loadingMoreProjects || state.loading) return;
+
+    emit(state.copyWith(loadingMoreProjects: true));
+    final result = await _projects.inGroup(
+      groupId,
+      limit: _pageSize,
+      cursor: cursor,
+    );
+    if (isClosed) return;
+
+    result.match(
+      (failure) =>
+          emit(state.copyWith(loadingMoreProjects: false, failure: failure)),
+      (page) => emit(
+        state.copyWith(
+          loadingMoreProjects: false,
+          projects: [...state.projects, ...page.items],
+          projectsCursor: page.nextCursor,
         ),
       ),
     );
@@ -135,7 +174,7 @@ class GroupDetailCubit extends Cubit<GroupDetailState> {
 
   void clearAccessFailure() => emit(state.copyWith(accessFailure: null));
 
-  Future<List<UserDto>> searchUsers(String query) =>
+  Future<CursorPage<UserDto>> searchUsers(String query) =>
       _roleAssignments.searchUsers(query);
 
   /// Candidate teams for the «Предоставить доступ» dialog's team-recipient

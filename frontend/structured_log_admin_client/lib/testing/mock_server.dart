@@ -441,7 +441,34 @@ class MockServer implements HttpClientAdapter {
                 ),
               )
               .toList();
-    return MockReply(200, body: {'items': visible});
+    return MockReply(200, body: _page(visible, request.query));
+  }
+
+  /// One page of [rows], the way the server serves a paginated list
+  /// (`log-server-pagination`): newest (largest `id`) first, `limit` of them
+  /// (50 unless asked, never above 200), starting after `cursor`, and a
+  /// `next_cursor` only when something follows.
+  Map<String, Object?> _page(
+    List<Map<String, Object?>> rows,
+    Map<String, String> query, {
+    Map<String, Object?> Function(Map<String, Object?>)? project,
+  }) {
+    var matching = [...rows]
+      ..sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+    final cursor = query['cursor'];
+    if (cursor != null) {
+      matching = matching
+          .where((r) => (r['id'] as int) < int.parse(cursor))
+          .toList();
+    }
+    final limit = (int.tryParse(query['limit'] ?? '') ?? 50).clamp(1, 200);
+    final page = matching.take(limit).toList();
+    return {
+      'items': project == null ? page : page.map(project).toList(),
+      'next_cursor': matching.length > page.length
+          ? '${page.last['id']}'
+          : null,
+    };
   }
 
   MockReply _createGroup(RecordedRequest request) {
@@ -474,7 +501,10 @@ class MockServer implements HttpClientAdapter {
     // The list endpoint carries no usage counters — only `GET /v1/projects/{id}`
     // computes them — and stripping them here is what makes the client's
     // "keep the counters we already showed" behaviour testable.
-    return MockReply(200, body: {'items': visible.map(_withoutUsage).toList()});
+    return MockReply(
+      200,
+      body: _page(visible, request.query, project: _withoutUsage),
+    );
   }
 
   MockReply _getProject(RecordedRequest request, int id) {

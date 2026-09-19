@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 
 /// Groups, the projects inside them, and the keys that let an application
@@ -20,7 +21,15 @@ abstract interface class ResourcesRepository {
   /// [name] narrows to groups whose name contains it — used by
   /// `AdminSearchPicker` to resolve a group by name rather than an id the
   /// reader is never expected to know.
-  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name});
+  ///
+  /// One page: [limit] and [cursor] are the server's, newest first — the
+  /// server's default page when [limit] is left out. The page says whether
+  /// another follows; a caller that wants more asks with its `nextCursor`.
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> groups({
+    String? name,
+    int? limit,
+    String? cursor,
+  });
 
   /// Administrators only; anyone else is refused by the server.
   Future<Either<ApiFailure, GroupDto>> createGroup(String name);
@@ -29,13 +38,25 @@ abstract interface class ResourcesRepository {
   ///
   /// Carries no usage counters — those come from [project], one at a time,
   /// which is the only endpoint that computes them.
-  Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId);
+  ///
+  /// A page at a time, like [groups].
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> projectsOf(
+    int groupId, {
+    int? limit,
+    String? cursor,
+  });
 
   /// Every project the caller may read, flat across all groups, optionally
   /// narrowed by [name] — the flat `GET /v1/projects` counterpart to
   /// [groups], for resolving a project by name when the enclosing group
   /// isn't known yet (the role-grant picker).
-  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({String? name});
+  ///
+  /// A page at a time, like [groups].
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> searchProjects({
+    String? name,
+    int? limit,
+    String? cursor,
+  });
 
   /// One project, with `entry_count`/`total_bytes` filled in.
   Future<Either<ApiFailure, ProjectDto>> project(int projectId);

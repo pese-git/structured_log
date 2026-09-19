@@ -161,13 +161,15 @@ void main() {
       // The list is the shape that was wrong for a whole section: the server
       // wraps collections in `{"items": [...]}`, and a client expecting a bare
       // array reported the 200 as "the server is unreachable".
-      final groups = (await resources.groups()).getOrElse((_) => []);
-      expect(groups.map((g) => g.name), contains('payments'));
+      final groups = (await resources.groups()).getOrElse(
+        (_) => fail('listing groups failed'),
+      );
+      expect(groups.items.map((g) => g.name), contains('payments'));
 
       final projects = (await resources.projectsOf(
         group.id,
-      )).getOrElse((_) => []);
-      expect(projects.map((p) => p.name), ['checkout']);
+      )).getOrElse((_) => fail('listing projects failed'));
+      expect(projects.items.map((p) => p.name), ['checkout']);
 
       final keys = (await resources.secretKeys(projectId)).getOrElse((_) => []);
       expect(keys.single.label, 'e2e');
@@ -335,6 +337,54 @@ void main() {
       isNot(contains('after_revocation')),
     );
   });
+
+  test(
+    'a list longer than a page is read to its end through the server\'s cursor',
+    () async {
+      // Past the server's default page of 50, so that a client which took the
+      // first answer for the whole list would lose the oldest rows without a
+      // sound — the seam between `next_cursor` on the wire and the client that
+      // has to follow it.
+      final made = <int>[];
+      for (var i = 0; i < 55; i++) {
+        final group = (await resources.createGroup(
+          'bulk-$i',
+        )).getOrElse((failure) => fail('creating a group failed: $failure'));
+        made.add(group.id);
+      }
+
+      final seen = <int>[];
+      String? cursor;
+      var pages = 0;
+      do {
+        final page = (await resources.groups(
+          cursor: cursor,
+        )).getOrElse((failure) => fail('listing groups failed: $failure'));
+        seen.addAll(page.items.map((g) => g.id));
+        cursor = page.nextCursor;
+        pages++;
+      } while (cursor != null && pages < 20);
+
+      expect(cursor, isNull, reason: 'the last page carries no cursor');
+      expect(pages, greaterThan(1), reason: '55 groups do not fit in a page');
+      expect(seen.toSet(), hasLength(seen.length), reason: 'none read twice');
+      expect(seen, containsAll(made), reason: 'none lost');
+      expect(
+        seen,
+        orderedEquals([...seen]..sort((a, b) => b.compareTo(a))),
+        reason: 'newest first, as the server says',
+      );
+
+      // A limit above the ceiling is served at the ceiling, and a limit that
+      // means nothing is the caller\'s error — both from the real server.
+      final capped = (await resources.groups(
+        limit: 100000,
+      )).getOrElse((failure) => fail('listing groups failed: $failure'));
+      expect(capped.items.length, lessThanOrEqualTo(200));
+      final refused = await resources.groups(limit: 0);
+      expect(refused.isLeft(), isTrue);
+    },
+  );
 }
 
 /// Waits for something the server does on its own schedule.

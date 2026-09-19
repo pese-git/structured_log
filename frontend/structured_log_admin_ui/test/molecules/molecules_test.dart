@@ -725,5 +725,58 @@ void main() {
         expect(selected?.value, 5);
       },
     );
+
+    testWidgets(
+      'a hint line is shown after the results and can never be chosen',
+      (tester) async {
+        AdminSearchPickerItem<int>? selected = const AdminSearchPickerItem(
+          value: -1,
+          label: 'untouched',
+        );
+
+        await tester.pumpWidget(
+          _host(
+            AdminSearchPicker<int>(
+              label: 'Пользователь',
+              onSearch: (_) async => [
+                const AdminSearchPickerItem(value: 5, label: 'operator'),
+                const AdminSearchPickerItem.hint('Type more to narrow it down'),
+              ],
+              onSelected: (item) => selected = item,
+            ),
+          ),
+        );
+
+        await tester.tap(find.byType(AutoSuggestBox<int>));
+        await tester.pump();
+        await tester.enterText(find.byType(AutoSuggestBox<int>), 'op');
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
+        // `AutoSuggestBox` sizes the overlay it opened before the answer came
+        // to one row and the workaround in the picker reopens it afterwards:
+        // for a frame two rows overflow it, which any multi-row result does
+        // and which is not what this test is about.
+        tester.takeException();
+
+        expect(find.text('operator'), findsOneWidget);
+        expect(find.text('Type more to narrow it down'), findsOneWidget);
+
+        selected = null;
+        await tester.tap(find.text('Type more to narrow it down'));
+        await tester.pumpAndSettle();
+        // Choosing the hint must not put the sentence into the field: the
+        // next keystroke would extend it and search for "…narrow it down1".
+        expect(
+          tester.widget<TextBox>(find.byType(TextBox)).controller!.text,
+          'op',
+        );
+        expect(
+          selected,
+          isNull,
+          reason: 'choosing the hint must not report a value — it is a '
+              'sentence about the results, not one of them',
+        );
+      },
+    );
   });
 }

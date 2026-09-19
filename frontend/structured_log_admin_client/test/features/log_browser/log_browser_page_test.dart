@@ -27,6 +27,12 @@ class _FakeRepository implements LogBrowserRepository {
   StreamController<LiveFeedEvent>? live;
 
   @override
+  Future<Either<ApiFailure, ScopeOptions>> loadMoreScopes({
+    required bool groups,
+    required String cursor,
+  }) async => right(const ScopeOptions());
+
+  @override
   Future<Either<ApiFailure, ScopeOptions>> loadScopes() async => right(
     const ScopeOptions(
       groups: [GroupScope(id: 7, name: 'acme')],

@@ -30,9 +30,18 @@ abstract class ScopeOptions with _$ScopeOptions {
     /// Projects the server reports as blocked. Offered but marked: they
     /// answer 403 to a log query, and hiding them would read as deletion.
     @Default(<int>{}) Set<int> blockedProjectIds,
+
+    /// Where the next page of each list starts; `null` once the last one is
+    /// in. The selector shows what was loaded and offers the rest, rather
+    /// than presenting the first page as everything there is.
+    String? groupsCursor,
+    String? projectsCursor,
   }) = _ScopeOptions;
 
   const ScopeOptions._();
+
+  bool get hasMoreGroups => groupsCursor != null;
+  bool get hasMoreProjects => projectsCursor != null;
 
   bool get isEmpty => groups.isEmpty && projects.isEmpty;
 }

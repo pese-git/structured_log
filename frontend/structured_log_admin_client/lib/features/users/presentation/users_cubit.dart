@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/audit_dto.dart';
 import '../../../shared/api/dto/resource_dto.dart';
@@ -301,20 +302,28 @@ class UsersCubit extends Cubit<UsersState> {
   /// rather than surfacing [state.actionFailure]: a search box coming up
   /// empty reads as "no matches yet", not as a form-level error that would
   /// block the fields already filled in.
-  Future<List<GroupDto>> searchGroups(String query) async {
-    final result = await _resources.groups(name: query);
-    return result.getOrElse((_) => const []);
+  ///
+  /// A page of [_searchPageSize] matches, with whether there were more — the
+  /// picker says so instead of letting the cut read as the end of the list.
+  static const _searchPageSize = 20;
+
+  Future<CursorPage<GroupDto>> searchGroups(String query) async {
+    final result = await _resources.groups(name: query, limit: _searchPageSize);
+    return result.getOrElse((_) => const CursorPage(<GroupDto>[], null));
   }
 
-  Future<List<ProjectDto>> searchProjects(String query) async {
-    final result = await _resources.searchProjects(name: query);
-    return result.getOrElse((_) => const []);
+  Future<CursorPage<ProjectDto>> searchProjects(String query) async {
+    final result = await _resources.searchProjects(
+      name: query,
+      limit: _searchPageSize,
+    );
+    return result.getOrElse((_) => const CursorPage(<ProjectDto>[], null));
   }
 
   /// `SoleOwnerConflictDialog`'s per-group «Выдать роль» — the recipient
   /// search its `GrantAccessDialog` needs, same as the group/project
   /// «Доступ» section's.
-  Future<List<UserDto>> searchUsers(String query) =>
+  Future<CursorPage<UserDto>> searchUsers(String query) =>
       _roleAssignments.searchUsers(query);
 
   /// `SoleOwnerConflictDialog`'s per-group «Выдать роль» — candidate teams

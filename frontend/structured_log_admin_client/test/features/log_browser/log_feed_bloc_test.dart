@@ -66,6 +66,19 @@ class _FakeRepository implements LogBrowserRepository {
   /// responses out of order.
   Completer<void>? gate;
 
+  /// What the next page of groups/projects holds, and the cursors asked for.
+  Either<ApiFailure, ScopeOptions> moreScopes = right(const ScopeOptions());
+  final moreScopeRequests = <({bool groups, String cursor})>[];
+
+  @override
+  Future<Either<ApiFailure, ScopeOptions>> loadMoreScopes({
+    required bool groups,
+    required String cursor,
+  }) async {
+    moreScopeRequests.add((groups: groups, cursor: cursor));
+    return moreScopes;
+  }
+
   @override
   Future<Either<ApiFailure, ScopeOptions>> loadScopes() async => scopes;
 
@@ -510,5 +523,158 @@ void main() {
 
       expect(bloc.state.failure, isA<ForbiddenFailure>());
     });
+  });
+
+  group('the selector\'s own paging', () {
+    test(
+      'the next page of groups is appended, and the cursor moves on',
+      () async {
+        repository.scopes = right(
+          const ScopeOptions(
+            groups: [GroupScope(id: 3, name: 'newest')],
+            projects: [ProjectScope(id: 9, name: 'payments')],
+            groupsCursor: '3',
+            projectsCursor: '9',
+          ),
+        );
+        repository.moreScopes = right(
+          const ScopeOptions(
+            groups: [GroupScope(id: 2, name: 'older')],
+            groupsCursor: null,
+          ),
+        );
+        bloc.add(const LogFeedEvent.started());
+        await until((state) => !state.loadingOptions);
+
+        bloc.add(const LogFeedEvent.moreScopesRequested(groups: true));
+        final state = await until(
+          (s) => !s.loadingMoreScopes && s.options!.groups.length == 2,
+        );
+
+        expect(repository.moreScopeRequests, [(groups: true, cursor: '3')]);
+        expect(state.options!.groups.map((g) => g.name), ['newest', 'older']);
+        expect(state.options!.hasMoreGroups, isFalse);
+        expect(
+          state.options!.projectsCursor,
+          '9',
+          reason: 'the projects list did not move when the groups list did',
+        );
+        expect(state.options!.projects, hasLength(1));
+      },
+    );
+
+    test('a blocked project on a later page is still marked', () async {
+      repository.scopes = right(
+        const ScopeOptions(
+          projects: [ProjectScope(id: 9, name: 'a')],
+          projectsCursor: '9',
+        ),
+      );
+      repository.moreScopes = right(
+        const ScopeOptions(
+          projects: [ProjectScope(id: 8, name: 'b')],
+          blockedProjectIds: {8},
+        ),
+      );
+      bloc.add(const LogFeedEvent.started());
+      await until((state) => !state.loadingOptions);
+
+      bloc.add(const LogFeedEvent.moreScopesRequested(groups: false));
+      final state = await until((s) => s.options!.projects.length == 2);
+
+      expect(state.options!.blockedProjectIds, {8});
+    });
+
+    test('asking again with no cursor sends nothing', () async {
+      bloc.add(const LogFeedEvent.started());
+      await until((state) => !state.loadingOptions);
+
+      bloc.add(const LogFeedEvent.moreScopesRequested(groups: true));
+      await quiet();
+
+      expect(repository.moreScopeRequests, isEmpty);
+    });
+  });
+
+  group('what is held while following the live edge', () {
+    late LogFeedBloc capped;
+
+    setUp(() {
+      capped = LogFeedBloc(
+        loadScopes: LoadScopes(repository),
+        queryLogs: QueryLogs(repository),
+        watchLogs: WatchLogs(repository),
+        maxHeldEntries: 4,
+      );
+    });
+
+    tearDown(() => capped.close());
+
+    Future<void> openFeed({String? cursor}) async {
+      repository.answers.add(
+        right((entries: _page([1, 2, 3]), nextCursor: cursor)),
+      );
+      capped.add(const LogFeedEvent.started());
+      await capped.stream.firstWhere((s) => !s.loadingOptions);
+      capped.add(const LogFeedEvent.scopeSelected(_payments));
+      await capped.stream.firstWhere((s) => s.entries.isNotEmpty);
+    }
+
+    test('the oldest entries are let go past the limit, and are reachable '
+        'again by scrolling up', () async {
+      await openFeed();
+      expect(capped.state.nextCursor, isNull, reason: 'the log began at 1');
+
+      for (final id in [4, 5, 6]) {
+        capped.add(LogFeedEvent.liveEntryArrived(_entry(id)));
+      }
+      await capped.stream.firstWhere((s) => s.entries.last.id == 6);
+
+      expect(capped.state.entries.map((e) => e.id), [3, 4, 5, 6]);
+      expect(
+        capped.state.nextCursor,
+        '3',
+        reason:
+            'entries 1 and 2 are no longer held, so "there is more '
+            'above" is true again, from the oldest one kept',
+      );
+    });
+
+    test(
+      'nothing is dropped while an entry is open in the detail pane',
+      () async {
+        await openFeed();
+        capped.add(const LogFeedEvent.entrySelected(1));
+        await capped.stream.firstWhere((s) => s.selectedEntryId == 1);
+
+        for (final id in [4, 5, 6, 7]) {
+          capped.add(LogFeedEvent.liveEntryArrived(_entry(id)));
+        }
+        await capped.stream.firstWhere((s) => s.entries.last.id == 7);
+
+        expect(capped.state.entries.first.id, 1);
+        expect(capped.state.selectedEntryId, 1);
+      },
+    );
+
+    test(
+      'nothing is dropped from under a reader who scrolled into history',
+      () async {
+        await openFeed();
+        capped.add(const LogFeedEvent.scrolledAwayFromBottom());
+        await capped.stream.firstWhere((s) => s.mode is FeedScrolledUp);
+
+        for (final id in [4, 5, 6, 7]) {
+          capped.add(LogFeedEvent.liveEntryArrived(_entry(id)));
+        }
+        await capped.stream.firstWhere((s) => s.entries.last.id == 7);
+
+        expect(
+          capped.state.entries.first.id,
+          1,
+          reason: 'removing entries above the reader would move what they read',
+        );
+      },
+    );
   });
 }

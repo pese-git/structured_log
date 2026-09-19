@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../audit/audit_action.dart';
 import 'database.dart';
+import 'page.dart';
 
 /// A filter and one page's worth of pagination over the audit log.
 ///
@@ -146,13 +147,11 @@ Future<AuditQueryPage> runAuditQuery(
     readsFrom: {db.auditLogEntries},
   ).get();
 
-  final entries = rows
-      .take(query.limit)
-      .map((row) => db.auditLogEntries.map(row.data))
-      .toList();
-
-  return AuditQueryPage(
-    entries: entries,
-    nextCursor: rows.length > query.limit ? entries.last.id : null,
+  final page = pageFromProbe(
+    rows.map((row) => db.auditLogEntries.map(row.data)).toList(),
+    query.limit,
+    (entry) => entry.id,
   );
+
+  return AuditQueryPage(entries: page.items, nextCursor: page.nextCursor);
 }

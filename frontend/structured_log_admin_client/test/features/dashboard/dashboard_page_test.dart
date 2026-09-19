@@ -10,6 +10,8 @@ import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 
 import '../../support/localized_app.dart';
+import 'package:structured_log_admin_client/shared/api/cursor_page.dart';
+import '../../support/paging.dart';
 
 /// `ManageGroups.list`/`ManageProjects.search`/`.get` is all
 /// [DashboardCubit] calls — everything else throws if the test does not set
@@ -25,16 +27,31 @@ class _FakeRepository implements ResourcesRepository {
 
   ApiFailure? groupsFailure;
 
+  /// What the screen asked for — it must ask for the cards it shows, not the
+  /// whole table.
+  int? requestedGroupLimit;
+  int? requestedProjectLimit;
+
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async {
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> groups({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) async {
+    requestedGroupLimit = limit;
     if (groupsFailure != null) return left(groupsFailure!);
-    return right(groupList);
+    return right(pageOf(groupList, limit: limit, cursor: cursor));
   }
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> searchProjects({
     String? name,
-  }) async => right(projectList);
+    int? limit,
+    String? cursor,
+  }) async {
+    requestedProjectLimit = limit;
+    return right(pageOf(projectList, limit: limit, cursor: cursor));
+  }
 
   @override
   Future<Either<ApiFailure, ProjectDto>> project(int projectId) async {
@@ -87,6 +104,7 @@ void main() {
     WidgetTester tester, {
     void Function(int, String)? onOpenGroup,
     void Function(int, String)? onOpenLogs,
+    VoidCallback? onShowAllGroups,
     Locale locale = const Locale('ru'),
   }) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -107,6 +125,7 @@ void main() {
             username: 'alex',
             onOpenGroup: onOpenGroup ?? (_, _) {},
             onOpenLogs: onOpenLogs ?? (_, _) {},
+            onShowAllGroups: onShowAllGroups ?? () {},
           ),
         ),
         locale: locale,
@@ -191,6 +210,53 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(opened, (id: 3, name: 'notification-svc'));
+  });
+
+  testWidgets('asks for the cards it shows, not for every group and project', (
+    tester,
+  ) async {
+    repository.groupList = [for (var i = 1; i <= 40; i++) _group(i, 'g$i')];
+    repository.projectList = [
+      for (var i = 1; i <= 40; i++) _project(i, 1, 'p$i'),
+    ];
+    repository.projectDetail = {
+      for (var i = 1; i <= 40; i++) i: _project(i, 1, 'p$i'),
+    };
+
+    await pump(tester);
+
+    expect(repository.requestedProjectLimit, 3);
+    expect(repository.requestedGroupLimit, 6);
+    expect(find.text('g6'), findsOneWidget);
+    expect(
+      find.text('g7'),
+      findsNothing,
+      reason: 'a glance at the newest few, not the whole table',
+    );
+  });
+
+  testWidgets(
+    'offers the groups screen when there are more groups than cards',
+    (tester) async {
+      repository.groupList = [for (var i = 1; i <= 9; i++) _group(i, 'g$i')];
+      var opened = 0;
+
+      await pump(tester, onShowAllGroups: () => opened++);
+      await tester.tap(find.text('Все группы'));
+      await tester.pumpAndSettle();
+
+      expect(opened, 1);
+    },
+  );
+
+  testWidgets('offers nothing more when every group is on the screen', (
+    tester,
+  ) async {
+    repository.groupList = [for (var i = 1; i <= 4; i++) _group(i, 'g$i')];
+
+    await pump(tester);
+
+    expect(find.text('Все группы'), findsNothing);
   });
 
   testWidgets('a refused group list is explained, not left blank', (

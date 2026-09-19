@@ -9,8 +9,10 @@ import '../../errors.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
+import '../../storage/page.dart';
 import '../../storage/log_filter.dart' show escapeLike;
 import '../json_response.dart';
+import '../page_request.dart';
 import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
@@ -64,7 +66,8 @@ class ProjectRoutes {
   Router get router => _$ProjectRoutesRouter(this);
 
   /// Every project the caller may read, flat rather than nested under a
-  /// group.
+  /// group, a page at a time (`log-server-pagination`), newest first. What the
+  /// caller may read is part of the query — see `GroupRoutes.listGroups`.
   ///
   /// Flat because RBAC grants a role on a group **or** on a single project,
   /// and a project-scoped role does not cover the enclosing group
@@ -90,34 +93,47 @@ class ProjectRoutes {
     final identity = request.requireUser();
     final roles = await resolveRoles(_authorizer, identity);
 
-    final groupIdParam = request.url.queryParameters['group_id'];
+    final params = request.url.queryParameters;
+    final (:limit, :cursor) = parsePageRequest(params);
+    final groupIdParam = params['group_id'];
     final groupFilter =
         groupIdParam == null ? null : int.tryParse(groupIdParam);
     if (groupIdParam != null && groupFilter == null) {
       throw ApiError.invalidRequest('group_id must be an integer.');
     }
-    final name = request.url.queryParameters['name'];
+    final name = params['name'];
 
-    final select = _db.select(_db.projects);
+    final readable = readableScope(roles);
+    if (readable.isEmpty) return jsonOk({'items': [], 'next_cursor': null});
+
+    final select = _db.select(_db.projects)
+      ..orderBy([(t) => OrderingTerm.desc(t.id)])
+      ..limit(limit + 1);
+    if (!readable.everything) {
+      // A group grant covers the group's projects; a project grant, only
+      // that project (`readableScope`).
+      select.where(
+        (t) =>
+            t.groupId.isIn(readable.groupIds) | t.id.isIn(readable.projectIds),
+      );
+    }
     if (groupFilter != null) {
       select.where((t) => t.groupId.equals(groupFilter));
+    }
+    if (cursor != null) {
+      select.where((t) => t.id.isSmallerThanValue(cursor));
     }
     if (name != null && name.isNotEmpty) {
       select.where(
         (t) => t.name.like('%${escapeLike(name)}%', escapeChar: r'\'),
       );
     }
-    final projects = await select.get();
 
-    final visible = projects.where(
-      (project) => canRead(
-        roles,
-        targetType: ScopeType.project,
-        targetId: project.id,
-        enclosingGroupId: project.groupId,
-      ),
-    );
-    return jsonOk({'items': visible.map(projectJson).toList()});
+    final page = pageFromProbe(await select.get(), limit, (p) => p.id);
+    return jsonOk({
+      'items': page.items.map(projectJson).toList(),
+      'next_cursor': page.nextCursor?.toString(),
+    });
   }
 
   /// `owner` of the enclosing group, or `admin` (`log-server-rbac`,

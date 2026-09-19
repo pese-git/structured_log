@@ -131,6 +131,10 @@ class _LogBrowserPageState extends State<LogBrowserPage> {
             onSelected: (picked) => context.read<LogFeedBloc>().add(
               LogFeedEvent.scopeSelected(picked),
             ),
+            loadingMore: state.loadingMoreScopes,
+            onShowMore: (groups) => context.read<LogFeedBloc>().add(
+              LogFeedEvent.moreScopesRequested(groups: groups),
+            ),
           );
         }
 

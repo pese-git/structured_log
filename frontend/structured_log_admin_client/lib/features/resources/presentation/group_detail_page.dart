@@ -368,6 +368,21 @@ class _Projects extends StatelessWidget {
           ),
           const SizedBox(height: AdminSpacing.x10),
         ],
+        if (state.hasMoreProjects)
+          Padding(
+            padding: const EdgeInsets.all(AdminSpacing.x12),
+            child: Center(
+              child: state.loadingMoreProjects
+                  ? const AdminLoadingIndicator()
+                  : AdminButton(
+                      label: context.l10n.resShowMore,
+                      icon: FluentIcons.chevron_down,
+                      onPressed: context
+                          .read<GroupDetailCubit>()
+                          .loadMoreProjects,
+                    ),
+            ),
+          ),
       ],
     );
   }

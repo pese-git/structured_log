@@ -12,8 +12,10 @@ import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../rbac/token_version.dart';
 import '../../storage/database.dart';
+import '../../storage/page.dart';
 import '../../storage/log_filter.dart' show escapeLike;
 import '../json_response.dart';
+import '../page_request.dart';
 import '../principal_middleware.dart';
 import '../rate_limit_middleware.dart';
 import '../request_helpers.dart';
@@ -161,14 +163,11 @@ class UserRoutes {
     if (!canSearchUsers(roles)) throw ApiError.forbidden();
 
     final params = request.url.queryParameters;
-    final limit = params['limit'] != null ? int.parse(params['limit']!) : 50;
-    final cursor =
-        params['cursor'] != null ? int.tryParse(params['cursor']!) : null;
+    final (:limit, :cursor) = parsePageRequest(params);
     final username = params['username'];
 
-    // One row more than asked for, dropped below — tells us whether another
-    // page exists without a second `COUNT` query (same trick as
-    // `runAuditQuery`).
+    // One row more than asked for, dropped by `pageFromProbe` — tells us
+    // whether another page exists without a second `COUNT` query.
     final select = _db.select(_db.users)
       ..orderBy([(t) => OrderingTerm.desc(t.id)])
       ..limit(limit + 1);
@@ -183,12 +182,11 @@ class UserRoutes {
         (t) => t.username.like('%${escapeLike(username)}%', escapeChar: r'\'),
       );
     }
-    final rows = await select.get();
-    final page = rows.take(limit).toList();
+    final page = pageFromProbe(await select.get(), limit, (user) => user.id);
 
     return jsonOk({
-      'items': page.map(userJson).toList(),
-      'next_cursor': rows.length > limit ? page.last.id.toString() : null,
+      'items': page.items.map(userJson).toList(),
+      'next_cursor': page.nextCursor?.toString(),
     });
   }
 

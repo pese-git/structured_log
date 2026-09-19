@@ -355,6 +355,57 @@ void main() {
     },
   );
 
+  testWidgets('a list longer than a page is read to its end by asking for '
+      'more', (tester) async {
+    // 60 more groups, newer than everything else: three pages of 50 with what
+    // the flow made already. Pressed on real coordinates in a real browser,
+    // because "Показать ещё" is at the foot of a lazily built list, and a
+    // button that is never built, or sits under something, is exactly what a
+    // person could not press either.
+    final extra = [
+      for (var i = 1; i <= 60; i++)
+        {
+          'id': 1000 + i,
+          'name': 'bulk-$i',
+          'created_at': '2026-02-14T00:00:00.000Z',
+        },
+    ];
+    server.groups.addAll(extra);
+    try {
+      await openApp(tester);
+      await _waitFor(tester, find.text('bulk-60'));
+      expect(
+        find.text('bulk-1'),
+        findsNothing,
+        reason: 'the first page is the newest 50, not everything',
+      );
+
+      // Two presses at most: 61 rows is a page of 50 and one of 11.
+      for (
+        var i = 0;
+        i < 6 && find.text('Показать ещё').evaluate().isEmpty;
+        i++
+      ) {
+        await tester.drag(find.byType(ListView).last, const Offset(0, -3000));
+        await tester.pumpAndSettle();
+      }
+      await _press(tester, find.text('Показать ещё'));
+      await _waitForGone(tester, find.text('Показать ещё'));
+      for (var i = 0; i < 6 && find.text('payments').evaluate().isEmpty; i++) {
+        await tester.drag(find.byType(ListView).last, const Offset(0, -3000));
+        await tester.pumpAndSettle();
+      }
+      expect(
+        find.text('payments'),
+        findsOneWidget,
+        reason: 'the oldest group is on the last page',
+      );
+    } finally {
+      server.groups.removeWhere((g) => (g['id'] as int) > 1000);
+    }
+    await closeApp(tester);
+  });
+
   testWidgets('signing out ends the session, and it does not come back', (
     tester,
   ) async {

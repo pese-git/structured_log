@@ -19,8 +19,16 @@ abstract class GroupsApi {
   /// [name] narrows to groups whose name contains it — a picker resolving a
   /// group by name is the caller so far (`AdminSearchPicker` in the
   /// role-grant dialog).
+  ///
+  /// One page, newest first: [limit] and [cursor] are the server's
+  /// (`log-server-pagination`), and the answer says whether another page
+  /// follows.
   @GET('/v1/groups')
-  Future<GroupListDto> list({@Query('name') String? name});
+  Future<GroupListDto> list({
+    @Query('name') String? name,
+    @Query('limit') int? limit,
+    @Query('cursor') String? cursor,
+  });
 
   /// Administrators only — the server answers 403 to anyone else.
   @POST('/v1/groups')
@@ -83,11 +91,13 @@ abstract class ProjectsApi {
   /// time.
   ///
   /// [name] narrows to projects whose name contains it, combinable with
-  /// [groupId] — same idiom as [GroupsApi.list].
+  /// [groupId] — same idiom as [GroupsApi.list]; and paged the same way.
   @GET('/v1/projects')
   Future<ProjectListDto> list({
     @Query('group_id') int? groupId,
     @Query('name') String? name,
+    @Query('limit') int? limit,
+    @Query('cursor') String? cursor,
   });
 
   /// The only endpoint that reports usage: `entry_count` and `total_bytes`

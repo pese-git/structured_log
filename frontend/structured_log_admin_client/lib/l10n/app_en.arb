@@ -576,9 +576,13 @@
   "@dashSubtitle": {
     "description": "dashSubtitle"
   },
-  "dashAllGroups": "All server groups",
+  "dashAllGroups": "Groups",
   "@dashAllGroups": {
     "description": "dashAllGroups"
+  },
+  "dashShowAllGroups": "Show all groups",
+  "@dashShowAllGroups": {
+    "description": "dashShowAllGroups"
   },
   "dashNoGroups": "No groups yet",
   "@dashNoGroups": {
@@ -1193,6 +1197,14 @@
   "resGroupsLoadFailed": "Could not load groups",
   "@resGroupsLoadFailed": {
     "description": "resGroupsLoadFailed"
+  },
+  "commonSearchTruncated": "Showing the first matches — type more to narrow it down",
+  "@commonSearchTruncated": {
+    "description": "commonSearchTruncated"
+  },
+  "resShowMore": "Show more",
+  "@resShowMore": {
+    "description": "resShowMore"
   },
   "resNoGroups": "No groups yet",
   "@resNoGroups": {

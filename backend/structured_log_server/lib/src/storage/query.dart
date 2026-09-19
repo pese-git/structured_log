@@ -51,8 +51,8 @@ class LogQuery {
 }
 
 /// One page of [LogQuery] results. [nextCursor] is the `id` to pass back as
-/// [LogQuery.cursor] for the next (older) page — `null` once [entries] is
-/// empty.
+/// [LogQuery.cursor] for the next (older) page — `null` on the last page
+/// (`log-server-pagination`).
 class LogQueryPage {
   final List<LogEntry> entries;
   final int? nextCursor;

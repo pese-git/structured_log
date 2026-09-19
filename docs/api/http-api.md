@@ -17,6 +17,31 @@ specs deliberately leave at "a JSON object identifying the error." If
 `specs/*.md` is ever revised with a conflicting shape, that wins and
 this page should follow.
 
+## Pagination (`log-server-pagination`)
+
+`GET /v1/logs`, `/v1/audit-log`, `/v1/users`, `/v1/groups` and
+`/v1/projects` are paginated the same way. Each takes optional `limit` and
+`cursor` and answers `{"items": [...], "next_cursor": string | null}`.
+
+| Param | Notes |
+|---|---|
+| `limit` | Default 50, ceiling 200 — a larger value is served at 200 rather than refused. Not a positive integer → `400 invalid_request`. |
+| `cursor` | The previous response's `next_cursor`, passed back untouched. A value the server did not issue → `400 invalid_request`. |
+
+Items are ordered newest first (largest `id` first); `cursor` continues toward
+older ones, so a row created while you are paging never shifts a page.
+`next_cursor` is `null` on the last page — the server says so itself, so there
+is no need to request an empty page to find the end. There is no `total`:
+counting the audit log and the entries costs more than the pages are worth.
+
+Lists that are bounded by the size of one group or one project — teams, team
+members, a project's secret keys, role assignments — are not paginated and
+return everything in one response.
+
+> **Breaking change:** `GET /v1/groups` and `GET /v1/projects` used to return
+> every visible row and now return the first page (50). A caller that read them
+> whole must follow `next_cursor`.
+
 Examples below use `http://localhost:8080` as the server's base URL,
 and shell variables `$ACCESS_TOKEN` (a JWT from `POST /v1/auth/token`)
 and `$PROJECT_SECRET_KEY` (from `POST /v1/projects/:id/secret-keys`,
@@ -74,8 +99,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Exact match |
 | `q` | string | Full-text, matched against `event` and content |
 | `context.<key>` | string | Exact match on a custom field, e.g. `context.order_id=ord_44821` |
-| `limit` | integer | Page size |
-| `cursor` | string | From a previous response's `next_cursor` |
+| `limit`, `cursor` | | [Pagination](#pagination-log-server-pagination) |
 
 **Response `200`:** `{"items": [LogEntry], "next_cursor": string \| null}` — see [models.md#logentry](models.md#logentry). Without `cursor`, `items` is ordered newest-first by `id`; `cursor` advances toward older entries.
 
@@ -343,7 +367,7 @@ curl -X POST http://localhost:8080/v1/users \
 
 Role: `admin`.
 
-**Query:** `limit`, `cursor`.
+**Query:** `username` (substring match), `limit`, `cursor` — see [Pagination](#pagination-log-server-pagination).
 
 **Response `200`:** `{"items": [User], "next_cursor": string \| null}`.
 
@@ -418,9 +442,13 @@ curl -X POST http://localhost:8080/v1/groups \
 
 ### `GET /v1/groups`
 
-Role: any authenticated user; results scoped to visible groups.
+Role: any authenticated user; results scoped to visible groups. What the
+caller may see is part of the query, so a caller with one group among a
+thousand gets it on the first page.
 
-**Response `200`:** `{"items": [Group]}`.
+**Query:** `name` (substring, case-insensitive), `limit`, `cursor` — see [Pagination](#pagination-log-server-pagination).
+
+**Response `200`:** `{"items": [Group], "next_cursor": string \| null}`.
 
 ```bash
 curl http://localhost:8080/v1/groups -H "Authorization: Bearer $ACCESS_TOKEN"
@@ -540,6 +568,20 @@ Spec:
 [specs/log-server-quotas/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-quotas/spec.md).
 See [quotas-and-audit.md](../architecture/quotas-and-audit.md). All
 endpoints: `Authorization: Bearer <access-token>`, JSON bodies.
+
+### `GET /v1/projects`
+
+Role: any authenticated user; every project the caller may read, flat — a
+role on one project does not cover its group, so this is such a user's only way
+to find it.
+
+**Query:** `group_id`, `name` (substring, case-insensitive), `limit`, `cursor` — see [Pagination](#pagination-log-server-pagination).
+
+**Response `200`:** `{"items": [Project], "next_cursor": string \| null}`. Carries `is_blocked`, not the usage counters — those come from `GET /v1/projects/:id`.
+
+```bash
+curl -G http://localhost:8080/v1/projects -H "Authorization: Bearer $ACCESS_TOKEN" -d limit=50
+```
 
 ### `POST /v1/groups/:groupId/projects`
 

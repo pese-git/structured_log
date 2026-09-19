@@ -11,4 +11,10 @@ class LoadScopes {
   const LoadScopes(this._repository);
 
   Future<Either<ApiFailure, ScopeOptions>> call() => _repository.loadScopes();
+
+  /// The next page of the groups, or of the projects, after [cursor].
+  Future<Either<ApiFailure, ScopeOptions>> more({
+    required bool groups,
+    required String cursor,
+  }) => _repository.loadMoreScopes(groups: groups, cursor: cursor);
 }
