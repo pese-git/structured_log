@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/api_failure.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
@@ -132,7 +133,7 @@ class ProjectDetailCubit extends Cubit<ProjectDetailState> {
 
   void clearAccessFailure() => emit(state.copyWith(accessFailure: null));
 
-  Future<List<UserDto>> searchUsers(String query) =>
+  Future<CursorPage<UserDto>> searchUsers(String query) =>
       _roleAssignments.searchUsers(query);
 
   /// This project's *enclosing group*'s teams — a team is never scoped to a

@@ -16,6 +16,8 @@ import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/dto/audit_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
+import 'package:structured_log_admin_client/shared/api/cursor_page.dart';
+import '../../support/paging.dart';
 
 UserDto _user({
   int id = 1,
@@ -172,13 +174,18 @@ class _FakeResources implements ResourcesRepository {
   var projectResults = <ProjectDto>[];
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async =>
-      right(groupResults);
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> groups({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) async => right(pageOf(groupResults, limit: limit, cursor: cursor));
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> searchProjects({
     String? name,
-  }) async => right(projectResults);
+    int? limit,
+    String? cursor,
+  }) async => right(pageOf(projectResults, limit: limit, cursor: cursor));
 
   @override
   Never noSuchMethod(Invocation invocation) => throw UnimplementedError(

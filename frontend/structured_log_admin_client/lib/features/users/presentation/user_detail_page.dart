@@ -516,17 +516,21 @@ class _GrantRoleFormState extends State<_GrantRoleForm> {
                 : context.l10n.usersScopeTypeProject,
             placeholder: context.l10n.usersScopePickerPlaceholder,
             onSearch: (query) async {
+              // Read before the awaits: the context may be gone by then.
+              final truncated = context.l10n.commonSearchTruncated;
               if (_scopeType == 'group') {
-                final items = await cubit.searchGroups(query);
+                final page = await cubit.searchGroups(query);
                 return [
-                  for (final g in items)
+                  for (final g in page.items)
                     AdminSearchPickerItem(value: g.id, label: g.name),
+                  if (page.hasMore) AdminSearchPickerItem.hint(truncated),
                 ];
               }
-              final items = await cubit.searchProjects(query);
+              final page = await cubit.searchProjects(query);
               return [
-                for (final p in items)
+                for (final p in page.items)
                   AdminSearchPickerItem(value: p.id, label: p.name),
+                if (page.hasMore) AdminSearchPickerItem.hint(truncated),
               ];
             },
             onSelected: (item) => setState(() => _scopeId = item?.value),

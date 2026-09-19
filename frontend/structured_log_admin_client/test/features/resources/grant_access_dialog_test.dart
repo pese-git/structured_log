@@ -5,6 +5,7 @@ import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
 import '../../support/localized_app.dart';
+import 'package:structured_log_admin_client/shared/api/cursor_page.dart';
 
 /// The «Предоставить доступ» dialog's own behaviour (13.5, full version):
 /// the recipient can now be a user or a team, and the role choices narrow to
@@ -36,6 +37,7 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     bool isGlobalAdmin = false,
+    bool moreUsers = false,
     ValueChanged<AccessGrantValues>? onGrant,
   }) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -50,7 +52,8 @@ void main() {
             child: GrantAccessDialog(
               scopeLabel: 'Группа: payments',
               isGlobalAdmin: isGlobalAdmin,
-              searchUsers: (query) async => [user(9, 'alice')],
+              searchUsers: (query) async =>
+                  CursorPage([user(9, 'alice')], moreUsers ? '9' : null),
               searchTeams: (query) async => [team(3, 'on-call')],
               onGrant: onGrant ?? (_) {},
               onCancel: () {},
@@ -98,6 +101,39 @@ void main() {
 
     expect(submitted.subjectType, 'user');
     expect(submitted.subjectId, 9);
+  });
+
+  testWidgets('says so when the search matched more than it shows', (
+    tester,
+  ) async {
+    await pump(tester, moreUsers: true);
+
+    await tester.enterText(find.byType(TextBox), 'a');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    // The overlay first opened before the answer; for a frame two rows
+    // overflow it, which is `AutoSuggestBox`'s and not what is asserted here.
+    tester.takeException();
+
+    expect(find.text('alice'), findsWidgets);
+    expect(
+      find.text('Показаны первые совпадения — уточните запрос'),
+      findsOneWidget,
+      reason: 'a silently cut list reads as "these are all the people"',
+    );
+  });
+
+  testWidgets('a complete result carries no such line', (tester) async {
+    await pump(tester);
+
+    await tester.enterText(find.byType(TextBox), 'a');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Показаны первые совпадения — уточните запрос'),
+      findsNothing,
+    );
   });
 
   testWidgets('switching the recipient to a team searches teams and submits '

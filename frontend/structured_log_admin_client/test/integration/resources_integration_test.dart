@@ -69,6 +69,58 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('a list longer than a page reaches its last row through the '
+      'cursor the server gave', (tester) async {
+    // 120 groups is three pages of 50. The server tells the client about the
+    // next page only through `next_cursor`, and a client that ignored it would
+    // show the newest 50 and say nothing about the rest — the failure that no
+    // fake repository, which answers whatever it is asked, can show.
+    server.groups
+      ..clear()
+      ..addAll([
+        for (var i = 1; i <= 120; i++)
+          {
+            'id': i,
+            'name': 'group-$i',
+            'created_at': '2026-02-14T00:00:00.000Z',
+          },
+      ]);
+
+    await pumpApp(tester, server, signedIn: true);
+    expect(find.text('group-120'), findsOneWidget, reason: 'newest first');
+    expect(
+      find.text('group-1'),
+      findsNothing,
+      reason: 'the first page is 50 rows, not everything',
+    );
+    expect(lastRequest('GET', '/v1/groups').query['limit'], '50');
+
+    // The list is lazy, so what is at its foot exists only once scrolled to.
+    Future<void> scrollToFoot() async {
+      for (var i = 0; i < 6; i++) {
+        // The groups list, not the navigation pane's.
+        await tester.drag(find.byType(ListView).last, const Offset(0, -3000));
+        await tester.pumpAndSettle();
+      }
+    }
+
+    await scrollToFoot();
+    await tester.tap(find.text('Показать ещё'));
+    await tester.pumpAndSettle();
+    await scrollToFoot();
+    await tester.tap(find.text('Показать ещё'));
+    await tester.pumpAndSettle();
+    await scrollToFoot();
+
+    expect(find.text('group-1'), findsOneWidget);
+    expect(
+      find.text('Показать ещё'),
+      findsNothing,
+      reason: 'the last page carried no cursor',
+    );
+    await closeApp(tester);
+  });
+
   testWidgets('a group typed into the dialog is created and comes back in the '
       'list', (tester) async {
     await pumpApp(tester, server, signedIn: true);

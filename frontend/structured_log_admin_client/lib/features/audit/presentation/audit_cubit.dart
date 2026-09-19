@@ -85,12 +85,17 @@ abstract class AuditState with _$AuditState {
 class AuditCubit extends Cubit<AuditState> {
   final QueryAuditLog _query;
 
+  /// The server's own default, passed explicitly so a reader of this file
+  /// does not have to know it to follow [loadMore] — as `QueryLogs.pageSize`
+  /// and `UsersCubit._pageSize` do.
+  static const _pageSize = 50;
+
   AuditCubit(this._query) : super(const AuditState());
 
   /// Reads the newest page for the current filter, from the beginning.
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
-    final result = await _query.first(filter: state.filter);
+    final result = await _query.first(filter: state.filter, limit: _pageSize);
     if (isClosed) return;
 
     result.match(
@@ -128,7 +133,11 @@ class AuditCubit extends Cubit<AuditState> {
     if (cursor == null || state.loadingMore || state.loading) return;
 
     emit(state.copyWith(loadingMore: true));
-    final result = await _query.more(cursor: cursor, filter: state.filter);
+    final result = await _query.more(
+      cursor: cursor,
+      filter: state.filter,
+      limit: _pageSize,
+    );
     if (isClosed) return;
 
     result.match(

@@ -17,6 +17,8 @@ import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
 import '../../support/localized_app.dart';
+import 'package:structured_log_admin_client/shared/api/cursor_page.dart';
+import '../../support/paging.dart';
 
 /// The screens, driven through the widgets rather than the cubits.
 ///
@@ -42,10 +44,14 @@ class _FakeRepository implements ResourcesRepository {
 
   ApiFailure? refuseWrites;
   final created = <String>[];
+  var projectList = <ProjectDto>[];
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) async =>
-      right(groupList);
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> groups({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) async => right(pageOf(groupList, limit: limit, cursor: cursor));
 
   @override
   Future<Either<ApiFailure, GroupDto>> createGroup(String name) async {
@@ -61,13 +67,18 @@ class _FakeRepository implements ResourcesRepository {
   }
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) async =>
-      right(const []);
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> projectsOf(
+    int groupId, {
+    int? limit,
+    String? cursor,
+  }) async => right(pageOf(projectList, limit: limit, cursor: cursor));
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> searchProjects({
     String? name,
-  }) async => right(const []);
+    int? limit,
+    String? cursor,
+  }) async => right(pageOf(projectList, limit: limit, cursor: cursor));
 
   @override
   Future<Either<ApiFailure, ProjectDto>> project(int projectId) async =>

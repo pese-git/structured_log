@@ -13,6 +13,10 @@ abstract class DashboardState with _$DashboardState {
     @Default(true) bool loading,
     @Default(<GroupDto>[]) List<GroupDto> groups,
 
+    /// The groups shown are the newest few, not all of them; this says
+    /// whether the groups screen has more to offer.
+    @Default(false) bool moreGroups,
+
     /// At most [DashboardCubit.projectCardCount], each with `entryCount`
     /// filled in for the usage bar.
     @Default(<ProjectDto>[]) List<ProjectDto> projects,
@@ -32,24 +36,32 @@ class DashboardCubit extends Cubit<DashboardState> {
   /// How many project cards the mockup draws.
   static const projectCardCount = 3;
 
+  /// How many group cards the overview shows. The dashboard is a glance, not
+  /// the list: the groups screen pages through the rest.
+  static const groupCardCount = 6;
+
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
-    final groupsResult = await _groups.list();
-    final projectsResult = await _projects.search();
+    // Only as many as there are cards: the server's newest first, and no
+    // request for the rest of the table to throw most of it away.
+    final groupsResult = await _groups.list(limit: groupCardCount);
+    final projectsResult = await _projects.search(limit: projectCardCount);
     if (isClosed) return;
 
     await groupsResult.match(
       (failure) async => emit(state.copyWith(loading: false, failure: failure)),
       (groups) async {
-        final candidates = projectsResult.getOrElse((_) => const []);
-        final projects = await _withUsage(
-          candidates.take(projectCardCount).toList(),
+        final candidates = projectsResult.match(
+          (_) => const <ProjectDto>[],
+          (page) => page.items,
         );
+        final projects = await _withUsage(candidates);
         if (isClosed) return;
         emit(
           state.copyWith(
             loading: false,
-            groups: groups,
+            groups: groups.items,
+            moreGroups: groups.hasMore,
             projects: projects,
             failure: null,
           ),

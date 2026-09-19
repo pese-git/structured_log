@@ -98,9 +98,25 @@ class GroupsPage extends StatelessWidget {
     }
 
     return ListView.separated(
-      itemCount: state.groups.length,
+      // One extra slot at the end for the "show more" row, while there is
+      // more to show.
+      itemCount: state.groups.length + (state.hasMore ? 1 : 0),
       separatorBuilder: (_, _) => const SizedBox(height: AdminSpacing.x10),
       itemBuilder: (context, index) {
+        if (index == state.groups.length) {
+          return Padding(
+            padding: const EdgeInsets.all(AdminSpacing.x18),
+            child: Center(
+              child: state.loadingMore
+                  ? const AdminLoadingIndicator()
+                  : AdminButton(
+                      label: context.l10n.resShowMore,
+                      icon: FluentIcons.chevron_down,
+                      onPressed: context.read<GroupsCubit>().loadMore,
+                    ),
+            ),
+          );
+        }
         final group = state.groups[index];
         return AdminResourceRow(
           icon: FluentIcons.group,

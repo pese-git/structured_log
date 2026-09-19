@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_client.dart';
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
 import '../../../shared/api/logs_api.dart';
 import '../domain/live_feed_event.dart';
@@ -21,34 +22,67 @@ class LogBrowserRepositoryImpl implements LogBrowserRepository {
 
   const LogBrowserRepositoryImpl(this._api, this._stream);
 
+  /// The server's own default, passed explicitly so a reader of this file
+  /// does not have to know it to follow [loadMoreScopes].
+  static const _scopePageSize = 50;
+
   @override
   Future<Either<ApiFailure, ScopeOptions>> loadScopes() async {
     try {
       // Both lists, because a role can be granted on either level and
       // neither list implies the other: a project-scoped user sees no groups
       // at all, a group-scoped one sees the group and its projects.
-      final groups = (await _api.groups.list()).items;
-      final projects = (await _api.projects.list()).items;
+      final groups = await _api.groups.list(limit: _scopePageSize);
+      final projects = await _api.projects.list(limit: _scopePageSize);
+      return right(_options(groups: groups, projects: projects));
+    } on DioException catch (error) {
+      return left(mapDioException(error));
+    }
+  }
 
+  @override
+  Future<Either<ApiFailure, ScopeOptions>> loadMoreScopes({
+    required bool groups,
+    required String cursor,
+  }) async {
+    try {
       return right(
-        ScopeOptions(
-          groups: [
-            for (final group in groups)
-              GroupScope(id: group.id, name: group.name),
-          ],
-          projects: [
-            for (final project in projects)
-              ProjectScope(id: project.id, name: project.name),
-          ],
-          blockedProjectIds: {
-            for (final project in projects)
-              if (project.isBlocked) project.id,
-          },
-        ),
+        groups
+            ? _options(
+                groups: await _api.groups.list(
+                  limit: _scopePageSize,
+                  cursor: cursor,
+                ),
+              )
+            : _options(
+                projects: await _api.projects.list(
+                  limit: _scopePageSize,
+                  cursor: cursor,
+                ),
+              ),
       );
     } on DioException catch (error) {
       return left(mapDioException(error));
     }
+  }
+
+  ScopeOptions _options({GroupListDto? groups, ProjectListDto? projects}) {
+    return ScopeOptions(
+      groups: [
+        for (final group in groups?.items ?? const <GroupDto>[])
+          GroupScope(id: group.id, name: group.name),
+      ],
+      projects: [
+        for (final project in projects?.items ?? const <ProjectDto>[])
+          ProjectScope(id: project.id, name: project.name),
+      ],
+      blockedProjectIds: {
+        for (final project in projects?.items ?? const <ProjectDto>[])
+          if (project.isBlocked) project.id,
+      },
+      groupsCursor: groups?.nextCursor,
+      projectsCursor: projects?.nextCursor,
+    );
   }
 
   @override

@@ -15,12 +15,36 @@ class ScopeSelector extends StatelessWidget {
   final LogScope? selected;
   final ValueChanged<LogScope> onSelected;
 
+  /// Ask for the next page of the groups (`true`) or projects (`false`).
+  /// Offered only while the server says there is more.
+  final ValueChanged<bool>? onShowMore;
+
+  /// A further page is being read: the "show more" button gives way to a
+  /// spinner.
+  final bool loadingMore;
+
   const ScopeSelector({
     super.key,
     required this.options,
     required this.onSelected,
+    this.onShowMore,
+    this.loadingMore = false,
     this.selected,
   });
+
+  /// The "show more" row under a list that has another page, or nothing.
+  Widget? _more(BuildContext context, bool hasMore, bool groups) {
+    if (!hasMore || onShowMore == null) return null;
+    if (loadingMore) return const AdminLoadingIndicator();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: AdminButton(
+        label: context.l10n.resShowMore,
+        icon: FluentIcons.chevron_down,
+        onPressed: () => onShowMore!(groups),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,59 +58,75 @@ class ScopeSelector extends StatelessWidget {
       );
     }
 
-    return Center(
-      child: SizedBox(
-        width: 460,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.l10n.logsPickScopeTitle,
-              style: AdminTypography.sectionTitle.copyWith(color: colors.text),
-            ),
-            const SizedBox(height: AdminSpacing.x4),
-            Text(
-              context.l10n.logsPickScopeBody,
-              style: AdminTypography.bodySmall.copyWith(
-                color: colors.textSecondary,
-              ),
-            ),
-            if (options.projects.isNotEmpty) ...[
-              const SizedBox(height: AdminSpacing.x18),
-              _Group(
-                title: context.l10n.logsProjects,
+    // Scrolls: a page of fifty groups and fifty projects is far taller than the
+    // window, and a plain centred column overflows it. Short content is still
+    // centred, by holding the scroll view to at least the height it is given.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: SizedBox(
+              width: 460,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final project in options.projects)
-                    _ScopeTile(
-                      label: project.name,
-                      icon: FluentIcons.folder_horizontal,
-                      selected: selected == project,
-                      // Offered, but marked: the server answers 403 for a
-                      // blocked project, and hiding it would read as its
-                      // deletion.
-                      blocked: options.blockedProjectIds.contains(project.id),
-                      onPressed: () => onSelected(project),
+                  Text(
+                    context.l10n.logsPickScopeTitle,
+                    style: AdminTypography.sectionTitle.copyWith(
+                      color: colors.text,
                     ),
+                  ),
+                  const SizedBox(height: AdminSpacing.x4),
+                  Text(
+                    context.l10n.logsPickScopeBody,
+                    style: AdminTypography.bodySmall.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                  if (options.projects.isNotEmpty) ...[
+                    const SizedBox(height: AdminSpacing.x18),
+                    _Group(
+                      title: context.l10n.logsProjects,
+                      more: _more(context, options.hasMoreProjects, false),
+                      children: [
+                        for (final project in options.projects)
+                          _ScopeTile(
+                            label: project.name,
+                            icon: FluentIcons.folder_horizontal,
+                            selected: selected == project,
+                            // Offered, but marked: the server answers 403 for a
+                            // blocked project, and hiding it would read as its
+                            // deletion.
+                            blocked: options.blockedProjectIds.contains(
+                              project.id,
+                            ),
+                            onPressed: () => onSelected(project),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (options.groups.isNotEmpty) ...[
+                    const SizedBox(height: AdminSpacing.x18),
+                    _Group(
+                      title: context.l10n.logsGroups,
+                      more: _more(context, options.hasMoreGroups, true),
+                      children: [
+                        for (final group in options.groups)
+                          _ScopeTile(
+                            label: group.name,
+                            icon: FluentIcons.group,
+                            selected: selected == group,
+                            onPressed: () => onSelected(group),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
-            ],
-            if (options.groups.isNotEmpty) ...[
-              const SizedBox(height: AdminSpacing.x18),
-              _Group(
-                title: context.l10n.logsGroups,
-                children: [
-                  for (final group in options.groups)
-                    _ScopeTile(
-                      label: group.name,
-                      icon: FluentIcons.group,
-                      selected: selected == group,
-                      onPressed: () => onSelected(group),
-                    ),
-                ],
-              ),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
     );
@@ -97,7 +137,10 @@ class _Group extends StatelessWidget {
   final String title;
   final List<Widget> children;
 
-  const _Group({required this.title, required this.children});
+  /// Closes the list when it is only the first page of it.
+  final Widget? more;
+
+  const _Group({required this.title, required this.children, this.more});
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +158,7 @@ class _Group extends StatelessWidget {
           runSpacing: AdminSpacing.x8,
           children: children,
         ),
+        if (more != null) ...[const SizedBox(height: AdminSpacing.x8), more!],
       ],
     );
   }

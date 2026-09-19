@@ -448,7 +448,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Администратор · быстрый доступ к тому, чем вы управляете и что можете просматривать';
 
   @override
-  String get dashAllGroups => 'Все группы сервера';
+  String get dashAllGroups => 'Группы';
+
+  @override
+  String get dashShowAllGroups => 'Все группы';
 
   @override
   String get dashNoGroups => 'Групп пока нет';
@@ -911,6 +914,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get resGroupsLoadFailed => 'Не удалось загрузить группы';
+
+  @override
+  String get commonSearchTruncated =>
+      'Показаны первые совпадения — уточните запрос';
+
+  @override
+  String get resShowMore => 'Показать ещё';
 
   @override
   String get resNoGroups => 'Групп пока нет';

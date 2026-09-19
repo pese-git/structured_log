@@ -14,6 +14,14 @@ abstract interface class LogBrowserRepository {
   /// projects.
   Future<Either<ApiFailure, ScopeOptions>> loadScopes();
 
+  /// The page after [cursor] of the groups or of the projects — only what was
+  /// newly read, with the cursor to go on from (`ScopeOptions.groupsCursor`/
+  /// `projectsCursor`, whichever [groups] names).
+  Future<Either<ApiFailure, ScopeOptions>> loadMoreScopes({
+    required bool groups,
+    required String cursor,
+  });
+
   /// One page. [cursor] continues a previous one; `null` starts over.
   ///
   /// Entries are returned exactly as the server sent them: `LogEntryDto` is

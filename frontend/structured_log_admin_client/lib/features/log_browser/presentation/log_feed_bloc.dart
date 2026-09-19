@@ -44,6 +44,10 @@ class LogFeedBloc extends Bloc<LogFeedEvent, LogFeedState> {
   /// `HttpLogOutput` caps its own buffer.
   final int pauseBufferLimit;
 
+  /// The most entries held while following the live edge — see
+  /// [_withinHeldLimit].
+  final int maxHeldEntries;
+
   /// Bumped by anything that invalidates in-flight work: a new scope, a new
   /// filter, a reload. Answers and live entries stamped with an older value
   /// are discarded.
@@ -62,11 +66,13 @@ class LogFeedBloc extends Bloc<LogFeedEvent, LogFeedState> {
     required QueryLogs queryLogs,
     required WatchLogs watchLogs,
     this.pauseBufferLimit = 500,
+    this.maxHeldEntries = 5000,
   }) : _loadScopes = loadScopes,
        _queryLogs = queryLogs,
        _watchLogs = watchLogs,
        super(const LogFeedState()) {
     on<LogFeedStarted>(_onStarted);
+    on<LogFeedMoreScopesRequested>(_onMoreScopesRequested);
     on<LogFeedScopeSelected>(_onScopeSelected);
     on<LogFeedScopeCleared>(_onScopeCleared);
     on<LogFeedFilterChanged>(_onFilterChanged);
@@ -99,6 +105,47 @@ class LogFeedBloc extends Bloc<LogFeedEvent, LogFeedState> {
           emit(state.copyWith(loadingOptions: false, failure: failure)),
       (options) => emit(
         state.copyWith(loadingOptions: false, options: options, failure: null),
+      ),
+    );
+  }
+
+  /// Appends the next page of the selector's groups or projects.
+  ///
+  /// Sequential like every handler on this bloc, so two taps on "show more"
+  /// cannot read the same page twice; a second one arriving after the first
+  /// finished finds the cursor already moved on.
+  Future<void> _onMoreScopesRequested(
+    LogFeedMoreScopesRequested event,
+    Emitter<LogFeedState> emit,
+  ) async {
+    final options = state.options;
+    final cursor = event.groups
+        ? options?.groupsCursor
+        : options?.projectsCursor;
+    if (options == null || cursor == null) return;
+
+    emit(state.copyWith(loadingMoreScopes: true));
+    final result = await _loadScopes.more(groups: event.groups, cursor: cursor);
+    result.match(
+      (failure) =>
+          emit(state.copyWith(loadingMoreScopes: false, failure: failure)),
+      (more) => emit(
+        state.copyWith(
+          loadingMoreScopes: false,
+          options: event.groups
+              ? options.copyWith(
+                  groups: [...options.groups, ...more.groups],
+                  groupsCursor: more.groupsCursor,
+                )
+              : options.copyWith(
+                  projects: [...options.projects, ...more.projects],
+                  blockedProjectIds: {
+                    ...options.blockedProjectIds,
+                    ...more.blockedProjectIds,
+                  },
+                  projectsCursor: more.projectsCursor,
+                ),
+        ),
       ),
     );
   }
@@ -242,8 +289,30 @@ class LogFeedBloc extends Bloc<LogFeedEvent, LogFeedState> {
           ),
         );
       case FeedFollowing():
-        emit(state.copyWith(entries: [...state.entries, entry]));
+        emit(_withinHeldLimit([...state.entries, entry]));
     }
+  }
+
+  /// [entries] as the state shows them once a live entry is in, trimmed from
+  /// the oldest end when there are more than [maxHeldEntries].
+  ///
+  /// A reader who follows the live edge for hours would otherwise carry every
+  /// entry that ever arrived. What is dropped is the far end — the reader is
+  /// at the bottom — and the list is drawn `reverse: true`, so removing from
+  /// the top does not move what is on screen. The cursor is pointed back at
+  /// the oldest entry kept, which makes the dropped part reachable again by
+  /// scrolling up, exactly as if it had never been loaded.
+  ///
+  /// Not trimmed while an entry is open in the detail pane (it would vanish
+  /// from under the reader) or while the reader is scrolled into history
+  /// (removing entries above them would move what they are reading); both
+  /// are the reader's own doing, and they end when the reader goes back.
+  LogFeedState _withinHeldLimit(List<LogEntryDto> entries) {
+    if (entries.length <= maxHeldEntries || state.selectedEntryId != null) {
+      return state.copyWith(entries: entries);
+    }
+    final kept = entries.sublist(entries.length - maxHeldEntries);
+    return state.copyWith(entries: kept, nextCursor: '${kept.first.id}');
   }
 
   void _onLiveEnded(LogFeedLiveEnded event, Emitter<LogFeedState> emit) =>

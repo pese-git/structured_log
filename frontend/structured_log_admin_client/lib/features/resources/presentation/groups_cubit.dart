@@ -13,6 +13,10 @@ abstract class GroupsState with _$GroupsState {
     @Default(true) bool loading,
     @Default(<GroupDto>[]) List<GroupDto> groups,
 
+    /// Where the next page of groups starts; `null` once the last one is in.
+    String? cursor,
+    @Default(false) bool loadingMore,
+
     /// A create is in flight. Separate from [loading] so the list stays on
     /// screen while the dialog works.
     @Default(false) bool creating,
@@ -32,21 +36,54 @@ abstract class GroupsState with _$GroupsState {
   /// Loaded, and there is nothing in it — as opposed to still loading, or
   /// having failed, which the screen says differently.
   bool get isEmpty => !loading && groups.isEmpty && failure == null;
+
+  bool get hasMore => cursor != null;
 }
 
 class GroupsCubit extends Cubit<GroupsState> {
   final ManageGroups _groups;
 
+  /// The server's own default, passed explicitly so a reader of this file
+  /// does not have to know it to follow [loadMore].
+  static const _pageSize = 50;
+
   GroupsCubit(this._groups) : super(const GroupsState());
 
   Future<void> load() async {
     emit(state.copyWith(loading: true, failure: null));
-    final result = await _groups.list();
+    final result = await _groups.list(limit: _pageSize);
     if (isClosed) return;
     result.match(
       (failure) => emit(state.copyWith(loading: false, failure: failure)),
-      (groups) =>
-          emit(state.copyWith(loading: false, groups: groups, failure: null)),
+      (page) => emit(
+        state.copyWith(
+          loading: false,
+          groups: page.items,
+          cursor: page.nextCursor,
+          failure: null,
+        ),
+      ),
+    );
+  }
+
+  /// The next, older page, appended to what is shown.
+  Future<void> loadMore() async {
+    final cursor = state.cursor;
+    if (cursor == null || state.loadingMore || state.loading) return;
+
+    emit(state.copyWith(loadingMore: true));
+    final result = await _groups.list(limit: _pageSize, cursor: cursor);
+    if (isClosed) return;
+
+    result.match(
+      (failure) => emit(state.copyWith(loadingMore: false, failure: failure)),
+      (page) => emit(
+        state.copyWith(
+          loadingMore: false,
+          groups: [...state.groups, ...page.items],
+          cursor: page.nextCursor,
+        ),
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_client.dart';
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
 import '../domain/role_assignments_repository.dart';
@@ -64,10 +65,10 @@ class RoleAssignmentsRepositoryImpl implements RoleAssignmentsRepository {
   }
 
   @override
-  Future<Either<ApiFailure, List<UserDto>>> searchUsers(String username) {
+  Future<Either<ApiFailure, CursorPage<UserDto>>> searchUsers(String username) {
     return _attempt(() async {
       final page = await _api.users.list(username: username, limit: 20);
-      return page.items;
+      return CursorPage(page.items, page.nextCursor);
     });
   }
 

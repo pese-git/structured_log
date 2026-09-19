@@ -278,13 +278,37 @@ void main() {
           isTrue);
     });
 
-    test('nextCursor is null once entries run out', () async {
-      await store.insertBatch(projectA, [entry(event: 'only')]);
-      final page = await store.query(LogQuery(projectIds: [projectA]));
-      final next = await store.query(
-        LogQuery(projectIds: [projectA], cursor: page.nextCursor),
+    test('nextCursor is null on the last page, even when it is full', () async {
+      await store.insertBatch(
+        projectA,
+        List.generate(3, (i) => entry(event: 'e$i')),
       );
-      expect(next.entries, isEmpty);
+
+      // Exactly `limit` entries left: nothing follows, and saying so is the
+      // point — a cursor here would cost the client a request to find out.
+      final page = await store.query(
+        LogQuery(projectIds: [projectA], limit: 3),
+      );
+      expect(page.entries, hasLength(3));
+      expect(page.nextCursor, isNull);
+    });
+
+    test('nextCursor is the last shown entry, not the probe row', () async {
+      await store.insertBatch(
+        projectA,
+        List.generate(4, (i) => entry(event: 'e$i')),
+      );
+
+      final page = await store.query(
+        LogQuery(projectIds: [projectA], limit: 3),
+      );
+      expect(page.entries, hasLength(3));
+      expect(page.nextCursor, page.entries.last.id);
+
+      final next = await store.query(
+        LogQuery(projectIds: [projectA], limit: 3, cursor: page.nextCursor),
+      );
+      expect(next.entries.map((e) => e.event), ['e0']);
       expect(next.nextCursor, isNull);
     });
   });

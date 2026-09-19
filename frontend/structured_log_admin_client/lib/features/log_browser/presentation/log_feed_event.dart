@@ -27,6 +27,10 @@ sealed class LogFeedEvent with _$LogFeedEvent {
   const factory LogFeedEvent.scopeSelected(LogScope scope) =
       LogFeedScopeSelected;
 
+  /// The next page of the selector's groups (`groups: true`) or projects.
+  const factory LogFeedEvent.moreScopesRequested({required bool groups}) =
+      LogFeedMoreScopesRequested;
+
   /// Back to the selector — the list and the subscription are dropped.
   const factory LogFeedEvent.scopeCleared() = LogFeedScopeCleared;
 

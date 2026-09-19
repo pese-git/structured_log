@@ -277,6 +277,8 @@ class _HomeShellState extends State<HomeShell> {
             username: _username ?? '',
             onOpenGroup: _openGroupFor,
             onOpenLogs: _openLogsFor,
+            onShowAllGroups: () =>
+                setState(() => _destination = _Destination.groups),
           ),
         ),
         _Destination.groups => ResourcesSection(

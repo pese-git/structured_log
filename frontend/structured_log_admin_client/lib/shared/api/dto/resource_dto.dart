@@ -183,8 +183,10 @@ abstract class CreateSecretKeyRequestDto with _$CreateSecretKeyRequestDto {
 
 @freezed
 abstract class GroupListDto with _$GroupListDto {
-  const factory GroupListDto({@Default(<GroupDto>[]) List<GroupDto> items}) =
-      _GroupListDto;
+  const factory GroupListDto({
+    @Default(<GroupDto>[]) List<GroupDto> items,
+    @JsonKey(name: 'next_cursor') String? nextCursor,
+  }) = _GroupListDto;
 
   factory GroupListDto.fromJson(Map<String, dynamic> json) =>
       _$GroupListDtoFromJson(json);
@@ -194,6 +196,7 @@ abstract class GroupListDto with _$GroupListDto {
 abstract class ProjectListDto with _$ProjectListDto {
   const factory ProjectListDto({
     @Default(<ProjectDto>[]) List<ProjectDto> items,
+    @JsonKey(name: 'next_cursor') String? nextCursor,
   }) = _ProjectListDto;
 
   factory ProjectListDto.fromJson(Map<String, dynamic> json) =>

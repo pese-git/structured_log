@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_client.dart';
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
 import '../domain/resources_repository.dart';
@@ -13,20 +14,50 @@ class ResourcesRepositoryImpl implements ResourcesRepository {
   const ResourcesRepositoryImpl(this._api);
 
   @override
-  Future<Either<ApiFailure, List<GroupDto>>> groups({String? name}) =>
-      _attempt(() async => (await _api.groups.list(name: name)).items);
+  Future<Either<ApiFailure, CursorPage<GroupDto>>> groups({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) => _attempt(() async {
+    final page = await _api.groups.list(
+      name: name,
+      limit: limit,
+      cursor: cursor,
+    );
+    return CursorPage(page.items, page.nextCursor);
+  });
 
   @override
   Future<Either<ApiFailure, GroupDto>> createGroup(String name) =>
       _attempt(() => _api.groups.create(CreateGroupRequestDto(name: name)));
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> projectsOf(int groupId) =>
-      _attempt(() async => (await _api.projects.list(groupId: groupId)).items);
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> projectsOf(
+    int groupId, {
+    int? limit,
+    String? cursor,
+  }) => _attempt(() async {
+    final page = await _api.projects.list(
+      groupId: groupId,
+      limit: limit,
+      cursor: cursor,
+    );
+    return CursorPage(page.items, page.nextCursor);
+  });
 
   @override
-  Future<Either<ApiFailure, List<ProjectDto>>> searchProjects({String? name}) =>
-      _attempt(() async => (await _api.projects.list(name: name)).items);
+  Future<Either<ApiFailure, CursorPage<ProjectDto>>> searchProjects({
+    String? name,
+    int? limit,
+    String? cursor,
+  }) => _attempt(() async {
+    final page = await _api.projects.list(
+      name: name,
+      limit: limit,
+      cursor: cursor,
+    );
+    return CursorPage(page.items, page.nextCursor);
+  });
 
   @override
   Future<Either<ApiFailure, ProjectDto>> project(int projectId) =>

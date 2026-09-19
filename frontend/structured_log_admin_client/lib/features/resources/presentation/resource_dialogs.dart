@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 
@@ -614,7 +615,7 @@ class GrantAccessDialog extends StatefulWidget {
   final bool submitting;
   final bool isGlobalAdmin;
   final String? errorText;
-  final Future<List<UserDto>> Function(String query) searchUsers;
+  final Future<CursorPage<UserDto>> Function(String query) searchUsers;
 
   /// Candidates for the team-recipient mode — already narrowed to teams of
   /// the group this grant is on (or that group's project is in), the same
@@ -708,6 +709,8 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
                   ? context.l10n.resSearchUserHint
                   : context.l10n.resSearchTeamHint,
               onSearch: (query) async {
+                // Read before the awaits: the context may be gone by then.
+                final truncated = context.l10n.commonSearchTruncated;
                 if (_subjectType == 'team') {
                   final teams = await widget.searchTeams(query);
                   return [
@@ -717,8 +720,9 @@ class _GrantAccessDialogState extends State<GrantAccessDialog> {
                 }
                 final users = await widget.searchUsers(query);
                 return [
-                  for (final u in users)
+                  for (final u in users.items)
                     AdminSearchPickerItem(value: u.id, label: u.username),
+                  if (users.hasMore) AdminSearchPickerItem.hint(truncated),
                 ];
               },
               onSelected: (item) => setState(() => _subjectId = item?.value),
@@ -797,7 +801,7 @@ class TeamMembersDialog extends StatefulWidget {
   final bool loading;
   final bool changing;
   final String? errorText;
-  final Future<List<UserDto>> Function(String query) searchUsers;
+  final Future<CursorPage<UserDto>> Function(String query) searchUsers;
   final ValueChanged<int> onAdd;
   final ValueChanged<int> onRemove;
   final VoidCallback onClose;
@@ -873,14 +877,17 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
                     placeholder: context.l10n.resSearchUserHint,
                     enabled: !widget.changing,
                     onSearch: (query) async {
+                      final truncated = context.l10n.commonSearchTruncated;
                       final users = await widget.searchUsers(query);
                       return [
-                        for (final u in users)
+                        for (final u in users.items)
                           if (!memberIds.contains(u.id))
                             AdminSearchPickerItem(
                               value: u.id,
                               label: u.username,
                             ),
+                        if (users.hasMore)
+                          AdminSearchPickerItem.hint(truncated),
                       ];
                     },
                     onSelected: (item) =>

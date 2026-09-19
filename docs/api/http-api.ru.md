@@ -18,6 +18,31 @@
 когда-либо будет пересмотрен с конфликтующей формой — приоритет у него,
 и эту страницу нужно будет поправить.
 
+## Пагинация (`log-server-pagination`)
+
+`GET /v1/logs`, `/v1/audit-log`, `/v1/users`, `/v1/groups` и
+`/v1/projects` пагинируются одинаково. Каждый принимает необязательные
+`limit` и `cursor` и отвечает `{"items": [...], "next_cursor": строка | null}`.
+
+| Параметр | Примечания |
+|---|---|
+| `limit` | По умолчанию 50, предел 200 — большее значение обслуживается как 200, а не отклоняется. Не положительное целое → `400 invalid_request`. |
+| `cursor` | `next_cursor` предыдущего ответа, переданный обратно как есть. Значение, которого сервер не выдавал → `400 invalid_request`. |
+
+Порядок — сначала новые (большой `id` первым); `cursor` продолжает к более
+старым, поэтому строка, созданная во время обхода, не сдвигает страницы.
+`next_cursor` равен `null` на последней странице — сервер говорит об этом сам,
+запрашивать пустую страницу, чтобы найти конец, не нужно. `total` нет:
+подсчёт по аудиту и записям стоит дороже, чем страницы того стоят.
+
+Списки, ограниченные размером одной группы или одного проекта — команды,
+участники команды, секретные ключи проекта, выдачи ролей, — не пагинируются
+и отдаются целиком одним ответом.
+
+> **Ломающее изменение:** `GET /v1/groups` и `GET /v1/projects` раньше
+> возвращали все видимые строки, а теперь возвращают первую страницу (50).
+> Вызывающий, читавший их целиком, должен идти по `next_cursor`.
+
 Примеры ниже используют `http://localhost:8080` как базовый URL
 сервера, и shell-переменные `$ACCESS_TOKEN` (JWT из `POST
 /v1/auth/token`) и `$PROJECT_SECRET_KEY` (из `POST
@@ -77,8 +102,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Точное совпадение |
 | `q` | string | Полнотекстовый, по `event` и содержимому |
 | `context.<key>` | string | Точное совпадение по произвольному полю, например `context.order_id=ord_44821` |
-| `limit` | integer | Размер страницы |
-| `cursor` | string | Из `next_cursor` предыдущего ответа |
+| `limit`, `cursor` | | [Пагинация](#пагинация-log-server-pagination) |
 
 **Ответ `200`:** `{"items": [LogEntry], "next_cursor": строка \| null}` — см. [models.md#logentry](models.ru.md#logentry). Без `cursor` — `items` упорядочены сначала новые по `id`; `cursor` продвигает выборку к более ранним записям.
 
@@ -348,7 +372,7 @@ curl -X POST http://localhost:8080/v1/users \
 
 Роль: `admin`.
 
-**Query:** `limit`, `cursor`.
+**Query:** `username` (подстрока), `limit`, `cursor` — см. [Пагинацию](#пагинация-log-server-pagination).
 
 **Ответ `200`:** `{"items": [User], "next_cursor": строка \| null}`.
 
@@ -424,8 +448,12 @@ curl -X POST http://localhost:8080/v1/groups \
 ### `GET /v1/groups`
 
 Роль: любой аутентифицированный пользователь; результат ограничен видимыми группами.
+Видимость входит в сам запрос, поэтому вызывающий с одной группой среди тысячи
+получает её на первой странице.
 
-**Ответ `200`:** `{"items": [Group]}`.
+**Query:** `name` (подстрока, без учёта регистра), `limit`, `cursor` — см. [Пагинацию](#пагинация-log-server-pagination).
+
+**Ответ `200`:** `{"items": [Group], "next_cursor": строка \| null}`.
 
 ```bash
 curl http://localhost:8080/v1/groups -H "Authorization: Bearer $ACCESS_TOKEN"
@@ -547,6 +575,20 @@ curl -X DELETE http://localhost:8080/v1/role-assignments/128 -H "Authorization: 
 [specs/log-server-quotas/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-quotas/spec.md).
 См. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md). Все
 эндпоинты: `Authorization: Bearer <access-token>`, JSON-тела.
+
+### `GET /v1/projects`
+
+Роль: любой аутентифицированный пользователь; все проекты, которые вызывающий
+вправе читать, плоским списком — роль на проект не покрывает его группу, и для
+такого пользователя это единственный способ его найти.
+
+**Query:** `group_id`, `name` (подстрока, без учёта регистра), `limit`, `cursor` — см. [Пагинацию](#пагинация-log-server-pagination).
+
+**Ответ `200`:** `{"items": [Project], "next_cursor": строка \| null}`. Несёт `is_blocked`, но не счётчики использования — они у `GET /v1/projects/:id`.
+
+```bash
+curl -G http://localhost:8080/v1/projects -H "Authorization: Bearer $ACCESS_TOKEN" -d limit=50
+```
 
 ### `POST /v1/groups/:groupId/projects`
 

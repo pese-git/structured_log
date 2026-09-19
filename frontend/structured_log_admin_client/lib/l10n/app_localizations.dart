@@ -827,8 +827,14 @@ abstract class AppLocalizations {
   /// dashAllGroups
   ///
   /// In en, this message translates to:
-  /// **'All server groups'**
+  /// **'Groups'**
   String get dashAllGroups;
+
+  /// dashShowAllGroups
+  ///
+  /// In en, this message translates to:
+  /// **'Show all groups'**
+  String get dashShowAllGroups;
 
   /// dashNoGroups
   ///
@@ -1603,6 +1609,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not load groups'**
   String get resGroupsLoadFailed;
+
+  /// commonSearchTruncated
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the first matches — type more to narrow it down'**
+  String get commonSearchTruncated;
+
+  /// resShowMore
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get resShowMore;
 
   /// resNoGroups
   ///

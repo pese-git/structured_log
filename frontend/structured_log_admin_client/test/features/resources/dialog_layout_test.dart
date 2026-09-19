@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/features/resources/presentation/resource_dialogs.dart';
 
 import '../../support/localized_app.dart';
+import 'package:structured_log_admin_client/shared/api/cursor_page.dart';
+import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
 /// A dialog is as tall as what it holds.
 ///
@@ -67,7 +69,7 @@ void main() {
     teamName: 'Backend Team',
     groupName: 'Acme Corp',
     members: const [],
-    searchUsers: (_) async => const [],
+    searchUsers: (_) async => const CursorPage(<UserDto>[], null),
     onAdd: (_) {},
     onRemove: (_) {},
     onClose: _nothing,

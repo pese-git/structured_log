@@ -15,7 +15,7 @@
   - поиск получателя роли (`searchUsers`) перестаёт выбрасывать `next_cursor`;
   - аудит передаёт `limit` явно, экран групп подгружает следующую страницу;
   - лента логов не делает лишнего пустого запроса в конце и ограничивает число накопленных записей.
-- Индекс `(project_id, id)` для `log_entries`, если замер на реалистичном объёме подтвердит выигрыш (решение — по итогам задачи в `tasks.md`, не предрешено).
+- Индекс `(project_id, id)` для `log_entries` **не добавляется**: замер на 2 млн записей показал, что существующий `idx_log_entries_project_id` уже обслуживает `ORDER BY id DESC` (у любого индекса SQLite последним ключом лежит `rowid`, а `id` — это `rowid`); см. `design.md`, решение 11.
 - Документация: `docs/api/http-api.md`/`.ru.md` (общий раздел про пагинацию, пределы), `AGENTS.md`.
 
 Вне объёма (сознательно):
@@ -42,7 +42,7 @@
 
 - Капабилити `log-server-api`, `log-server-audit`, `admin-client-*` описаны в ещё не заархивированной change `add-structured-log-server` (в `openspec/specs/` их нет) — дельты этой change читаются поверх неё, и при архивации порядок «сначала `add-structured-log-server`, потом эта» (как у `add-server-cors` и `unify-server-auth`).
 - `backend/structured_log_server/lib/src/http/routes/` — `logs_route.dart`, `audit_log_route.dart`, `users_route.dart`, `groups_route.dart`, `projects_route.dart`; новый общий разбор `limit`/`cursor` вместо трёх копий `int.parse`.
-- `backend/structured_log_server/lib/src/storage/` — `log_store.dart` (проба `limit+1`), запросы групп/проектов с SQL-фильтром видимости; `database.dart` — возможный индекс (нужна миграция схемы drift).
+- `backend/structured_log_server/lib/src/storage/` — `log_store.dart` (проба `limit+1`), запросы групп/проектов с SQL-фильтром видимости; схема БД не меняется.
 - `backend/structured_log_server/lib/src/rbac/` — функция, превращающая набор ролей в условие видимости для SQL; она обязана давать те же результаты, что `canRead` (сверяется тестом на совпадение).
 - `frontend/structured_log_admin_client/lib/features/` — `dashboard`, `resources`, `log_browser`, `users`, `audit`; retrofit-интерфейсы и DTO списков получают `next_cursor`. Список групп/проектов в ответе меняет форму (`next_cursor` рядом с `items`) — клиентский DTO и мок `lib/testing/mock_server.dart` обновляются вместе с ним.
 - `packages/e2e` — сквозные тесты обходят списки страницами.

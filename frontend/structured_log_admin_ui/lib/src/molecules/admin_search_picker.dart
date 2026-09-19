@@ -6,10 +6,29 @@ import '../tokens/tokens.dart';
 
 /// One result [AdminSearchPicker] can show and select.
 class AdminSearchPickerItem<T> {
-  final T value;
+  final T? _value;
   final String label;
 
-  const AdminSearchPickerItem({required this.value, required this.label});
+  /// A line that says something about the results instead of being one —
+  /// "showing the first 20, type more to narrow it down". Shown last, greyed,
+  /// and never selectable.
+  final bool isHint;
+
+  const AdminSearchPickerItem({required T value, required this.label})
+      : _value = value,
+        isHint = false;
+
+  /// Appended by the caller when the search matched more than it returned:
+  /// a result list that is silently cut reads as "these are all there are".
+  const AdminSearchPickerItem.hint(this.label)
+      : _value = null,
+        isHint = true;
+
+  /// The picked value. A hint has none, and the picker never reports one.
+  T get value {
+    assert(!isHint, 'A hint carries no value.');
+    return _value as T;
+  }
 }
 
 /// A labelled field that resolves a reference (a group, a project, …) by
@@ -75,6 +94,12 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
   Timer? _debounce;
   bool _openedOnce = false;
 
+  /// What was typed when the last search ran — put back if a hint is chosen.
+  String _lastQuery = '';
+
+  /// The hint lines currently offered, to recognise one being chosen.
+  Set<String> _hintLabels = const {};
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +123,20 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
   }
 
   void _onChanged(String text, TextChangedReason reason) {
+    // `AutoSuggestBox` writes a chosen item's label into the field. For a hint
+    // that is a sentence about the results, not something to search for, and
+    // the next keystroke would extend it — so it is put back, a frame later,
+    // once the box has finished writing.
+    if (_hintLabels.contains(text)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _controller.value = TextEditingValue(
+          text: _lastQuery,
+          selection: TextSelection.collapsed(offset: _lastQuery.length),
+        );
+      });
+      return;
+    }
     if (reason != TextChangedReason.userInput) return;
     widget.onSelected(null);
     _debounce?.cancel();
@@ -108,12 +147,20 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
   }
 
   Future<void> _search(String query) async {
+    _lastQuery = query;
     final results = await widget.onSearch(query);
     if (!mounted) return;
     setState(() {
+      _hintLabels = {
+        for (final r in results)
+          if (r.isHint) r.label,
+      };
       _items = [
         for (final r in results)
-          AutoSuggestBoxItem<T>(value: r.value, label: r.label),
+          if (r.isHint)
+            AutoSuggestBoxItem<T>(value: null, label: r.label)
+          else
+            AutoSuggestBoxItem<T>(value: r.value, label: r.label),
       ];
     });
     // `AutoSuggestBox` (fluent_ui 4.15.1) only ever paints the items list it
@@ -161,6 +208,8 @@ class _AdminSearchPickerState<T> extends State<AdminSearchPicker<T>> {
           placeholder: widget.placeholder,
           onChanged: _onChanged,
           onSelected: (item) {
+            // A hint is a sentence, not a choice.
+            if (item.value == null) return;
             _controller.text = item.label;
             widget.onSelected(
               AdminSearchPickerItem(value: item.value as T, label: item.label),

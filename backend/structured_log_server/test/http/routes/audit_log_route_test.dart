@@ -3,6 +3,7 @@ import 'package:structured_log_server/src/audit/audit_action.dart';
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/errors.dart';
+import 'package:structured_log_server/src/http/page_request.dart';
 import 'package:structured_log_server/src/http/routes/audit_log_route.dart';
 import 'package:structured_log_server/src/rbac/authorizer.dart';
 import 'package:structured_log_server/src/storage/database.dart';
@@ -218,6 +219,58 @@ void main() {
       final page = await query('?limit=5');
       expect(itemsOf(page), hasLength(5));
       expect(page['next_cursor'], isNull);
+    });
+  });
+
+  group('page parameters', () {
+    Future<void> expectStatus(
+      String queryString,
+      int status, {
+      List<EffectiveRole> roles = _admin,
+    }) {
+      return expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/audit-log$queryString',
+            roles: roles,
+          ),
+        ),
+        throwsA(
+          isA<ApiError>().having((e) => e.statusCode, 'statusCode', status),
+        ),
+      );
+    }
+
+    test('an unusable limit is a 400, not a failure inside storage', () async {
+      await expectStatus('?limit=0', 400);
+      await expectStatus('?limit=-5', 400);
+      await expectStatus('?limit=abc', 400);
+    });
+
+    test('an unusable cursor is a 400', () async {
+      await expectStatus('?cursor=not-a-cursor', 400);
+    });
+
+    test('the role check comes before the parameters', () async {
+      // A group owner sending a bad limit is told they may not, not that the
+      // limit is wrong: the second answer would confirm the route exists and
+      // is worth calling to someone who has no business with it.
+      await expectStatus('?limit=0', 403, roles: ownerOf(1));
+    });
+
+    test('a limit above the ceiling is served at the ceiling', () async {
+      for (var i = 0; i < maxPageSize + 1; i++) {
+        await audit.write(
+          action: AuditAction.groupCreated,
+          targetType: AuditTargetType.group,
+          actorUserId: 1,
+          targetId: i,
+        );
+      }
+      final page = await query('?limit=100000');
+      expect(itemsOf(page), hasLength(maxPageSize));
+      expect(page['next_cursor'], isNotNull);
     });
   });
 

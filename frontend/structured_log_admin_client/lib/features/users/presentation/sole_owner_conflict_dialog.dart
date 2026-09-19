@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import '../../resources/presentation/resource_dialogs.dart'
@@ -146,7 +147,7 @@ Future<void> showGrantAccessToGroup(
   BuildContext context, {
   required int groupId,
   required String groupName,
-  required Future<List<UserDto>> Function(String query) searchUsers,
+  required Future<CursorPage<UserDto>> Function(String query) searchUsers,
   required Future<List<TeamDto>> Function(String query) searchTeams,
   required Future<void> Function({
     required String subjectType,

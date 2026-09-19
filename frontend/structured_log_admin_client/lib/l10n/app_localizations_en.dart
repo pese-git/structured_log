@@ -448,7 +448,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Administrator · quick access to what you manage and what you can view';
 
   @override
-  String get dashAllGroups => 'All server groups';
+  String get dashAllGroups => 'Groups';
+
+  @override
+  String get dashShowAllGroups => 'Show all groups';
 
   @override
   String get dashNoGroups => 'No groups yet';
@@ -907,6 +910,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resGroupsLoadFailed => 'Could not load groups';
+
+  @override
+  String get commonSearchTruncated =>
+      'Showing the first matches — type more to narrow it down';
+
+  @override
+  String get resShowMore => 'Show more';
 
   @override
   String get resNoGroups => 'No groups yet';

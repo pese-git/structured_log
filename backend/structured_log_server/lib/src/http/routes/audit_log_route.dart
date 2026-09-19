@@ -10,6 +10,7 @@ import '../../rbac/authorizer.dart';
 import '../../storage/audit_query.dart';
 import '../../storage/database.dart';
 import '../json_response.dart';
+import '../page_request.dart';
 import '../principal_middleware.dart';
 
 part 'audit_log_route.g.dart';
@@ -67,6 +68,7 @@ class AuditLogRoutes {
     if (!isGlobalAdmin(roles)) throw ApiError.forbidden();
 
     final params = request.url.queryParameters;
+    final paging = parsePageRequest(params);
 
     AuditAction? action;
     final rawAction = params['action'];
@@ -98,9 +100,8 @@ class AuditLogRoutes {
         from:
             params['from'] != null ? DateTime.tryParse(params['from']!) : null,
         to: params['to'] != null ? DateTime.tryParse(params['to']!) : null,
-        limit: params['limit'] != null ? int.parse(params['limit']!) : 50,
-        cursor:
-            params['cursor'] != null ? int.tryParse(params['cursor']!) : null,
+        limit: paging.limit,
+        cursor: paging.cursor,
       ),
     );
 

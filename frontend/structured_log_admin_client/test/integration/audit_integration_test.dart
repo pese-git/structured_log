@@ -75,7 +75,12 @@ void main() {
         .where((r) => r.path == '/v1/audit-log')
         .toList();
     expect(audit, hasLength(1));
-    expect(audit.single.query, isEmpty);
+    expect(
+      audit.single.query,
+      {'limit': '50'},
+      reason:
+          'no filter, and the page size asked for rather than left to the server',
+    );
 
     await closeApp(tester);
   });
@@ -129,7 +134,7 @@ void main() {
         .where((r) => r.path == '/v1/audit-log')
         .toList();
     expect(audit, hasLength(2));
-    expect(audit.last.query, {'action': 'group.created'});
+    expect(audit.last.query, {'action': 'group.created', 'limit': '50'});
     expect(
       audit.last.query.containsKey('cursor'),
       isFalse,

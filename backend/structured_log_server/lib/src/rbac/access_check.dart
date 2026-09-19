@@ -62,6 +62,62 @@ bool canRead(
   );
 }
 
+/// What [roles] let their holder read, as data a query can filter by rather
+/// than a predicate it would have to call on every row (`log-server-pagination`:
+/// a page is counted over what the caller can see, so the filter has to be in
+/// the query).
+///
+/// [everything] — some role is scoped `global`, and `_covers` lets that cover
+/// any target. Otherwise a group is readable when its id is in [groupIds], and
+/// a project when its own id is in [projectIds] *or* its group's is in
+/// [groupIds] (a group grant covers the group's projects, a project grant
+/// covers only that project).
+///
+/// Answers the same question as [canRead], from the same `_covers` rule
+/// written the other way round; `test/rbac/readable_scope_test.dart` holds
+/// the two together.
+class ReadableScope {
+  final bool everything;
+  final Set<int> groupIds;
+  final Set<int> projectIds;
+
+  const ReadableScope({
+    required this.everything,
+    required this.groupIds,
+    required this.projectIds,
+  });
+
+  /// Nothing is readable — the caller has no role that reaches a group or a
+  /// project, so a list of either is empty without asking the database.
+  bool get isEmpty => !everything && groupIds.isEmpty && projectIds.isEmpty;
+}
+
+ReadableScope readableScope(List<EffectiveRole> roles) {
+  final groupIds = <int>{};
+  final projectIds = <int>{};
+  for (final role in roles) {
+    switch (role.scopeType) {
+      case ScopeType.global:
+        return const ReadableScope(
+          everything: true,
+          groupIds: {},
+          projectIds: {},
+        );
+      case ScopeType.group:
+        final id = role.scopeId;
+        if (id != null) groupIds.add(id);
+      case ScopeType.project:
+        final id = role.scopeId;
+        if (id != null) projectIds.add(id);
+    }
+  }
+  return ReadableScope(
+    everything: false,
+    groupIds: groupIds,
+    projectIds: projectIds,
+  );
+}
+
 /// Whether [roles] may list the role-assignment table without a
 /// `scope_type`+`scope_id` filter — a bare `subject_id` filter or no filter
 /// at all (the Edit User dialog, "grants held by this user"): `admin` only,

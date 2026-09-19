@@ -224,6 +224,39 @@ void main() {
       );
     });
 
+    test('an unusable limit or cursor is a 400', () async {
+      await seedLogs();
+      for (final bad in ['limit=0', 'limit=-5', 'limit=abc', 'cursor=nope']) {
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'GET',
+              'http://x/v1/logs?project_id=$projectId&$bad',
+              roles: _admin,
+            ),
+          ),
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400),
+          ),
+          reason: bad,
+        );
+      }
+    });
+
+    test('a full last page carries no cursor', () async {
+      await seedLogs();
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/logs?project_id=$projectId&limit=1',
+          roles: _admin,
+        ),
+      );
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['items'], hasLength(1));
+      expect(body['next_cursor'], isNull);
+    });
+
     test('an authorized project_id query returns matching entries', () async {
       await seedLogs();
       final response = await routes.router.call(

@@ -4,13 +4,14 @@ import 'package:shelf_router/shelf_router.dart';
 
 import '../../audit/audit_action.dart';
 import '../../audit/audit_writer.dart';
-import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
+import '../../storage/page.dart';
 import '../../storage/log_filter.dart' show escapeLike;
 import '../json_response.dart';
+import '../page_request.dart';
 import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
@@ -73,7 +74,12 @@ class GroupRoutes {
   }
 
   /// Any authenticated user; results scoped to groups the caller has some
-  /// effective role covering (`log-server-rbac`).
+  /// effective role covering (`log-server-rbac`), a page at a time
+  /// (`log-server-pagination`), newest first.
+  ///
+  /// What the caller may see is part of the query, not a filter over its
+  /// result: a page of 50 rows of which the caller may see 3 would be empty
+  /// in all but name, and its cursor would count rows they cannot see.
   ///
   /// `?name=` narrows to groups whose name contains it (case-insensitive,
   /// `LIKE`) — a picker resolving a group by name (rather than an id no
@@ -82,19 +88,32 @@ class GroupRoutes {
   @Route.get('/v1/groups')
   Future<Response> listGroups(Request request) async {
     final roles = await resolveRoles(_authorizer, request.requireUser());
-    final name = request.url.queryParameters['name'];
+    final params = request.url.queryParameters;
+    final (:limit, :cursor) = parsePageRequest(params);
+    final name = params['name'];
 
-    final select = _db.select(_db.groups);
+    final readable = readableScope(roles);
+    if (readable.isEmpty) return jsonOk({'items': [], 'next_cursor': null});
+
+    final select = _db.select(_db.groups)
+      ..orderBy([(t) => OrderingTerm.desc(t.id)])
+      ..limit(limit + 1);
+    if (!readable.everything) {
+      select.where((t) => t.id.isIn(readable.groupIds));
+    }
+    if (cursor != null) {
+      select.where((t) => t.id.isSmallerThanValue(cursor));
+    }
     if (name != null && name.isNotEmpty) {
       select.where(
         (t) => t.name.like('%${escapeLike(name)}%', escapeChar: r'\'),
       );
     }
-    final groups = await select.get();
 
-    final visible = groups.where(
-      (g) => canRead(roles, targetType: ScopeType.group, targetId: g.id),
-    );
-    return jsonOk({'items': visible.map(groupJson).toList()});
+    final page = pageFromProbe(await select.get(), limit, (g) => g.id);
+    return jsonOk({
+      'items': page.items.map(groupJson).toList(),
+      'next_cursor': page.nextCursor?.toString(),
+    });
   }
 }

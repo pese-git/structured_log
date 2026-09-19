@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/user_dto.dart';
 
 /// `RoleAssignment`s — the grants a user holds, from either side of them.
@@ -40,5 +41,5 @@ abstract interface class RoleAssignmentsRepository {
   /// Candidate subjects for a group/project's «Предоставить доступ» dialog —
   /// [username] narrows by substring, same idiom as `AdminSearchPicker`'s use
   /// of `ResourcesRepository.groups`/`searchProjects`.
-  Future<Either<ApiFailure, List<UserDto>>> searchUsers(String username);
+  Future<Either<ApiFailure, CursorPage<UserDto>>> searchUsers(String username);
 }
