@@ -176,6 +176,19 @@ void main() {
       expect(blocked, greaterThan(wrongPassword ~/ 2));
     });
 
+    test('an over-long password is refused as invalid_grant, not a crash',
+        () async {
+      await insertUser();
+      for (final username in ['alice', 'nobody']) {
+        final result = await service.passwordGrant(
+          clientIp: testClientIp,
+          username: username,
+          password: 'Ж' * 60,
+        );
+        expect(result.isLeft(), isTrue, reason: username);
+      }
+    });
+
     test('a blocked account is still refused with the right password',
         () async {
       await insertUser(username: 'bob', isActive: false);

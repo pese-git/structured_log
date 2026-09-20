@@ -116,6 +116,21 @@ void main() {
     });
   });
 
+  group('password length', () {
+    test('is counted in UTF-8 bytes', () {
+      expect(passwordFitsBcrypt('x' * 72), isTrue);
+      expect(passwordFitsBcrypt('x' * 73), isFalse);
+      expect(passwordFitsBcrypt('Ж' * 36), isTrue);
+      expect(passwordFitsBcrypt('Ж' * 37), isFalse);
+    });
+
+    test('an over-long password verifies as wrong instead of throwing',
+        () async {
+      final hash = hashPassword('s3cret');
+      expect(await verifyPasswordAsync('x' * 200, hash), isFalse);
+    });
+  });
+
   group('HashWorkerPool', () {
     late HashWorkerPool pool;
     tearDown(() => pool.close());

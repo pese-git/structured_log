@@ -5,7 +5,27 @@ import 'dart:math';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:crypto/crypto.dart';
 
+import '../errors.dart';
+
 import 'hash_worker_pool.dart';
+
+/// bcrypt reads at most 72 bytes of a password, and this implementation
+/// refuses longer input outright rather than truncating it (an `ArgumentError`,
+/// which reached the client as a 500). Counted in UTF-8 bytes, not characters:
+/// forty Cyrillic letters are already 80 bytes.
+const maxPasswordBytes = 72;
+
+/// Whether [password] is short enough for bcrypt to accept.
+bool passwordFitsBcrypt(String password) =>
+    utf8.encode(password).length <= maxPasswordBytes;
+
+/// The error a route answers with for a password over [maxPasswordBytes] —
+/// the client can act on it, unlike the 500 it replaces.
+ApiError passwordTooLongError({String field = 'password'}) =>
+    ApiError.invalidRequest(
+      'The password must be at most $maxPasswordBytes bytes in UTF-8.',
+      details: {'field': field, 'reason': 'too_long'},
+    );
 
 /// Hashes a user's chosen [password] with `bcrypt` — an adaptive,
 /// deliberately slow algorithm, appropriate for a low-entropy, human-chosen
@@ -37,8 +57,13 @@ HashWorkerPool get hashWorkerPool => _pool;
 Future<String> hashPasswordAsync(String password) => _pool.hash(password);
 
 /// [verifyPassword] off the event loop.
-Future<bool> verifyPasswordAsync(String password, String hash) =>
-    _pool.verify(password, hash);
+Future<bool> verifyPasswordAsync(String password, String hash) {
+  // No stored hash can match a password bcrypt would not have accepted, so a
+  // longer one is simply wrong. Answering here, not in the worker, is what
+  // keeps a login with an absurd password a 400 instead of a 500.
+  if (!passwordFitsBcrypt(password)) return Future.value(false);
+  return _pool.verify(password, hash);
+}
 
 /// A valid bcrypt hash of a random string nobody knows, checked against when
 /// there is no real hash to check.

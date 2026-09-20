@@ -6,7 +6,7 @@ import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/bootstrap_admin.dart';
 import 'package:structured_log_server/src/auth/create_admin.dart';
 import 'package:structured_log_server/src/auth/hashing.dart'
-    show hashWorkerPool;
+    show dummyPasswordHash, hashWorkerPool;
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:structured_log_server/src/http/server.dart';
@@ -175,6 +175,11 @@ Future<void> _runServe(
     authEventRetentionDays: config.authEventRetentionDays,
     auditChunkSize: config.auditPurgeBatchSize,
   )..start();
+
+  // Before the first request: the dummy hash a login checks against for an
+  // account that does not exist is made on first use, and that one login would
+  // take twice as long as every other — a difference visible from outside.
+  await dummyPasswordHash;
 
   final server =
       await shelf_io.serve(handler, config.httpHost, config.httpPort);

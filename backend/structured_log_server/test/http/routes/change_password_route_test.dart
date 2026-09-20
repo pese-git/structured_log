@@ -193,4 +193,32 @@ void main() {
       );
     });
   });
+
+  test('a new password over 72 bytes is rejected with 400, nothing changes',
+      () async {
+    await expectLater(
+      routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/auth/change-password',
+          roles: const [],
+          userId: userId,
+          jsonBody: {
+            'current_password': 'old-pass',
+            'new_password': 'Ж' * 40,
+          },
+        ),
+      ),
+      throwsA(
+        isA<ApiError>()
+            .having((e) => e.statusCode, 'statusCode', 400)
+            .having((e) => e.details?['field'], 'field', 'new_password')
+            .having((e) => e.details?['reason'], 'reason', 'too_long'),
+      ),
+    );
+    final row = await (db.select(db.users)..where((t) => t.id.equals(userId)))
+        .getSingle();
+    expect(verifyPassword('old-pass', row.passwordHash), isTrue);
+    expect(row.mustChangePassword, isTrue);
+  });
 }

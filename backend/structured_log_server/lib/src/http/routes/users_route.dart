@@ -109,6 +109,7 @@ class UserRoutes {
         details: {'field': 'password', 'reason': 'required'},
       );
     }
+    if (!passwordFitsBcrypt(password)) throw passwordTooLongError();
     if (displayName != null && displayName is! String) {
       throw ApiError.invalidRequest(
         'display_name must be a string.',
@@ -214,6 +215,9 @@ class UserRoutes {
         'password must be a string.',
         details: {'field': 'password', 'reason': 'invalid'},
       );
+    }
+    if (password is String && !passwordFitsBcrypt(password)) {
+      throw passwordTooLongError();
     }
     final newPassword = password as String?;
 
