@@ -127,26 +127,45 @@ class UserRoutes {
 
     // Hashed before the transaction, so bcrypt does not hold the write lock.
     final passwordHash = await hashPasswordAsync(password);
-    final userId = await _db.transaction(() async {
-      final id = await _db.into(_db.users).insert(
-            UsersCompanion.insert(
-              username: username,
-              passwordHash: passwordHash,
-              displayName: Value(displayName as String?),
-              // Always true: a password an admin chose is never the
-              // account's own choice (`log-server-forced-password-change`).
-              mustChangePassword: const Value(true),
-            ),
-          );
-      await _audit.write(
-        action: AuditAction.userCreated,
-        targetType: AuditTargetType.user,
-        actorUserId: identity.userId,
-        targetId: id,
-        metadata: {'username': username},
-      );
-      return id;
-    });
+    final int userId;
+    try {
+      userId = await _db.transaction(() async {
+        final id = await _db.into(_db.users).insert(
+              UsersCompanion.insert(
+                username: username,
+                passwordHash: passwordHash,
+                displayName: Value(displayName as String?),
+                // Always true: a password an admin chose is never the
+                // account's own choice (`log-server-forced-password-change`).
+                mustChangePassword: const Value(true),
+              ),
+            );
+        await _audit.write(
+          action: AuditAction.userCreated,
+          targetType: AuditTargetType.user,
+          actorUserId: identity.userId,
+          targetId: id,
+          metadata: {'username': username},
+        );
+        return id;
+      });
+    } catch (_) {
+      // The lookup above and this insert are not one step: another request can
+      // take the name in between, and the unique index then refuses ours. The
+      // driver reports that as its own exception type (wrapped, when the
+      // database runs in a background isolate), so it is recognised by what
+      // happened rather than by what was thrown. The transaction has rolled
+      // back — no user, no audit record.
+      final nowTaken = await (_db.select(
+        _db.users,
+      )..where((t) => t.username.equals(username)))
+          .getSingleOrNull();
+      if (nowTaken != null) {
+        throw const ApiError(
+            409, 'username_taken', 'username is already taken.');
+      }
+      rethrow;
+    }
 
     final user = await _requireUser(_db, userId);
     return jsonOk(userJson(user), statusCode: 201);

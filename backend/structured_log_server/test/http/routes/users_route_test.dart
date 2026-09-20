@@ -69,6 +69,41 @@ void main() {
   final tooLong = 'Ж' * 40;
 
   group('createUser', () {
+    test('two concurrent creations of one username: one wins, one is a 409',
+        () async {
+      Future<int> attempt() async {
+        try {
+          final response = await routes.router.call(
+            authenticatedRequest(
+              'POST',
+              'http://x/v1/users',
+              roles: _admin,
+              jsonBody: {'username': 'twin', 'password': 'temp-1234'},
+            ),
+          );
+          return response.statusCode;
+        } on ApiError catch (e) {
+          return e.statusCode;
+        }
+      }
+
+      // Both pass the "is it taken?" lookup before either inserts, since the
+      // password is hashed in between. The unique index then refuses the
+      // second, and that has to reach the client as a 409, not as whatever the
+      // database driver throws.
+      final results = await Future.wait([attempt(), attempt()]);
+
+      expect(results..sort(), [201, 409]);
+      expect(
+        (await db.select(db.users).get()).where((u) => u.username == 'twin'),
+        hasLength(1),
+      );
+      // The loser left nothing behind: one creation, one audit record.
+      final created =
+          (await auditRows(db)).where((r) => r.action == 'user.created');
+      expect(created, hasLength(1));
+    });
+
     test('a password below the minimum length is rejected, no user created',
         () async {
       await expectLater(
