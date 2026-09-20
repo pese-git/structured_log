@@ -972,6 +972,10 @@
   "@resFailConflict": {
     "description": "resFailConflict"
   },
+  "resFailSoleGroupOwner": "That would leave the group without an owner. Make someone else an owner first.",
+  "@resFailSoleGroupOwner": {
+    "description": "resFailSoleGroupOwner"
+  },
   "resFailInvalid": "Check the fields you filled in.",
   "@resFailInvalid": {
     "description": "resFailInvalid"

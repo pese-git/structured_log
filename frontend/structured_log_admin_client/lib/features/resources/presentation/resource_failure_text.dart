@@ -10,6 +10,11 @@ import '../../../shared/api/api_failure.dart';
 String describeApiFailure(AppLocalizations l10n, ApiFailure failure) =>
     switch (failure) {
       ForbiddenFailure() => l10n.resFailForbidden,
+      // Revoking the last owner grant, or removing the last member of a team
+      // that owns the group: not a taken name, which is what any other
+      // conflict on these screens is.
+      ConflictFailure(:final code) when code == 'sole_group_owner' =>
+        l10n.resFailSoleGroupOwner,
       ConflictFailure() => l10n.resFailConflict,
       InvalidRequestFailure(:final message) => message ?? l10n.resFailInvalid,
       NotFoundFailure() => l10n.resFailNotFound,

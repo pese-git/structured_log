@@ -17,6 +17,18 @@ import '../request_helpers.dart';
 
 part 'groups_route.g.dart';
 
+/// The `409 sole_group_owner` every action that would leave a group without an
+/// owner answers with, whichever action it is — deleting an account, removing
+/// a member from the owning team, revoking the owner grant itself.
+ApiError soleGroupOwnerError(List<Group> groups, {required String message}) {
+  return ApiError(
+    409,
+    'sole_group_owner',
+    message,
+    details: {'blocking_groups': groups.map(groupJson).toList()},
+  );
+}
+
 Map<String, Object?> groupJson(Group group) {
   return {
     'id': group.id,

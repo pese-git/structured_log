@@ -905,6 +905,23 @@ void main() {
   });
 
   group('what the screens say about a refusal', () {
+    test('the last owner of a group is said as that, not as a taken name', () {
+      const failure = ApiFailure.conflict(code: 'sole_group_owner');
+
+      expect(
+        describeApiFailure(_ru, failure),
+        contains('не останется владельца'),
+        reason:
+            'reached by revoking the last owner grant and by removing the '
+            'last member of an owning team — neither has anything to do with '
+            'a name',
+      );
+      expect(
+        describeApiFailure(_ru, const ApiFailure.conflict(code: 'name_taken')),
+        isNot(contains('владельца')),
+      );
+    });
+
     test('a 403 names the roles that would have been enough', () {
       expect(
         describeApiFailure(_ru, const ApiFailure.forbidden(code: 'forbidden')),

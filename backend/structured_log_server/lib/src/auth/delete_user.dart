@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../rbac/group_owners.dart';
 import '../rbac/token_version.dart';
 import '../storage/database.dart';
 import 'session.dart';
@@ -84,41 +85,18 @@ Future<DeleteUserOutcome> deleteUser(
 /// stands between a deletion and leaving a group with no owner at all
 /// (decision 27).
 ///
-/// Direct `role_assignments` only: a team-scoped `owner` grant
-/// (`subject_type: team`) isn't reachable yet — there is no endpoint that
-/// creates a team or assigns it a role (`design.md` "Delivery Phases", Этап
-/// 3 stops at 4.3a/5.6a, both `subject_type: user` only) — so no state this
-/// server can currently produce needs it considered.
+/// Effective ownership, not direct grants alone: a team can hold an `owner`
+/// grant, which makes each member an owner, so the sole member of an owning
+/// team is the sole owner too, and a direct owner with a team beside them is
+/// not (`rbac/group_owners.dart`).
 Future<List<Group>> _groupsWhereSoleOwner(
   StructuredLogDatabase db,
   int userId,
 ) async {
-  final ownedGroupIds = await (db.selectOnly(db.roleAssignments)
-        ..addColumns([db.roleAssignments.scopeId])
-        ..where(
-          db.roleAssignments.subjectType.equals('user') &
-              db.roleAssignments.subjectId.equals(userId) &
-              db.roleAssignments.role.equals('owner') &
-              db.roleAssignments.scopeType.equals('group'),
-        ))
-      .map((row) => row.read(db.roleAssignments.scopeId)!)
-      .get();
-  if (ownedGroupIds.isEmpty) return const [];
-
   final sole = <int>[];
-  for (final groupId in ownedGroupIds.toSet()) {
-    final otherOwners = await (db.selectOnly(db.roleAssignments)
-          ..addColumns([db.roleAssignments.id])
-          ..where(
-            db.roleAssignments.subjectType.equals('user') &
-                db.roleAssignments.subjectId.equals(userId).not() &
-                db.roleAssignments.role.equals('owner') &
-                db.roleAssignments.scopeType.equals('group') &
-                db.roleAssignments.scopeId.equals(groupId),
-          )
-          ..limit(1))
-        .get();
-    if (otherOwners.isEmpty) sole.add(groupId);
+  for (final groupId in await groupIdsOwnedBy(db, userId)) {
+    final owners = await effectiveOwnerIds(db, groupId);
+    if (owners.length == 1 && owners.contains(userId)) sole.add(groupId);
   }
   if (sole.isEmpty) return const [];
 

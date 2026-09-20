@@ -1358,6 +1358,12 @@ abstract class AppLocalizations {
   /// **'That name is already taken. Choose another one.'**
   String get resFailConflict;
 
+  /// resFailSoleGroupOwner
+  ///
+  /// In en, this message translates to:
+  /// **'That would leave the group without an owner. Make someone else an owner first.'**
+  String get resFailSoleGroupOwner;
+
   /// resFailInvalid
   ///
   /// In en, this message translates to:

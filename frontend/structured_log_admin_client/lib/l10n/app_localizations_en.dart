@@ -754,6 +754,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'That name is already taken. Choose another one.';
 
   @override
+  String get resFailSoleGroupOwner =>
+      'That would leave the group without an owner. Make someone else an owner first.';
+
+  @override
   String get resFailInvalid => 'Check the fields you filled in.';
 
   @override
