@@ -102,7 +102,14 @@ class TokenService {
     )..where((t) => t.username.equals(username)))
         .getSingleOrNull();
 
-    final failure = _reasonToRefuse(user, password);
+    // bcrypt runs whatever the account's state, against a dummy hash when there
+    // is no usable one: skipping it for an unknown, blocked or deleted account
+    // would make the response time say which case this was.
+    final passwordOk = await verifyPasswordAsync(
+      password,
+      user?.passwordHash ?? await dummyPasswordHash,
+    );
+    final failure = _reasonToRefuse(user, passwordOk);
     if (failure != null) {
       await _audit.write(
         action: AuditAction.authLoginFailed,
@@ -144,13 +151,11 @@ class TokenService {
   /// remembering to add it exactly when account deletion lands, at which point
   /// a row with `deleted_at` set and `is_active` still true would
   /// authenticate.
-  static LoginFailure? _reasonToRefuse(User? user, String password) {
+  static LoginFailure? _reasonToRefuse(User? user, bool passwordOk) {
     if (user == null) return LoginFailure.unknownUser;
     if (user.deletedAt != null) return LoginFailure.deleted;
     if (!user.isActive) return LoginFailure.blocked;
-    if (!verifyPassword(password, user.passwordHash)) {
-      return LoginFailure.invalidPassword;
-    }
+    if (!passwordOk) return LoginFailure.invalidPassword;
     return null;
   }
 

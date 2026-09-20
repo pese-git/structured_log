@@ -51,24 +51,31 @@ class ChangePasswordRoutes {
       );
     }
 
+    if (!passwordFitsBcrypt(newPassword)) {
+      throw passwordTooLongError(field: 'new_password');
+    }
+
     final user = await (_db.select(
       _db.users,
     )..where((t) => t.id.equals(identity.userId)))
         .getSingle();
-    if (!verifyPassword(currentPassword, user.passwordHash)) {
+    if (!await verifyPasswordAsync(currentPassword, user.passwordHash)) {
       attempt.failed();
       throw const ApiError(
           401, 'invalid_grant', 'Current password is incorrect.');
     }
     attempt.succeeded();
 
+    // Before the transaction: hashing inside it would hold the write lock for
+    // the ~130 ms bcrypt takes.
+    final newHash = await hashPasswordAsync(newPassword);
     await _db.transaction(() async {
       await (_db.update(
         _db.users,
       )..where((t) => t.id.equals(identity.userId)))
           .write(
         UsersCompanion(
-          passwordHash: Value(hashPassword(newPassword)),
+          passwordHash: Value(newHash),
           mustChangePassword: const Value(false),
         ),
       );

@@ -5,6 +5,8 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/bootstrap_admin.dart';
 import 'package:structured_log_server/src/auth/create_admin.dart';
+import 'package:structured_log_server/src/auth/hashing.dart'
+    show dummyPasswordHash, hashWorkerPool;
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:structured_log_server/src/http/server.dart';
@@ -174,6 +176,11 @@ Future<void> _runServe(
     auditChunkSize: config.auditPurgeBatchSize,
   )..start();
 
+  // Before the first request: the dummy hash a login checks against for an
+  // account that does not exist is made on first use, and that one login would
+  // take twice as long as every other — a difference visible from outside.
+  await dummyPasswordHash;
+
   final server =
       await shelf_io.serve(handler, config.httpHost, config.httpPort);
 
@@ -227,6 +234,9 @@ Future<void> _shutdown(
   await broadcast.close();
   await server.close(force: false);
   await db.close();
+  // Idle workers hold a port open; nothing may still be hashing by now, since
+  // the server has stopped taking requests.
+  await hashWorkerPool.close();
   // Last, so queued file writes land before the process goes away.
   await logging.flush();
   done.complete();

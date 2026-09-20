@@ -64,7 +64,42 @@ void main() {
         );
   }
 
+  // 40 Cyrillic letters are 80 UTF-8 bytes: over bcrypt's 72 although short in
+  // characters, which is exactly the case a length-in-characters check misses.
+  final tooLong = 'Ж' * 40;
+
   group('createUser', () {
+    test('a password over 72 bytes is rejected with 400, not a 500', () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/users',
+            roles: _admin,
+            jsonBody: {'username': 'newbie', 'password': tooLong},
+          ),
+        ),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['reason'], 'reason', 'too_long'),
+        ),
+      );
+      expect(await db.select(db.users).get(), isEmpty);
+    });
+
+    test('a password of exactly 72 bytes is accepted', () async {
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/users',
+          roles: _admin,
+          jsonBody: {'username': 'newbie', 'password': 'x' * 72},
+        ),
+      );
+      expect(response.statusCode, 201);
+    });
+
     test('an admin can create a user with a temporary password', () async {
       final response = await routes.router.call(
         authenticatedRequest(
@@ -373,6 +408,30 @@ void main() {
   });
 
   group('updateUser', () {
+    test('a password over 72 bytes is rejected with 400, nothing changes',
+        () async {
+      final target = await insertUser();
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/users/${target.id}',
+            roles: _admin,
+            jsonBody: {'password': tooLong},
+          ),
+        ),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['reason'], 'reason', 'too_long'),
+        ),
+      );
+      final row = await (db.select(db.users)
+            ..where((t) => t.id.equals(target.id)))
+          .getSingle();
+      expect(row.passwordHash, target.passwordHash);
+    });
+
     test('an admin can change display_name without touching the password',
         () async {
       final target = await insertUser();

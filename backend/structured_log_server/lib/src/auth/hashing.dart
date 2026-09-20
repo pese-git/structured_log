@@ -1,8 +1,31 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:math';
 
 import 'package:bcrypt/bcrypt.dart';
 import 'package:crypto/crypto.dart';
+
+import '../errors.dart';
+
+import 'hash_worker_pool.dart';
+
+/// bcrypt reads at most 72 bytes of a password, and this implementation
+/// refuses longer input outright rather than truncating it (an `ArgumentError`,
+/// which reached the client as a 500). Counted in UTF-8 bytes, not characters:
+/// forty Cyrillic letters are already 80 bytes.
+const maxPasswordBytes = 72;
+
+/// Whether [password] is short enough for bcrypt to accept.
+bool passwordFitsBcrypt(String password) =>
+    utf8.encode(password).length <= maxPasswordBytes;
+
+/// The error a route answers with for a password over [maxPasswordBytes] —
+/// the client can act on it, unlike the 500 it replaces.
+ApiError passwordTooLongError({String field = 'password'}) =>
+    ApiError.invalidRequest(
+      'The password must be at most $maxPasswordBytes bytes in UTF-8.',
+      details: {'field': field, 'reason': 'too_long'},
+    );
 
 /// Hashes a user's chosen [password] with `bcrypt` — an adaptive,
 /// deliberately slow algorithm, appropriate for a low-entropy, human-chosen
@@ -16,6 +39,41 @@ String hashPassword(String password) {
 bool verifyPassword(String password, String hash) {
   return BCrypt.checkpw(password, hash);
 }
+
+/// bcrypt costs ~130 ms of CPU. On the server's own isolate that freezes every
+/// request for that long (measured: one check stalls the event loop for
+/// ~130 ms, eight in a row for a full second), so request handlers go through
+/// [hashPasswordAsync]/[verifyPasswordAsync], which run it on a pool of worker
+/// isolates (`hash_worker_pool.dart`) sized to leave cores for the isolate
+/// that serves requests.
+final int _hashConcurrency = max(1, min(4, Platform.numberOfProcessors - 1));
+final HashWorkerPool _pool = HashWorkerPool(_hashConcurrency);
+
+/// The pool the async functions use — public so shutdown can close it and
+/// tests can inspect it.
+HashWorkerPool get hashWorkerPool => _pool;
+
+/// [hashPassword] off the event loop.
+Future<String> hashPasswordAsync(String password) => _pool.hash(password);
+
+/// [verifyPassword] off the event loop.
+Future<bool> verifyPasswordAsync(String password, String hash) {
+  // No stored hash can match a password bcrypt would not have accepted, so a
+  // longer one is simply wrong. Answering here, not in the worker, is what
+  // keeps a login with an absurd password a 400 instead of a 500.
+  if (!passwordFitsBcrypt(password)) return Future.value(false);
+  return _pool.verify(password, hash);
+}
+
+/// A valid bcrypt hash of a random string nobody knows, checked against when
+/// there is no real hash to check.
+///
+/// A login for an unknown, blocked or deleted account used to answer without
+/// running bcrypt while a real account with a wrong password took ~130 ms —
+/// so the response time alone told an attacker which usernames exist. Checking
+/// against this makes the two cost the same. Made once, at first use.
+final Future<String> dummyPasswordHash =
+    hashPasswordAsync(generateRandomToken());
 
 /// Generates a high-entropy, cryptographically random secret suitable for a
 /// project secret key or a refresh token — never remembered by a human, so
