@@ -124,11 +124,13 @@ class UserRoutes {
       throw const ApiError(409, 'username_taken', 'username is already taken.');
     }
 
+    // Hashed before the transaction, so bcrypt does not hold the write lock.
+    final passwordHash = await hashPasswordAsync(password);
     final userId = await _db.transaction(() async {
       final id = await _db.into(_db.users).insert(
             UsersCompanion.insert(
               username: username,
-              passwordHash: hashPassword(password),
+              passwordHash: passwordHash,
               displayName: Value(displayName as String?),
               // Always true: a password an admin chose is never the
               // account's own choice (`log-server-forced-password-change`).
@@ -222,6 +224,9 @@ class UserRoutes {
       if (newPassword != null) 'password',
     ];
 
+    final newPasswordHash =
+        newPassword == null ? null : await hashPasswordAsync(newPassword);
+
     await _db.transaction(() async {
       await (_db.update(
         _db.users,
@@ -231,8 +236,8 @@ class UserRoutes {
           displayName: hasDisplayName
               ? Value(displayName as String?)
               : const Value.absent(),
-          passwordHash: newPassword != null
-              ? Value(hashPassword(newPassword))
+          passwordHash: newPasswordHash != null
+              ? Value(newPasswordHash)
               : const Value.absent(),
           // A password someone else set is never the account's own choice
           // (`log-server-forced-password-change`) — same rule as creation.
@@ -348,7 +353,7 @@ class UserRoutes {
     }
 
     final target = await _requireUser(_db, identity.userId);
-    if (!verifyPassword(password, target.passwordHash)) {
+    if (!await verifyPasswordAsync(password, target.passwordHash)) {
       attempt.failed();
       throw const ApiError(
         401,

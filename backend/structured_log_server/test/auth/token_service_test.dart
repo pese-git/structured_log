@@ -145,6 +145,49 @@ void main() {
     });
   });
 
+  group('login timing', () {
+    Future<int> timeLogin(String username, String password) async {
+      final sw = Stopwatch()..start();
+      await service.passwordGrant(
+        clientIp: testClientIp,
+        username: username,
+        password: password,
+      );
+      return sw.elapsedMilliseconds;
+    }
+
+    // bcrypt is ~130 ms; a login that skipped it answers in a few. Requiring
+    // half of the reference leaves a wide margin either way, while a skipped
+    // check falls far below it.
+    test('an unknown account costs as much as a wrong password', () async {
+      await insertUser();
+      await timeLogin('alice', 'warm-up');
+      final wrongPassword = await timeLogin('alice', 'wrong');
+      final unknown = await timeLogin('nobody', 'wrong');
+      expect(unknown, greaterThan(wrongPassword ~/ 2));
+    });
+
+    test('a blocked account costs as much as a wrong password', () async {
+      await insertUser();
+      await insertUser(username: 'bob', isActive: false);
+      await timeLogin('alice', 'warm-up');
+      final wrongPassword = await timeLogin('alice', 'wrong');
+      final blocked = await timeLogin('bob', 's3cret');
+      expect(blocked, greaterThan(wrongPassword ~/ 2));
+    });
+
+    test('a blocked account is still refused with the right password',
+        () async {
+      await insertUser(username: 'bob', isActive: false);
+      final result = await service.passwordGrant(
+        clientIp: testClientIp,
+        username: 'bob',
+        password: 's3cret',
+      );
+      expect(result.isLeft(), isTrue);
+    });
+  });
+
   group('refreshTokenGrant', () {
     test('a valid refresh token rotates and returns a new pair', () async {
       await insertUser();
