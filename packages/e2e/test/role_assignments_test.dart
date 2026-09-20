@@ -290,6 +290,33 @@ void main() {
 
   test('once the admin revokes the grant, the former owner loses both group '
       'access and the ability to create another project there', () async {
+    // The operator holds the group's only owner grant, and a group is never
+    // left without one by an ordinary action — not even the administrator's.
+    final refused = await adminRoleAssignments.revoke(grantId);
+    refused.match(
+      (failure) => expect(
+        failure,
+        isA<ConflictFailure>().having(
+          (f) => f.code,
+          'code',
+          'sole_group_owner',
+        ),
+      ),
+      (_) => fail('revoking the last owner grant should have been refused'),
+    );
+
+    final successor = (await adminUsers.create(
+      username: 'successor',
+      password: ownerTemporaryPassword,
+    )).getOrElse((failure) => fail('creating the successor failed: $failure'));
+    (await adminRoleAssignments.grant(
+      subjectType: 'user',
+      subjectId: successor.id,
+      role: 'owner',
+      scopeType: 'group',
+      scopeId: ownedGroupId,
+    )).getOrElse((failure) => fail('granting the successor failed: $failure'));
+
     final revoked = await adminRoleAssignments.revoke(grantId);
     expect(revoked.isRight(), isTrue);
 
@@ -297,7 +324,9 @@ void main() {
       scopeType: 'group',
       scopeId: ownedGroupId,
     )).getOrElse((failure) => fail('reading the scope back failed: $failure'));
-    expect(remaining, isEmpty);
+    expect(remaining.map((a) => a.subjectName), [
+      'successor',
+    ], reason: 'the operator\'s grant is gone, the successor\'s is not');
 
     final deniedProject = await ownerResources.createProject(
       groupId: ownedGroupId,
