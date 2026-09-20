@@ -205,6 +205,67 @@ void main() {
       expect(adapter.requests, isEmpty);
     },
   );
+  group('changePassword refusals', () {
+    FakeReply envelope(String error, {Map<String, Object?>? details}) =>
+        FakeReply(
+          400,
+          body: {
+            'error': error,
+            'message': 'English, for a developer.',
+            'details': ?details,
+          },
+        );
+
+    test('a too-short new password keeps the server\'s limit', () async {
+      final (repository, _, _) = _repository(
+        (_) => envelope(
+          'invalid_request',
+          details: {
+            'field': 'new_password',
+            'reason': 'too_short',
+            'min_length': 8,
+          },
+        ),
+      );
+
+      final result = await repository.changePassword(
+        currentPassword: 'old-password',
+        newPassword: 'short',
+      );
+
+      final failure = result.getLeft().toNullable();
+      expect(failure, isA<PasswordRejectedAuthFailure>());
+      expect((failure as PasswordRejectedAuthFailure).details['min_length'], 8);
+    });
+
+    test('a too-long one is a password refusal too', () async {
+      final (repository, _, _) = _repository(
+        (_) => envelope(
+          'invalid_request',
+          details: {'reason': 'too_long', 'max_bytes': 72},
+        ),
+      );
+      final result = await repository.changePassword(
+        currentPassword: 'old-password',
+        newPassword: 'x' * 80,
+      );
+      expect(result.getLeft().toNullable(), isA<PasswordRejectedAuthFailure>());
+    });
+
+    test('another 400 is still unexpected, not a password refusal', () async {
+      final (repository, _, _) = _repository(
+        (_) => envelope(
+          'invalid_request',
+          details: {'field': 'current_password', 'reason': 'required'},
+        ),
+      );
+      final result = await repository.changePassword(
+        currentPassword: '',
+        newPassword: 'long-enough-1',
+      );
+      expect(result.getLeft().toNullable(), isA<UnexpectedAuthFailure>());
+    });
+  });
 }
 
 /// Stands in for a connection that never happened.

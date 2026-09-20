@@ -4,6 +4,8 @@ import 'package:structured_log_admin_client/features/users/presentation/sole_own
 import 'package:structured_log_admin_client/features/users/presentation/user_dialogs.dart';
 import 'package:structured_log_admin_client/features/users/presentation/user_failure_text.dart';
 import 'package:structured_log_admin_client/l10n/app_localizations.dart';
+import 'package:structured_log_admin_client/l10n/app_localizations_en.dart';
+import 'package:structured_log_admin_client/l10n/app_localizations_ru.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 
 import '../../support/localized_app.dart';
@@ -85,5 +87,46 @@ void main() {
       describeUserFailure(lookupAppLocalizations(const Locale('ru')), failure),
       'Слишком много попыток. Попробуйте через 7 с.',
     );
+  });
+
+  group('a refused password on the users screen', () {
+    final en = AppLocalizationsEn();
+    final ru = AppLocalizationsRu();
+
+    ApiFailure refused(String reason, [Map<String, dynamic>? extra]) =>
+        ApiFailure.invalidRequest(
+          code: 'invalid_request',
+          // The server's own text is English and is not what gets shown.
+          message: 'The password must be at least 8 characters.',
+          details: {'field': 'password', 'reason': reason, ...?extra},
+        );
+
+    test('is described in the reader\'s language, with the limit', () {
+      final failure = refused('too_short', {'min_length': 8});
+      expect(
+        describeUserFailure(ru, failure),
+        'Пароль должен быть не короче 8 символов.',
+      );
+      expect(
+        describeUserFailure(en, failure),
+        'The password must be at least 8 characters.',
+      );
+    });
+
+    test('too_long is described too', () {
+      expect(
+        describeUserFailure(ru, refused('too_long', {'max_bytes': 72})),
+        contains('72 байт'),
+      );
+    });
+
+    test('another 400 still shows the server\'s message', () {
+      const failure = ApiFailure.invalidRequest(
+        code: 'invalid_request',
+        message: 'username is required.',
+        details: {'field': 'username', 'reason': 'required'},
+      );
+      expect(describeUserFailure(ru, failure), 'username is required.');
+    });
   });
 }

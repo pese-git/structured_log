@@ -1870,5 +1870,23 @@
   "usersSoleOwnerDescriptionSelf": "You are the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.",
   "@usersSoleOwnerDescriptionSelf": {
     "description": "Sole owner dialog body when the reader is deleting their own account"
+  },
+  "commonPasswordTooShort": "The password must be at least {min} characters.",
+  "@commonPasswordTooShort": {
+    "description": "A server refusal of a chosen password: shorter than the minimum",
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "commonPasswordTooLong": "The password is too long: at most {max} bytes (a Cyrillic letter takes two).",
+  "@commonPasswordTooLong": {
+    "description": "A server refusal of a chosen password: longer than bcrypt accepts, counted in UTF-8 bytes",
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
   }
 }

@@ -164,6 +164,32 @@ void main() {
     expect(changed, 0);
   });
 
+  testWidgets('a refused new password says what is wrong with it', (
+    tester,
+  ) async {
+    repository.answer = left(
+      const AuthFailure.passwordRejected(
+        details: {
+          'field': 'new_password',
+          'reason': 'too_short',
+          'min_length': 8,
+        },
+      ),
+    );
+    await pump(tester);
+
+    await fill(tester, next: 'short');
+
+    // Not the generic "try again": trying again with the same password cannot
+    // work, so the text has to carry the limit.
+    expect(
+      find.text('Пароль должен быть не короче 8 символов.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Не удалось сменить пароль'), findsNothing);
+    expect(changed, 0);
+  });
+
   testWidgets('two different new passwords are caught before sending', (
     tester,
   ) async {

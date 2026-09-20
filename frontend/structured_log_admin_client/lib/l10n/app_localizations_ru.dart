@@ -1512,4 +1512,14 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get usersSoleOwnerDescriptionSelf =>
       'Вы — единственный владелец (owner) следующих групп. Выдайте роль владельца ещё кому-то в каждой из них, прежде чем удаление станет возможным.';
+
+  @override
+  String commonPasswordTooShort(int min) {
+    return 'Пароль должен быть не короче $min символов.';
+  }
+
+  @override
+  String commonPasswordTooLong(int max) {
+    return 'Пароль слишком длинный: не более $max байт (кириллическая буква занимает два).';
+  }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:structured_log_admin_ui/structured_log_admin_ui.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../shared/auth/password_rejection.dart';
 import '../domain/auth_failure.dart';
 import 'change_password_cubit.dart';
 
@@ -127,6 +128,9 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
       retryAfter.inSeconds,
     ),
     NetworkAuthFailure() => l10n.authChangeNetwork,
+    // Names the limit the server gave, so the fix is in the text.
+    PasswordRejectedAuthFailure(:final details) =>
+      describePasswordRejection(l10n, details) ?? l10n.authChangeUnexpected,
     EmailNotVerifiedFailure() ||
     UnexpectedAuthFailure() => l10n.authChangeUnexpected,
   };
