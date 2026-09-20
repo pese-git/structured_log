@@ -95,6 +95,14 @@ flowchart TD
   automatically (that's a human decision) — it blocks with `409
   sole_group_owner` and a list of the groups involved, until ownership
   is transferred via the already-existing `POST /v1/role-assignments`.
+  Ownership is **effective**: an owner grant to a *team* makes each
+  member an owner, so the sole member of an owning team is the sole owner,
+  and a direct owner beside an owning team is not. The same rule holds for
+  the other two ways to lose an owner — removing the last member of an
+  owning team (`DELETE /v1/teams/:teamId/members/:userId`) and revoking the
+  last owner grant (`DELETE /v1/role-assignments/:id`, including an
+  owner's own) — with the same `409 sole_group_owner`. A group that had no
+  owner to begin with does not block unrelated changes.
 - **Primary administrator** (decision 28): exactly one account in the
   system's history — the one `create-admin` created on its first-ever
   successful run — can never be deleted, by itself or by any other

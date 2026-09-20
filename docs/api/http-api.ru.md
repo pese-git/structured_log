@@ -527,7 +527,7 @@ curl -X POST http://localhost:8080/v1/teams/5/members \
 
 **Ответ `204`:** пустое тело.
 
-**Ошибки:** `403 forbidden`, `404 not_found`.
+**Ошибки:** `403 forbidden`, `404 not_found`, `409 sole_group_owner` (участник — последний в команде, владеющей группой, и больше никто ею не владеет — `details.blocking_groups`).
 
 ```bash
 curl -X DELETE http://localhost:8080/v1/teams/5/members/42 -H "Authorization: Bearer $ACCESS_TOKEN"
@@ -563,7 +563,7 @@ curl -X POST http://localhost:8080/v1/role-assignments \
 
 **Ответ `204`:** пустое тело.
 
-**Ошибки:** `403 forbidden`, `404 not_found`.
+**Ошибки:** `403 forbidden`, `404 not_found`, `409 sole_group_owner` (отзыв последнего гранта `owner` на группе — `details.blocking_groups`).
 
 ```bash
 curl -X DELETE http://localhost:8080/v1/role-assignments/128 -H "Authorization: Bearer $ACCESS_TOKEN"

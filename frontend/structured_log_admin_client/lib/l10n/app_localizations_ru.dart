@@ -758,6 +758,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get resFailConflict => 'Такое имя уже занято. Выберите другое.';
 
   @override
+  String get resFailSoleGroupOwner =>
+      'Тогда у группы не останется владельца. Сначала назначьте владельцем кого-то ещё.';
+
+  @override
   String get resFailInvalid => 'Проверьте заполненные поля.';
 
   @override

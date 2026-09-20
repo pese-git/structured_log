@@ -520,7 +520,7 @@ whoever just lost access.
 
 **Response `204`:** empty body.
 
-**Errors:** `403 forbidden`, `404 not_found`.
+**Errors:** `403 forbidden`, `404 not_found`, `409 sole_group_owner` (the member is the last one of a team that owns a group and nobody else owns it — `details.blocking_groups`).
 
 ```bash
 curl -X DELETE http://localhost:8080/v1/teams/5/members/42 -H "Authorization: Bearer $ACCESS_TOKEN"
@@ -556,7 +556,7 @@ Role: same rule as creating it.
 
 **Response `204`:** empty body.
 
-**Errors:** `403 forbidden`, `404 not_found`.
+**Errors:** `403 forbidden`, `404 not_found`, `409 sole_group_owner` (revoking the last owner grant on a group — `details.blocking_groups`).
 
 ```bash
 curl -X DELETE http://localhost:8080/v1/role-assignments/128 -H "Authorization: Bearer $ACCESS_TOKEN"

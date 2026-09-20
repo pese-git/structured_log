@@ -416,6 +416,51 @@ void main() {
       },
     );
 
+    testWidgets('revoking the last owner is refused in words, and the row '
+        'stays', (tester) async {
+      server.roleAssignments.add({
+        'id': 1,
+        'subject_type': 'user',
+        'subject_id': 9,
+        'role': 'owner',
+        'scope_type': 'project',
+        'scope_id': 1,
+        'created_at': '2026-02-14T00:00:00.000Z',
+      });
+      server.script(
+        'DELETE',
+        '/v1/role-assignments/1',
+        const MockReply(
+          409,
+          body: {
+            'error': 'sole_group_owner',
+            'message':
+                'Revoking this grant would leave a group without an owner.',
+            'details': {'blocking_groups': <Object?>[]},
+          },
+        ),
+      );
+      await pumpApp(tester, server, signedIn: true);
+      await openProject(tester);
+
+      await tester.tap(find.text('Отозвать'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Отозвать').last);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Тогда у группы не останется владельца. Сначала назначьте '
+          'владельцем кого-то ещё.',
+        ),
+        findsOneWidget,
+        reason: 'the generic conflict text says a name is taken',
+      );
+      expect(find.text('Имя уже занято. Выберите другое.'), findsNothing);
+      expect(find.text('alice'), findsOneWidget);
+      await closeApp(tester);
+    });
+
     testWidgets('revoking removes the row', (tester) async {
       server.roleAssignments.add({
         'id': 1,

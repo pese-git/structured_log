@@ -6,11 +6,13 @@ import '../../audit/audit_action.dart';
 import '../../audit/audit_writer.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
+import '../../rbac/group_owners.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../rbac/token_version.dart';
 import '../../storage/database.dart';
 import '../json_response.dart';
+import 'groups_route.dart' show soleGroupOwnerError;
 import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
@@ -386,30 +388,47 @@ class RoleAssignmentRoutes {
       throw ApiError.forbidden();
     }
 
-    await _db.transaction(() async {
-      await (_db.delete(
-        _db.roleAssignments,
-      )..where((t) => t.id.equals(assignmentId)))
-          .go();
-      if (row.subjectType == 'user') {
-        await incrementTokenVersion(_db, row.subjectId);
-      } else {
-        await incrementTokenVersionsForTeam(_db, row.subjectId);
-      }
-      await _audit.write(
-        action: AuditAction.roleAssignmentRevoked,
-        targetType: AuditTargetType.roleAssignment,
-        actorUserId: identity.userId,
-        targetId: assignmentId,
-        metadata: {
-          'subject_type': row.subjectType,
-          'subject_id': row.subjectId,
-          'role': row.role,
-          'scope_type': row.scopeType,
-          'scope_id': row.scopeId,
-        },
+    // Revoking an owner grant on a group is the one revocation that can leave
+    // the group with nobody in charge — including the owner's own grant, which
+    // they are allowed to revoke. Anyone else with a claim on the group (a
+    // second direct owner, a member of an owning team) keeps it standing.
+    final ownedGroupIds =
+        row.role == 'owner' && row.scopeType == 'group' && row.scopeId != null
+            ? [row.scopeId!]
+            : const <int>[];
+    try {
+      await _db.transaction(() async {
+        await preservingGroupOwners(_db, ownedGroupIds, () async {
+          await (_db.delete(
+            _db.roleAssignments,
+          )..where((t) => t.id.equals(assignmentId)))
+              .go();
+        });
+        if (row.subjectType == 'user') {
+          await incrementTokenVersion(_db, row.subjectId);
+        } else {
+          await incrementTokenVersionsForTeam(_db, row.subjectId);
+        }
+        await _audit.write(
+          action: AuditAction.roleAssignmentRevoked,
+          targetType: AuditTargetType.roleAssignment,
+          actorUserId: identity.userId,
+          targetId: assignmentId,
+          metadata: {
+            'subject_type': row.subjectType,
+            'subject_id': row.subjectId,
+            'role': row.role,
+            'scope_type': row.scopeType,
+            'scope_id': row.scopeId,
+          },
+        );
+      });
+    } on SoleOwnerConflict catch (conflict) {
+      throw soleGroupOwnerError(
+        conflict.groups,
+        message: 'Revoking this grant would leave a group without an owner.',
       );
-    });
+    }
 
     return Response(204);
   }

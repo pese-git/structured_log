@@ -6,11 +6,13 @@ import '../../audit/audit_action.dart';
 import '../../audit/audit_writer.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
+import '../../rbac/group_owners.dart';
 import '../../rbac/access_check.dart';
 import '../../rbac/authorizer.dart';
 import '../../rbac/token_version.dart';
 import '../../storage/database.dart';
 import '../json_response.dart';
+import 'groups_route.dart' show soleGroupOwnerError;
 import '../principal_middleware.dart';
 import '../request_helpers.dart';
 
@@ -192,14 +194,18 @@ class TeamRoutes {
         .getSingleOrNull();
     if (user == null) throw ApiError.notFound('User not found.');
 
-    final alreadyMember = await (_db.select(_db.teamMembers)
-          ..where(
-            (t) => t.teamId.equals(team.id) & t.userId.equals(userId),
-          ))
-        .getSingleOrNull();
-    if (alreadyMember != null) return Response(204);
-
+    // The membership check and the insert are one transaction: read outside
+    // it, two requests for the same pair both saw "not a member", and the
+    // second insert broke the primary key — a 500 for what is meant to be an
+    // idempotent 204.
     await _db.transaction(() async {
+      final alreadyMember = await (_db.select(_db.teamMembers)
+            ..where(
+              (t) => t.teamId.equals(team.id) & t.userId.equals(userId),
+            ))
+          .getSingleOrNull();
+      if (alreadyMember != null) return;
+
       await _db.into(_db.teamMembers).insert(
             TeamMembersCompanion.insert(teamId: team.id, userId: userId),
           );
@@ -249,21 +255,39 @@ class TeamRoutes {
       throw ApiError.notFound('This user is not a member of the team.');
     }
 
-    await _db.transaction(() async {
-      await (_db.delete(_db.teamMembers)
-            ..where(
-              (t) => t.teamId.equals(team.id) & t.userId.equals(removedUserId),
-            ))
-          .go();
-      await incrementTokenVersion(_db, removedUserId);
-      await _audit.write(
-        action: AuditAction.teamMemberRemoved,
-        targetType: AuditTargetType.team,
-        actorUserId: identity.userId,
-        targetId: team.id,
-        metadata: {'user_id': removedUserId},
+    // A team that owns a group makes each member an owner, so removing its
+    // last member — or the only one who is not also owning some other way —
+    // can leave that group with nobody in charge.
+    try {
+      await _db.transaction(() async {
+        await preservingGroupOwners(
+          _db,
+          await groupIdsOwnedByTeam(_db, team.id),
+          () async {
+            await (_db.delete(_db.teamMembers)
+                  ..where(
+                    (t) =>
+                        t.teamId.equals(team.id) &
+                        t.userId.equals(removedUserId),
+                  ))
+                .go();
+          },
+        );
+        await incrementTokenVersion(_db, removedUserId);
+        await _audit.write(
+          action: AuditAction.teamMemberRemoved,
+          targetType: AuditTargetType.team,
+          actorUserId: identity.userId,
+          targetId: team.id,
+          metadata: {'user_id': removedUserId},
+        );
+      });
+    } on SoleOwnerConflict catch (conflict) {
+      throw soleGroupOwnerError(
+        conflict.groups,
+        message: 'Removing this member would leave a group without an owner.',
       );
-    });
+    }
 
     return Response(204);
   }

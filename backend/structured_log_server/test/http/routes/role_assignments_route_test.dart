@@ -953,6 +953,14 @@ void main() {
         scopeType: 'group',
         scopeId: groupId,
       );
+      // Someone else stays in charge — revoking the last owner grant is
+      // refused (`group_owner_guard_test.dart`), and is not what this is about.
+      await grant(
+        await insertUser(username: 'second-owner'),
+        role: 'owner',
+        scopeType: 'group',
+        scopeId: groupId,
+      );
       final ownerRoles = [
         EffectiveRole(
             role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),

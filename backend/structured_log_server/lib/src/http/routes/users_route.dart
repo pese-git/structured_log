@@ -19,7 +19,7 @@ import '../page_request.dart';
 import '../principal_middleware.dart';
 import '../rate_limit_middleware.dart';
 import '../request_helpers.dart';
-import 'groups_route.dart' show groupJson;
+import 'groups_route.dart' show soleGroupOwnerError;
 
 part 'users_route.g.dart';
 
@@ -63,13 +63,9 @@ Response _deleteResponse(DeleteUserOutcome outcome) {
         'The primary administrator cannot be deleted.',
       );
     case DeleteUserFailure.soleGroupOwner:
-      throw ApiError(
-        409,
-        'sole_group_owner',
-        'Target is the sole owner of one or more groups.',
-        details: {
-          'blocking_groups': outcome.blockingGroups.map(groupJson).toList(),
-        },
+      throw soleGroupOwnerError(
+        outcome.blockingGroups,
+        message: 'Target is the sole owner of one or more groups.',
       );
     case null:
       return Response(204);
