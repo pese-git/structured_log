@@ -142,4 +142,68 @@ void main() {
 
     expect(await provider.verifyAccessToken(token), isNull);
   });
+
+  group('a validly signed token whose roles this build cannot read', () {
+    // Signed with the right key, so it passes the signature check and reaches
+    // the claims. A role renamed in a later release, or a claim malformed by a
+    // bug on the issuing side, must be an unauthenticated request — not the
+    // exception that used to surface as a 500.
+    Future<String> tokenWithRoles(Object? roles) async {
+      final userId = await insertUser();
+      final jwt = JWT({
+        'preferred_username': 'alice',
+        'tv': 0,
+        'roles': roles,
+      }, subject: '$userId', issuer: _issuer, jwtId: 'test-jti');
+      return jwt.sign(SecretKey(_secret),
+          expiresIn: const Duration(minutes: 5));
+    }
+
+    for (final (name, roles) in <(String, Object?)>[
+      (
+        'an unknown role',
+        [
+          {'role': 'superuser', 'scope_type': 'global', 'scope_id': null},
+        ],
+      ),
+      (
+        'an unknown scope type',
+        [
+          {'role': 'admin', 'scope_type': 'planet', 'scope_id': null},
+        ],
+      ),
+      (
+        'a role that is not a string',
+        [
+          {'role': 7, 'scope_type': 'global', 'scope_id': null},
+        ],
+      ),
+      (
+        'a missing role',
+        [
+          {'scope_type': 'global', 'scope_id': null},
+        ],
+      ),
+      (
+        'a scope id that is not an integer',
+        [
+          {'role': 'owner', 'scope_type': 'group', 'scope_id': 'seven'},
+        ],
+      ),
+    ]) {
+      test('$name is rejected, not thrown', () async {
+        final token = await tokenWithRoles(roles);
+        expect(await provider.verifyAccessToken(token), isNull);
+      });
+    }
+
+    test('well-formed roles still verify', () async {
+      final token = await tokenWithRoles([
+        {'role': 'owner', 'scope_type': 'group', 'scope_id': 3},
+      ]);
+      final identity = await provider.verifyAccessToken(token);
+      expect(identity, isNotNull);
+      expect(identity!.roles!.single.scopeId, 3);
+    });
+  });
 }

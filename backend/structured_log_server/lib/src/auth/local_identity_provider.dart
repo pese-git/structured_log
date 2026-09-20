@@ -47,16 +47,13 @@ class LocalIdentityProvider implements IdentityProvider {
 
     final roles = <EffectiveRole>[];
     for (final entry in rawRoles) {
-      if (entry is! Map) return null;
-      final role = Role.values.byName(entry['role'] as String);
-      final scopeType = ScopeType.values.byName(entry['scope_type'] as String);
-      roles.add(
-        EffectiveRole(
-          role: role,
-          scopeType: scopeType,
-          scopeId: entry['scope_id'] as int?,
-        ),
-      );
+      final role = _parseRole(entry);
+      // A claim this build cannot read makes the whole token unusable. Which
+      // rights it was meant to carry is not something to guess at, and the
+      // alternative — an exception out of a `byName` lookup — reached the
+      // client as a 500 for a request that is simply unauthenticated.
+      if (role == null) return null;
+      roles.add(role);
     }
 
     return VerifiedIdentity(
@@ -64,6 +61,27 @@ class LocalIdentityProvider implements IdentityProvider {
       username: username,
       roles: roles,
       mustChangePassword: user.mustChangePassword,
+    );
+  }
+
+  /// One `roles` claim entry, or `null` if it is not a shape this build issues:
+  /// not a map, an unknown role or scope type (a name removed or renamed in
+  /// another release), or a scope id that is not an integer.
+  static EffectiveRole? _parseRole(Object? entry) {
+    if (entry is! Map) return null;
+    final role = entry['role'];
+    final scopeType = entry['scope_type'];
+    final scopeId = entry['scope_id'];
+    if (role is! String || scopeType is! String) return null;
+    if (scopeId != null && scopeId is! int) return null;
+
+    final parsedRole = Role.values.asNameMap()[role];
+    final parsedScope = ScopeType.values.asNameMap()[scopeType];
+    if (parsedRole == null || parsedScope == null) return null;
+    return EffectiveRole(
+      role: parsedRole,
+      scopeType: parsedScope,
+      scopeId: scopeId as int?,
     );
   }
 }

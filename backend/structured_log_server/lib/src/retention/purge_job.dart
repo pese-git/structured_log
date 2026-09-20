@@ -85,16 +85,24 @@ Future<PurgeOutcome> purgeExpiredEntries(
     var removedHere = 0;
 
     while (true) {
-      final chunk = await (db.select(db.logEntries)
-            ..where((t) =>
-                t.projectId.equals(project.id) &
-                t.receivedAt.isSmallerThanValue(cutoff))
+      // Two columns, not the row: `context_json` is most of a row's bytes,
+      // and nothing here reads it.
+      final chunk = await (db.selectOnly(db.logEntries)
+            ..addColumns([db.logEntries.id, db.logEntries.sizeBytes])
+            ..where(
+              db.logEntries.projectId.equals(project.id) &
+                  db.logEntries.receivedAt.isSmallerThanValue(cutoff),
+            )
             ..limit(chunkSize))
+          .map((row) => (
+                id: row.read(db.logEntries.id)!,
+                size: row.read(db.logEntries.sizeBytes)!,
+              ))
           .get();
       if (chunk.isEmpty) break;
 
       final ids = chunk.map((e) => e.id).toList();
-      final bytes = chunk.fold<int>(0, (sum, e) => sum + e.sizeBytes);
+      final bytes = chunk.fold<int>(0, (sum, e) => sum + e.size);
 
       await db.transaction(() async {
         await (db.delete(db.logEntries)..where((t) => t.id.isIn(ids))).go();
@@ -172,26 +180,27 @@ Future<({int admin, int auth})> purgeExpiredAuditEntries(
     var removed = 0;
 
     while (true) {
-      final chunk = await (db.select(db.auditLogEntries)
+      final ids = await (db.selectOnly(db.auditLogEntries)
+            ..addColumns([db.auditLogEntries.id])
             ..where(
-              (t) => authEvents
-                  ? t.action.isIn(authWire) &
-                      t.createdAt.isSmallerThanValue(cutoff)
-                  : t.action.isNotIn(authWire) &
-                      t.createdAt.isSmallerThanValue(cutoff),
+              authEvents
+                  ? db.auditLogEntries.action.isIn(authWire) &
+                      db.auditLogEntries.createdAt.isSmallerThanValue(cutoff)
+                  : db.auditLogEntries.action.isNotIn(authWire) &
+                      db.auditLogEntries.createdAt.isSmallerThanValue(cutoff),
             )
             ..limit(chunkSize))
+          .map((row) => row.read(db.auditLogEntries.id)!)
           .get();
-      if (chunk.isEmpty) break;
+      if (ids.isEmpty) break;
 
-      final ids = chunk.map((e) => e.id).toList();
       await db.transaction(() async {
         await (db.delete(db.auditLogEntries)..where((t) => t.id.isIn(ids)))
             .go();
       });
       removed += ids.length;
 
-      if (chunk.length < chunkSize) break;
+      if (ids.length < chunkSize) break;
     }
 
     if (removed > 0) {
