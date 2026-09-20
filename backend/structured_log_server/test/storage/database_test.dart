@@ -493,4 +493,54 @@ void main() {
       await reader.close();
     });
   });
+
+  group('credential hash indexes', () {
+    const wanted = [
+      'idx_project_secret_keys_key_hash',
+      'idx_refresh_tokens_token_hash',
+      'idx_refresh_tokens_expires_at',
+    ];
+
+    Future<Set<String>> indexNames(StructuredLogDatabase db) async {
+      final rows = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
+          .get();
+      return rows.map((r) => r.read<String>('name')).toSet();
+    }
+
+    test('a new database has them', () async {
+      final db = openInMemory();
+      addTearDown(db.close);
+      expect(await indexNames(db), containsAll(wanted));
+    });
+
+    test('a hash is unique', () async {
+      final db = openInMemory();
+      addTearDown(db.close);
+      final g = await insertGroup(db);
+      final p = await insertProject(db, groupId: g);
+      Future<void> key() => db.into(db.projectSecretKeys).insert(
+            ProjectSecretKeysCompanion.insert(projectId: p, keyHash: 'same'),
+          );
+      await key();
+      await expectLater(key(), throwsA(anything));
+    });
+
+    test('a version 1 database gains them on open', () async {
+      final dir = Directory.systemTemp.createTempSync('sl_migrate');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/db.sqlite';
+
+      final fresh = StructuredLogDatabase.open(path);
+      for (final name in wanted) {
+        await fresh.customStatement('DROP INDEX $name');
+      }
+      await fresh.customStatement('PRAGMA user_version = 1');
+      await fresh.close();
+
+      final upgraded = StructuredLogDatabase.open(path);
+      addTearDown(upgraded.close);
+      expect(await indexNames(upgraded), containsAll(wanted));
+    });
+  });
 }

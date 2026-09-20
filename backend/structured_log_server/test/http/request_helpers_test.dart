@@ -87,4 +87,61 @@ void main() {
       expect(decoded['list'], [1, 2]);
     });
   });
+
+  group('readBodyCapped', () {
+    test('a body within the cap is returned whole', () async {
+      expect(await readBodyCapped(withBody('hello'), 5), 'hello');
+    });
+
+    test('a declared Content-Length over the cap is refused unread', () async {
+      var read = false;
+      final request = Request(
+        'POST',
+        Uri.parse('http://x/y'),
+        headers: {'content-length': '100'},
+        body: Stream<List<int>>.fromIterable([
+          [1]
+        ]).map((c) {
+          read = true;
+          return c;
+        }),
+      );
+      await expectLater(
+        readBodyCapped(request, 10),
+        throwsA(isA<BodyTooLargeException>()),
+      );
+      expect(read, isFalse);
+    });
+
+    test('a chunked body is cut off once it crosses the cap', () async {
+      var chunksRead = 0;
+      Stream<List<int>> endless() async* {
+        while (true) {
+          chunksRead++;
+          yield List.filled(1024, 65);
+        }
+      }
+
+      // No Content-Length: nothing declares the size, so only counting while
+      // reading can stop it.
+      final request = Request('POST', Uri.parse('http://x/y'), body: endless());
+      await expectLater(
+        readBodyCapped(request, 4096),
+        throwsA(isA<BodyTooLargeException>()),
+      );
+      expect(chunksRead, lessThan(10));
+    });
+
+    test('readJsonBody answers 413 for an oversized management body', () async {
+      final huge = Request(
+        'POST',
+        Uri.parse('http://x/y'),
+        body: '{"a":"${'x' * (maxSmallBodyBytes + 1)}"}',
+      );
+      await expectLater(
+        readJsonBody(huge),
+        throwsApiError(413, 'payload_too_large'),
+      );
+    });
+  });
 }

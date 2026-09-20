@@ -189,14 +189,27 @@ class TokenService {
       return left(const TokenError(TokenErrorCode.invalidGrant));
     }
 
-    await (_db.update(
-      _db.refreshTokens,
-    )..where((t) => t.id.equals(stored.id)))
-        .write(
-      RefreshTokensCompanion(revokedAt: Value(DateTime.now())),
-    );
-
-    return right(await _issuePair(user.id, user.username));
+    // Claim the token and issue its successor as one step. Checking
+    // `revoked_at` above and revoking here as two steps leaves a window in
+    // which two concurrent requests with the same token both pass the check and
+    // both get a live pair — two descendants of one token, which is exactly
+    // what reuse detection exists to prevent. The conditional update is what
+    // decides who wins; the transaction keeps the winner's new token from being
+    // written after the loser's sweep below.
+    final pair = await _db.transaction(() async {
+      final claimed = await (_db.update(_db.refreshTokens)
+            ..where((t) => t.id.equals(stored.id) & t.revokedAt.isNull()))
+          .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
+      if (claimed == 0) return null;
+      return _issuePair(user.id, user.username);
+    });
+    if (pair == null) {
+      // Somebody else presented this token first: the same signal as
+      // presenting one already revoked.
+      await _revokeAllForUser(stored.userId);
+      return left(const TokenError(TokenErrorCode.invalidGrant));
+    }
+    return right(pair);
   }
 
   /// `DELETE /v1/auth/token` — always succeeds regardless of whether

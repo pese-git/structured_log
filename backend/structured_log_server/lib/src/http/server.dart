@@ -101,7 +101,13 @@ Handler buildHandler(
       trustedProxyHops: config?.trustedProxyHops ?? 0,
     ).router,
     ChangePasswordRoutes(db, audit).router,
-    LogRoutes(db, authorizer, logStore, logBroadcast).router,
+    LogRoutes(
+      db,
+      authorizer,
+      logStore,
+      logBroadcast,
+      maxBodyBytes: config?.maxIngestBodyBytes ?? defaultMaxIngestBodyBytes,
+    ).router,
     LogStreamRoutes(
       db,
       authorizer,

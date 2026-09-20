@@ -162,6 +162,31 @@ void main() {
       expect(rotated!.refreshToken, isNot(issued.refreshToken));
     });
 
+    test('two concurrent refreshes of one token yield exactly one pair',
+        () async {
+      final userId = await insertUser();
+      final issued = (await service.passwordGrant(
+        clientIp: testClientIp,
+        username: 'alice',
+        password: 's3cret',
+      ))
+          .getRight()
+          .toNullable()!;
+
+      final results = await Future.wait([
+        service.refreshTokenGrant(issued.refreshToken),
+        service.refreshTokenGrant(issued.refreshToken),
+      ]);
+
+      expect(results.where((r) => r.isRight()), hasLength(1));
+      expect(results.where((r) => r.isLeft()), hasLength(1));
+      // The loser is treated as a reuse: nothing the user holds stays live.
+      final live = await (db.select(db.refreshTokens)
+            ..where((t) => t.userId.equals(userId) & t.revokedAt.isNull()))
+          .get();
+      expect(live, isEmpty);
+    });
+
     test('the rotated-away token is rejected on reuse', () async {
       await insertUser();
       final issued = (await service.passwordGrant(

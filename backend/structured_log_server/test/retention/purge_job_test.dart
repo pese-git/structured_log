@@ -385,4 +385,53 @@ void main() {
       expect((await usageOf(project)).totalBytes, 0);
     });
   });
+
+  group('purgeExpiredRefreshTokens', () {
+    Future<void> token(String hash, {required int expiresInDays}) async {
+      final userId = await db.into(db.users).insert(
+            UsersCompanion.insert(username: 'u$hash', passwordHash: 'x'),
+          );
+      await db.into(db.refreshTokens).insert(
+            RefreshTokensCompanion.insert(
+              userId: userId,
+              tokenHash: hash,
+              expiresAt: _now.add(Duration(days: expiresInDays)),
+              revokedAt: Value(_now),
+            ),
+          );
+    }
+
+    test('removes expired tokens and keeps unexpired ones, revoked or not',
+        () async {
+      await token('old', expiresInDays: -1);
+      await token('live', expiresInDays: 5);
+
+      final removed = await purgeExpiredRefreshTokens(db, clock: clock);
+
+      expect(removed, 1);
+      final left = await db.select(db.refreshTokens).get();
+      // Kept although revoked: presenting it again is how theft is noticed.
+      expect(left.map((t) => t.tokenHash), ['live']);
+    });
+
+    test('works through more rows than one chunk', () async {
+      for (var i = 0; i < 7; i++) {
+        await token('t$i', expiresInDays: -2);
+      }
+      expect(
+          await purgeExpiredRefreshTokens(db, clock: clock, chunkSize: 3), 7);
+      expect(await db.select(db.refreshTokens).get(), isEmpty);
+    });
+
+    test('the scheduler runs it and reports the count', () async {
+      await token('old', expiresInDays: -1);
+      final outcome = await PurgeScheduler(
+        db,
+        interval: const Duration(hours: 1),
+        clock: clock,
+      ).runOnce();
+      expect(outcome!.deletedRefreshTokens, 1);
+      expect(outcome.isEmpty, isFalse);
+    });
+  });
 }

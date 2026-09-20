@@ -73,8 +73,10 @@ class LogRoutes {
       );
     }
 
-    final raw = await request.readAsString();
-    if (utf8.encode(raw).length > maxBodyBytes) {
+    final String raw;
+    try {
+      raw = await readBodyCapped(request, maxBodyBytes);
+    } on BodyTooLargeException {
       throw const ApiError(
         413,
         'payload_too_large',
@@ -86,41 +88,45 @@ class LogRoutes {
     // bare jsonDecode produced — this endpoint takes whatever a client sends.
     final decoded = await readJsonArrayBody(raw);
 
-    final usage = await (_db.select(
-      _db.projectUsage,
-    )..where((t) => t.projectId.equals(projectId)))
-        .getSingleOrNull();
+    // Usage is read inside the same transaction that adds to it. Read outside,
+    // two concurrent batches would both be judged against the same snapshot and
+    // could together pass the quota that each alone respects
+    // (`log-server-quotas`).
+    final (:outcome, :inserted) = await _db.transaction(() async {
+      final usage = await (_db.select(
+        _db.projectUsage,
+      )..where((t) => t.projectId.equals(projectId)))
+          .getSingleOrNull();
 
-    final outcome = processIngestBatch(
-      rawEntries: decoded,
-      maxEntries: project.maxEntries,
-      maxBytes: project.maxBytes,
-      currentEntryCount: usage?.entryCount ?? 0,
-      currentTotalBytes: usage?.totalBytes ?? 0,
-      receivedAt: DateTime.now(),
-    );
-
-    if (outcome.accepted.isNotEmpty) {
-      final inserted = await _db.transaction(() async {
-        final rows = await _logStore.insertBatch(projectId, outcome.accepted);
-        await (_db.update(
-          _db.projectUsage,
-        )..where((t) => t.projectId.equals(projectId)))
-            .write(
-          ProjectUsageCompanion.custom(
-            entryCount:
-                _db.projectUsage.entryCount + Constant(outcome.entryCountDelta),
-            totalBytes:
-                _db.projectUsage.totalBytes + Constant(outcome.bytesDelta),
-          ),
-        );
-        return rows;
-      });
-      // After the commit, never inside it: a subscriber may react by
-      // reading these rows back (catch-up), and they have to be there
-      // (`log-server-live-stream`).
-      _broadcast.publish(inserted);
-    }
+      final outcome = processIngestBatch(
+        rawEntries: decoded,
+        maxEntries: project.maxEntries,
+        maxBytes: project.maxBytes,
+        currentEntryCount: usage?.entryCount ?? 0,
+        currentTotalBytes: usage?.totalBytes ?? 0,
+        receivedAt: DateTime.now(),
+      );
+      if (outcome.accepted.isEmpty) {
+        return (outcome: outcome, inserted: const <LogEntry>[]);
+      }
+      final rows = await _logStore.insertBatch(projectId, outcome.accepted);
+      await (_db.update(
+        _db.projectUsage,
+      )..where((t) => t.projectId.equals(projectId)))
+          .write(
+        ProjectUsageCompanion.custom(
+          entryCount:
+              _db.projectUsage.entryCount + Constant(outcome.entryCountDelta),
+          totalBytes:
+              _db.projectUsage.totalBytes + Constant(outcome.bytesDelta),
+        ),
+      );
+      return (outcome: outcome, inserted: rows);
+    });
+    // After the commit, never inside it: a subscriber may react by
+    // reading these rows back (catch-up), and they have to be there
+    // (`log-server-live-stream`).
+    if (inserted.isNotEmpty) _broadcast.publish(inserted);
 
     return jsonOk({
       'accepted': outcome.accepted.length,

@@ -63,7 +63,7 @@ mix on one response.
 | 409 | `sole_group_owner` | general | `DELETE /v1/users/me`, `DELETE /v1/users/:id`, `DELETE /v1/teams/:teamId/members/:userId`, `DELETE /v1/role-assignments/:id` | The action would leave one or more groups with no owner — the target is the sole owner, directly or through an owning team, or the removed member/grant is the last one holding ownership; `details.blocking_groups` lists them ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md)) |
 | 409 | `deleted_account` | general | `POST /v1/users/:id/unblock` | Target has `deleted_at` set — `unblock` never reactivates a deleted account |
 | 429 | `too_many_requests` | general | `POST /v1/auth/token`, `POST /v1/auth/register`, `POST /v1/auth/password-reset`(`/confirm`), `POST /v1/auth/verify-email`(`/resend`), `POST /v1/auth/change-password`, `DELETE /v1/users/me` | Rate limiter rejected the request before it was processed; response carries `Retry-After` — see [auth.md](../architecture/auth.md#rate-limiting-throttling-without-lockout) |
-| 413 | `payload_too_large` | general | `POST /v1/logs` | Request body exceeds the configured size limit; no entries are stored |
+| 413 | `payload_too_large` | general | any endpoint with a JSON body | Request body exceeds the limit (`--max-ingest-body-bytes` for `POST /v1/logs`, a fixed 1 MiB for every other JSON endpoint); enforced while the body is read; no entries are stored |
 | 500 | `internal_error` | general | Any | Unexpected server-side failure; the response never includes a stack trace or other internal detail |
 | 507 | `quota_exceeded` | general | `POST /v1/logs` | Only appears *inside* a `202` ingestion response's `rejected[]` array (see below), never as the top-level HTTP status of the response |
 

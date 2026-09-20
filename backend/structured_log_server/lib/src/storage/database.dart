@@ -211,7 +211,7 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
   }
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -220,8 +220,31 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
           for (final statement in _additionalIndexStatements) {
             await customStatement(statement);
           }
+          for (final statement in _v2IndexStatements) {
+            await customStatement(statement);
+          }
+        },
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            for (final statement in _v2IndexStatements) {
+              await customStatement(statement);
+            }
+          }
         },
       );
+
+  /// Added in schema version 2. Every request authenticated by a project
+  /// secret key looks its hash up, and so does every token refresh; without an
+  /// index each was a scan of a table that only grows. `IF NOT EXISTS` so the
+  /// same list serves creation and upgrade.
+  static const _v2IndexStatements = <String>[
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_project_secret_keys_key_hash '
+        'ON project_secret_keys (key_hash);',
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash '
+        'ON refresh_tokens (token_hash);',
+    'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at '
+        'ON refresh_tokens (expires_at);',
+  ];
 
   /// Indexes beyond what a single-column/table-level constraint expresses:
   /// composite, and partial (`WHERE`-qualified) indexes — `log-server-storage`.

@@ -137,6 +137,62 @@ void main() {
       expect(await db.select(db.logEntries).get(), isEmpty);
     });
 
+    test('a body streamed past the limit is refused while reading', () async {
+      final capped =
+          LogRoutes(db, authorizer, logStore, LogBroadcast(), maxBodyBytes: 64);
+      var chunks = 0;
+      Stream<List<int>> endless() async* {
+        while (true) {
+          chunks++;
+          yield List.filled(32, 32);
+        }
+      }
+
+      await expectLater(
+        capped.router.call(
+          Request(
+            'POST',
+            Uri.parse('http://x/v1/logs'),
+            body: endless(),
+            context: {
+              'structured_log_server.principal': ProjectPrincipal(projectId),
+            },
+          ),
+        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 413)),
+      );
+      expect(chunks, lessThan(10));
+    });
+
+    test('concurrent batches cannot together exceed max_entries', () async {
+      await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+          .write(const ProjectsCompanion(maxEntries: Value(5)));
+
+      Future<int> post() async {
+        final response = await routes.router.call(
+          ingestRequest(projectId, [
+            for (var i = 0; i < 4; i++)
+              {
+                'event': 'e$i',
+                'level': 'info',
+                'timestamp': '2026-01-01T00:00:00Z',
+              },
+          ]),
+        );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        return body['accepted'] as int;
+      }
+
+      // Four at once, each alone within the quota; judged against one shared
+      // snapshot they would all pass and store sixteen.
+      final accepted = await Future.wait([post(), post(), post(), post()]);
+
+      expect(accepted.reduce((a, b) => a + b), 5);
+      expect((await db.select(db.logEntries).get()).length, 5);
+      final usage = await (db.select(db.projectUsage)).getSingle();
+      expect(usage.entryCount, 5);
+    });
+
     test('a body over the size limit is rejected with 413, nothing stored',
         () async {
       // The cap is a constructor field now — annotated handlers may not take
