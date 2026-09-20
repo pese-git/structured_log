@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:shelf/shelf.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:structured_log_server/src/http/server.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 import 'package:test/test.dart';
@@ -224,5 +225,67 @@ void main() {
     final items = (await body(queryResponse))['items'] as List;
     expect(items, hasLength(1));
     expect((items.single as Map)['event'], 'startup');
+  });
+
+  test('max-ingest-body-bytes from the config reaches the ingest route',
+      () async {
+    // The value is parsed and validated in `ServerConfig`, and used two
+    // layers down in `LogRoutes`; nothing but this leg notices the two not
+    // being joined. Pinned through `buildHandler`, because a `LogRoutes`
+    // built by hand takes its cap from a constructor argument and would pass
+    // either way.
+    final groupId =
+        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+    final projectId = await db.into(db.projects).insert(
+          ProjectsCompanion.insert(
+              groupId: groupId, name: 'p', retentionDays: 30),
+        );
+    final key = generateProjectSecretKey();
+    await db.into(db.projectSecretKeys).insert(
+          ProjectSecretKeysCompanion.insert(
+              projectId: projectId, keyHash: hashToken(key)),
+        );
+    final capped = buildHandler(
+      db,
+      signingSecret: 'test-secret',
+      issuer: 'test',
+      config: ServerConfig(
+        dbPath: ':memory:',
+        httpHost: 'localhost',
+        httpPort: 0,
+        jwtSecret: 'test-secret',
+        jwtIssuer: 'test',
+        maxIngestBodyBytes: 64,
+        retentionPurgeIntervalSeconds: 3600,
+        bootstrapAdminEnabled: false,
+        bootstrapAdminUsername: 'root',
+        bootstrapAdminPassword: null,
+        logLevel: 'info',
+        logFile: null,
+        logFormat: 'json',
+        logMaxFileBytes: 1024,
+        logMaxFiles: 1,
+        rateLimitEnabled: false,
+        rateLimitBucketCapacity: 10,
+        rateLimitRefillPerMinute: 60,
+        rateLimitMaxKeys: 1000,
+        trustedProxyHops: 0,
+        sseHeartbeatIntervalSeconds: 30,
+        corsAllowedOrigins: const {},
+      ),
+    );
+
+    final response = await capped(
+      Request(
+        'POST',
+        Uri.parse('http://x/v1/logs'),
+        headers: {'authorization': 'Bearer $key'},
+        body: jsonEncode([
+          {'event': 'e', 'level': 'info', 'timestamp': '2026-01-01T00:00:00Z'},
+        ]),
+      ),
+    );
+
+    expect(response.statusCode, 413);
   });
 }

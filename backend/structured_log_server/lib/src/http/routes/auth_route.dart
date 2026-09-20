@@ -56,6 +56,16 @@ Map<String, Object?> _pairJson(TokenPair pair) => {
       'refresh_expires_in': pair.refreshTokenTtl.inSeconds,
     };
 
+/// The form body, or `null` when it is malformed or over the cap. Public and
+/// unauthenticated, so the cap is enforced while reading rather than after.
+Future<Map<String, String>?> _readForm(Request request) async {
+  try {
+    return tryParseFormBody(await readBodyCapped(request, maxSmallBodyBytes));
+  } on BodyTooLargeException {
+    return null;
+  }
+}
+
 /// The token endpoints. Public: [TokenService] checks the credentials these
 /// carry in the body, so no principal is required of the request itself.
 class AuthRoutes {
@@ -76,7 +86,7 @@ class AuthRoutes {
   /// (`log-server-auth`, RFC 6749).
   @Route.post('/v1/auth/token')
   Future<Response> issueToken(Request request) async {
-    final form = tryParseFormBody(await request.readAsString());
+    final form = await _readForm(request);
     if (form == null) {
       return _rfc6749Error(
           400, const TokenError(TokenErrorCode.invalidRequest));
@@ -153,7 +163,7 @@ class AuthRoutes {
   /// regardless of whether it was valid (RFC 7009 §2.2, anti-enumeration).
   @Route.delete('/v1/auth/token')
   Future<Response> revokeToken(Request request) async {
-    final form = tryParseFormBody(await request.readAsString());
+    final form = await _readForm(request);
     if (form == null) {
       return _rfc6749Error(
           400, const TokenError(TokenErrorCode.invalidRequest));

@@ -63,7 +63,7 @@ token-эндпоинт никогда не использует `message`/`detai
 | 409 | `sole_group_owner` | общий | `DELETE /v1/users/me`, `DELETE /v1/users/:id` | Цель — единственный `owner` одной или нескольких групп; `details.blocking_groups` перечисляет их ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.ru.md)) |
 | 409 | `deleted_account` | общий | `POST /v1/users/:id/unblock` | У цели установлен `deleted_at` — `unblock` никогда не реактивирует удалённый аккаунт |
 | 429 | `too_many_requests` | общий | `POST /v1/auth/token`, `POST /v1/auth/register`, `POST /v1/auth/password-reset`(`/confirm`), `POST /v1/auth/verify-email`(`/resend`), `POST /v1/auth/change-password`, `DELETE /v1/users/me` | Ограничитель частоты отклонил запрос до его обработки; ответ несёт `Retry-After` — см. [auth.md](../architecture/auth.ru.md#ограничение-частоты-throttling-без-блокировки) |
-| 413 | `payload_too_large` | общий | `POST /v1/logs` | Тело запроса превышает настроенный лимит размера; ни одна запись не сохраняется |
+| 413 | `payload_too_large` | общий | любой эндпоинт с JSON-телом | Тело запроса превышает лимит (`--max-ingest-body-bytes` для `POST /v1/logs`, фиксированный 1 МиБ для остальных JSON-эндпоинтов); проверяется в процессе чтения тела; ни одна запись не сохраняется |
 | 500 | `internal_error` | общий | Любой | Непредвиденный сбой на стороне сервера; ответ никогда не включает stack trace или другую внутреннюю деталь |
 | 507 | `quota_exceeded` | общий | `POST /v1/logs` | Появляется только *внутри* массива `rejected[]` ответа приёма `202`, никогда как верхнеуровневый HTTP-статус ответа |
 

@@ -25,6 +25,7 @@ class PurgeOutcome {
     required this.affectedProjects,
     this.deletedAdminAudit = 0,
     this.deletedAuthAudit = 0,
+    this.deletedRefreshTokens = 0,
   });
 
   /// Audit records removed, by class. Absent when audit retention is unset,
@@ -32,8 +33,14 @@ class PurgeOutcome {
   final int deletedAdminAudit;
   final int deletedAuthAudit;
 
+  /// Expired refresh tokens removed.
+  final int deletedRefreshTokens;
+
   bool get isEmpty =>
-      deletedEntries == 0 && deletedAdminAudit == 0 && deletedAuthAudit == 0;
+      deletedEntries == 0 &&
+      deletedAdminAudit == 0 &&
+      deletedAuthAudit == 0 &&
+      deletedRefreshTokens == 0;
 
   Map<String, Object?> toContext() => {
         'deleted_entries': deletedEntries,
@@ -41,6 +48,7 @@ class PurgeOutcome {
         'affected_projects': affectedProjects,
         'deleted_admin_audit': deletedAdminAudit,
         'deleted_auth_audit': deletedAuthAudit,
+        'deleted_refresh_tokens': deletedRefreshTokens,
       };
 }
 
@@ -213,6 +221,39 @@ Future<({int admin, int auth})> purgeExpiredAuditEntries(
   return (admin: admin, auth: auth);
 }
 
+/// Deletes refresh tokens whose expiry has passed.
+///
+/// Every renewal issues a new row and the old one is only marked revoked, so
+/// without this the table grows for as long as the server runs. Only *expired*
+/// rows go: a revoked token that has not yet expired must stay, because
+/// presenting it again is what reveals a stolen token (`log-server-auth`); once
+/// it is expired it is refused as invalid either way. Chunked for the same
+/// reason as the other sweeps.
+Future<int> purgeExpiredRefreshTokens(
+  StructuredLogDatabase db, {
+  DateTime Function()? clock,
+  int chunkSize = 500,
+}) async {
+  if (chunkSize < 1) {
+    throw ArgumentError.value(chunkSize, 'chunkSize', 'must be at least 1');
+  }
+  final now = (clock ?? DateTime.now)();
+  var removed = 0;
+  while (true) {
+    final ids = await (db.selectOnly(db.refreshTokens)
+          ..addColumns([db.refreshTokens.id])
+          ..where(db.refreshTokens.expiresAt.isSmallerThanValue(now))
+          ..limit(chunkSize))
+        .map((row) => row.read(db.refreshTokens.id)!)
+        .get();
+    if (ids.isEmpty) break;
+    await (db.delete(db.refreshTokens)..where((t) => t.id.isIn(ids))).go();
+    removed += ids.length;
+    if (ids.length < chunkSize) break;
+  }
+  return removed;
+}
+
 Expression<int> _atLeastZero(Expression<int> value) =>
     CaseWhenExpression<int>(cases: [
       CaseWhen(value.isSmallerThanValue(0), then: const Constant(0)),
@@ -292,7 +333,14 @@ class PurgeScheduler {
               chunkSize: auditChunkSize,
             );
 
+      final removedTokens = await purgeExpiredRefreshTokens(
+        _db,
+        clock: _clock,
+        chunkSize: chunkSize,
+      );
+
       final outcome = PurgeOutcome(
+        deletedRefreshTokens: removedTokens,
         deletedEntries: logs.deletedEntries,
         freedBytes: logs.freedBytes,
         affectedProjects: logs.affectedProjects,
