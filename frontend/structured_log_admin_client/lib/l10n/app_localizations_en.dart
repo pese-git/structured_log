@@ -1507,4 +1507,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get usersSoleOwnerDescriptionSelf =>
       'You are the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.';
+
+  @override
+  String commonPasswordTooShort(int min) {
+    return 'The password must be at least $min characters.';
+  }
+
+  @override
+  String commonPasswordTooLong(int max) {
+    return 'The password is too long: at most $max bytes (a Cyrillic letter takes two).';
+  }
 }

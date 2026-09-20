@@ -109,7 +109,7 @@ class UserRoutes {
         details: {'field': 'password', 'reason': 'required'},
       );
     }
-    if (!passwordFitsBcrypt(password)) throw passwordTooLongError();
+    requireAcceptablePassword(password);
     if (displayName != null && displayName is! String) {
       throw ApiError.invalidRequest(
         'display_name must be a string.',
@@ -216,9 +216,7 @@ class UserRoutes {
         details: {'field': 'password', 'reason': 'invalid'},
       );
     }
-    if (password is String && !passwordFitsBcrypt(password)) {
-      throw passwordTooLongError();
-    }
+    if (password is String) requireAcceptablePassword(password);
     final newPassword = password as String?;
 
     // Field *names* only — never a value, and never the password in any

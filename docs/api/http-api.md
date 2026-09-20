@@ -331,7 +331,7 @@ any authenticated role, over their own account only — not just while
 
 **Response `200`:** `{}`. Clears `must_change_password` if it was set.
 
-**Errors:** `401 invalid_grant` (wrong current password).
+**Errors:** `401 invalid_grant` (wrong current password); `400 invalid_request` if `new_password` is shorter than 8 characters (`details.reason: "too_short"`, `min_length`) or longer than 72 bytes in UTF-8 (`"too_long"`, `max_bytes`) — the same rule applies wherever a password is set (`POST /v1/users`, `PATCH /v1/users/:id`). It is checked when a password is *chosen*, never at login.
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/change-password \
@@ -355,7 +355,7 @@ Role: `admin`.
 
 **Response `201`:** [User](models.md#user) — `must_change_password: true` always (`log-server-forced-password-change`); `email_verified_at: null` if `email` was set.
 
-**Errors:** `403 forbidden`, `409 username_taken`, `409 email_taken`.
+**Errors:** `400 invalid_request` (missing username/password, or a password outside 8 characters – 72 bytes, `details.reason` `too_short`/`too_long`), `403 forbidden`, `409 username_taken`, `409 email_taken`.
 
 ```bash
 curl -X POST http://localhost:8080/v1/users \

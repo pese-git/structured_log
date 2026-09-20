@@ -19,13 +19,66 @@ const maxPasswordBytes = 72;
 bool passwordFitsBcrypt(String password) =>
     utf8.encode(password).length <= maxPasswordBytes;
 
-/// The error a route answers with for a password over [maxPasswordBytes] —
-/// the client can act on it, unlike the 500 it replaces.
-ApiError passwordTooLongError({String field = 'password'}) =>
-    ApiError.invalidRequest(
-      'The password must be at most $maxPasswordBytes bytes in UTF-8.',
-      details: {'field': field, 'reason': 'too_long'},
-    );
+/// The shortest password accepted when one is *set* (created, reset, changed),
+/// in characters. Existing passwords are not re-checked: a hash cannot be
+/// measured, and nothing here forces users to change what they already have.
+const minPasswordLength = 8;
+
+/// Why a password may not be set.
+enum PasswordViolation {
+  tooShort('too_short'),
+  tooLong('too_long');
+
+  const PasswordViolation(this.wire);
+
+  /// The `details.reason` the API reports it as.
+  final String wire;
+}
+
+/// What is wrong with [password] as one being *chosen*, or `null` if nothing.
+/// Never applied to a password presented at login: refusing it there would say
+/// something about the account.
+PasswordViolation? passwordViolation(String password) {
+  if (password.runes.length < minPasswordLength) {
+    return PasswordViolation.tooShort;
+  }
+  if (!passwordFitsBcrypt(password)) return PasswordViolation.tooLong;
+  return null;
+}
+
+String _violationMessage(PasswordViolation violation) => switch (violation) {
+      PasswordViolation.tooShort =>
+        'The password must be at least $minPasswordLength characters.',
+      PasswordViolation.tooLong =>
+        'The password must be at most $maxPasswordBytes bytes in UTF-8.',
+    };
+
+/// [passwordViolation] as a sentence, for places that are not an HTTP request
+/// — configuration checked at startup, the `create-admin` command. `null` if
+/// the password is acceptable.
+String? passwordPolicyMessage(String password) {
+  final violation = passwordViolation(password);
+  return violation == null ? null : _violationMessage(violation);
+}
+
+/// Throws a `400 invalid_request` if [password] may not be set. [field] names
+/// the request field in `details`, and `reason` is `too_short` or `too_long`
+/// so a client can say which, with the limit alongside.
+void requireAcceptablePassword(String password, {String field = 'password'}) {
+  final violation = passwordViolation(password);
+  if (violation == null) return;
+  throw ApiError.invalidRequest(
+    _violationMessage(violation),
+    details: {
+      'field': field,
+      'reason': violation.wire,
+      if (violation == PasswordViolation.tooShort)
+        'min_length': minPasswordLength
+      else
+        'max_bytes': maxPasswordBytes,
+    },
+  );
+}
 
 /// Hashes a user's chosen [password] with `bcrypt` — an adaptive,
 /// deliberately slow algorithm, appropriate for a low-entropy, human-chosen

@@ -2641,6 +2641,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You are the only owner of the following groups. Grant the owner role to someone else in each of them before the deletion becomes possible.'**
   String get usersSoleOwnerDescriptionSelf;
+
+  /// A server refusal of a chosen password: shorter than the minimum
+  ///
+  /// In en, this message translates to:
+  /// **'The password must be at least {min} characters.'**
+  String commonPasswordTooShort(int min);
+
+  /// A server refusal of a chosen password: longer than bcrypt accepts, counted in UTF-8 bytes
+  ///
+  /// In en, this message translates to:
+  /// **'The password is too long: at most {max} bytes (a Cyrillic letter takes two).'**
+  String commonPasswordTooLong(int max);
 }
 
 class _AppLocalizationsDelegate

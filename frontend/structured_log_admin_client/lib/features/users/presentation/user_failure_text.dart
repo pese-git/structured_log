@@ -1,5 +1,6 @@
 import '../../../l10n/app_localizations.dart';
 import '../../../shared/api/api_failure.dart';
+import '../../../shared/auth/password_rejection.dart';
 
 /// What to tell someone about a refused request on the users screen.
 ///
@@ -8,7 +9,17 @@ import '../../../shared/api/api_failure.dart';
 /// name already taken, but here a 409 might just as well be
 /// `sole_group_owner` or `deleted_account` — codes that need their own words,
 /// not the resources screen's generic "name taken".
-String describeUserFailure(AppLocalizations l10n, ApiFailure failure) =>
+String describeUserFailure(AppLocalizations l10n, ApiFailure failure) {
+  // A refused password is the one 400 here with something specific to say; the
+  // server's own message for it is English.
+  if (failure is InvalidRequestFailure) {
+    final password = describePasswordRejection(l10n, failure.details);
+    if (password != null) return password;
+  }
+  return _describe(l10n, failure);
+}
+
+String _describe(AppLocalizations l10n, ApiFailure failure) =>
     switch (failure) {
       ForbiddenFailure(:final code)
           when code == 'cannot_delete_primary_admin' =>

@@ -86,7 +86,7 @@ void main() {
     await tester.tap(find.text('Создать пользователя').first);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextBox).at(0), 'bob');
-    await tester.enterText(find.byType(TextBox).at(1), 'x');
+    await tester.enterText(find.byType(TextBox).at(1), 'temp-1234');
     await tester.tap(find.text('Создать пользователя').last);
     await tester.pumpAndSettle();
 
@@ -94,6 +94,54 @@ void main() {
       find.text('Такое имя пользователя уже занято. Выберите другое.'),
       findsOneWidget,
     );
+    await closeApp(tester);
+  });
+
+  testWidgets('a password that is too short is explained in the dialog', (
+    tester,
+  ) async {
+    await pumpApp(tester, server, signedIn: true);
+    await openUsers(tester);
+
+    await tester.tap(find.text('Создать пользователя').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextBox).at(0), 'newbie');
+    await tester.enterText(find.byType(TextBox).at(1), 'short');
+    await tester.tap(find.text('Создать пользователя').last);
+    await tester.pumpAndSettle();
+
+    // In the reader's language and with the limit, not the server's English
+    // sentence — and the dialog stays open to be corrected.
+    expect(
+      find.text('Пароль должен быть не короче 8 символов.'),
+      findsOneWidget,
+    );
+    expect(find.text('Новый пользователь'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextBox).at(1), 'long-enough-1');
+    await tester.tap(find.text('Создать пользователя').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Новый пользователь'), findsNothing);
+    // Now it exists: the refused attempt did not create it, the second did.
+    expect(find.text('newbie'), findsWidgets);
+    await closeApp(tester);
+  });
+
+  testWidgets('a password too long for bcrypt is explained as well', (
+    tester,
+  ) async {
+    await pumpApp(tester, server, signedIn: true);
+    await openUsers(tester);
+
+    await tester.tap(find.text('Создать пользователя').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextBox).at(0), 'newbie');
+    // Forty Cyrillic letters: short in characters, 80 bytes.
+    await tester.enterText(find.byType(TextBox).at(1), 'Ж' * 40);
+    await tester.tap(find.text('Создать пользователя').last);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('не более 72 байт'), findsOneWidget);
     await closeApp(tester);
   });
 

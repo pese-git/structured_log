@@ -543,4 +543,64 @@ void main() {
       expect(await indexNames(upgraded), containsAll(wanted));
     });
   });
+
+  group('connection settings', () {
+    test('a file database waits for a busy lock and syncs in NORMAL mode',
+        () async {
+      final dir = Directory.systemTemp.createTempSync('sl_pragma');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final db = StructuredLogDatabase.open('${dir.path}/db.sqlite');
+      addTearDown(db.close);
+
+      Future<Object?> pragma(String name) async {
+        final row = await db.customSelect('PRAGMA $name').getSingle();
+        return row.data.values.first;
+      }
+
+      expect(await pragma('busy_timeout'), 5000);
+      // 1 is NORMAL; the default FULL is 2.
+      expect(await pragma('synchronous'), 1);
+      expect(await pragma('journal_mode'), 'wal');
+      expect(await pragma('foreign_keys'), 1);
+    });
+  });
+
+  group('schema version guard', () {
+    test('refuses a database written by a newer schema', () async {
+      final dir = Directory.systemTemp.createTempSync('sl_downgrade');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/db.sqlite';
+
+      final current = StructuredLogDatabase.open(path);
+      final newer = current.schemaVersion + 1;
+      await current.customStatement('PRAGMA user_version = $newer');
+      await current.close();
+
+      final old = StructuredLogDatabase.open(path);
+      addTearDown(old.close);
+      await expectLater(
+        old.select(old.users).get(),
+        // Raised inside the database's own isolate, so it arrives wrapped.
+        throwsA(
+          predicate(
+            (e) =>
+                '$e'.contains('schema version $newer') &&
+                '$e'.contains('newer'),
+            'names the database version and says it is newer',
+          ),
+        ),
+      );
+    });
+
+    test('opens a database at the current version', () async {
+      final dir = Directory.systemTemp.createTempSync('sl_current');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/db.sqlite';
+
+      await StructuredLogDatabase.open(path).close();
+      final again = StructuredLogDatabase.open(path);
+      addTearDown(again.close);
+      expect(await again.select(again.users).get(), isEmpty);
+    });
+  });
 }

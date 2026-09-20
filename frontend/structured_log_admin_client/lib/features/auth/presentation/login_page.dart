@@ -231,7 +231,9 @@ class _FailureBanner extends StatelessWidget {
         tone: AdminBannerTone.error,
         message: context.l10n.authNetworkFailure,
       ),
-      UnexpectedAuthFailure() => AdminBanner(
+      // Only the change-password endpoint refuses a password's shape; a
+      // sign-in never does, and never judges what was typed.
+      UnexpectedAuthFailure() || PasswordRejectedAuthFailure() => AdminBanner(
         tone: AdminBannerTone.error,
         message: context.l10n.authUnexpectedFailure,
       ),

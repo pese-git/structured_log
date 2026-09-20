@@ -163,9 +163,12 @@ void main() {
         'POST',
         '/v1/auth/change-password',
         bearer: token,
-        json: {'current_password': 'bootstrap-pw', 'new_password': 'real-pw'},
+        json: {
+          'current_password': 'bootstrap-pw',
+          'new_password': 'real-password-1'
+        },
       );
-      token = await login('real-pw');
+      token = await login('real-password-1');
 
       final group = await call('POST', '/v1/groups', bearer: token, json: {
         'name': 'g',
@@ -404,7 +407,10 @@ void main() {
         'POST',
         '/v1/auth/change-password',
         bearer: tokens.access,
-        json: {'current_password': 'bootstrap-pw', 'new_password': 'real-pw'},
+        json: {
+          'current_password': 'bootstrap-pw',
+          'new_password': 'real-password-1'
+        },
       );
       expect(changed.status, 200);
 
@@ -414,7 +420,7 @@ void main() {
           await call('GET', '/v1/groups', bearer: tokens.access);
       expect(afterChange.status, 401);
 
-      tokens = await login('root', 'real-pw');
+      tokens = await login('root', 'real-password-1');
       final admin = tokens.access;
       expect((await call('GET', '/v1/groups', bearer: admin)).status, 200);
 
@@ -1073,12 +1079,15 @@ void main() {
         'POST',
         '/v1/auth/change-password',
         bearer: tokens,
-        json: {'current_password': 'bootstrap-pw', 'new_password': 'real-pw'},
+        json: {
+          'current_password': 'bootstrap-pw',
+          'new_password': 'real-password-1'
+        },
       );
       final relogin = await call(
         'POST',
         '/v1/auth/token',
-        form: 'grant_type=password&username=root&password=real-pw',
+        form: 'grant_type=password&username=root&password=real-password-1',
       );
       expect(relogin.status, 200, reason: '${relogin.body}');
       tokens = relogin.body['access_token']! as String;
@@ -1196,7 +1205,7 @@ void main() {
       // Neither the typed password nor anything resembling it survives.
       for (final record in await auditLog('?limit=200')) {
         expect(jsonEncode(record), isNot(contains('Pa55word-typo')));
-        expect(jsonEncode(record), isNot(contains('real-pw')));
+        expect(jsonEncode(record), isNot(contains('real-password-1')));
       }
 
       process.kill(ProcessSignal.sigterm);
@@ -1344,9 +1353,12 @@ void main() {
         'POST',
         '/v1/auth/change-password',
         bearer: rootTokens.access,
-        json: {'current_password': 'bootstrap-pw', 'new_password': 'root-pw'},
+        json: {
+          'current_password': 'bootstrap-pw',
+          'new_password': 'root-password-1'
+        },
       );
-      rootTokens = await login('root', 'root-pw');
+      rootTokens = await login('root', 'root-password-1');
       final admin = rootTokens.access;
 
       // ==================================================================
@@ -1588,7 +1600,8 @@ void main() {
       final soleGroupId = soleGroup.body['id'];
 
       final soleOwnerId =
-          (await createAndActivateUser(admin, 'sole-owner', 'sole-pw')).id;
+          (await createAndActivateUser(admin, 'sole-owner', 'sole-owner-pw'))
+              .id;
       await call(
         'POST',
         '/v1/role-assignments',
@@ -1617,7 +1630,7 @@ void main() {
         contains(soleGroupId),
       );
       expect(
-        (await login('sole-owner', 'sole-pw')).access,
+        (await login('sole-owner', 'sole-owner-pw')).access,
         isNotEmpty,
         reason: 'the refused deletion changed nothing',
       );
@@ -1695,7 +1708,7 @@ void main() {
       expect(byOtherAdmin.status, 403);
       expect(byOtherAdmin.body['error'], 'cannot_delete_primary_admin');
       expect(
-        (await login('root', 'root-pw')).access,
+        (await login('root', 'root-password-1')).access,
         isNotEmpty,
         reason: 'root can still log in',
       );
@@ -1703,8 +1716,8 @@ void main() {
       final bySelf = await call(
         'DELETE',
         '/v1/users/me',
-        bearer: (await login('root', 'root-pw')).access,
-        json: {'password': 'root-pw'},
+        bearer: (await login('root', 'root-password-1')).access,
+        json: {'password': 'root-password-1'},
       );
       expect(bySelf.status, 403);
       expect(bySelf.body['error'], 'cannot_delete_primary_admin');
@@ -1735,5 +1748,42 @@ void main() {
       );
     },
     timeout: const Timeout(Duration(seconds: 120)),
+  );
+
+  test(
+    'a bootstrap password outside the policy stops startup with a config error',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('server_weak_password');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final process = await Process.start('dart', [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=0',
+      ], environment: {
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'hunter2',
+      });
+      final output = StringBuffer();
+      final drained = Future.wait([
+        process.stdout.transform(utf8.decoder).forEach(output.write),
+        process.stderr.transform(utf8.decoder).forEach(output.write),
+      ]);
+
+      final exitCode =
+          await process.exitCode.timeout(const Duration(seconds: 60));
+      await drained;
+
+      expect(exitCode, isNot(0));
+      expect(output.toString(), contains('BOOTSTRAP_ADMIN_PASSWORD'));
+      expect(output.toString(), contains('at least 8 characters'));
+      // It is a secret: the message names the variable, never the value.
+      expect(output.toString(), isNot(contains('hunter2')));
+      // Nothing started: no database was created.
+      expect(File('${dir.path}/test.sqlite').existsSync(), isFalse);
+    },
+    timeout: const Timeout(Duration(seconds: 90)),
   );
 }

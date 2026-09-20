@@ -49,6 +49,12 @@ class ParamSpec {
   /// before the port opens).
   final bool mustBePositive;
 
+  /// For a secret whose value has rules of its own: returns what is wrong with
+  /// it, or `null`. The message is reported with the rest of the configuration
+  /// errors and must not repeat the value — it is a secret, and startup output
+  /// goes to logs.
+  final String? Function(String value)? validator;
+
   const ParamSpec({
     required this.name,
     required this.type,
@@ -58,6 +64,7 @@ class ParamSpec {
     this.requiredForCommands = const {},
     this.allowedValues,
     this.mustBePositive = false,
+    this.validator,
   });
 
   String get envVarName =>

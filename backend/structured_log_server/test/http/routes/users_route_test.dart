@@ -69,6 +69,26 @@ void main() {
   final tooLong = 'Ж' * 40;
 
   group('createUser', () {
+    test('a password below the minimum length is rejected, no user created',
+        () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/users',
+            roles: _admin,
+            jsonBody: {'username': 'newbie', 'password': 'short'},
+          ),
+        ),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['reason'], 'reason', 'too_short'),
+        ),
+      );
+      expect(await db.select(db.users).get(), isEmpty);
+    });
+
     test('a password over 72 bytes is rejected with 400, not a 500', () async {
       await expectLater(
         routes.router.call(
@@ -408,6 +428,31 @@ void main() {
   });
 
   group('updateUser', () {
+    test('a password below the minimum length is rejected, nothing changes',
+        () async {
+      final target = await insertUser();
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/users/${target.id}',
+            roles: _admin,
+            jsonBody: {'password': 'short'},
+          ),
+        ),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['reason'], 'reason', 'too_short'),
+        ),
+      );
+      final row = await (db.select(db.users)
+            ..where((t) => t.id.equals(target.id)))
+          .getSingle();
+      expect(row.passwordHash, target.passwordHash);
+      expect(row.tokenVersion, target.tokenVersion);
+    });
+
     test('a password over 72 bytes is rejected with 400, nothing changes',
         () async {
       final target = await insertUser();

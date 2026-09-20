@@ -221,4 +221,29 @@ void main() {
     expect(verifyPassword('old-pass', row.passwordHash), isTrue);
     expect(row.mustChangePassword, isTrue);
   });
+
+  test('a new password below the minimum length is rejected, nothing changes',
+      () async {
+    await expectLater(
+      routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/auth/change-password',
+          roles: const [],
+          userId: userId,
+          jsonBody: {'current_password': 'old-pass', 'new_password': 'short'},
+        ),
+      ),
+      throwsA(
+        isA<ApiError>()
+            .having((e) => e.statusCode, 'statusCode', 400)
+            .having((e) => e.details?['field'], 'field', 'new_password')
+            .having((e) => e.details?['reason'], 'reason', 'too_short'),
+      ),
+    );
+    final row = await (db.select(db.users)..where((t) => t.id.equals(userId)))
+        .getSingle();
+    expect(verifyPassword('old-pass', row.passwordHash), isTrue);
+    expect(row.mustChangePassword, isTrue);
+  });
 }

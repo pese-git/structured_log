@@ -6,6 +6,7 @@ import '../../../shared/api/auth_api.dart';
 import '../../../shared/api/dto/auth_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
 import '../../../shared/auth/access_token_claims.dart';
+import '../../../shared/auth/password_rejection.dart';
 import '../../../shared/auth/token_pair.dart';
 import '../../../shared/auth/token_storage.dart';
 import '../domain/auth_failure.dart';
@@ -130,6 +131,12 @@ class AuthRepositoryImpl implements AuthRepository {
     final envelope = body is Map<String, dynamic> ? body : const {};
     if (envelope['error'] == 'invalid_grant') {
       return const AuthFailure.invalidCredentials();
+    }
+    final details = envelope['details'];
+    if (envelope['error'] == 'invalid_request' &&
+        details is Map<String, dynamic> &&
+        isPasswordRejection(details)) {
+      return AuthFailure.passwordRejected(details: details);
     }
     return AuthFailure.unexpected(
       message: envelope['message'] as String? ?? error.message,

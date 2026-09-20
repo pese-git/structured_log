@@ -1,3 +1,4 @@
+import '../auth/hashing.dart' show passwordPolicyMessage;
 import 'config_resolver.dart';
 import 'param_spec.dart';
 
@@ -77,8 +78,10 @@ const serverConfigParams = <ParamSpec>[
         'the create-admin command. Unset means generate one randomly and '
         'require it to be changed at first login — same behavior in both '
         'cases (`log-server-config`: create-admin has no required '
-        'parameter beyond db-path).',
+        'parameter beyond db-path). When set it must be 8 characters to '
+        '72 bytes, like any password set through the API.',
     isSecret: true,
+    validator: passwordPolicyMessage,
   ),
   ParamSpec(
     name: 'log-level',

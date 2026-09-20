@@ -408,9 +408,39 @@ class MockServer implements HttpClientAdapter {
   /// it. A wrong current password is `401 invalid_grant` — not the
   /// `unauthorized` a stale token gets, which is what keeps the interceptor
   /// from replaying the attempt.
+  /// The server's rule for a password being *chosen* — 8 characters to 72
+  /// bytes — answered the way the server answers it, or `null` if it passes.
+  /// Login is never judged by it.
+  MockReply? _passwordRefusal(Object? password, String field) {
+    if (password is! String) return null;
+    if (password.runes.length < 8) {
+      return MockReply(
+        400,
+        body: {
+          'error': 'invalid_request',
+          'message': 'The password must be at least 8 characters.',
+          'details': {'field': field, 'reason': 'too_short', 'min_length': 8},
+        },
+      );
+    }
+    if (utf8.encode(password).length > 72) {
+      return MockReply(
+        400,
+        body: {
+          'error': 'invalid_request',
+          'message': 'The password must be at most 72 bytes in UTF-8.',
+          'details': {'field': field, 'reason': 'too_long', 'max_bytes': 72},
+        },
+      );
+    }
+    return null;
+  }
+
   MockReply _changePassword(RecordedRequest request) {
     _requireSession(request);
     final body = request.json;
+    final tooWeak = _passwordRefusal(body['new_password'], 'new_password');
+    if (tooWeak != null) return tooWeak;
     if (body['current_password'] != password) {
       return const MockReply(
         401,
@@ -675,6 +705,8 @@ class MockServer implements HttpClientAdapter {
     if (username is! String || username.isEmpty) {
       return const MockReply(400, body: {'error': 'invalid_request'});
     }
+    final refusal = _passwordRefusal(body['password'], 'password');
+    if (refusal != null) return refusal;
     if (users.any((u) => u['username'] == username)) {
       return const MockReply(409, body: {'error': 'username_taken'});
     }
@@ -705,6 +737,8 @@ class MockServer implements HttpClientAdapter {
     if (body.containsKey('display_name')) {
       user['display_name'] = body['display_name'];
     }
+    final refusal = _passwordRefusal(body['password'], 'password');
+    if (refusal != null) return refusal;
     if (body['password'] != null) {
       user['must_change_password'] = true;
     }

@@ -27,6 +27,13 @@ sealed class AuthFailure with _$AuthFailure {
   const factory AuthFailure.rateLimited(Duration retryAfter) =
       RateLimitedAuthFailure;
 
+  /// `POST /v1/auth/change-password` refused the *new* password itself — too
+  /// short, or too long for bcrypt. [details] is the server's, so the screen
+  /// can state the limit it named.
+  const factory AuthFailure.passwordRejected({
+    required Map<String, dynamic> details,
+  }) = PasswordRejectedAuthFailure;
+
   /// The server was never reached.
   ///
   /// [message] is **diagnostic only** — it carries whatever the HTTP client

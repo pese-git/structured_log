@@ -336,7 +336,7 @@ Auth: `Authorization: Bearer <access-token>`. JSON-тело. Доступен л
 
 **Ответ `200`:** `{}`. Снимает `must_change_password`, если он был установлен.
 
-**Ошибки:** `401 invalid_grant` (неверный текущий пароль).
+**Ошибки:** `401 invalid_grant` (неверный текущий пароль); `400 invalid_request`, если `new_password` короче 8 символов (`details.reason: "too_short"`, `min_length`) или длиннее 72 байт в UTF-8 (`"too_long"`, `max_bytes`) — то же правило действует везде, где пароль задаётся (`POST /v1/users`, `PATCH /v1/users/:id`). Проверяется при *выборе* пароля, но никогда при входе.
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/change-password \
@@ -360,7 +360,7 @@ curl -X POST http://localhost:8080/v1/auth/change-password \
 
 **Ответ `201`:** [User](models.ru.md#user) — `must_change_password: true` всегда (`log-server-forced-password-change`); `email_verified_at: null`, если `email` был указан.
 
-**Ошибки:** `403 forbidden`, `409 username_taken`, `409 email_taken`.
+**Ошибки:** `400 invalid_request` (нет username/password либо пароль вне диапазона 8 символов – 72 байта, `details.reason` `too_short`/`too_long`), `403 forbidden`, `409 username_taken`, `409 email_taken`.
 
 ```bash
 curl -X POST http://localhost:8080/v1/users \
