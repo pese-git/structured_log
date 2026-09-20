@@ -154,7 +154,15 @@ Questions).
 | Own-log rotation | `--log-file-max-bytes`, `--log-file-max-files` | TBD | Only meaningful together with `--log-file` |
 | Auto-bootstrap admin | `--bootstrap-admin-enabled` / `--no-bootstrap-admin-enabled` | `true` | Creates the first admin when the `users` table is empty ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md#bootstrap-two-paths-to-the-first-admin)) |
 | Bootstrap admin username | `--bootstrap-admin-username` | `admin` | Only used when the table is empty |
-| Bootstrap admin password | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | generated | Secret: no flag. Unset = a random one is generated and printed once, marked temporary |
+| Bootstrap admin password | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | generated | Secret: no flag. Unset = a random one is generated and printed once, marked temporary. A value must be 8 characters to 72 bytes, like any password set through the API; anything else stops startup with a configuration error that names the variable, never the value |
+
+## The database file
+
+Fixed, not configurable — recorded here because they decide what a crash or a rollback costs:
+
+- **WAL mode, `synchronous=NORMAL`.** A committed write is safe if the *process* dies; if the *machine* loses power, the last few commits can be lost. The database is never left corrupt either way. `FULL` (SQLite's default) would fsync on every ingest batch.
+- **`busy_timeout` of 5 seconds.** A second process on the same file — `create-admin` run while the server is up — waits out a write instead of failing at once.
+- **Schema version.** Starting a build against a database written by a *newer* schema refuses with a message naming both versions, rather than reading tables it does not understand. After a bad deploy, roll forward or restore a backup taken before the upgrade. Older databases are upgraded in place on start.
 
 ## Examples
 

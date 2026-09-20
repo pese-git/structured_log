@@ -113,7 +113,7 @@ Codes that do:
 | Code | `details` shape |
 |---|---|
 | `sole_group_owner` | `{"blocking_groups": [{"id": 3, "name": "checkout-team"}, ...]}` |
-| `invalid_request` | `{"field": "level", "reason": "required"}` (when the failing field is unambiguous) |
+| `invalid_request` | `{"field": "level", "reason": "required"}` (when the failing field is unambiguous); for a rejected password `{"field": "password", "reason": "too_short", "min_length": 8}` or `{"field": "new_password", "reason": "too_long", "max_bytes": 72}` |
 
 ## Extending the token endpoint's RFC envelope: `reason`
 

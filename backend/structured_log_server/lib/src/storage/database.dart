@@ -205,6 +205,15 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
         setup: (Database db) {
           db.execute('PRAGMA journal_mode=WAL;');
           db.execute('PRAGMA foreign_keys=ON;');
+          // Another process on the same file — `create-admin` run while the
+          // server is up — otherwise fails at once with SQLITE_BUSY instead of
+          // waiting out a write that takes milliseconds.
+          db.execute('PRAGMA busy_timeout=5000;');
+          // In WAL mode NORMAL cannot corrupt the database; what it gives up is
+          // the last few commits if the machine loses power (not if the process
+          // dies), in exchange for not fsyncing on every ingest batch. FULL is
+          // the default and is what makes each write wait for the disk.
+          db.execute('PRAGMA synchronous=NORMAL;');
         },
       ),
     );
@@ -222,6 +231,21 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
           }
           for (final statement in _v2IndexStatements) {
             await customStatement(statement);
+          }
+        },
+        // Drift opens a database written by a *newer* schema without a word,
+        // and older code would then read and write tables it does not
+        // understand. Refuse instead: running an old build against a newer
+        // database (a rolled-back deploy) is the one migration mistake that
+        // damages data silently.
+        beforeOpen: (details) async {
+          final before = details.versionBefore;
+          if (before != null && before > schemaVersion) {
+            throw StateError(
+              'The database is at schema version $before, newer than the '
+              '$schemaVersion this build understands. Run a newer build, or '
+              'restore a backup made before the upgrade.',
+            );
           }
         },
         onUpgrade: (Migrator m, int from, int to) async {

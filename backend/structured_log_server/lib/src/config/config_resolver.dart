@@ -176,6 +176,10 @@ class ConfigResolver {
         ConfigSource.defaultValue,
       );
     } else {
+      final problem = spec.validator?.call(resolution.value as String);
+      if (problem != null) {
+        errors.add('${spec.envVarName}: $problem');
+      }
       values[spec.name] = ResolvedValue(resolution.value, resolution.source!);
     }
   }

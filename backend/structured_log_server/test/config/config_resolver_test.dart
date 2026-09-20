@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:structured_log_server/src/auth/hashing.dart'
+    show passwordPolicyMessage;
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/config_source.dart';
 import 'package:structured_log_server/src/config/param_spec.dart';
@@ -252,6 +254,43 @@ void main() {
       ).parse([], {}, command: 'serve');
       expect(result.outcome, ConfigParseOutcome.success);
       expect(result.values!['bootstrap-admin-password']!.value, isNull);
+    });
+  });
+
+  group('a secret with its own rules', () {
+    const validated = ParamSpec(
+      name: 'bootstrap-admin-password',
+      type: ParamType.string,
+      description: 'x',
+      isSecret: true,
+      validator: passwordPolicyMessage,
+    );
+    ConfigParseResult parseWith(String? value) => resolverWith([validated])
+        .parse([], {if (value != null) validated.envVarName: value},
+            command: 'serve');
+
+    test('an acceptable value resolves', () {
+      final result = parseWith('long-enough-1');
+      expect(result.outcome, ConfigParseOutcome.success);
+      expect(
+          result.values!['bootstrap-admin-password']!.value, 'long-enough-1');
+    });
+
+    test('an unacceptable value is a configuration error naming the variable',
+        () {
+      final result = parseWith('short');
+      expect(result.outcome, ConfigParseOutcome.errors);
+      expect(result.errors.single, contains(validated.envVarName));
+      expect(result.errors.single, contains('at least 8 characters'));
+    });
+
+    test('the error never repeats the secret', () {
+      final result = parseWith('hunter2');
+      expect(result.errors.join(), isNot(contains('hunter2')));
+    });
+
+    test('an unset value is not checked', () {
+      expect(parseWith(null).outcome, ConfigParseOutcome.success);
     });
   });
 

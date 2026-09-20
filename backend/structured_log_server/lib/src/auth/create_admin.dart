@@ -39,6 +39,13 @@ Future<CreateAdminOutcome> createAdmin(
   required String username,
   String? password,
 }) async {
+  // The same rule the API applies, refused before anything is written. The
+  // configuration check catches the command line path; this covers callers
+  // that reach the function some other way.
+  if (password != null) {
+    final problem = passwordPolicyMessage(password);
+    if (problem != null) return CreateAdminOutcome.failure(problem);
+  }
   return db.transaction(() async {
     if (await _activeAdminExists(db)) {
       return const CreateAdminOutcome.failure(

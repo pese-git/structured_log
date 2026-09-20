@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:structured_log_server/src/auth/hash_worker_pool.dart';
+import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:test/test.dart';
 
@@ -113,6 +114,59 @@ void main() {
       final dummy = await dummyPasswordHash;
       expect(dummy, startsWith(r'$2'));
       expect(await verifyPasswordAsync('anything', dummy), isFalse);
+    });
+  });
+
+  group('requireAcceptablePassword', () {
+    Matcher rejectedAs(String reason, {String field = 'password'}) => throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['reason'], 'reason', reason)
+              .having((e) => e.details?['field'], 'field', field),
+        );
+
+    test('accepts the shortest and the longest allowed', () {
+      requireAcceptablePassword('x' * minPasswordLength);
+      requireAcceptablePassword('x' * maxPasswordBytes);
+    });
+
+    test('a password below the minimum is too_short and names the minimum', () {
+      expect(
+        () => requireAcceptablePassword('x' * (minPasswordLength - 1)),
+        rejectedAs('too_short'),
+      );
+      expect(
+        () => requireAcceptablePassword(''),
+        rejectedAs('too_short'),
+      );
+      try {
+        requireAcceptablePassword('short');
+      } on ApiError catch (e) {
+        expect(e.details?['min_length'], minPasswordLength);
+      }
+    });
+
+    test('the minimum counts characters, not bytes', () {
+      // Eight Cyrillic letters are 16 bytes but exactly eight characters.
+      requireAcceptablePassword('Ж' * minPasswordLength);
+      expect(
+        () => requireAcceptablePassword('Ж' * (minPasswordLength - 1)),
+        rejectedAs('too_short'),
+      );
+    });
+
+    test('a password over 72 bytes is too_long', () {
+      expect(
+        () => requireAcceptablePassword('x' * (maxPasswordBytes + 1)),
+        rejectedAs('too_long'),
+      );
+    });
+
+    test('the field is reported as given', () {
+      expect(
+        () => requireAcceptablePassword('x', field: 'new_password'),
+        rejectedAs('too_short', field: 'new_password'),
+      );
     });
   });
 

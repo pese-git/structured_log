@@ -51,9 +51,7 @@ class ChangePasswordRoutes {
       );
     }
 
-    if (!passwordFitsBcrypt(newPassword)) {
-      throw passwordTooLongError(field: 'new_password');
-    }
+    requireAcceptablePassword(newPassword, field: 'new_password');
 
     final user = await (_db.select(
       _db.users,

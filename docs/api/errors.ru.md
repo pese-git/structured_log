@@ -114,7 +114,7 @@ token-эндпоинт никогда не использует `message`/`detai
 | Код | Форма `details` |
 |---|---|
 | `sole_group_owner` | `{"blocking_groups": [{"id": 3, "name": "checkout-team"}, ...]}` |
-| `invalid_request` | `{"field": "level", "reason": "required"}` (когда проблемное поле однозначно) |
+| `invalid_request` | `{"field": "level", "reason": "required"}` (когда проблемное поле однозначно); для отклонённого пароля `{"field": "password", "reason": "too_short", "min_length": 8}` или `{"field": "new_password", "reason": "too_long", "max_bytes": 72}` |
 
 ## Расширение RFC-конверта token-эндпоинта: `reason`
 
