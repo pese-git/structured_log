@@ -5,10 +5,17 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:shelf/shelf.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/auth/identity_provider.dart';
+import 'package:structured_log_server/src/auth/local_identity_provider.dart';
+import 'package:structured_log_server/src/http/routes/log_stream_route.dart';
+import 'package:structured_log_server/src/rbac/authorizer.dart';
+import 'package:structured_log_server/src/storage/log_store.dart';
 import 'package:structured_log_server/src/http/server.dart';
 import 'package:structured_log_server/src/live/log_broadcast.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 import 'package:test/test.dart';
+
+import 'test_helpers.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
@@ -553,6 +560,141 @@ void main() {
 
       await reader.waitFor(() => reader.end != null);
       expect(jsonDecode(reader.end!.data)['reason'], 'project_blocked');
+    });
+  });
+
+  group('the project directory behind delivery', () {
+    /// A stored entry, as `POST /v1/logs` would have left it — published by hand
+    /// where the test needs an entry the ingest path would refuse.
+    Future<LogEntry> stored(int project, String event) =>
+        db.into(db.logEntries).insertReturning(
+              LogEntriesCompanion.insert(
+                projectId: project,
+                receivedAt: DateTime.now(),
+                timestamp: DateTime.now(),
+                level: 'info',
+                event: event,
+                sizeBytes: 10,
+                contextJson: jsonEncode({'event': event, 'level': 'info'}),
+              ),
+            );
+
+    Future<void> block(int id, bool blocked) =>
+        (db.update(db.projects)..where((t) => t.id.equals(id)))
+            .write(ProjectsCompanion(isBlocked: Value(blocked)));
+
+    test('blocking a project whose standing was cached stops its entries',
+        () async {
+      final reader = await open('group_id=$groupId');
+      // Delivered once, so the project is now known to be visible.
+      await ingest([entry('before')]);
+      await reader.waitFor(() => reader.logs.length == 1);
+
+      await block(projectId, true);
+      await StreamReader.settle();
+      broadcast.publish([await stored(projectId, 'while-blocked')]);
+      await StreamReader.settle();
+      expect(reader.eventTexts, ['before']);
+
+      await block(projectId, false);
+      await StreamReader.settle();
+      broadcast.publish([await stored(projectId, 'after-unblock')]);
+      await reader.waitFor(() => reader.logs.length == 2);
+      expect(reader.eventTexts, ['before', 'after-unblock']);
+    });
+
+    test('ids arrive in order when only some entries need a lookup', () async {
+      final reader = await open('group_id=$groupId');
+      // Prime the first project; the second is unknown.
+      await ingest([entry('primer')]);
+      await reader.waitFor(() => reader.logs.length == 1);
+
+      // In one batch: an entry that needs a lookup, then one that would be
+      // decided at once. Delivered by arrival the second would go first.
+      final needsLookup = await stored(otherProjectId, 'needs-lookup');
+      final known = await stored(projectId, 'known');
+      expect(needsLookup.id, lessThan(known.id));
+      broadcast.publish([needsLookup, known]);
+
+      await reader.waitFor(() => reader.logs.length == 3);
+      expect(reader.eventTexts, ['primer', 'needs-lookup', 'known']);
+      expect(
+        reader.logs.map((f) => f.id).toList(),
+        [for (final f in reader.logs) f.id]..sort(),
+      );
+    });
+
+    group('cost', () {
+      const admin = [
+        EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+      ];
+      late LogStreamRoutes routes;
+
+      setUp(() {
+        routes = LogStreamRoutes(
+          db,
+          Authorizer(db),
+          DriftLogStore(db),
+          broadcast,
+          LocalIdentityProvider(db, signingSecret: 'x', issuer: 'y'),
+          heartbeatInterval: const Duration(hours: 1),
+        );
+      });
+
+      Future<List<StreamReader>> subscribers(String query, int n) async {
+        final out = <StreamReader>[];
+        for (var i = 0; i < n; i++) {
+          final response = await routes.router.call(
+            authenticatedRequest(
+              'GET',
+              'http://x/v1/logs/stream?$query',
+              roles: admin,
+            ),
+          );
+          final reader = StreamReader(response);
+          readers.add(reader);
+          out.add(reader);
+        }
+        return out;
+      }
+
+      test('fifty group subscribers and 400 entries cost one read per project',
+          () async {
+        final subs = await subscribers('group_id=$groupId', 50);
+        final rows = [
+          for (var i = 0; i < 200; i++) await stored(projectId, 'a$i'),
+          for (var i = 0; i < 200; i++) await stored(otherProjectId, 'b$i'),
+        ];
+        // The directory sees the projects for the first time here, so the count
+        // starts now, not from what opening the subscriptions read.
+        final before = routes.projectDirectory.databaseReads;
+
+        broadcast.publish(rows);
+        for (final sub in subs) {
+          await sub.waitFor(
+            () => sub.logs.length == 400,
+            timeout: const Duration(seconds: 20),
+          );
+        }
+
+        // 20,000 deliveries; before the directory each was a query.
+        expect(routes.projectDirectory.databaseReads - before,
+            lessThanOrEqualTo(2));
+      });
+
+      test('project subscribers cost no read for another project\'s traffic',
+          () async {
+        final subs = await subscribers('project_id=$projectId', 50);
+        final before = routes.projectDirectory.databaseReads;
+
+        broadcast.publish([
+          for (var i = 0; i < 200; i++) await stored(otherProjectId, 'x$i'),
+        ]);
+        await StreamReader.settle();
+
+        expect(routes.projectDirectory.databaseReads, before);
+        expect(subs.every((s) => s.logs.isEmpty), isTrue);
+      });
     });
   });
 }

@@ -7,6 +7,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../live/log_broadcast.dart';
+import '../../live/project_directory.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
 import '../../storage/log_store.dart';
@@ -40,6 +41,14 @@ class LogStreamRoutes {
   /// tick both proves the connection is alive and re-checks that the caller
   /// is still allowed to hold it.
   final Duration heartbeatInterval;
+
+  /// What a subscription asks about a project, shared by every subscription of
+  /// this server (`project_directory.dart`). Created on first use, so a
+  /// handler that never streams holds no watch on the database.
+  late final ProjectDirectory _projects = ProjectDirectory(_db);
+
+  /// The directory, for tests that count how often it went to the database.
+  ProjectDirectory get projectDirectory => _projects;
 
   LogStreamRoutes(
     this._db,
@@ -105,10 +114,11 @@ class LogStreamRoutes {
 
     var lastDeliveredId = sinceId ?? 0;
 
-    Future<void> deliver(LogEntry entry) async {
+    /// Writes [entry] to the stream, unless something newer already went out.
+    /// The id is checked here as well as on arrival: a lookup can finish after
+    /// a later entry was sent, and an id must never go backwards.
+    void send(LogEntry entry) {
       if (entry.id <= lastDeliveredId) return;
-      if (!filter.matches(entry)) return;
-      if (!await _isVisible(entry, scope)) return;
       if (body.isClosed) return;
       lastDeliveredId = entry.id;
       body.add(
@@ -118,6 +128,52 @@ class LogStreamRoutes {
           data: jsonEncode(logEntryJson(entry)),
         ),
       );
+    }
+
+    /// Catch-up delivery: one entry at a time, awaited by the caller, so order
+    /// is the caller's.
+    Future<void> deliver(LogEntry entry) async {
+      if (entry.id <= lastDeliveredId) return;
+      if (!filter.matches(entry)) return;
+      if (!await _isVisible(entry, scope)) return;
+      send(entry);
+    }
+
+    // Live delivery. An entry whose project is already known is decided on the
+    // spot, with no waiting and no database. One that needs a lookup — the
+    // first of a project, or the first after a change — joins a queue, and
+    // while that queue is not empty *everything* joins it: an entry decided
+    // immediately behind one still waiting would reach the client first, and
+    // ids would arrive out of order. The queue is what keeps them in order
+    // (it used to be the database's own FIFO, which caching takes away).
+    var pending = 0;
+    var tail = Future<void>.value();
+
+    void deliverLive(LogEntry entry) {
+      if (entry.id <= lastDeliveredId) return;
+      if (!filter.matches(entry)) return;
+
+      if (pending == 0) {
+        final verdict = _visibleIfKnown(entry, scope);
+        if (verdict != null) {
+          if (verdict) send(entry);
+          return;
+        }
+      }
+
+      pending++;
+      tail = tail.then((_) async {
+        try {
+          if (await _isVisible(entry, scope)) send(entry);
+        } catch (_) {
+          // A lookup that failed (the database went away) cannot be told from
+          // "not visible"; ending is the safe answer, and nothing awaits this
+          // chain to hear about an error.
+          await end('server_error');
+        } finally {
+          pending--;
+        }
+      });
     }
 
     body = StreamController<List<int>>(
@@ -130,10 +186,9 @@ class LogStreamRoutes {
           buffered.add(entry);
           return;
         }
-        // Fire-and-forget: deliver awaits a point lookup, and the broadcast
-        // stream has no back-pressure to apply anyway. Ordering is preserved
-        // by the id check inside deliver, not by the await.
-        unawaited(deliver(entry));
+        // The broadcast stream has no back-pressure to apply, so this never
+        // waits; `deliverLive` keeps order itself.
+        deliverLive(entry);
       },
       // The broadcast closes when the process is shutting down, and this is
       // what lets it. `shelf_io`'s graceful close waits for active
@@ -224,17 +279,30 @@ class LogStreamRoutes {
   /// Re-checked per entry rather than trusted from subscription time: a
   /// project can be blocked, or added to a subscribed group, while the
   /// connection is open, and a group subscription has to follow both
-  /// silently (`log-server-live-stream`).
+  /// silently (`log-server-live-stream`). "Right now" is as of the last change
+  /// to the `projects` table, which is what [ProjectDirectory] forgets on.
   Future<bool> _isVisible(LogEntry entry, LogScope scope) async {
     if (scope.projectId != null && entry.projectId != scope.projectId) {
       return false;
     }
-    final project = await (_db.select(
-      _db.projects,
-    )..where((t) => t.id.equals(entry.projectId)))
-        .getSingleOrNull();
-    if (project == null || project.isBlocked) return false;
-    if (scope.groupId != null && project.groupId != scope.groupId) return false;
+    final standing = await _projects.standing(entry.projectId);
+    return standing != null && _inScope(standing, scope);
+  }
+
+  /// [_isVisible] without waiting: the answer if the project's standing is
+  /// already known, `null` if it has to be looked up.
+  bool? _visibleIfKnown(LogEntry entry, LogScope scope) {
+    if (scope.projectId != null && entry.projectId != scope.projectId) {
+      return false;
+    }
+    final standing = _projects.peek(entry.projectId);
+    return standing == null ? null : _inScope(standing, scope);
+  }
+
+  static bool _inScope(ProjectStanding standing, LogScope scope) {
+    if (standing.isBlocked) return false;
+    if (scope.groupId != null && standing.groupId != scope.groupId)
+      return false;
     return true;
   }
 
@@ -266,11 +334,10 @@ class LogStreamRoutes {
     // project that got blocked terminates.
     final projectId = scope.projectId;
     if (projectId != null) {
-      final project = await (_db.select(
-        _db.projects,
-      )..where((t) => t.id.equals(projectId)))
-          .getSingleOrNull();
-      if (project == null || project.isBlocked) return 'project_blocked';
+      // Through the directory: every subscription asks this each heartbeat, and
+      // the answer is the same one deliveries use.
+      final standing = await _projects.standing(projectId);
+      if (standing == null || standing.isBlocked) return 'project_blocked';
     }
 
     return null;
