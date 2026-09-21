@@ -6,7 +6,6 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/bootstrap_admin.dart';
 import 'package:structured_log_server/src/auth/create_admin.dart';
-import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/auth/hashing.dart'
     show dummyPasswordHash, hashWorkerPool;
 import 'package:structured_log_server/src/config/config_resolver.dart';
@@ -173,10 +172,7 @@ Future<void> _runServe(
   // opened and stayed empty looks the same from outside as one that was used.
   log.debug(
     'server.graph_opened',
-    context: {
-      'scope': serverScopeName,
-      'populated': graph.tryResolve<IdentityProvider>() != null,
-    },
+    context: {'scope': serverScopeName, 'populated': serverGraphIsBuilt(graph)},
   );
 
   // The periodic retention purge needs a long-running process to live in,

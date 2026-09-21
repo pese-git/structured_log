@@ -37,14 +37,33 @@ import 'routes/users_route.dart';
 /// root (`CherryPick.openScope(scopeName: serverScopeName)`).
 const serverScopeName = 'server';
 
-/// Opens the scope that holds the server's object graph, declared by the
-/// modules (`app_module.dart` and the `*_module.dart` beside each feature).
+/// The layers under it, outermost first. A layer resolves what the layers above
+/// it bind, never what is below, and closing a scope closes the layers under it
+/// before its own — so the order the graph goes down in is its nesting, not a
+/// list somebody has to keep right.
 ///
-/// By default a scope of its own for every call, not the global root: tests
-/// build many, each on a database of its own, and they must not see each other's
-/// objects. The real server passes [into] — the scope it opened through
-/// `CherryPick.openScope` and closes at shutdown — so the process's graph lives
-/// where the helper's global observer and cycle detection reach it.
+/// - the scope itself: what the server is *given* — database, settings,
+///   broadcast (`AppModule`);
+/// - [serverServicesScopeName]: what is built from those and holds no route —
+///   the authorizer, the audit writer, tokens, identity, the log store;
+/// - [serverAppScopeName]: what serves requests — the route classes.
+///
+/// Layers by dependency, not one scope per feature as the client has: routes of
+/// every feature use the same services, and a scope resolves *up*, never
+/// sideways, so a scope per feature would rebind them all.
+const serverServicesScopeName = 'services';
+const serverAppScopeName = 'app';
+
+/// Opens the scope that holds the server's object graph, declared by the
+/// modules (`app_module.dart` and the `*_module.dart` beside each feature), and
+/// returns its innermost layer, from which everything resolves.
+///
+/// By default the outermost scope is one of its own for every call, not the
+/// global root: tests build many, each on a database of its own, and they must
+/// not see each other's objects. The real server passes [into] — the scope it
+/// opened through `CherryPick.openScope` and closes at shutdown — so the
+/// process's graph lives where the helper's global observer and cycle detection
+/// reach it.
 Scope openServerScope(
   StructuredLogDatabase db, {
   required String signingSecret,
@@ -53,32 +72,49 @@ Scope openServerScope(
   Duration sseHeartbeatInterval = defaultSseHeartbeat,
   ServerConfig? config,
   Scope? into,
-}) =>
-    (into ?? Scope(null, observer: SilentCherryPickObserver()))
-      ..installModules([
-        AppModule(
-          db: db,
-          tokens: TokenSettings(signingSecret: signingSecret, issuer: issuer),
-          http: HttpSettings(
-            trustedProxyHops: config?.trustedProxyHops ?? 0,
-            maxIngestBodyBytes:
-                config?.maxIngestBodyBytes ?? defaultMaxIngestBodyBytes,
-            sseHeartbeatInterval: sseHeartbeatInterval,
-          ),
-          auditRetention: AuditRetention(
-            auditRetentionDays: config?.auditRetentionDays,
-            authEventRetentionDays: config?.authEventRetentionDays,
-          ),
-          // Owned by the caller when it needs to close it (the CLI
-          // entrypoint); otherwise one per handler, which is what tests want.
-          broadcast: broadcast ?? LogBroadcast(),
+}) {
+  final given = (into ?? Scope(null, observer: SilentCherryPickObserver()))
+    ..installModules([
+      AppModule(
+        db: db,
+        tokens: TokenSettings(signingSecret: signingSecret, issuer: issuer),
+        http: HttpSettings(
+          trustedProxyHops: config?.trustedProxyHops ?? 0,
+          maxIngestBodyBytes:
+              config?.maxIngestBodyBytes ?? defaultMaxIngestBodyBytes,
+          sseHeartbeatInterval: sseHeartbeatInterval,
         ),
-        $RbacModule(),
-        $AuditModule(),
-        $AuthModule(),
-        $StorageModule(),
-        $RoutesModule(),
-      ]);
+        auditRetention: AuditRetention(
+          auditRetentionDays: config?.auditRetentionDays,
+          authEventRetentionDays: config?.authEventRetentionDays,
+        ),
+        // Owned by the caller when it needs to close it (the CLI entrypoint);
+        // otherwise one per handler, which is what tests want.
+        broadcast: broadcast ?? LogBroadcast(),
+      ),
+    ]);
+
+  final services = given.openSubScope(serverServicesScopeName)
+    ..installModules([
+      $RbacModule(),
+      $AuditModule(),
+      $AuthModule(),
+      $StorageModule(),
+    ]);
+
+  return services.openSubScope(serverAppScopeName)
+    ..installModules([$RoutesModule()]);
+}
+
+/// Whether the graph under [root] — the scope [openServerScope] was given — has
+/// been built: the innermost layer answers for a route, which it can only do if
+/// every layer above it did too.
+bool serverGraphIsBuilt(Scope root) =>
+    root
+        .openSubScope(serverServicesScopeName)
+        .openSubScope(serverAppScopeName)
+        .tryResolve<LogRoutes>() !=
+    null;
 
 /// Builds the full `shelf` [Handler] for the server.
 ///

@@ -150,11 +150,67 @@ void main() {
     });
   });
 
+  group('layers', () {
+    Scope root() => Scope(null, observer: SilentCherryPickObserver());
+
+    test('what is given is outermost, services below it, routes innermost', () {
+      final given = root();
+      final inner = openServerScope(
+        db,
+        signingSecret: 'secret',
+        issuer: 'test',
+        into: given,
+      );
+      final services = given.openSubScope(serverServicesScopeName);
+
+      expect(given.tryResolve<StructuredLogDatabase>(), same(db));
+      expect(
+        given.tryResolve<Authorizer>(),
+        isNull,
+        reason: 'not up from below',
+      );
+      expect(services.tryResolve<Authorizer>(), isNotNull);
+      expect(services.tryResolve<LogRoutes>(), isNull);
+      expect(inner.tryResolve<LogRoutes>(), isNotNull);
+      expect(
+        inner.resolve<StructuredLogDatabase>(),
+        same(db),
+        reason: 'the innermost layer resolves what the ones above it bind',
+      );
+    });
+
+    test('a layer goes down before the one it was built on', () async {
+      // The reason there are layers at all: closing the outermost scope must
+      // dispose what is innermost first, so the database, said to be closed
+      // last, is never closed under something that still uses it.
+      final order = <String>[];
+      final given = root();
+      final inner = openServerScope(
+        db,
+        signingSecret: 'secret',
+        issuer: 'test',
+        into: given,
+      );
+      final services = given.openSubScope(serverServicesScopeName);
+      given.installModules([_SpyModule('given', order)]);
+      services.installModules([_SpyModule('services', order)]);
+      inner.installModules([_SpyModule('app', order)]);
+      // A disposable is disposed by the scope whose binding created it.
+      given.resolve<_GivenSpy>();
+      services.resolve<_ServicesSpy>();
+      inner.resolve<_AppSpy>();
+
+      await given.dispose();
+
+      expect(order, ['app', 'services', 'given']);
+    });
+  });
+
   group('into a scope the caller opened', () {
     tearDown(CherryPick.closeRootScope);
 
     test(
-      'installs the graph there, and closing that scope takes it down',
+      'installs the graph there, and closing that scope takes it all down',
       () async {
         final mine = CherryPick.openScope(scopeName: serverScopeName);
 
@@ -165,14 +221,22 @@ void main() {
           into: mine,
         );
 
-        expect(scope, same(mine));
+        expect(mine.resolve<StructuredLogDatabase>(), same(db));
         expect(scope.resolve<Authorizer>(), isNotNull);
+        expect(serverGraphIsBuilt(mine), isTrue);
 
         await CherryPick.closeScope(scopeName: serverScopeName);
 
         expect(scope.tryResolve<Authorizer>(), isNull);
+        expect(scope.tryResolve<LogRoutes>(), isNull);
       },
     );
+
+    test('a scope nothing was built into is not a built graph', () {
+      final mine = CherryPick.openScope(scopeName: serverScopeName);
+
+      expect(serverGraphIsBuilt(mine), isFalse);
+    });
 
     test('a handler built into it answers from that scope', () async {
       final mine = CherryPick.openScope(scopeName: serverScopeName);
@@ -188,7 +252,7 @@ void main() {
         Request('GET', Uri.parse('http://x/healthz')),
       );
       expect(response.statusCode, 200);
-      expect(mine.resolve<LogRoutes>(), isNotNull);
+      expect(serverGraphIsBuilt(mine), isTrue);
     });
   });
 
@@ -231,4 +295,48 @@ void main() {
       expect(scope.resolve<AuditRetention>().authEventRetentionDays, isNull);
     });
   });
+}
+
+class _GivenSpy implements Disposable {
+  final List<String> order;
+  _GivenSpy(this.order);
+
+  @override
+  Future<void> dispose() async => order.add('given');
+}
+
+class _ServicesSpy implements Disposable {
+  final List<String> order;
+  _ServicesSpy(this.order);
+
+  @override
+  Future<void> dispose() async => order.add('services');
+}
+
+class _AppSpy implements Disposable {
+  final List<String> order;
+  _AppSpy(this.order);
+
+  @override
+  Future<void> dispose() async => order.add('app');
+}
+
+/// One disposable per layer, told apart by type because a scope binds by type.
+class _SpyModule extends Module {
+  final String layer;
+  final List<String> order;
+
+  _SpyModule(this.layer, this.order);
+
+  @override
+  void builder(Scope currentScope) {
+    switch (layer) {
+      case 'given':
+        bind<_GivenSpy>().toProvide(() => _GivenSpy(order)).singleton();
+      case 'services':
+        bind<_ServicesSpy>().toProvide(() => _ServicesSpy(order)).singleton();
+      default:
+        bind<_AppSpy>().toProvide(() => _AppSpy(order)).singleton();
+    }
+  }
 }
