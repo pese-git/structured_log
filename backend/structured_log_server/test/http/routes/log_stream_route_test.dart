@@ -19,9 +19,7 @@ import 'test_helpers.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -44,10 +42,10 @@ class StreamReader {
 
   StreamReader(Response response) {
     _subscription = response.read().listen(
-          _onChunk,
-          onDone: () => _done = true,
-          onError: (_) => _done = true,
-        );
+      _onChunk,
+      onDone: () => _done = true,
+      onError: (_) => _done = true,
+    );
   }
 
   void _onChunk(List<int> chunk) {
@@ -68,7 +66,7 @@ class StreamReader {
         id: null,
         event: null,
         data: raw.substring(1).trim(),
-        comment: true
+        comment: true,
       );
     }
     int? id;
@@ -142,13 +140,17 @@ void main() {
       sseHeartbeatInterval: const Duration(milliseconds: 60),
     );
 
-    userId = await db.into(db.users).insert(
+    userId = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: 'root',
             passwordHash: hashPassword('s3cret'),
           ),
         );
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -156,16 +158,21 @@ void main() {
             scopeType: 'global',
           ),
         );
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    projectId = await db.into(db.projects).insert(
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p',
             retentionDays: 30,
           ),
         );
-    otherProjectId = await db.into(db.projects).insert(
+    otherProjectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p2',
@@ -173,12 +180,14 @@ void main() {
           ),
         );
     for (final id in [projectId, otherProjectId]) {
-      await db.into(db.projectUsage).insert(
-            ProjectUsageCompanion.insert(projectId: Value(id)),
-          );
+      await db
+          .into(db.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(id)));
     }
     secretKey = generateProjectSecretKey();
-    await db.into(db.projectSecretKeys).insert(
+    await db
+        .into(db.projectSecretKeys)
+        .insert(
           ProjectSecretKeysCompanion.insert(
             projectId: projectId,
             keyHash: hashToken(secretKey),
@@ -223,7 +232,9 @@ void main() {
 
   /// Mints an access token for a freshly created user with no roles.
   Future<String> tokenForRolelessUser() async {
-    await db.into(db.users).insert(
+    await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: 'nobody',
             passwordHash: hashPassword('pw'),
@@ -253,10 +264,7 @@ void main() {
 
   /// Ingests through the real `POST /v1/logs` path, so entries reach the
   /// broadcast exactly as they do in production.
-  Future<void> ingest(
-    List<Map<String, Object?>> entries, {
-    String? key,
-  }) async {
+  Future<void> ingest(List<Map<String, Object?>> entries, {String? key}) async {
     final response = await handler(
       Request(
         'POST',
@@ -269,10 +277,10 @@ void main() {
   }
 
   Map<String, Object?> entry(String event, {String level = 'info'}) => {
-        'event': event,
-        'level': level,
-        'timestamp': DateTime.now().toUtc().toIso8601String(),
-      };
+    'event': event,
+    'level': level,
+    'timestamp': DateTime.now().toUtc().toIso8601String(),
+  };
 
   group('authorization happens before the stream opens', () {
     test('a caller without a covering role gets a plain 403', () async {
@@ -374,7 +382,9 @@ void main() {
 
     test('entries of another project are not delivered', () async {
       final otherKey = generateProjectSecretKey();
-      await db.into(db.projectSecretKeys).insert(
+      await db
+          .into(db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(
               projectId: otherProjectId,
               keyHash: hashToken(otherKey),
@@ -410,7 +420,8 @@ void main() {
       expect(
         jsonDecode(terminal.data),
         {'reason': 'server_shutdown'},
-        reason: 'a subscriber is told why, rather than left with a socket '
+        reason:
+            'a subscriber is told why, rather than left with a socket '
             'that stopped answering — and the reason says it is worth '
             'reconnecting once the server is back',
       );
@@ -440,17 +451,21 @@ void main() {
       expect(reader.eventTexts, ['loud']);
     });
 
-    test('an unknown level is rejected with 400, not silently ignored',
-        () async {
-      final response = await subscribe('project_id=$projectId&level=bogus');
-      expect(response.statusCode, 400);
-    });
+    test(
+      'an unknown level is rejected with 400, not silently ignored',
+      () async {
+        final response = await subscribe('project_id=$projectId&level=bogus');
+        expect(response.statusCode, 400);
+      },
+    );
   });
 
   group('group scope', () {
     test('aggregates every project of the group', () async {
       final otherKey = generateProjectSecretKey();
-      await db.into(db.projectSecretKeys).insert(
+      await db
+          .into(db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(
               projectId: otherProjectId,
               keyHash: hashToken(otherKey),
@@ -468,7 +483,9 @@ void main() {
 
     test('silently excludes a blocked project instead of ending', () async {
       final otherKey = generateProjectSecretKey();
-      await db.into(db.projectSecretKeys).insert(
+      await db
+          .into(db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(
               projectId: otherProjectId,
               keyHash: hashToken(otherKey),
@@ -528,8 +545,9 @@ void main() {
     });
 
     test('an unparsable since_id is 400', () async {
-      final response =
-          await subscribe('project_id=$projectId&since_id=not-a-number');
+      final response = await subscribe(
+        'project_id=$projectId&since_id=not-a-number',
+      );
       expect(response.statusCode, 400);
     });
 
@@ -539,8 +557,9 @@ void main() {
         entry('urgent', level: 'error'),
       ]);
 
-      final reader =
-          await open('project_id=$projectId&since_id=0&level=warning');
+      final reader = await open(
+        'project_id=$projectId&since_id=0&level=warning',
+      );
 
       await reader.waitFor(() => reader.logs.isNotEmpty);
       await StreamReader.settle();
@@ -553,8 +572,9 @@ void main() {
     test('a valid connection receives keep-alives and stays open', () async {
       final reader = await open('project_id=$projectId');
 
-      await reader
-          .waitFor(() => reader.frames.where((f) => f.comment).length >= 2);
+      await reader.waitFor(
+        () => reader.frames.where((f) => f.comment).length >= 2,
+      );
 
       expect(reader.end, isNull);
       expect(reader.isDone, isFalse);
@@ -597,42 +617,46 @@ void main() {
   group('the project directory behind delivery', () {
     /// A stored entry, as `POST /v1/logs` would have left it — published by hand
     /// where the test needs an entry the ingest path would refuse.
-    Future<LogEntry> stored(int project, String event) =>
-        db.into(db.logEntries).insertReturning(
-              LogEntriesCompanion.insert(
-                projectId: project,
-                receivedAt: DateTime.now(),
-                timestamp: DateTime.now(),
-                level: 'info',
-                event: event,
-                sizeBytes: 10,
-                contextJson: jsonEncode({'event': event, 'level': 'info'}),
-              ),
-            );
+    Future<LogEntry> stored(int project, String event) => db
+        .into(db.logEntries)
+        .insertReturning(
+          LogEntriesCompanion.insert(
+            projectId: project,
+            receivedAt: DateTime.now(),
+            timestamp: DateTime.now(),
+            level: 'info',
+            event: event,
+            sizeBytes: 10,
+            contextJson: jsonEncode({'event': event, 'level': 'info'}),
+          ),
+        );
 
     Future<void> block(int id, bool blocked) =>
-        (db.update(db.projects)..where((t) => t.id.equals(id)))
-            .write(ProjectsCompanion(isBlocked: Value(blocked)));
+        (db.update(db.projects)..where((t) => t.id.equals(id))).write(
+          ProjectsCompanion(isBlocked: Value(blocked)),
+        );
 
-    test('blocking a project whose standing was cached stops its entries',
-        () async {
-      final reader = await open('group_id=$groupId');
-      // Delivered once, so the project is now known to be visible.
-      await ingest([entry('before')]);
-      await reader.waitFor(() => reader.logs.length == 1);
+    test(
+      'blocking a project whose standing was cached stops its entries',
+      () async {
+        final reader = await open('group_id=$groupId');
+        // Delivered once, so the project is now known to be visible.
+        await ingest([entry('before')]);
+        await reader.waitFor(() => reader.logs.length == 1);
 
-      await block(projectId, true);
-      await StreamReader.settle();
-      broadcast.publish([await stored(projectId, 'while-blocked')]);
-      await StreamReader.settle();
-      expect(reader.eventTexts, ['before']);
+        await block(projectId, true);
+        await StreamReader.settle();
+        broadcast.publish([await stored(projectId, 'while-blocked')]);
+        await StreamReader.settle();
+        expect(reader.eventTexts, ['before']);
 
-      await block(projectId, false);
-      await StreamReader.settle();
-      broadcast.publish([await stored(projectId, 'after-unblock')]);
-      await reader.waitFor(() => reader.logs.length == 2);
-      expect(reader.eventTexts, ['before', 'after-unblock']);
-    });
+        await block(projectId, false);
+        await StreamReader.settle();
+        broadcast.publish([await stored(projectId, 'after-unblock')]);
+        await reader.waitFor(() => reader.logs.length == 2);
+        expect(reader.eventTexts, ['before', 'after-unblock']);
+      },
+    );
 
     test('ids arrive in order when only some entries need a lookup', () async {
       final reader = await open('group_id=$groupId');
@@ -689,43 +713,49 @@ void main() {
         return out;
       }
 
-      test('fifty group subscribers and 400 entries cost one read per project',
-          () async {
-        final subs = await subscribers('group_id=$groupId', 50);
-        final rows = [
-          for (var i = 0; i < 200; i++) await stored(projectId, 'a$i'),
-          for (var i = 0; i < 200; i++) await stored(otherProjectId, 'b$i'),
-        ];
-        // The directory sees the projects for the first time here, so the count
-        // starts now, not from what opening the subscriptions read.
-        final before = routes.projectDirectory.databaseReads;
+      test(
+        'fifty group subscribers and 400 entries cost one read per project',
+        () async {
+          final subs = await subscribers('group_id=$groupId', 50);
+          final rows = [
+            for (var i = 0; i < 200; i++) await stored(projectId, 'a$i'),
+            for (var i = 0; i < 200; i++) await stored(otherProjectId, 'b$i'),
+          ];
+          // The directory sees the projects for the first time here, so the count
+          // starts now, not from what opening the subscriptions read.
+          final before = routes.projectDirectory.databaseReads;
 
-        broadcast.publish(rows);
-        for (final sub in subs) {
-          await sub.waitFor(
-            () => sub.logs.length == 400,
-            timeout: const Duration(seconds: 20),
+          broadcast.publish(rows);
+          for (final sub in subs) {
+            await sub.waitFor(
+              () => sub.logs.length == 400,
+              timeout: const Duration(seconds: 20),
+            );
+          }
+
+          // 20,000 deliveries; before the directory each was a query.
+          expect(
+            routes.projectDirectory.databaseReads - before,
+            lessThanOrEqualTo(2),
           );
-        }
+        },
+      );
 
-        // 20,000 deliveries; before the directory each was a query.
-        expect(routes.projectDirectory.databaseReads - before,
-            lessThanOrEqualTo(2));
-      });
+      test(
+        'project subscribers cost no read for another project\'s traffic',
+        () async {
+          final subs = await subscribers('project_id=$projectId', 50);
+          final before = routes.projectDirectory.databaseReads;
 
-      test('project subscribers cost no read for another project\'s traffic',
-          () async {
-        final subs = await subscribers('project_id=$projectId', 50);
-        final before = routes.projectDirectory.databaseReads;
+          broadcast.publish([
+            for (var i = 0; i < 200; i++) await stored(otherProjectId, 'x$i'),
+          ]);
+          await StreamReader.settle();
 
-        broadcast.publish([
-          for (var i = 0; i < 200; i++) await stored(otherProjectId, 'x$i'),
-        ]);
-        await StreamReader.settle();
-
-        expect(routes.projectDirectory.databaseReads, before);
-        expect(subs.every((s) => s.logs.isEmpty), isTrue);
-      });
+          expect(routes.projectDirectory.databaseReads, before);
+          expect(subs.every((s) => s.logs.isEmpty), isTrue);
+        },
+      );
     });
   });
 }

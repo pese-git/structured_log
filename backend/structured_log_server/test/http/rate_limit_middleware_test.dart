@@ -11,9 +11,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -59,23 +57,27 @@ void main() {
   DateTime clock() => now;
 
   Handler handlerWith(ServerConfig config) => buildHandler(
-        db,
-        signingSecret: 'test-secret',
-        issuer: 'test',
-        config: config,
-        clock: clock,
-      );
+    db,
+    signingSecret: 'test-secret',
+    issuer: 'test',
+    config: config,
+    clock: clock,
+  );
 
   setUp(() async {
     now = DateTime.utc(2026, 1, 1);
     db = openInMemory();
-    userId = await db.into(db.users).insert(
+    userId = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: 'alice',
             passwordHash: hashPassword('correct'),
           ),
         );
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -113,20 +115,25 @@ void main() {
   group('scope', () {
     test('log ingestion is never throttled', () async {
       final handler = handlerWith(configWith(capacity: 1));
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      final projectId = await db.into(db.projects).insert(
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      final projectId = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
               groupId: groupId,
               name: 'p',
               retentionDays: 7,
             ),
           );
-      await db.into(db.projectUsage).insert(
-            ProjectUsageCompanion.insert(projectId: Value(projectId)),
-          );
+      await db
+          .into(db.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(projectId)));
       final key = generateProjectSecretKey();
-      await db.into(db.projectSecretKeys).insert(
+      await db
+          .into(db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(
               projectId: projectId,
               keyHash: hashToken(key),
@@ -145,7 +152,7 @@ void main() {
                 'event': 'e$i',
                 'level': 'info',
                 'timestamp': '2026-01-01T00:00:00Z',
-              }
+              },
             ]),
             headers: {'authorization': 'Bearer $key'},
           ),
@@ -189,8 +196,11 @@ void main() {
       final handler = handlerWith(configWith(capacity: 3));
 
       for (var i = 0; i < 3; i++) {
-        final response =
-            await login(handler, username: 'user$i', password: 'x');
+        final response = await login(
+          handler,
+          username: 'user$i',
+          password: 'x',
+        );
         expect(response.statusCode, 400, reason: 'no subject bucket exhausted');
       }
 
@@ -213,33 +223,39 @@ void main() {
   });
 
   group('the subject bucket', () {
-    test('guessing one account from many addresses hits the subject bucket',
-        () async {
-      // This is the case the subject bucket exists for. From a single
-      // address the IP bucket always binds first — it spends on every
-      // request while the subject spends only on failures, and both are
-      // configured with the same capacity — so the interesting attacker is
-      // the distributed one, whose every request comes from a fresh address
-      // and therefore a fresh IP bucket.
-      final handler = handlerWith(configWith(capacity: 2, trustedProxyHops: 1));
+    test(
+      'guessing one account from many addresses hits the subject bucket',
+      () async {
+        // This is the case the subject bucket exists for. From a single
+        // address the IP bucket always binds first — it spends on every
+        // request while the subject spends only on failures, and both are
+        // configured with the same capacity — so the interesting attacker is
+        // the distributed one, whose every request comes from a fresh address
+        // and therefore a fresh IP bucket.
+        final handler = handlerWith(
+          configWith(capacity: 2, trustedProxyHops: 1),
+        );
 
-      Future<Response> from(String ip) =>
-          login(handler, password: 'wrong', headers: {'x-forwarded-for': ip});
+        Future<Response> from(String ip) =>
+            login(handler, password: 'wrong', headers: {'x-forwarded-for': ip});
 
-      expect((await from('203.0.113.1')).statusCode, 400);
-      expect((await from('203.0.113.2')).statusCode, 400);
+        expect((await from('203.0.113.1')).statusCode, 400);
+        expect((await from('203.0.113.2')).statusCode, 400);
 
-      final third = await from('203.0.113.3');
-      expect(
-        third.statusCode,
-        429,
-        reason: "a third address, but alice's own bucket is empty",
-      );
-    });
+        final third = await from('203.0.113.3');
+        expect(
+          third.statusCode,
+          429,
+          reason: "a third address, but alice's own bucket is empty",
+        );
+      },
+    );
 
     test('other accounts stay reachable while one is being guessed', () async {
       final handler = handlerWith(configWith(capacity: 2, trustedProxyHops: 1));
-      await db.into(db.users).insert(
+      await db
+          .into(db.users)
+          .insert(
             UsersCompanion.insert(
               username: 'bob',
               passwordHash: hashPassword('bobs-password'),
@@ -247,8 +263,11 @@ void main() {
           );
 
       for (final ip in ['203.0.113.1', '203.0.113.2']) {
-        await login(handler,
-            password: 'wrong', headers: {'x-forwarded-for': ip});
+        await login(
+          handler,
+          password: 'wrong',
+          headers: {'x-forwarded-for': ip},
+        );
       }
 
       final bob = await login(
@@ -260,24 +279,26 @@ void main() {
       expect(bob.statusCode, 200, reason: 'the subject bucket is per subject');
     });
 
-    test('a success refills the subject, so honest users are not throttled',
-        () async {
-      final handler = handlerWith(configWith(capacity: 10));
+    test(
+      'a success refills the subject, so honest users are not throttled',
+      () async {
+        final handler = handlerWith(configWith(capacity: 10));
 
-      // Two typos, then a correct password: the subject bucket is back to
-      // full, and only the IP bucket has been spent.
-      expect((await login(handler, password: 'wrong')).statusCode, 400);
-      expect((await login(handler, password: 'wrong')).statusCode, 400);
-      expect((await login(handler)).statusCode, 200);
+        // Two typos, then a correct password: the subject bucket is back to
+        // full, and only the IP bucket has been spent.
+        expect((await login(handler, password: 'wrong')).statusCode, 400);
+        expect((await login(handler, password: 'wrong')).statusCode, 400);
+        expect((await login(handler)).statusCode, 200);
 
-      for (var i = 0; i < 5; i++) {
-        expect(
-          (await login(handler, password: 'wrong')).statusCode,
-          400,
-          reason: 'attempt $i — the subject bucket was refilled',
-        );
-      }
-    });
+        for (var i = 0; i < 5; i++) {
+          expect(
+            (await login(handler, password: 'wrong')).statusCode,
+            400,
+            reason: 'attempt $i — the subject bucket was refilled',
+          );
+        }
+      },
+    );
 
     test('guessing a victim does not lock the victim out', () async {
       final handler = handlerWith(configWith(capacity: 2, refillPerMinute: 60));
@@ -292,9 +313,9 @@ void main() {
       now = now.add(const Duration(seconds: 5));
       expect((await login(handler)).statusCode, 200);
 
-      final user = await (db.select(db.users)
-            ..where((t) => t.id.equals(userId)))
-          .getSingle();
+      final user = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(userId))).getSingle();
       expect(user.isActive, isTrue, reason: 'throttling is not lockout');
     });
 
@@ -323,8 +344,11 @@ void main() {
       now = now.add(const Duration(minutes: 5));
       for (var i = 0; i < 3; i++) {
         unknown.add(
-          (await login(handler, username: 'ghost', password: 'wrong'))
-              .statusCode,
+          (await login(
+            handler,
+            username: 'ghost',
+            password: 'wrong',
+          )).statusCode,
         );
       }
 
@@ -357,8 +381,7 @@ void main() {
   });
 
   group('the 429 response', () {
-    test(
-        'carries Retry-After and the general envelope, even on the token '
+    test('carries Retry-After and the general envelope, even on the token '
         'endpoint', () async {
       final handler = handlerWith(configWith(capacity: 1, refillPerMinute: 6));
       await login(handler);
@@ -378,8 +401,9 @@ void main() {
     });
 
     test('Retry-After is never zero', () async {
-      final handler =
-          handlerWith(configWith(capacity: 1, refillPerMinute: 600));
+      final handler = handlerWith(
+        configWith(capacity: 1, refillPerMinute: 600),
+      );
       await login(handler);
 
       final response = await login(handler);
@@ -405,15 +429,16 @@ void main() {
       final token = (await body(await login(handler)))['access_token'];
 
       Future<Response> change(String current) async => handler(
-            Request(
-              'POST',
-              Uri.parse('http://x/v1/auth/change-password'),
-              body: jsonEncode(
-                {'current_password': current, 'new_password': 'brand-new'},
-              ),
-              headers: {'authorization': 'Bearer $token'},
-            ),
-          );
+        Request(
+          'POST',
+          Uri.parse('http://x/v1/auth/change-password'),
+          body: jsonEncode({
+            'current_password': current,
+            'new_password': 'brand-new',
+          }),
+          headers: {'authorization': 'Bearer $token'},
+        ),
+      );
 
       for (var i = 0; i < 10; i++) {
         final response = await change('wrong');
@@ -433,8 +458,10 @@ void main() {
         await login(handler, headers: {'x-forwarded-for': '10.0.0.$i'});
       }
 
-      final response =
-          await login(handler, headers: {'x-forwarded-for': '10.0.0.99'});
+      final response = await login(
+        handler,
+        headers: {'x-forwarded-for': '10.0.0.99'},
+      );
       expect(response.statusCode, 429);
     });
 
@@ -442,19 +469,25 @@ void main() {
       final handler = handlerWith(configWith(capacity: 1, trustedProxyHops: 1));
 
       expect(
-        (await login(handler, headers: {'x-forwarded-for': '203.0.113.1'}))
-            .statusCode,
+        (await login(
+          handler,
+          headers: {'x-forwarded-for': '203.0.113.1'},
+        )).statusCode,
         200,
       );
       expect(
-        (await login(handler, headers: {'x-forwarded-for': '203.0.113.1'}))
-            .statusCode,
+        (await login(
+          handler,
+          headers: {'x-forwarded-for': '203.0.113.1'},
+        )).statusCode,
         429,
         reason: 'the same client is throttled',
       );
       expect(
-        (await login(handler, headers: {'x-forwarded-for': '203.0.113.2'}))
-            .statusCode,
+        (await login(
+          handler,
+          headers: {'x-forwarded-for': '203.0.113.2'},
+        )).statusCode,
         200,
         reason: 'a different client behind the same proxy is not',
       );
@@ -497,45 +530,49 @@ void main() {
     Map<String, Object?> metaOf(AuditLogEntry row) =>
         jsonDecode(row.metadata) as Map<String, Object?>;
 
-    test('a burst against one address records once, not once per request',
-        () async {
-      // An attack is a burst by definition. One record per refused request
-      // would bury the journal under the very traffic it is reporting.
-      final handler = handlerWith(configWith(capacity: 2));
+    test(
+      'a burst against one address records once, not once per request',
+      () async {
+        // An attack is a burst by definition. One record per refused request
+        // would bury the journal under the very traffic it is reporting.
+        final handler = handlerWith(configWith(capacity: 2));
 
-      for (var i = 0; i < 8; i++) {
+        for (var i = 0; i < 8; i++) {
+          await login(handler, password: 'wrong');
+        }
+
+        final records = await throttleRecords();
+        expect(records, hasLength(1));
+        expect(metaOf(records.single), {
+          'key_kind': 'ip',
+          'path': '/v1/auth/token',
+          'client_ip': isA<String>(),
+        });
+        expect(records.single.actorUserId, isNull);
+        expect(records.single.targetType, 'auth');
+      },
+    );
+
+    test(
+      'the record is written on the first refusal, not on the last token',
+      () async {
+        // The request that empties the bucket is one the limiter *allowed*. A
+        // record for it would say an attempt was throttled when it was served.
+        final handler = handlerWith(configWith(capacity: 2));
+
         await login(handler, password: 'wrong');
-      }
+        await login(handler, password: 'wrong');
+        expect(
+          await throttleRecords(),
+          isEmpty,
+          reason: 'two requests, two tokens, both served',
+        );
 
-      final records = await throttleRecords();
-      expect(records, hasLength(1));
-      expect(metaOf(records.single), {
-        'key_kind': 'ip',
-        'path': '/v1/auth/token',
-        'client_ip': isA<String>(),
-      });
-      expect(records.single.actorUserId, isNull);
-      expect(records.single.targetType, 'auth');
-    });
-
-    test('the record is written on the first refusal, not on the last token',
-        () async {
-      // The request that empties the bucket is one the limiter *allowed*. A
-      // record for it would say an attempt was throttled when it was served.
-      final handler = handlerWith(configWith(capacity: 2));
-
-      await login(handler, password: 'wrong');
-      await login(handler, password: 'wrong');
-      expect(
-        await throttleRecords(),
-        isEmpty,
-        reason: 'two requests, two tokens, both served',
-      );
-
-      final refused = await login(handler, password: 'wrong');
-      expect(refused.statusCode, 429);
-      expect(await throttleRecords(), hasLength(1));
-    });
+        final refused = await login(handler, password: 'wrong');
+        expect(refused.statusCode, 429);
+        expect(await throttleRecords(), hasLength(1));
+      },
+    );
 
     test('a later burst after recovery is a second episode', () async {
       final handler = handlerWith(configWith(capacity: 2, refillPerMinute: 60));
@@ -583,24 +620,28 @@ void main() {
       );
     });
 
-    test('the throttled subject is not stored for the token endpoint',
-        () async {
-      // It is a submitted string — regularly a password typed into the
-      // username box.
-      final handler = handlerWith(configWith(capacity: 1, trustedProxyHops: 1));
-
-      for (var i = 0; i < 3; i++) {
-        await login(
-          handler,
-          username: 'Pa55word!',
-          password: 'x',
-          headers: {'x-forwarded-for': '198.51.100.$i'},
+    test(
+      'the throttled subject is not stored for the token endpoint',
+      () async {
+        // It is a submitted string — regularly a password typed into the
+        // username box.
+        final handler = handlerWith(
+          configWith(capacity: 1, trustedProxyHops: 1),
         );
-      }
 
-      for (final row in await db.select(db.auditLogEntries).get()) {
-        expect(row.metadata, isNot(contains('Pa55word!')));
-      }
-    });
+        for (var i = 0; i < 3; i++) {
+          await login(
+            handler,
+            username: 'Pa55word!',
+            password: 'x',
+            headers: {'x-forwarded-for': '198.51.100.$i'},
+          );
+        }
+
+        for (final row in await db.select(db.auditLogEntries).get()) {
+          expect(row.metadata, isNot(contains('Pa55word!')));
+        }
+      },
+    );
   });
 }

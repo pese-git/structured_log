@@ -76,16 +76,16 @@ class RoleAssignmentRoutes {
     final scopeType = rawScopeType != null
         ? _enumByNameOrNull(ScopeType.values, rawScopeType)
         : null;
-    final scopeId =
-        params['scope_id'] != null ? int.tryParse(params['scope_id']!) : null;
+    final scopeId = params['scope_id'] != null
+        ? int.tryParse(params['scope_id']!)
+        : null;
 
     if (scopeType != null && scopeId != null) {
       int? enclosingGroupId;
       if (scopeType == ScopeType.project) {
         final project = await (_db.select(
           _db.projects,
-        )..where((t) => t.id.equals(scopeId)))
-            .getSingleOrNull();
+        )..where((t) => t.id.equals(scopeId))).getSingleOrNull();
         enclosingGroupId = project?.groupId;
       }
       if (!canReadRoleAssignmentsForScope(
@@ -104,7 +104,8 @@ class RoleAssignmentRoutes {
       ..orderBy([(t) => OrderingTerm.desc(t.id)]);
     if (subjectId != null) {
       select.where(
-          (t) => t.subjectType.equals('user') & t.subjectId.equals(subjectId));
+        (t) => t.subjectType.equals('user') & t.subjectId.equals(subjectId),
+      );
     }
     if (scopeType != null) {
       select.where((t) => t.scopeType.equals(scopeType.name));
@@ -138,8 +139,7 @@ class RoleAssignmentRoutes {
         : {
             for (final g in await (_db.select(
               _db.groups,
-            )..where((t) => t.id.isIn(groupIds)))
-                .get())
+            )..where((t) => t.id.isIn(groupIds))).get())
               g.id: g.name,
           };
     final projectNames = projectIds.isEmpty
@@ -147,8 +147,7 @@ class RoleAssignmentRoutes {
         : {
             for (final p in await (_db.select(
               _db.projects,
-            )..where((t) => t.id.isIn(projectIds)))
-                .get())
+            )..where((t) => t.id.isIn(projectIds))).get())
               p.id: p.name,
           };
     final userNames = userIds.isEmpty
@@ -156,8 +155,7 @@ class RoleAssignmentRoutes {
         : {
             for (final u in await (_db.select(
               _db.users,
-            )..where((t) => t.id.isIn(userIds)))
-                .get())
+            )..where((t) => t.id.isIn(userIds))).get())
               u.id: u.username,
           };
     final teamNames = teamIds.isEmpty
@@ -165,8 +163,7 @@ class RoleAssignmentRoutes {
         : {
             for (final t in await (_db.select(
               _db.teams,
-            )..where((t) => t.id.isIn(teamIds)))
-                .get())
+            )..where((t) => t.id.isIn(teamIds))).get())
               t.id: t.name,
           };
 
@@ -222,8 +219,9 @@ class RoleAssignmentRoutes {
     }
 
     final rawRole = body['role'];
-    final role =
-        rawRole is String ? _enumByNameOrNull(Role.values, rawRole) : null;
+    final role = rawRole is String
+        ? _enumByNameOrNull(Role.values, rawRole)
+        : null;
     if (role == null) {
       throw ApiError.invalidRequest(
         'role must be one of admin, owner, user.',
@@ -261,14 +259,12 @@ class RoleAssignmentRoutes {
     if (scopeType == ScopeType.group) {
       final group = await (_db.select(
         _db.groups,
-      )..where((t) => t.id.equals(scopeId as int)))
-          .getSingleOrNull();
+      )..where((t) => t.id.equals(scopeId as int))).getSingleOrNull();
       if (group == null) throw ApiError.notFound('Group not found.');
     } else if (scopeType == ScopeType.project) {
       final project = await (_db.select(
         _db.projects,
-      )..where((t) => t.id.equals(scopeId as int)))
-          .getSingleOrNull();
+      )..where((t) => t.id.equals(scopeId as int))).getSingleOrNull();
       if (project == null) throw ApiError.notFound('Project not found.');
       enclosingGroupId = project.groupId;
     }
@@ -277,14 +273,12 @@ class RoleAssignmentRoutes {
     if (subjectType == 'user') {
       final subject = await (_db.select(
         _db.users,
-      )..where((t) => t.id.equals(subjectId)))
-          .getSingleOrNull();
+      )..where((t) => t.id.equals(subjectId))).getSingleOrNull();
       if (subject == null) throw ApiError.notFound('User not found.');
     } else {
       final team = await (_db.select(
         _db.teams,
-      )..where((t) => t.id.equals(subjectId)))
-          .getSingleOrNull();
+      )..where((t) => t.id.equals(subjectId))).getSingleOrNull();
       if (team == null) throw ApiError.notFound('Team not found.');
       subjectTeamGroupId = team.groupId;
     }
@@ -302,7 +296,9 @@ class RoleAssignmentRoutes {
     }
 
     final id = await _db.transaction(() async {
-      final id = await _db.into(_db.roleAssignments).insert(
+      final id = await _db
+          .into(_db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: subjectType as String,
               subjectId: subjectId,
@@ -338,8 +334,7 @@ class RoleAssignmentRoutes {
 
     final row = await (_db.select(
       _db.roleAssignments,
-    )..where((t) => t.id.equals(id)))
-        .getSingle();
+    )..where((t) => t.id.equals(id))).getSingle();
     return jsonOk(roleAssignmentJson(row), statusCode: 201);
   }
 
@@ -353,8 +348,7 @@ class RoleAssignmentRoutes {
     final assignmentId = parsePathId(id, 'id');
     final row = await (_db.select(
       _db.roleAssignments,
-    )..where((t) => t.id.equals(assignmentId)))
-        .getSingleOrNull();
+    )..where((t) => t.id.equals(assignmentId))).getSingleOrNull();
     if (row == null) throw ApiError.notFound('Role assignment not found.');
 
     final scopeType = _enumByNameOrNull(ScopeType.values, row.scopeType)!;
@@ -362,8 +356,7 @@ class RoleAssignmentRoutes {
     if (scopeType == ScopeType.project && row.scopeId != null) {
       final project = await (_db.select(
         _db.projects,
-      )..where((t) => t.id.equals(row.scopeId!)))
-          .getSingleOrNull();
+      )..where((t) => t.id.equals(row.scopeId!))).getSingleOrNull();
       enclosingGroupId = project?.groupId;
     }
 
@@ -371,8 +364,7 @@ class RoleAssignmentRoutes {
     if (row.subjectType == 'team') {
       final team = await (_db.select(
         _db.teams,
-      )..where((t) => t.id.equals(row.subjectId)))
-          .getSingleOrNull();
+      )..where((t) => t.id.equals(row.subjectId))).getSingleOrNull();
       subjectTeamGroupId = team?.groupId;
     }
 
@@ -394,15 +386,14 @@ class RoleAssignmentRoutes {
     // second direct owner, a member of an owning team) keeps it standing.
     final ownedGroupIds =
         row.role == 'owner' && row.scopeType == 'group' && row.scopeId != null
-            ? [row.scopeId!]
-            : const <int>[];
+        ? [row.scopeId!]
+        : const <int>[];
     try {
       await _db.transaction(() async {
         await preservingGroupOwners(_db, ownedGroupIds, () async {
           await (_db.delete(
             _db.roleAssignments,
-          )..where((t) => t.id.equals(assignmentId)))
-              .go();
+          )..where((t) => t.id.equals(assignmentId))).go();
         });
         if (row.subjectType == 'user') {
           await incrementTokenVersion(_db, row.subjectId);

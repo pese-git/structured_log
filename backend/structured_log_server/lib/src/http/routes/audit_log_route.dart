@@ -97,8 +97,9 @@ class AuditLogRoutes {
         targetId: params['target_id'] != null
             ? int.tryParse(params['target_id']!)
             : null,
-        from:
-            params['from'] != null ? DateTime.tryParse(params['from']!) : null,
+        from: params['from'] != null
+            ? DateTime.tryParse(params['from']!)
+            : null,
         to: params['to'] != null ? DateTime.tryParse(params['to']!) : null,
         limit: paging.limit,
         cursor: paging.cursor,

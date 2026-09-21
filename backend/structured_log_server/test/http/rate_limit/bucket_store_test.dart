@@ -10,14 +10,13 @@ void main() {
     int refillPerMinute = 60,
     int maxKeys = 100,
     Duration sweepInterval = const Duration(minutes: 1),
-  }) =>
-      BucketStore(
-        capacity: capacity,
-        refillPerMinute: refillPerMinute,
-        maxKeys: maxKeys,
-        clock: clock,
-        sweepInterval: sweepInterval,
-      );
+  }) => BucketStore(
+    capacity: capacity,
+    refillPerMinute: refillPerMinute,
+    maxKeys: maxKeys,
+    clock: clock,
+    sweepInterval: sweepInterval,
+  );
 
   setUp(() => now = DateTime.utc(2026, 1, 1));
 
@@ -77,23 +76,30 @@ void main() {
       // Worth stating explicitly: overflowing the store can only ever let a
       // throttled key through early, never throttle an innocent one.
       final s = store(
-          capacity: 1, maxKeys: 1, sweepInterval: const Duration(days: 1));
+        capacity: 1,
+        maxKeys: 1,
+        sweepInterval: const Duration(days: 1),
+      );
       expect(s['victim'].tryConsume(now), isTrue);
       expect(s['victim'].tryConsume(now), isFalse);
 
       s['attacker'].tryConsume(now);
 
-      expect(s['victim'].tryConsume(now), isTrue,
-          reason: 'forgotten, not denied');
+      expect(
+        s['victim'].tryConsume(now),
+        isTrue,
+        reason: 'forgotten, not denied',
+      );
     });
   });
 
   group('sweep', () {
     test('drops buckets that have refilled to full', () {
       final s = store(
-          capacity: 2,
-          refillPerMinute: 60,
-          sweepInterval: const Duration(seconds: 30));
+        capacity: 2,
+        refillPerMinute: 60,
+        sweepInterval: const Duration(seconds: 30),
+      );
       s['a'].tryConsume(now);
       s['b'].tryConsume(now);
       expect(s.length, 2);

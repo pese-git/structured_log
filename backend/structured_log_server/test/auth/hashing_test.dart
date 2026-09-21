@@ -72,10 +72,7 @@ void main() {
     });
 
     test('leaves bare generateRandomToken unprefixed (refresh tokens)', () {
-      expect(
-        generateRandomToken(),
-        isNot(startsWith(projectSecretKeyPrefix)),
-      );
+      expect(generateRandomToken(), isNot(startsWith(projectSecretKeyPrefix)));
     });
   });
 
@@ -86,15 +83,18 @@ void main() {
       expect(await verifyPasswordAsync('wrong', hash), isFalse);
       expect(verifyPassword('s3cret', hash), isTrue);
       expect(
-          await verifyPasswordAsync('s3cret', hashPassword('s3cret')), isTrue);
+        await verifyPasswordAsync('s3cret', hashPassword('s3cret')),
+        isTrue,
+      );
     });
 
     test('does not stall the event loop while it computes', () async {
       final hash = hashPassword('s3cret');
       var last = Stopwatch()..start();
       var worst = 0;
-      final ticker =
-          Stream.periodic(const Duration(milliseconds: 2)).listen((_) {
+      final ticker = Stream.periodic(const Duration(milliseconds: 2)).listen((
+        _,
+      ) {
         if (last.elapsedMilliseconds > worst) worst = last.elapsedMilliseconds;
         last = Stopwatch()..start();
       });
@@ -119,11 +119,11 @@ void main() {
 
   group('requireAcceptablePassword', () {
     Matcher rejectedAs(String reason, {String field = 'password'}) => throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 400)
-              .having((e) => e.details?['reason'], 'reason', reason)
-              .having((e) => e.details?['field'], 'field', field),
-        );
+      isA<ApiError>()
+          .having((e) => e.statusCode, 'statusCode', 400)
+          .having((e) => e.details?['reason'], 'reason', reason)
+          .having((e) => e.details?['field'], 'field', field),
+    );
 
     test('accepts the shortest and the longest allowed', () {
       requireAcceptablePassword('x' * minPasswordLength);
@@ -135,10 +135,7 @@ void main() {
         () => requireAcceptablePassword('x' * (minPasswordLength - 1)),
         rejectedAs('too_short'),
       );
-      expect(
-        () => requireAcceptablePassword(''),
-        rejectedAs('too_short'),
-      );
+      expect(() => requireAcceptablePassword(''), rejectedAs('too_short'));
       try {
         requireAcceptablePassword('short');
       } on ApiError catch (e) {
@@ -178,11 +175,13 @@ void main() {
       expect(passwordFitsBcrypt('Ж' * 37), isFalse);
     });
 
-    test('an over-long password verifies as wrong instead of throwing',
-        () async {
-      final hash = hashPassword('s3cret');
-      expect(await verifyPasswordAsync('x' * 200, hash), isFalse);
-    });
+    test(
+      'an over-long password verifies as wrong instead of throwing',
+      () async {
+        final hash = hashPassword('s3cret');
+        expect(await verifyPasswordAsync('x' * 200, hash), isFalse);
+      },
+    );
   });
 
   group('HashWorkerPool', () {
@@ -197,16 +196,18 @@ void main() {
       expect(verifyPassword('s3cret', hash), isTrue);
     });
 
-    test('never starts more workers than its size, however many jobs',
-        () async {
-      pool = HashWorkerPool(2);
-      final hash = hashPassword('s3cret');
-      final results = await Future.wait([
-        for (var i = 0; i < 8; i++) pool.verify('s3cret', hash),
-      ]);
-      expect(results, everyElement(isTrue));
-      expect(pool.workerCount, 2);
-    });
+    test(
+      'never starts more workers than its size, however many jobs',
+      () async {
+        pool = HashWorkerPool(2);
+        final hash = hashPassword('s3cret');
+        final results = await Future.wait([
+          for (var i = 0; i < 8; i++) pool.verify('s3cret', hash),
+        ]);
+        expect(results, everyElement(isTrue));
+        expect(pool.workerCount, 2);
+      },
+    );
 
     test('starts workers on demand, and reuses an idle one', () async {
       pool = HashWorkerPool(3);

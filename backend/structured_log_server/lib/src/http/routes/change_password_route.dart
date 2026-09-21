@@ -55,12 +55,14 @@ class ChangePasswordRoutes {
 
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.id.equals(identity.userId)))
-        .getSingle();
+    )..where((t) => t.id.equals(identity.userId))).getSingle();
     if (!await verifyPasswordAsync(currentPassword, user.passwordHash)) {
       attempt.failed();
       throw const ApiError(
-          401, 'invalid_grant', 'Current password is incorrect.');
+        401,
+        'invalid_grant',
+        'Current password is incorrect.',
+      );
     }
     attempt.succeeded();
 
@@ -70,8 +72,7 @@ class ChangePasswordRoutes {
     await _db.transaction(() async {
       await (_db.update(
         _db.users,
-      )..where((t) => t.id.equals(identity.userId)))
-          .write(
+      )..where((t) => t.id.equals(identity.userId))).write(
         UsersCompanion(
           passwordHash: Value(newHash),
           mustChangePassword: const Value(false),

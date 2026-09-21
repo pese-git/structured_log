@@ -30,8 +30,7 @@ Map<String, Object?> teamJson(Team team) {
 Future<Group> _requireGroup(StructuredLogDatabase db, int groupId) async {
   final group = await (db.select(
     db.groups,
-  )..where((t) => t.id.equals(groupId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(groupId))).getSingleOrNull();
   if (group == null) throw ApiError.notFound('Group not found.');
   return group;
 }
@@ -39,8 +38,7 @@ Future<Group> _requireGroup(StructuredLogDatabase db, int groupId) async {
 Future<Team> _requireTeam(StructuredLogDatabase db, int teamId) async {
   final team = await (db.select(
     db.teams,
-  )..where((t) => t.id.equals(teamId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(teamId))).getSingleOrNull();
   if (team == null) throw ApiError.notFound('Team not found.');
   return team;
 }
@@ -71,8 +69,7 @@ class TeamRoutes {
 
     final rows = await (_db.select(
       _db.teams,
-    )..where((t) => t.groupId.equals(group.id)))
-        .get();
+    )..where((t) => t.groupId.equals(group.id))).get();
     return jsonOk({'items': rows.map(teamJson).toList()});
   }
 
@@ -89,25 +86,21 @@ class TeamRoutes {
     final team = await _requireTeam(_db, parsePathId(teamId, 'teamId'));
 
     final roles = await resolveRoles(_authorizer, identity);
-    if (!canRead(
-      roles,
-      targetType: ScopeType.group,
-      targetId: team.groupId,
-    )) {
+    if (!canRead(roles, targetType: ScopeType.group, targetId: team.groupId)) {
       throw ApiError.forbidden();
     }
 
-    final userIds = await (_db.selectOnly(_db.teamMembers)
-          ..addColumns([_db.teamMembers.userId])
-          ..where(_db.teamMembers.teamId.equals(team.id)))
-        .map((row) => row.read(_db.teamMembers.userId)!)
-        .get();
+    final userIds =
+        await (_db.selectOnly(_db.teamMembers)
+              ..addColumns([_db.teamMembers.userId])
+              ..where(_db.teamMembers.teamId.equals(team.id)))
+            .map((row) => row.read(_db.teamMembers.userId)!)
+            .get();
     if (userIds.isEmpty) return jsonOk({'items': <Object?>[]});
 
     final users = await (_db.select(
       _db.users,
-    )..where((t) => t.id.isIn(userIds)))
-        .get();
+    )..where((t) => t.id.isIn(userIds))).get();
     return jsonOk({
       'items': [
         for (final u in users) {'user_id': u.id, 'username': u.username},
@@ -138,9 +131,9 @@ class TeamRoutes {
     }
 
     final id = await _db.transaction(() async {
-      final id = await _db.into(_db.teams).insert(
-            TeamsCompanion.insert(groupId: group.id, name: name),
-          );
+      final id = await _db
+          .into(_db.teams)
+          .insert(TeamsCompanion.insert(groupId: group.id, name: name));
       await _audit.write(
         action: AuditAction.teamCreated,
         targetType: AuditTargetType.team,
@@ -171,11 +164,7 @@ class TeamRoutes {
     final team = await _requireTeam(_db, parsePathId(teamId, 'teamId'));
 
     final roles = await resolveRoles(_authorizer, identity);
-    if (!canWrite(
-      roles,
-      targetType: ScopeType.group,
-      targetId: team.groupId,
-    )) {
+    if (!canWrite(roles, targetType: ScopeType.group, targetId: team.groupId)) {
       throw ApiError.forbidden();
     }
 
@@ -190,8 +179,7 @@ class TeamRoutes {
 
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.id.equals(userId)))
-        .getSingleOrNull();
+    )..where((t) => t.id.equals(userId))).getSingleOrNull();
     if (user == null) throw ApiError.notFound('User not found.');
 
     // The membership check and the insert are one transaction: read outside
@@ -199,16 +187,16 @@ class TeamRoutes {
     // second insert broke the primary key — a 500 for what is meant to be an
     // idempotent 204.
     await _db.transaction(() async {
-      final alreadyMember = await (_db.select(_db.teamMembers)
-            ..where(
-              (t) => t.teamId.equals(team.id) & t.userId.equals(userId),
-            ))
-          .getSingleOrNull();
+      final alreadyMember =
+          await (_db.select(_db.teamMembers)..where(
+                (t) => t.teamId.equals(team.id) & t.userId.equals(userId),
+              ))
+              .getSingleOrNull();
       if (alreadyMember != null) return;
 
-      await _db.into(_db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: team.id, userId: userId),
-          );
+      await _db
+          .into(_db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: team.id, userId: userId));
       await incrementTokenVersion(_db, userId);
       await _audit.write(
         action: AuditAction.teamMemberAdded,
@@ -238,19 +226,15 @@ class TeamRoutes {
     final removedUserId = parsePathId(userId, 'userId');
 
     final roles = await resolveRoles(_authorizer, identity);
-    if (!canWrite(
-      roles,
-      targetType: ScopeType.group,
-      targetId: team.groupId,
-    )) {
+    if (!canWrite(roles, targetType: ScopeType.group, targetId: team.groupId)) {
       throw ApiError.forbidden();
     }
 
-    final membership = await (_db.select(_db.teamMembers)
-          ..where(
-            (t) => t.teamId.equals(team.id) & t.userId.equals(removedUserId),
-          ))
-        .getSingleOrNull();
+    final membership =
+        await (_db.select(_db.teamMembers)..where(
+              (t) => t.teamId.equals(team.id) & t.userId.equals(removedUserId),
+            ))
+            .getSingleOrNull();
     if (membership == null) {
       throw ApiError.notFound('This user is not a member of the team.');
     }
@@ -264,12 +248,10 @@ class TeamRoutes {
           _db,
           await groupIdsOwnedByTeam(_db, team.id),
           () async {
-            await (_db.delete(_db.teamMembers)
-                  ..where(
-                    (t) =>
-                        t.teamId.equals(team.id) &
-                        t.userId.equals(removedUserId),
-                  ))
+            await (_db.delete(_db.teamMembers)..where(
+                  (t) =>
+                      t.teamId.equals(team.id) & t.userId.equals(removedUserId),
+                ))
                 .go();
           },
         );

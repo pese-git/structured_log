@@ -30,10 +30,11 @@ void main() {
       final directory = Directory(root);
       if (!directory.existsSync()) continue;
 
-      for (final file in directory
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))) {
+      for (final file
+          in directory
+              .listSync(recursive: true)
+              .whereType<File>()
+              .where((f) => f.path.endsWith('.dart'))) {
         // Generated code is not ours to police, and is not committed.
         if (file.path.endsWith('.g.dart')) continue;
         if (file.path.endsWith('.freezed.dart')) continue;
@@ -57,7 +58,8 @@ void main() {
     expect(
       offences,
       isEmpty,
-      reason: 'use the server logger (lib/src/logging/setup.dart) instead:\n'
+      reason:
+          'use the server logger (lib/src/logging/setup.dart) instead:\n'
           '${offences.join('\n')}',
     );
   });

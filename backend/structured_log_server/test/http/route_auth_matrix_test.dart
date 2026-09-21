@@ -39,11 +39,7 @@ const _routes = <({String method, String path, Requires requires})>[
   (method: 'GET', path: '/v1/groups/1/teams', requires: Requires.user),
   (method: 'POST', path: '/v1/teams/1/members', requires: Requires.user),
   (method: 'GET', path: '/v1/teams/1/members', requires: Requires.user),
-  (
-    method: 'DELETE',
-    path: '/v1/teams/1/members/1',
-    requires: Requires.user,
-  ),
+  (method: 'DELETE', path: '/v1/teams/1/members/1', requires: Requires.user),
   (method: 'GET', path: '/v1/projects', requires: Requires.user),
   (method: 'PATCH', path: '/v1/projects/1', requires: Requires.user),
   (method: 'GET', path: '/v1/projects/1', requires: Requires.user),
@@ -65,18 +61,12 @@ const _routes = <({String method, String path, Requires requires})>[
   (method: 'POST', path: '/v1/projects/1/unblock', requires: Requires.user),
   (method: 'POST', path: '/v1/role-assignments', requires: Requires.user),
   (method: 'GET', path: '/v1/role-assignments', requires: Requires.user),
-  (
-    method: 'DELETE',
-    path: '/v1/role-assignments/1',
-    requires: Requires.user,
-  ),
+  (method: 'DELETE', path: '/v1/role-assignments/1', requires: Requires.user),
 ];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -89,10 +79,12 @@ void main() {
     db = openInMemory();
     handler = buildHandler(db, signingSecret: 'test-secret', issuer: 'test');
 
-    final groupId = await db.into(db.groups).insert(
-          GroupsCompanion.insert(name: 'g'),
-        );
-    final projectId = await db.into(db.projects).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    final projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p',
@@ -100,7 +92,9 @@ void main() {
           ),
         );
     secretKey = generateProjectSecretKey();
-    await db.into(db.projectSecretKeys).insert(
+    await db
+        .into(db.projectSecretKeys)
+        .insert(
           ProjectSecretKeysCompanion.insert(
             projectId: projectId,
             keyHash: hashToken(secretKey),
@@ -151,11 +145,13 @@ void main() {
     final name = '${route.method} ${route.path}';
 
     if (route.requires == Requires.public) {
-      test('$name is public and does not 401 on a missing credential',
-          () async {
-        final response = await send(route);
-        expect(response.statusCode, isNot(401));
-      });
+      test(
+        '$name is public and does not 401 on a missing credential',
+        () async {
+          final response = await send(route);
+          expect(response.statusCode, isNot(401));
+        },
+      );
       continue;
     }
 

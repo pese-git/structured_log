@@ -12,7 +12,8 @@ import '../storage/database.dart';
 Future<void> incrementTokenVersion(StructuredLogDatabase db, int userId) {
   return (db.update(db.users)..where((t) => t.id.equals(userId))).write(
     UsersCompanion.custom(
-        tokenVersion: db.users.tokenVersion + const Constant(1)),
+      tokenVersion: db.users.tokenVersion + const Constant(1),
+    ),
   );
 }
 
@@ -30,15 +31,17 @@ Future<void> incrementTokenVersionsForTeam(
   StructuredLogDatabase db,
   int teamId,
 ) async {
-  final memberIds = await (db.selectOnly(db.teamMembers)
-        ..addColumns([db.teamMembers.userId])
-        ..where(db.teamMembers.teamId.equals(teamId)))
-      .map((row) => row.read(db.teamMembers.userId)!)
-      .get();
+  final memberIds =
+      await (db.selectOnly(db.teamMembers)
+            ..addColumns([db.teamMembers.userId])
+            ..where(db.teamMembers.teamId.equals(teamId)))
+          .map((row) => row.read(db.teamMembers.userId)!)
+          .get();
   if (memberIds.isEmpty) return;
 
   await (db.update(db.users)..where((t) => t.id.isIn(memberIds))).write(
     UsersCompanion.custom(
-        tokenVersion: db.users.tokenVersion + const Constant(1)),
+      tokenVersion: db.users.tokenVersion + const Constant(1),
+    ),
   );
 }

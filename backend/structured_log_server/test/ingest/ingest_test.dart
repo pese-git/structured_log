@@ -7,12 +7,11 @@ Map<String, Object?> validEntry({
   String event = 'e',
   String level = 'info',
   String? timestamp,
-}) =>
-    {
-      'event': event,
-      'level': level,
-      'timestamp': timestamp ?? _now.toIso8601String()
-    };
+}) => {
+  'event': event,
+  'level': level,
+  'timestamp': timestamp ?? _now.toIso8601String(),
+};
 
 void main() {
   group('validation', () {
@@ -63,10 +62,7 @@ void main() {
       // shadowed on the way out, with nothing to say it had happened.
       for (final reserved in reservedEntryFieldNames) {
         final outcome = processIngestBatch(
-          rawEntries: [
-            validEntry()..[reserved] = 'mine',
-            validEntry(),
-          ],
+          rawEntries: [validEntry()..[reserved] = 'mine', validEntry()],
           maxEntries: null,
           maxBytes: null,
           currentEntryCount: 0,
@@ -134,21 +130,23 @@ void main() {
       expect(outcome.rejected.single.error, 'validation_error');
     });
 
-    test('a valid and an invalid entry in the same batch are both reported',
-        () {
-      final bad = validEntry()..remove('level');
-      final outcome = processIngestBatch(
-        rawEntries: [validEntry(), bad],
-        maxEntries: null,
-        maxBytes: null,
-        currentEntryCount: 0,
-        currentTotalBytes: 0,
-        receivedAt: _now,
-      );
-      expect(outcome.accepted, hasLength(1));
-      expect(outcome.rejected, hasLength(1));
-      expect(outcome.rejected.single.index, 1);
-    });
+    test(
+      'a valid and an invalid entry in the same batch are both reported',
+      () {
+        final bad = validEntry()..remove('level');
+        final outcome = processIngestBatch(
+          rawEntries: [validEntry(), bad],
+          maxEntries: null,
+          maxBytes: null,
+          currentEntryCount: 0,
+          currentTotalBytes: 0,
+          receivedAt: _now,
+        );
+        expect(outcome.accepted, hasLength(1));
+        expect(outcome.rejected, hasLength(1));
+        expect(outcome.rejected.single.index, 1);
+      },
+    );
   });
 
   group('quota — max_entries', () {
@@ -165,20 +163,22 @@ void main() {
       expect(outcome.entryCountDelta, 1);
     });
 
-    test('an entry that would exceed the limit is rejected with quota_exceeded',
-        () {
-      final outcome = processIngestBatch(
-        rawEntries: [validEntry()],
-        maxEntries: 1000,
-        maxBytes: null,
-        currentEntryCount: 1000,
-        currentTotalBytes: 0,
-        receivedAt: _now,
-      );
-      expect(outcome.accepted, isEmpty);
-      expect(outcome.rejected.single.error, 'quota_exceeded');
-      expect(outcome.entryCountDelta, 0);
-    });
+    test(
+      'an entry that would exceed the limit is rejected with quota_exceeded',
+      () {
+        final outcome = processIngestBatch(
+          rawEntries: [validEntry()],
+          maxEntries: 1000,
+          maxBytes: null,
+          currentEntryCount: 1000,
+          currentTotalBytes: 0,
+          receivedAt: _now,
+        );
+        expect(outcome.accepted, isEmpty);
+        expect(outcome.rejected.single.error, 'quota_exceeded');
+        expect(outcome.entryCountDelta, 0);
+      },
+    );
 
     test('entries within one batch are counted cumulatively', () {
       final outcome = processIngestBatch(
@@ -197,20 +197,21 @@ void main() {
 
   group('quota — max_bytes', () {
     test(
-        'an entry that would exceed max_bytes is rejected without touching total_bytes',
-        () {
-      final outcome = processIngestBatch(
-        rawEntries: [validEntry()],
-        maxEntries: null,
-        maxBytes: 1,
-        currentEntryCount: 0,
-        currentTotalBytes: 0,
-        receivedAt: _now,
-      );
-      expect(outcome.accepted, isEmpty);
-      expect(outcome.rejected.single.error, 'quota_exceeded');
-      expect(outcome.bytesDelta, 0);
-    });
+      'an entry that would exceed max_bytes is rejected without touching total_bytes',
+      () {
+        final outcome = processIngestBatch(
+          rawEntries: [validEntry()],
+          maxEntries: null,
+          maxBytes: 1,
+          currentEntryCount: 0,
+          currentTotalBytes: 0,
+          receivedAt: _now,
+        );
+        expect(outcome.accepted, isEmpty);
+        expect(outcome.rejected.single.error, 'quota_exceeded');
+        expect(outcome.bytesDelta, 0);
+      },
+    );
 
     test('no max_bytes means no byte limit', () {
       final outcome = processIngestBatch(

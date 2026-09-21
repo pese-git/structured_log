@@ -145,10 +145,8 @@ Future<void> _runServe(
   await bootstrapAdmin(
     db,
     config,
-    logWarning: (message) => log.warning(
-      'bootstrap.warning',
-      context: {'message': message},
-    ),
+    logWarning: (message) =>
+        log.warning('bootstrap.warning', context: {'message': message}),
   );
 
   // Owned here rather than by buildHandler so shutdown can close it and
@@ -184,8 +182,11 @@ Future<void> _runServe(
   // take twice as long as every other — a difference visible from outside.
   await dummyPasswordHash;
 
-  final server =
-      await shelf_io.serve(handler, config.httpHost, config.httpPort);
+  final server = await shelf_io.serve(
+    handler,
+    config.httpHost,
+    config.httpPort,
+  );
 
   // Signal handlers before the readiness line, not after: that line is what
   // a supervisor waits for before considering the process up, and until the
@@ -194,18 +195,18 @@ Future<void> _runServe(
   final done = Completer<void>();
   final subscriptions = <StreamSubscription<ProcessSignal>>[
     ProcessSignal.sigint.watch().listen(
-          (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
-        ),
+      (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
+    ),
     if (!Platform.isWindows)
       ProcessSignal.sigterm.watch().listen(
-            (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
-          ),
+        (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
+      ),
   ];
 
-  log.info('server.started', context: {
-    'host': server.address.host,
-    'port': server.port,
-  });
+  log.info(
+    'server.started',
+    context: {'host': server.address.host, 'port': server.port},
+  );
   // Also on stdout, unconditionally: this line is the readiness signal a
   // supervisor waits for, and it must not disappear because the log level
   // was turned up or the log was pointed at a file.

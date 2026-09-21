@@ -37,32 +37,29 @@ class ConfigParseResult {
   factory ConfigParseResult.success(
     Map<String, ResolvedValue> values, {
     List<String> warnings = const [],
-  }) =>
-      ConfigParseResult._(
-        ConfigParseOutcome.success,
-        values: values,
-        warnings: warnings,
-      );
+  }) => ConfigParseResult._(
+    ConfigParseOutcome.success,
+    values: values,
+    warnings: warnings,
+  );
 
   factory ConfigParseResult.printConfig(
     Map<String, ResolvedValue> values, {
     List<String> warnings = const [],
-  }) =>
-      ConfigParseResult._(
-        ConfigParseOutcome.printConfig,
-        values: values,
-        warnings: warnings,
-      );
+  }) => ConfigParseResult._(
+    ConfigParseOutcome.printConfig,
+    values: values,
+    warnings: warnings,
+  );
 
   factory ConfigParseResult.errors(
     List<String> errors, {
     List<String> warnings = const [],
-  }) =>
-      ConfigParseResult._(
-        ConfigParseOutcome.errors,
-        errors: errors,
-        warnings: warnings,
-      );
+  }) => ConfigParseResult._(
+    ConfigParseOutcome.errors,
+    errors: errors,
+    warnings: warnings,
+  );
 
   factory ConfigParseResult.help(String helpText) =>
       ConfigParseResult._(ConfigParseOutcome.help, helpText: helpText);
@@ -86,10 +83,10 @@ class ConfigResolver {
   final List<ParamSpec> specs;
 
   ConfigResolver(this.specs)
-      : assert(
-          specs.map((s) => s.name).toSet().length == specs.length,
-          'ParamSpec names must be unique',
-        );
+    : assert(
+        specs.map((s) => s.name).toSet().length == specs.length,
+        'ParamSpec names must be unique',
+      );
 
   ArgParser _buildArgParser() {
     final parser = ArgParser()
@@ -275,8 +272,8 @@ _Coerced _coerce(ParamSpec spec, String raw) {
         final range = min != null && max != null
             ? 'between $min and $max'
             : min != null
-                ? 'at least $min'
-                : 'at most $max';
+            ? 'at least $min'
+            : 'at most $max';
         return _Coerced.err('${spec.name}: must be $range, got "$raw"');
       }
       return _Coerced.ok(parsed);

@@ -3,10 +3,10 @@ import 'package:structured_log_server/src/http/page_request.dart';
 import 'package:test/test.dart';
 
 Matcher badRequestOn(String field) => throwsA(
-      isA<ApiError>()
-          .having((e) => e.statusCode, 'statusCode', 400)
-          .having((e) => e.details?['field'], 'field', field),
-    );
+  isA<ApiError>()
+      .having((e) => e.statusCode, 'statusCode', 400)
+      .having((e) => e.details?['field'], 'field', field),
+);
 
 void main() {
   group('parsePageRequest', () {
@@ -15,10 +15,10 @@ void main() {
     });
 
     test('takes limit and cursor as given', () {
-      expect(
-        parsePageRequest({'limit': '10', 'cursor': '42'}),
-        (limit: 10, cursor: 42),
-      );
+      expect(parsePageRequest({'limit': '10', 'cursor': '42'}), (
+        limit: 10,
+        cursor: 42,
+      ));
     });
 
     test('brings a limit above the ceiling down to it instead of refusing', () {

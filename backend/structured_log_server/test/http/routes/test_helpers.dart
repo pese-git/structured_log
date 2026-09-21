@@ -49,9 +49,7 @@ Request projectKeyRequest(
     method,
     Uri.parse(url),
     body: jsonBody == null ? null : jsonEncode(jsonBody),
-    context: {
-      'structured_log_server.principal': ProjectPrincipal(projectId),
-    },
+    context: {'structured_log_server.principal': ProjectPrincipal(projectId)},
   );
 }
 

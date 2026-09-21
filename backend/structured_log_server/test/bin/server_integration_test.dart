@@ -18,8 +18,9 @@ void main() {
     'the server process starts from env config, an argument overrides the port, '
     'and it answers GET /healthz',
     () async {
-      final dir =
-          Directory.systemTemp.createTempSync('server_integration_test');
+      final dir = Directory.systemTemp.createTempSync(
+        'server_integration_test',
+      );
       addTearDown(() => dir.deleteSync(recursive: true));
       final dbPath = '${dir.path}/test.sqlite';
 
@@ -28,18 +29,22 @@ void main() {
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=$dbPath',
-        '--http-port=$port', // overrides STRUCTURED_LOG_HTTP_PORT below
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_HTTP_PORT':
-            '0', // would bind an ephemeral port if honored
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=$dbPath',
+          '--http-port=$port', // overrides STRUCTURED_LOG_HTTP_PORT below
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_HTTP_PORT':
+              '0', // would bind an ephemeral port if honored
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+        },
+      );
       addTearDown(() {
         process.kill(ProcessSignal.sigterm);
       });
@@ -66,8 +71,9 @@ void main() {
       expect(jsonDecode(body), {'status': 'ok'});
 
       process.kill(ProcessSignal.sigterm);
-      final exitCode =
-          await process.exitCode.timeout(const Duration(seconds: 10));
+      final exitCode = await process.exitCode.timeout(
+        const Duration(seconds: 10),
+      );
       expect(exitCode, 0);
     },
     timeout: const Timeout(Duration(seconds: 60)),
@@ -77,28 +83,33 @@ void main() {
     'a live subscription over a real socket delivers new entries and catches '
     'up by since_id',
     () async {
-      final dir =
-          Directory.systemTemp.createTempSync('server_stream_integration');
+      final dir = Directory.systemTemp.createTempSync(
+        'server_stream_integration',
+      );
       addTearDown(() => dir.deleteSync(recursive: true));
 
       final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=${dir.path}/test.sqlite',
-        '--http-port=$port',
-        // Fast enough that a blocked project is noticed inside the test.
-        '--sse-heartbeat-interval-seconds=1',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=$port',
+          // Fast enough that a blocked project is noticed inside the test.
+          '--sse-heartbeat-interval-seconds=1',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+        },
+      );
       addTearDown(() => process.kill(ProcessSignal.sigterm));
 
       final stdoutLines = process.stdout
@@ -125,12 +136,16 @@ void main() {
       }) async {
         final request = await client.open(method, 'localhost', port, path);
         if (bearer != null) {
-          request.headers
-              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+          request.headers.set(
+            HttpHeaders.authorizationHeader,
+            'Bearer $bearer',
+          );
         }
         if (form != null) {
-          request.headers.contentType =
-              ContentType('application', 'x-www-form-urlencoded');
+          request.headers.contentType = ContentType(
+            'application',
+            'x-www-form-urlencoded',
+          );
           request.write(form);
         } else if (json != null) {
           request.headers.contentType = ContentType.json;
@@ -165,14 +180,17 @@ void main() {
         bearer: token,
         json: {
           'current_password': 'bootstrap-pw',
-          'new_password': 'real-password-1'
+          'new_password': 'real-password-1',
         },
       );
       token = await login('real-password-1');
 
-      final group = await call('POST', '/v1/groups', bearer: token, json: {
-        'name': 'g',
-      });
+      final group = await call(
+        'POST',
+        '/v1/groups',
+        bearer: token,
+        json: {'name': 'g'},
+      );
       final groupId = group['id'] as int;
       final project = await call(
         'POST',
@@ -200,7 +218,7 @@ void main() {
               'event': event,
               'level': 'info',
               'timestamp': DateTime.now().toUtc().toIso8601String(),
-            }
+            },
           ],
         );
       }
@@ -213,37 +231,45 @@ void main() {
       /// which also matters for shutdown, since a graceful `server.close()`
       /// waits on connections that are still open.
       Future<
-          ({
-            List<Map<String, Object?>> events,
-            List<String> ends,
-            void Function() drop,
-          })> subscribe(String query) async {
+        ({
+          List<Map<String, Object?>> events,
+          List<String> ends,
+          void Function() drop,
+        })
+      >
+      subscribe(String query) async {
         final ownClient = HttpClient();
-        final request =
-            await ownClient.get('localhost', port, '/v1/logs/stream?$query');
+        final request = await ownClient.get(
+          'localhost',
+          port,
+          '/v1/logs/stream?$query',
+        );
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
         final response = await request.close();
         expect(response.statusCode, 200);
-        expect(
-          response.headers.contentType?.mimeType,
-          'text/event-stream',
-        );
+        expect(response.headers.contentType?.mimeType, 'text/event-stream');
 
         final events = <Map<String, Object?>>[];
         final ends = <String>[];
-        unawaited(response
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())
-            .forEach((line) {
-          if (line.startsWith('event: end')) ends.add('end');
-          if (!line.startsWith('data: ')) return;
-          final payload = jsonDecode(line.substring(6)) as Map<String, Object?>;
-          if (payload.containsKey('reason')) {
-            ends.add(payload['reason'] as String);
-          } else {
-            events.add(payload);
-          }
-        }).catchError((_) {/* the connection was dropped on purpose */}));
+        unawaited(
+          response
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())
+              .forEach((line) {
+                if (line.startsWith('event: end')) ends.add('end');
+                if (!line.startsWith('data: ')) return;
+                final payload =
+                    jsonDecode(line.substring(6)) as Map<String, Object?>;
+                if (payload.containsKey('reason')) {
+                  ends.add(payload['reason'] as String);
+                } else {
+                  events.add(payload);
+                }
+              })
+              .catchError((_) {
+                /* the connection was dropped on purpose */
+              }),
+        );
         return (
           events: events,
           ends: ends,
@@ -292,8 +318,9 @@ void main() {
 
       second.drop();
       process.kill(ProcessSignal.sigterm);
-      final exitCode =
-          await process.exitCode.timeout(const Duration(seconds: 10));
+      final exitCode = await process.exitCode.timeout(
+        const Duration(seconds: 10),
+      );
       expect(exitCode, 0);
     },
     timeout: const Timeout(Duration(seconds: 120)),
@@ -309,18 +336,22 @@ void main() {
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=${dir.path}/test.sqlite',
-        '--http-port=$port',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=$port',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+        },
+      );
       addTearDown(() => process.kill(ProcessSignal.sigterm));
       final stderrLines = <String>[];
       process.stderr
@@ -359,12 +390,16 @@ void main() {
       }) async {
         final request = await client.open(method, 'localhost', port, path);
         if (bearer != null) {
-          request.headers
-              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+          request.headers.set(
+            HttpHeaders.authorizationHeader,
+            'Bearer $bearer',
+          );
         }
         if (form != null) {
-          request.headers.contentType =
-              ContentType('application', 'x-www-form-urlencoded');
+          request.headers.contentType = ContentType(
+            'application',
+            'x-www-form-urlencoded',
+          );
           request.write(form);
         } else if (json != null) {
           request.headers.contentType = ContentType.json;
@@ -409,15 +444,18 @@ void main() {
         bearer: tokens.access,
         json: {
           'current_password': 'bootstrap-pw',
-          'new_password': 'real-password-1'
+          'new_password': 'real-password-1',
         },
       );
       expect(changed.status, 200);
 
       // Changing the password bumps token_version, so the token that just
       // made the change is itself no longer valid.
-      final afterChange =
-          await call('GET', '/v1/groups', bearer: tokens.access);
+      final afterChange = await call(
+        'GET',
+        '/v1/groups',
+        bearer: tokens.access,
+      );
       expect(afterChange.status, 401);
 
       tokens = await login('root', 'real-password-1');
@@ -432,22 +470,28 @@ void main() {
       );
       expect(badGrant.status, 400);
       expect(badGrant.body['error'], 'invalid_grant');
-      expect(badGrant.body, contains('error_description'),
-          reason: 'RFC 6749 §5.2 shape, not the general envelope');
-
-      final notFound = await call(
-        'GET',
-        '/v1/projects/999999',
-        bearer: admin,
+      expect(
+        badGrant.body,
+        contains('error_description'),
+        reason: 'RFC 6749 §5.2 shape, not the general envelope',
       );
+
+      final notFound = await call('GET', '/v1/projects/999999', bearer: admin);
       expect(notFound.status, 404);
       expect(notFound.body['error'], 'not_found');
-      expect(notFound.body, contains('message'),
-          reason: 'the general envelope, not the RFC 6749 one');
+      expect(
+        notFound.body,
+        contains('message'),
+        reason: 'the general envelope, not the RFC 6749 one',
+      );
 
       // --- resources, and a caller who may not touch them ----------------
-      final group =
-          await call('POST', '/v1/groups', bearer: admin, json: {'name': 'g'});
+      final group = await call(
+        'POST',
+        '/v1/groups',
+        bearer: admin,
+        json: {'name': 'g'},
+      );
       expect(group.status, 201);
       final groupId = group.body['id'] as int;
 
@@ -487,18 +531,22 @@ void main() {
         reason: 'a project key is not an access token',
       );
       expect(
-        (await call('POST', '/v1/logs', bearer: admin, json: <Object?>[]))
-            .status,
+        (await call(
+          'POST',
+          '/v1/logs',
+          bearer: admin,
+          json: <Object?>[],
+        )).status,
         401,
         reason: 'an access token does not authenticate ingestion',
       );
 
       // --- quotas, enforced per entry ------------------------------------
       Map<String, Object?> entry(String event) => {
-            'event': event,
-            'level': 'info',
-            'timestamp': DateTime.now().toUtc().toIso8601String(),
-          };
+        'event': event,
+        'level': 'info',
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+      };
 
       final ingest = await call(
         'POST',
@@ -515,24 +563,37 @@ void main() {
         'quota_exceeded',
         reason: 'max_entries was 2',
       );
-      expect((rejected.single as Map)['index'], 2,
-          reason: 'the rejection names which entry of the batch it was');
+      expect(
+        (rejected.single as Map)['index'],
+        2,
+        reason: 'the rejection names which entry of the batch it was',
+      );
 
       // Raising the quota lets the next batch through — the same path the
       // operator would take after seeing the rejection.
       expect(
-        (await call('PATCH', '/v1/projects/$projectId',
-                bearer: admin, json: {'max_entries': 100}))
-            .status,
+        (await call(
+          'PATCH',
+          '/v1/projects/$projectId',
+          bearer: admin,
+          json: {'max_entries': 100},
+        )).status,
         200,
       );
-      final afterRaise = await call('POST', '/v1/logs',
-          bearer: secret, json: [entry('now-fits')]);
+      final afterRaise = await call(
+        'POST',
+        '/v1/logs',
+        bearer: secret,
+        json: [entry('now-fits')],
+      );
       expect(afterRaise.body['accepted'], 1);
       expect(afterRaise.body['rejected'], isEmpty);
 
-      final queried =
-          await call('GET', '/v1/logs?project_id=$projectId', bearer: admin);
+      final queried = await call(
+        'GET',
+        '/v1/logs?project_id=$projectId',
+        bearer: admin,
+      );
       expect(queried.status, 200);
       expect(
         (queried.body['items'] as List).map((e) => (e as Map)['event']),
@@ -572,8 +633,9 @@ void main() {
       expect(reuse.body['error'], 'invalid_grant');
 
       process.kill(ProcessSignal.sigterm);
-      final exitCode =
-          await process.exitCode.timeout(const Duration(seconds: 10));
+      final exitCode = await process.exitCode.timeout(
+        const Duration(seconds: 10),
+      );
       expect(exitCode, 0, reason: stderrLines.join('\n'));
     },
     timeout: const Timeout(Duration(seconds: 120)),
@@ -589,16 +651,20 @@ void main() {
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=${dir.path}/test.sqlite',
-        '--http-port=$port',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=$port',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+        },
+      );
       addTearDown(() => process.kill(ProcessSignal.sigterm));
 
       final stderrLines = <String>[];
@@ -622,36 +688,34 @@ void main() {
           );
 
       process.kill(ProcessSignal.sigterm);
-      final exitCode =
-          await process.exitCode.timeout(const Duration(seconds: 10));
+      final exitCode = await process.exitCode.timeout(
+        const Duration(seconds: 10),
+      );
 
       // Without the guard in bin/server.dart this is 255: the broken pipe
       // arrives as an unhandled error in the root zone, where neither a
       // try/catch nor a guarded zone can intercept it.
       expect(exitCode, 0, reason: stderrLines.join('\n'));
-      expect(
-        stderrLines.join('\n'),
-        isNot(contains('Unhandled exception')),
-      );
+      expect(stderrLines.join('\n'), isNot(contains('Unhandled exception')));
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );
 
-  test(
-    'the rate limiter is actually wired into the running server',
-    () async {
-      // buildHandler takes the config as an optional argument, so the whole
-      // limiter is inert unless bin/server.dart passes it — which it once
-      // silently did not. Every other rate-limit test builds the handler
-      // itself and cannot see that.
-      final dir = Directory.systemTemp.createTempSync('server_ratelimit_test');
-      addTearDown(() => dir.deleteSync(recursive: true));
+  test('the rate limiter is actually wired into the running server', () async {
+    // buildHandler takes the config as an optional argument, so the whole
+    // limiter is inert unless bin/server.dart passes it — which it once
+    // silently did not. Every other rate-limit test builds the handler
+    // itself and cannot see that.
+    final dir = Directory.systemTemp.createTempSync('server_ratelimit_test');
+    addTearDown(() => dir.deleteSync(recursive: true));
 
-      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-      final port = probe.port;
-      await probe.close();
+    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = probe.port;
+    await probe.close();
 
-      final process = await Process.start('dart', [
+    final process = await Process.start(
+      'dart',
+      [
         'run',
         'bin/server.dart',
         'serve',
@@ -660,56 +724,59 @@ void main() {
         '--rate-limit-bucket-capacity=3',
         // Slow enough that the bucket cannot refill mid-test.
         '--rate-limit-refill-per-minute=1',
-      ], environment: {
+      ],
+      environment: {
         'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
-      });
-      addTearDown(() => process.kill(ProcessSignal.sigterm));
+      },
+    );
+    addTearDown(() => process.kill(ProcessSignal.sigterm));
 
-      final stdoutLines = process.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-      stdoutLines.listen((_) {});
-      await stdoutLines
-          .firstWhere((line) => line.contains('Listening on'))
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () =>
-                throw StateError('server did not report ready in time'),
-          );
+    final stdoutLines = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .asBroadcastStream();
+    stdoutLines.listen((_) {});
+    await stdoutLines
+        .firstWhere((line) => line.contains('Listening on'))
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () =>
+              throw StateError('server did not report ready in time'),
+        );
 
-      final client = HttpClient();
-      addTearDown(client.close);
+    final client = HttpClient();
+    addTearDown(client.close);
 
-      Future<HttpClientResponse> attempt() async {
-        final request = await client
-            .postUrl(Uri.parse('http://localhost:$port/v1/auth/token'));
-        request.headers.contentType =
-            ContentType('application', 'x-www-form-urlencoded');
-        request.write('grant_type=password&username=nobody&password=wrong');
-        return request.close();
-      }
+    Future<HttpClientResponse> attempt() async {
+      final request = await client.postUrl(
+        Uri.parse('http://localhost:$port/v1/auth/token'),
+      );
+      request.headers.contentType = ContentType(
+        'application',
+        'x-www-form-urlencoded',
+      );
+      request.write('grant_type=password&username=nobody&password=wrong');
+      return request.close();
+    }
 
-      // Three attempts fit in the bucket and are refused on their merits;
-      // the fourth is refused by the limiter.
-      for (var i = 0; i < 3; i++) {
-        final response = await attempt();
-        await response.drain<void>();
-        expect(response.statusCode, 400, reason: 'attempt $i');
-      }
+    // Three attempts fit in the bucket and are refused on their merits;
+    // the fourth is refused by the limiter.
+    for (var i = 0; i < 3; i++) {
+      final response = await attempt();
+      await response.drain<void>();
+      expect(response.statusCode, 400, reason: 'attempt $i');
+    }
 
-      final throttled = await attempt();
-      final body = await throttled.transform(utf8.decoder).join();
-      expect(throttled.statusCode, 429);
-      expect(throttled.headers.value('retry-after'), isNotNull);
-      expect(jsonDecode(body), containsPair('error', 'too_many_requests'));
+    final throttled = await attempt();
+    final body = await throttled.transform(utf8.decoder).join();
+    expect(throttled.statusCode, 429);
+    expect(throttled.headers.value('retry-after'), isNotNull);
+    expect(jsonDecode(body), containsPair('error', 'too_many_requests'));
 
-      process.kill(ProcessSignal.sigterm);
-      expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
-    },
-    timeout: const Timeout(Duration(seconds: 60)),
-  );
+    process.kill(ProcessSignal.sigterm);
+    expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+  }, timeout: const Timeout(Duration(seconds: 60)));
 
   test(
     'the running server logs its own diagnostics as structured JSON',
@@ -724,17 +791,21 @@ void main() {
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=${dir.path}/test.sqlite',
-        '--http-port=$port',
-        '--log-format=json',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=$port',
+          '--log-format=json',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+        },
+      );
       addTearDown(() => process.kill(ProcessSignal.sigterm));
 
       final lines = <String>[];
@@ -757,7 +828,8 @@ void main() {
       await (await request.close()).drain<void>();
 
       Map<String, Object?>? entryWhere(
-          bool Function(Map<String, Object?>) test) {
+        bool Function(Map<String, Object?>) test,
+      ) {
         for (final line in lines) {
           if (!line.startsWith('{')) continue;
           final decoded = jsonDecode(line);
@@ -799,22 +871,22 @@ void main() {
     timeout: const Timeout(Duration(seconds: 60)),
   );
 
-  test(
-    'the retention purge job runs in the running server',
-    () async {
-      // Third instance of the same hazard: the job is constructed in
-      // bin/server.dart, so unit tests of the scheduler say nothing about
-      // whether the process ever starts one. A pass that deletes nothing
-      // looks identical to a job that was never scheduled, which is why it
-      // reports itself at debug.
-      final dir = Directory.systemTemp.createTempSync('server_purge_test');
-      addTearDown(() => dir.deleteSync(recursive: true));
+  test('the retention purge job runs in the running server', () async {
+    // Third instance of the same hazard: the job is constructed in
+    // bin/server.dart, so unit tests of the scheduler say nothing about
+    // whether the process ever starts one. A pass that deletes nothing
+    // looks identical to a job that was never scheduled, which is why it
+    // reports itself at debug.
+    final dir = Directory.systemTemp.createTempSync('server_purge_test');
+    addTearDown(() => dir.deleteSync(recursive: true));
 
-      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-      final port = probe.port;
-      await probe.close();
+    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = probe.port;
+    await probe.close();
 
-      final process = await Process.start('dart', [
+    final process = await Process.start(
+      'dart',
+      [
         'run',
         'bin/server.dart',
         'serve',
@@ -823,42 +895,44 @@ void main() {
         '--log-format=json',
         '--log-level=debug',
         '--retention-purge-interval-seconds=1',
-      ], environment: {
+      ],
+      environment: {
         'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
-      });
-      addTearDown(() => process.kill(ProcessSignal.sigterm));
+      },
+    );
+    addTearDown(() => process.kill(ProcessSignal.sigterm));
 
-      final lines = <String>[];
-      final stdoutLines = process.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-      stdoutLines.listen(lines.add);
-      await stdoutLines
-          .firstWhere((line) => line.contains('Listening on'))
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () =>
-                throw StateError('server did not report ready in time'),
-          );
+    final lines = <String>[];
+    final stdoutLines = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .asBroadcastStream();
+    stdoutLines.listen(lines.add);
+    await stdoutLines
+        .firstWhere((line) => line.contains('Listening on'))
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () =>
+              throw StateError('server did not report ready in time'),
+        );
 
-      bool sawPurge() => lines.any((line) =>
-          line.startsWith('{') && line.contains('retention.purge_completed'));
+    bool sawPurge() => lines.any(
+      (line) =>
+          line.startsWith('{') && line.contains('retention.purge_completed'),
+    );
 
-      final deadline = DateTime.now().add(const Duration(seconds: 15));
-      while (!sawPurge()) {
-        if (DateTime.now().isAfter(deadline)) {
-          fail('the purge job never ran; stdout was:\n${lines.join('\n')}');
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+    final deadline = DateTime.now().add(const Duration(seconds: 15));
+    while (!sawPurge()) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('the purge job never ran; stdout was:\n${lines.join('\n')}');
       }
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
 
-      process.kill(ProcessSignal.sigterm);
-      expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
-    },
-    timeout: const Timeout(Duration(seconds: 60)),
-  );
+    process.kill(ProcessSignal.sigterm);
+    expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+  }, timeout: const Timeout(Duration(seconds: 60)));
 
   test(
     'over a real process: create-admin marks the first administrator primary, '
@@ -869,8 +943,9 @@ void main() {
       // that the account it writes is one the serving process will then
       // accept (`tasks.md` 10.9 — the same wiring hazard as the purge job
       // above).
-      final dir =
-          Directory.systemTemp.createTempSync('create_admin_integration');
+      final dir = Directory.systemTemp.createTempSync(
+        'create_admin_integration',
+      );
       addTearDown(() => dir.deleteSync(recursive: true));
       final dbPath = '${dir.path}/test.sqlite';
 
@@ -878,15 +953,17 @@ void main() {
       // secret parameter deliberately has no CLI flag at all
       // (`config_resolver.dart`), so it can never land in a process listing.
       Future<ProcessResult> runCreateAdmin(String username, String password) {
-        return Process.run('dart', [
-          'run',
-          'bin/server.dart',
-          'create-admin',
-          '--db-path=$dbPath',
-          '--bootstrap-admin-username=$username',
-        ], environment: {
-          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': password,
-        });
+        return Process.run(
+          'dart',
+          [
+            'run',
+            'bin/server.dart',
+            'create-admin',
+            '--db-path=$dbPath',
+            '--bootstrap-admin-username=$username',
+          ],
+          environment: {'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': password},
+        );
       }
 
       final first = await runCreateAdmin('root', 'chosen-pw');
@@ -925,18 +1002,22 @@ void main() {
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=$dbPath',
-        '--http-port=$port',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        // Off, so the account under test is the one create-admin wrote and
-        // not one auto-bootstrap produced on the way up.
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=$dbPath',
+          '--http-port=$port',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          // Off, so the account under test is the one create-admin wrote and
+          // not one auto-bootstrap produced on the way up.
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+        },
+      );
       addTearDown(() => process.kill(ProcessSignal.sigterm));
 
       final stdoutLines = process.stdout
@@ -955,20 +1036,31 @@ void main() {
       final client = HttpClient();
       addTearDown(client.close);
 
-      final tokenRequest =
-          await client.open('POST', 'localhost', port, '/v1/auth/token');
-      tokenRequest.headers.contentType =
-          ContentType('application', 'x-www-form-urlencoded');
-      tokenRequest
-          .write('grant_type=password&username=root&password=chosen-pw');
+      final tokenRequest = await client.open(
+        'POST',
+        'localhost',
+        port,
+        '/v1/auth/token',
+      );
+      tokenRequest.headers.contentType = ContentType(
+        'application',
+        'x-www-form-urlencoded',
+      );
+      tokenRequest.write(
+        'grant_type=password&username=root&password=chosen-pw',
+      );
       final tokenResponse = await tokenRequest.close();
       final tokenBody =
           jsonDecode(await tokenResponse.transform(utf8.decoder).join())
               as Map<String, Object?>;
       expect(tokenResponse.statusCode, 200, reason: '$tokenBody');
 
-      final groupsRequest =
-          await client.open('GET', 'localhost', port, '/v1/groups');
+      final groupsRequest = await client.open(
+        'GET',
+        'localhost',
+        port,
+        '/v1/groups',
+      );
       groupsRequest.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer ${tokenBody['access_token']}',
@@ -987,18 +1079,18 @@ void main() {
     timeout: const Timeout(Duration(seconds: 120)),
   );
 
-  test(
-    'over a real process: the audit log records what was done and who tried '
-    'to get in',
-    () async {
-      final dir = Directory.systemTemp.createTempSync('server_audit_test');
-      addTearDown(() => dir.deleteSync(recursive: true));
+  test('over a real process: the audit log records what was done and who tried '
+      'to get in', () async {
+    final dir = Directory.systemTemp.createTempSync('server_audit_test');
+    addTearDown(() => dir.deleteSync(recursive: true));
 
-      final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-      final port = probe.port;
-      await probe.close();
+    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = probe.port;
+    await probe.close();
 
-      final process = await Process.start('dart', [
+    final process = await Process.start(
+      'dart',
+      [
         'run',
         'bin/server.dart',
         'serve',
@@ -1008,243 +1100,241 @@ void main() {
         // that recovery cannot happen mid-test by accident.
         '--rate-limit-bucket-capacity=5',
         '--rate-limit-refill-per-minute=1',
-      ], environment: {
+      ],
+      environment: {
         'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
-      });
-      addTearDown(() => process.kill(ProcessSignal.sigterm));
+      },
+    );
+    addTearDown(() => process.kill(ProcessSignal.sigterm));
 
-      final stdoutLines = process.stdout
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())
-          .asBroadcastStream();
-      stdoutLines.listen((_) {});
-      await stdoutLines
-          .firstWhere((line) => line.contains('Listening on'))
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () =>
-                throw StateError('server did not report ready in time'),
-          );
-
-      final client = HttpClient();
-      addTearDown(client.close);
-
-      Future<({int status, Map<String, Object?> body})> call(
-        String method,
-        String path, {
-        Object? json,
-        String? bearer,
-        String? form,
-      }) async {
-        final request = await client.open(method, 'localhost', port, path);
-        if (bearer != null) {
-          request.headers
-              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
-        }
-        if (form != null) {
-          request.headers.contentType =
-              ContentType('application', 'x-www-form-urlencoded');
-          request.write(form);
-        } else if (json != null) {
-          request.headers.contentType = ContentType.json;
-          request.write(jsonEncode(json));
-        }
-        final response = await request.close();
-        final text = await response.transform(utf8.decoder).join();
-        return (
-          status: response.statusCode,
-          body: text.isEmpty
-              ? const <String, Object?>{}
-              : jsonDecode(text) as Map<String, Object?>,
+    final stdoutLines = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .asBroadcastStream();
+    stdoutLines.listen((_) {});
+    await stdoutLines
+        .firstWhere((line) => line.contains('Listening on'))
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () =>
+              throw StateError('server did not report ready in time'),
         );
+
+    final client = HttpClient();
+    addTearDown(client.close);
+
+    Future<({int status, Map<String, Object?> body})> call(
+      String method,
+      String path, {
+      Object? json,
+      String? bearer,
+      String? form,
+    }) async {
+      final request = await client.open(method, 'localhost', port, path);
+      if (bearer != null) {
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
       }
-
-      // One session first, before anything spends the address bucket: the
-      // audit log is not a throttled endpoint, so this token keeps working
-      // once the limiter has shut the door on logging in.
-      var tokens = await (() async {
-        final response = await call(
-          'POST',
-          '/v1/auth/token',
-          form: 'grant_type=password&username=root&password=bootstrap-pw',
+      if (form != null) {
+        request.headers.contentType = ContentType(
+          'application',
+          'x-www-form-urlencoded',
         );
-        expect(response.status, 200, reason: '${response.body}');
-        return response.body['access_token']! as String;
-      })();
-
-      await call(
-        'POST',
-        '/v1/auth/change-password',
-        bearer: tokens,
-        json: {
-          'current_password': 'bootstrap-pw',
-          'new_password': 'real-password-1'
-        },
+        request.write(form);
+      } else if (json != null) {
+        request.headers.contentType = ContentType.json;
+        request.write(jsonEncode(json));
+      }
+      final response = await request.close();
+      final text = await response.transform(utf8.decoder).join();
+      return (
+        status: response.statusCode,
+        body: text.isEmpty
+            ? const <String, Object?>{}
+            : jsonDecode(text) as Map<String, Object?>,
       );
-      final relogin = await call(
+    }
+
+    // One session first, before anything spends the address bucket: the
+    // audit log is not a throttled endpoint, so this token keeps working
+    // once the limiter has shut the door on logging in.
+    var tokens = await (() async {
+      final response = await call(
         'POST',
         '/v1/auth/token',
-        form: 'grant_type=password&username=root&password=real-password-1',
+        form: 'grant_type=password&username=root&password=bootstrap-pw',
       );
-      expect(relogin.status, 200, reason: '${relogin.body}');
-      tokens = relogin.body['access_token']! as String;
+      expect(response.status, 200, reason: '${response.body}');
+      return response.body['access_token']! as String;
+    })();
 
-      // --- what an administrator did -------------------------------------
-      final group = await call(
-        'POST',
-        '/v1/groups',
+    await call(
+      'POST',
+      '/v1/auth/change-password',
+      bearer: tokens,
+      json: {
+        'current_password': 'bootstrap-pw',
+        'new_password': 'real-password-1',
+      },
+    );
+    final relogin = await call(
+      'POST',
+      '/v1/auth/token',
+      form: 'grant_type=password&username=root&password=real-password-1',
+    );
+    expect(relogin.status, 200, reason: '${relogin.body}');
+    tokens = relogin.body['access_token']! as String;
+
+    // --- what an administrator did -------------------------------------
+    final group = await call(
+      'POST',
+      '/v1/groups',
+      bearer: tokens,
+      json: {'name': 'payments'},
+    );
+    expect(group.status, 201);
+    final groupId = group.body['id'];
+
+    final project = await call(
+      'POST',
+      '/v1/groups/$groupId/projects',
+      bearer: tokens,
+      json: {'name': 'checkout', 'retention_days': 30},
+    );
+    expect(project.status, 201);
+    final projectId = project.body['id'];
+
+    final key = await call(
+      'POST',
+      '/v1/projects/$projectId/secret-keys',
+      bearer: tokens,
+      json: {'label': 'ci'},
+    );
+    expect(key.status, 201);
+    final secret = key.body['secret']! as String;
+
+    expect(
+      (await call(
+        'DELETE',
+        '/v1/projects/$projectId/secret-keys/${key.body['id']}',
         bearer: tokens,
-        json: {'name': 'payments'},
-      );
-      expect(group.status, 201);
-      final groupId = group.body['id'];
+      )).status,
+      204,
+    );
 
-      final project = await call(
+    Future<List<Map<String, Object?>>> auditLog([String query = '']) async {
+      final response = await call('GET', '/v1/audit-log$query', bearer: tokens);
+      expect(response.status, 200, reason: '${response.body}');
+      return (response.body['items']! as List<Object?>)
+          .cast<Map<String, Object?>>();
+    }
+
+    final actions = (await auditLog()).map((e) => e['action']).toSet();
+    expect(
+      actions,
+      containsAll(<String>[
+        'password.changed',
+        'group.created',
+        'project.created',
+        'secret_key.created',
+        'secret_key.revoked',
+        'auth.login_succeeded',
+      ]),
+      reason: 'the five mutations plus the sessions that made them',
+    );
+
+    final creations = await auditLog('?action=secret_key.created');
+    expect(creations, hasLength(1));
+    expect(creations.single['target_id'], key.body['id']);
+
+    // The key was answered once, to one caller. The journal is read by more
+    // people and for far longer.
+    for (final record in await auditLog('?limit=200')) {
+      expect(jsonEncode(record), isNot(contains(secret)));
+    }
+
+    expect(
+      (await call('GET', '/v1/audit-log')).status,
+      401,
+      reason: 'no credential at all',
+    );
+    // A project key authenticates ingestion, not administration.
+    expect((await call('GET', '/v1/audit-log', bearer: secret)).status, 401);
+
+    // --- who tried to get in --------------------------------------------
+    var throttled = false;
+    for (var attempt = 0; attempt < 10 && !throttled; attempt++) {
+      final refused = await call(
         'POST',
-        '/v1/groups/$groupId/projects',
-        bearer: tokens,
-        json: {'name': 'checkout', 'retention_days': 30},
+        '/v1/auth/token',
+        form: 'grant_type=password&username=root&password=Pa55word-typo',
       );
-      expect(project.status, 201);
-      final projectId = project.body['id'];
+      throttled = refused.status == 429;
+      if (!throttled) expect(refused.status, 400);
+    }
+    expect(throttled, isTrue, reason: 'the limiter closed the door');
 
-      final key = await call(
-        'POST',
-        '/v1/projects/$projectId/secret-keys',
-        bearer: tokens,
-        json: {'label': 'ci'},
-      );
-      expect(key.status, 201);
-      final secret = key.body['secret']! as String;
+    final failures = await auditLog('?action=auth.login_failed');
+    expect(failures, isNotEmpty);
+    expect(
+      (failures.first['metadata']! as Map)['reason'],
+      'invalid_password',
+      reason: 'the account exists; only the password was wrong',
+    );
 
-      expect(
-        (await call(
-          'DELETE',
-          '/v1/projects/$projectId/secret-keys/${key.body['id']}',
-          bearer: tokens,
-        ))
-            .status,
-        204,
-      );
+    final episodes = await auditLog('?action=auth.throttled');
+    expect(
+      episodes,
+      hasLength(1),
+      reason: 'a burst is one episode, however many requests it took',
+    );
+    expect((episodes.single['metadata']! as Map)['key_kind'], 'ip');
 
-      Future<List<Map<String, Object?>>> auditLog([String query = '']) async {
-        final response =
-            await call('GET', '/v1/audit-log$query', bearer: tokens);
-        expect(response.status, 200, reason: '${response.body}');
-        return (response.body['items']! as List<Object?>)
-            .cast<Map<String, Object?>>();
-      }
+    // Neither the typed password nor anything resembling it survives.
+    for (final record in await auditLog('?limit=200')) {
+      expect(jsonEncode(record), isNot(contains('Pa55word-typo')));
+      expect(jsonEncode(record), isNot(contains('real-password-1')));
+    }
 
-      final actions = (await auditLog()).map((e) => e['action']).toSet();
-      expect(
-        actions,
-        containsAll(<String>[
-          'password.changed',
-          'group.created',
-          'project.created',
-          'secret_key.created',
-          'secret_key.revoked',
-          'auth.login_succeeded',
-        ]),
-        reason: 'the five mutations plus the sessions that made them',
-      );
-
-      final creations = await auditLog('?action=secret_key.created');
-      expect(creations, hasLength(1));
-      expect(creations.single['target_id'], key.body['id']);
-
-      // The key was answered once, to one caller. The journal is read by more
-      // people and for far longer.
-      for (final record in await auditLog('?limit=200')) {
-        expect(jsonEncode(record), isNot(contains(secret)));
-      }
-
-      expect(
-        (await call('GET', '/v1/audit-log')).status,
-        401,
-        reason: 'no credential at all',
-      );
-      // A project key authenticates ingestion, not administration.
-      expect(
-        (await call('GET', '/v1/audit-log', bearer: secret)).status,
-        401,
-      );
-
-      // --- who tried to get in --------------------------------------------
-      var throttled = false;
-      for (var attempt = 0; attempt < 10 && !throttled; attempt++) {
-        final refused = await call(
-          'POST',
-          '/v1/auth/token',
-          form: 'grant_type=password&username=root&password=Pa55word-typo',
-        );
-        throttled = refused.status == 429;
-        if (!throttled) expect(refused.status, 400);
-      }
-      expect(throttled, isTrue, reason: 'the limiter closed the door');
-
-      final failures = await auditLog('?action=auth.login_failed');
-      expect(failures, isNotEmpty);
-      expect(
-        (failures.first['metadata']! as Map)['reason'],
-        'invalid_password',
-        reason: 'the account exists; only the password was wrong',
-      );
-
-      final episodes = await auditLog('?action=auth.throttled');
-      expect(
-        episodes,
-        hasLength(1),
-        reason: 'a burst is one episode, however many requests it took',
-      );
-      expect((episodes.single['metadata']! as Map)['key_kind'], 'ip');
-
-      // Neither the typed password nor anything resembling it survives.
-      for (final record in await auditLog('?limit=200')) {
-        expect(jsonEncode(record), isNot(contains('Pa55word-typo')));
-        expect(jsonEncode(record), isNot(contains('real-password-1')));
-      }
-
-      process.kill(ProcessSignal.sigterm);
-      expect(
-        await process.exitCode.timeout(const Duration(seconds: 15)),
-        0,
-      );
-    },
-    timeout: const Timeout(Duration(seconds: 120)),
-  );
+    process.kill(ProcessSignal.sigterm);
+    expect(await process.exitCode.timeout(const Duration(seconds: 15)), 0);
+  }, timeout: const Timeout(Duration(seconds: 120)));
 
   test(
     'over a real process: blocking, self-deletion, admin deletion, and '
     'primary-administrator protection (Этап 3, tasks 10.4/10.5/10.7/10.9a)',
     () async {
-      final dir =
-          Directory.systemTemp.createTempSync('server_user_lifecycle_test');
+      final dir = Directory.systemTemp.createTempSync(
+        'server_user_lifecycle_test',
+      );
       addTearDown(() => dir.deleteSync(recursive: true));
 
       final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       final port = probe.port;
       await probe.close();
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=${dir.path}/test.sqlite',
-        '--http-port=$port',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
-        // This scenario logs in a couple dozen times from one address to
-        // exercise several accounts in turn — `log-server-rate-limit`'s IP
-        // bucket is covered by its own test above, not this one.
-        'STRUCTURED_LOG_RATE_LIMIT_ENABLED': 'false',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=$port',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+          // This scenario logs in a couple dozen times from one address to
+          // exercise several accounts in turn — `log-server-rate-limit`'s IP
+          // bucket is covered by its own test above, not this one.
+          'STRUCTURED_LOG_RATE_LIMIT_ENABLED': 'false',
+        },
+      );
       addTearDown(() => process.kill(ProcessSignal.sigterm));
 
       final stdoutLines = process.stdout
@@ -1272,12 +1362,16 @@ void main() {
       }) async {
         final request = await client.open(method, 'localhost', port, path);
         if (bearer != null) {
-          request.headers
-              .set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+          request.headers.set(
+            HttpHeaders.authorizationHeader,
+            'Bearer $bearer',
+          );
         }
         if (form != null) {
-          request.headers.contentType =
-              ContentType('application', 'x-www-form-urlencoded');
+          request.headers.contentType = ContentType(
+            'application',
+            'x-www-form-urlencoded',
+          );
           request.write(form);
         } else if (json != null) {
           request.headers.contentType = ContentType.json;
@@ -1355,7 +1449,7 @@ void main() {
         bearer: rootTokens.access,
         json: {
           'current_password': 'bootstrap-pw',
-          'new_password': 'root-password-1'
+          'new_password': 'root-password-1',
         },
       );
       rootTokens = await login('root', 'root-password-1');
@@ -1433,20 +1527,27 @@ void main() {
       final secret = key.body['secret'] as String;
 
       expect(
-          (await call('POST', '/v1/projects/$blockedProjectId/block',
-                  bearer: admin))
-              .status,
-          200);
+        (await call(
+          'POST',
+          '/v1/projects/$blockedProjectId/block',
+          bearer: admin,
+        )).status,
+        200,
+      );
 
       expect(
-        (await call('POST', '/v1/logs', bearer: secret, json: [
-          {
-            'timestamp': DateTime.now().toIso8601String(),
-            'level': 'info',
-            'event': 'x'
-          }
-        ]))
-            .status,
+        (await call(
+          'POST',
+          '/v1/logs',
+          bearer: secret,
+          json: [
+            {
+              'timestamp': DateTime.now().toIso8601String(),
+              'level': 'info',
+              'event': 'x',
+            },
+          ],
+        )).status,
         403,
       );
       final byProjectId = await call(
@@ -1469,10 +1570,13 @@ void main() {
       );
 
       expect(
-          (await call('POST', '/v1/projects/$blockedProjectId/unblock',
-                  bearer: admin))
-              .status,
-          200);
+        (await call(
+          'POST',
+          '/v1/projects/$blockedProjectId/unblock',
+          bearer: admin,
+        )).status,
+        200,
+      );
       expect(
         (await call(
           'POST',
@@ -1485,8 +1589,7 @@ void main() {
               'event': 'x',
             },
           ],
-        ))
-            .status,
+        )).status,
         202,
         reason: 'unblocking restores ingestion, no new key needed',
       );
@@ -1495,9 +1598,11 @@ void main() {
       // The role grant below bumps token_version, so the tokens this
       // returns are discarded immediately — only activation (the forced
       // password change) is what this call is for.
-      final ownerId =
-          (await createAndActivateUser(admin, 'owner-of-payments', 'owner-pw'))
-              .id;
+      final ownerId = (await createAndActivateUser(
+        admin,
+        'owner-of-payments',
+        'owner-pw',
+      )).id;
       final grantOwner = await call(
         'POST',
         '/v1/role-assignments',
@@ -1520,8 +1625,7 @@ void main() {
           'POST',
           '/v1/users/$victimId/block',
           bearer: ownerAccess,
-        ))
-            .status,
+        )).status,
         403,
         reason: 'blocking is admin-only, not even for an owner',
       );
@@ -1530,8 +1634,7 @@ void main() {
           'POST',
           '/v1/projects/$untouchedProjectId/block',
           bearer: ownerAccess,
-        ))
-            .status,
+        )).status,
         403,
       );
 
@@ -1599,9 +1702,11 @@ void main() {
       );
       final soleGroupId = soleGroup.body['id'];
 
-      final soleOwnerId =
-          (await createAndActivateUser(admin, 'sole-owner', 'sole-owner-pw'))
-              .id;
+      final soleOwnerId = (await createAndActivateUser(
+        admin,
+        'sole-owner',
+        'sole-owner-pw',
+      )).id;
       await call(
         'POST',
         '/v1/role-assignments',
@@ -1625,8 +1730,9 @@ void main() {
       final blockingGroups =
           blockedDeletion.body['details']! as Map<String, Object?>;
       expect(
-        (blockingGroups['blocking_groups']! as List)
-            .map((g) => (g as Map)['id']),
+        (blockingGroups['blocking_groups']! as List).map(
+          (g) => (g as Map)['id'],
+        ),
         contains(soleGroupId),
       );
       expect(
@@ -1668,17 +1774,20 @@ void main() {
         bearer: admin,
       );
       final deletions = auditAfterDeletion.body['items']! as List;
-      final soleOwnerDeletion = deletions.singleWhere(
-        (e) => (e as Map)['target_id'] == soleOwnerId,
-      ) as Map<String, Object?>;
+      final soleOwnerDeletion =
+          deletions.singleWhere((e) => (e as Map)['target_id'] == soleOwnerId)
+              as Map<String, Object?>;
       expect(soleOwnerDeletion['actor_user_id'], isNotNull);
 
       // ==================================================================
       // 10.9a — the primary administrator cannot be deleted, by anyone
       // ==================================================================
 
-      final secondAdminId =
-          (await createAndActivateUser(admin, 'second-admin', 'admin2-pw')).id;
+      final secondAdminId = (await createAndActivateUser(
+        admin,
+        'second-admin',
+        'admin2-pw',
+      )).id;
       await call(
         'POST',
         '/v1/role-assignments',
@@ -1690,15 +1799,22 @@ void main() {
           'scope_type': 'global',
         },
       );
-      final secondAdminAccess =
-          (await login('second-admin', 'admin2-pw')).access;
+      final secondAdminAccess = (await login(
+        'second-admin',
+        'admin2-pw',
+      )).access;
 
       // Root is `is_primary_admin` — the account auto-bootstrap created.
-      final allUsers = (await call('GET', '/v1/users?limit=200', bearer: admin))
-          .body['items']! as List;
-      final rootId = (allUsers.firstWhere(
-        (u) => (u as Map)['username'] == 'root',
-      ) as Map)['id'];
+      final allUsers =
+          (await call(
+                'GET',
+                '/v1/users?limit=200',
+                bearer: admin,
+              )).body['items']!
+              as List;
+      final rootId =
+          (allUsers.firstWhere((u) => (u as Map)['username'] == 'root')
+              as Map)['id'];
 
       final byOtherAdmin = await call(
         'DELETE',
@@ -1742,10 +1858,7 @@ void main() {
       );
 
       process.kill(ProcessSignal.sigterm);
-      expect(
-        await process.exitCode.timeout(const Duration(seconds: 15)),
-        0,
-      );
+      expect(await process.exitCode.timeout(const Duration(seconds: 15)), 0);
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );
@@ -1756,24 +1869,29 @@ void main() {
       final dir = Directory.systemTemp.createTempSync('server_weak_password');
       addTearDown(() => dir.deleteSync(recursive: true));
 
-      final process = await Process.start('dart', [
-        'run',
-        'bin/server.dart',
-        'serve',
-        '--db-path=${dir.path}/test.sqlite',
-        '--http-port=0',
-      ], environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
-        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'hunter2',
-      });
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=0',
+        ],
+        environment: {
+          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'hunter2',
+        },
+      );
       final output = StringBuffer();
       final drained = Future.wait([
         process.stdout.transform(utf8.decoder).forEach(output.write),
         process.stderr.transform(utf8.decoder).forEach(output.write),
       ]);
 
-      final exitCode =
-          await process.exitCode.timeout(const Duration(seconds: 60));
+      final exitCode = await process.exitCode.timeout(
+        const Duration(seconds: 60),
+      );
       await drained;
 
       expect(exitCode, isNot(0));

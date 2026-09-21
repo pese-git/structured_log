@@ -6,9 +6,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -22,9 +20,12 @@ void main() {
     db = openInMemory();
     store = DriftLogStore(db);
     broadcast = LogBroadcast();
-    final groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    projectId = await db.into(db.projects).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p',

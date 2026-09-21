@@ -88,14 +88,7 @@ const serverConfigParams = <ParamSpec>[
     type: ParamType.string,
     description: "The server's own minimum diagnostic log level.",
     defaultValue: 'info',
-    allowedValues: {
-      'trace',
-      'debug',
-      'info',
-      'warning',
-      'error',
-      'critical',
-    },
+    allowedValues: {'trace', 'debug', 'info', 'warning', 'error', 'critical'},
   ),
   ParamSpec(
     name: 'audit-retention-days',
@@ -123,7 +116,8 @@ const serverConfigParams = <ParamSpec>[
   ParamSpec(
     name: 'db-read-pool-size',
     type: ParamType.int,
-    description: 'Extra database connections, each on its own isolate, that '
+    description:
+        'Extra database connections, each on its own isolate, that '
         'serve reads beside the single writer; 0 sends every read through the '
         'writer.',
     defaultValue: 2,
@@ -184,7 +178,8 @@ const serverConfigParams = <ParamSpec>[
   ParamSpec(
     name: 'trusted-proxy-hops',
     type: ParamType.int,
-    description: 'Number of trusted reverse-proxy hops — controls whether '
+    description:
+        'Number of trusted reverse-proxy hops — controls whether '
         'X-Forwarded-For is honored for client IP resolution.',
     defaultValue: 0,
   ),
@@ -197,7 +192,8 @@ const serverConfigParams = <ParamSpec>[
   ParamSpec(
     name: 'cors-allowed-origins',
     type: ParamType.string,
-    description: 'Comma-separated list of origins allowed to make cross-origin '
+    description:
+        'Comma-separated list of origins allowed to make cross-origin '
         'requests. Empty (the default) means no CORS headers at all — the '
         'client is expected to be served from the same origin as the API.',
     defaultValue: '',

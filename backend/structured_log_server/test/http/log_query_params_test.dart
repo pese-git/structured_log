@@ -9,15 +9,16 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
 Matcher throwsApiError(int statusCode, [String? code]) {
-  var matcher =
-      isA<ApiError>().having((e) => e.statusCode, 'status', statusCode);
+  var matcher = isA<ApiError>().having(
+    (e) => e.statusCode,
+    'status',
+    statusCode,
+  );
   if (code != null) matcher = matcher.having((e) => e.code, 'code', code);
   return throwsA(matcher);
 }
@@ -108,7 +109,7 @@ void main() {
         'info',
         'warning',
         'error',
-        'critical'
+        'critical',
       ]) {
         expect(parseLogFilter({'level': level}).minLevel, level);
       }
@@ -119,8 +120,9 @@ void main() {
       // something the caller excluded: it is an equality filter, and a
       // dropped one can only return more of what was asked for.
       expect(
-        parseLogFilter(const {'connection_generation': 'x'})
-            .connectionGeneration,
+        parseLogFilter(const {
+          'connection_generation': 'x',
+        }).connectionGeneration,
         isNull,
       );
     });
@@ -139,16 +141,21 @@ void main() {
     setUp(() async {
       db = openInMemory();
       authorizer = Authorizer(db);
-      groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      projectId = await db.into(db.projects).insert(
+      groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      projectId = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
               groupId: groupId,
               name: 'open',
               retentionDays: 30,
             ),
           );
-      blockedId = await db.into(db.projects).insert(
+      blockedId = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
               groupId: groupId,
               name: 'blocked',
@@ -174,12 +181,9 @@ void main() {
     });
 
     test('a project scope resolves to just that project', () async {
-      final scope = await resolveLogScope(
-        db,
-        authorizer,
-        identity(),
-        {'project_id': '$projectId'},
-      );
+      final scope = await resolveLogScope(db, authorizer, identity(), {
+        'project_id': '$projectId',
+      });
 
       expect(scope.projectIds, [projectId]);
       expect(scope.projectId, projectId);
@@ -187,12 +191,9 @@ void main() {
     });
 
     test('a group scope resolves to its unblocked projects', () async {
-      final scope = await resolveLogScope(
-        db,
-        authorizer,
-        identity(),
-        {'group_id': '$groupId'},
-      );
+      final scope = await resolveLogScope(db, authorizer, identity(), {
+        'group_id': '$groupId',
+      });
 
       expect(scope.projectIds, [projectId]);
       expect(scope.projectIds, isNot(contains(blockedId)));
@@ -200,21 +201,20 @@ void main() {
       expect(scope.projectId, isNull);
     });
 
-    test('a blocked project requested directly is 403 project_blocked',
-        () async {
-      // Directly and silently differ on purpose: asking for a blocked
-      // project is a mistake worth reporting, while a blocked project
-      // inside a group is simply not part of the answer.
-      expect(
-        () => resolveLogScope(
-          db,
-          authorizer,
-          identity(),
-          {'project_id': '$blockedId'},
-        ),
-        throwsApiError(403, 'project_blocked'),
-      );
-    });
+    test(
+      'a blocked project requested directly is 403 project_blocked',
+      () async {
+        // Directly and silently differ on purpose: asking for a blocked
+        // project is a mistake worth reporting, while a blocked project
+        // inside a group is simply not part of the answer.
+        expect(
+          () => resolveLogScope(db, authorizer, identity(), {
+            'project_id': '$blockedId',
+          }),
+          throwsApiError(403, 'project_blocked'),
+        );
+      },
+    );
 
     test('an unknown or unparsable id is 404', () async {
       for (final params in [
@@ -233,21 +233,15 @@ void main() {
 
     test('a caller without a covering role is 403', () async {
       expect(
-        () => resolveLogScope(
-          db,
-          authorizer,
-          identity(const []),
-          {'project_id': '$projectId'},
-        ),
+        () => resolveLogScope(db, authorizer, identity(const []), {
+          'project_id': '$projectId',
+        }),
         throwsApiError(403, 'forbidden'),
       );
       expect(
-        () => resolveLogScope(
-          db,
-          authorizer,
-          identity(const []),
-          {'group_id': '$groupId'},
-        ),
+        () => resolveLogScope(db, authorizer, identity(const []), {
+          'group_id': '$groupId',
+        }),
         throwsApiError(403, 'forbidden'),
       );
     });
@@ -262,30 +256,27 @@ void main() {
       ];
 
       expect(
-        () => resolveLogScope(
-          db,
-          authorizer,
-          identity(elsewhere),
-          {'group_id': '$groupId'},
-        ),
+        () => resolveLogScope(db, authorizer, identity(elsewhere), {
+          'group_id': '$groupId',
+        }),
         throwsApiError(403, 'forbidden'),
       );
     });
 
-    test('a group with no readable projects resolves to an empty scope',
-        () async {
-      final emptyGroup =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'e'));
+    test(
+      'a group with no readable projects resolves to an empty scope',
+      () async {
+        final emptyGroup = await db
+            .into(db.groups)
+            .insert(GroupsCompanion.insert(name: 'e'));
 
-      final scope = await resolveLogScope(
-        db,
-        authorizer,
-        identity(),
-        {'group_id': '$emptyGroup'},
-      );
+        final scope = await resolveLogScope(db, authorizer, identity(), {
+          'group_id': '$emptyGroup',
+        });
 
-      expect(scope.projectIds, isEmpty);
-      expect(scope.groupId, emptyGroup);
-    });
+        expect(scope.projectIds, isEmpty);
+        expect(scope.groupId, emptyGroup);
+      },
+    );
   });
 }

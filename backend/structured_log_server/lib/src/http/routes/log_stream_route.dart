@@ -38,10 +38,10 @@ const _catchUpPageSize = 500;
 final _encodedEvents = Expando<List<int>>('encoded log events');
 
 List<int> _eventBytes(LogEntry entry) => _encodedEvents[entry] ??= sseEvent(
-      id: entry.id,
-      event: 'log',
-      data: jsonEncode(logEntryJson(entry)),
-    );
+  id: entry.id,
+  event: 'log',
+  data: jsonEncode(logEntryJson(entry)),
+);
 
 /// `GET /v1/logs/stream` — Server-Sent Events (`log-server-live-stream`).
 class LogStreamRoutes {
@@ -219,9 +219,7 @@ class LogStreamRoutes {
       });
     }
 
-    body = StreamController<List<int>>(
-      onCancel: stop,
-    );
+    body = StreamController<List<int>>(onCancel: stop);
 
     upstream = _broadcast.stream.listen(
       (entry) {
@@ -367,8 +365,7 @@ class LogStreamRoutes {
 
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.id.equals(identity.userId)))
-        .getSingleOrNull();
+    )..where((t) => t.id.equals(identity.userId))).getSingleOrNull();
     if (user == null || !user.isActive || user.deletedAt != null) {
       return 'token_revoked';
     }

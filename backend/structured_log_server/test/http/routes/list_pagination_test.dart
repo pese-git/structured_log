@@ -51,14 +51,15 @@ void main() {
   Future<int> addGroup(String name) =>
       db.into(db.groups).insert(GroupsCompanion.insert(name: name));
 
-  Future<int> addProject(int groupId, String name) =>
-      db.into(db.projects).insert(
-            ProjectsCompanion.insert(
-              groupId: groupId,
-              name: name,
-              retentionDays: 30,
-            ),
-          );
+  Future<int> addProject(int groupId, String name) => db
+      .into(db.projects)
+      .insert(
+        ProjectsCompanion.insert(
+          groupId: groupId,
+          name: name,
+          retentionDays: 30,
+        ),
+      );
 
   Future<Map<String, Object?>> get(
     Handle routerOf,
@@ -73,9 +74,9 @@ void main() {
   }
 
   List<int> ids(Map<String, Object?> body) => [
-        for (final item in body['items']! as List)
-          ((item as Map)['id'] as num).toInt(),
-      ];
+    for (final item in body['items']! as List)
+      ((item as Map)['id'] as num).toInt(),
+  ];
 
   /// Walks a list to its end `limit` at a time, returning every id in the
   /// order served.
@@ -110,23 +111,23 @@ void main() {
       );
     });
 
-    test('a caller with one group among many gets it on the first page',
-        () async {
-      // The reason the visibility filter lives in the query: filtered after
-      // the page was cut, this caller would be shown an empty page and a
-      // cursor over 50 rows that are not theirs.
-      final mine = await addGroup('mine');
-      for (var i = 0; i < 120; i++) {
-        await addGroup('other$i');
-      }
-      final body = await get(
-        groups.router.call,
-        '/v1/groups?limit=50',
-        [_role(Role.user, ScopeType.group, mine)],
-      );
-      expect(ids(body), [mine]);
-      expect(body['next_cursor'], isNull);
-    });
+    test(
+      'a caller with one group among many gets it on the first page',
+      () async {
+        // The reason the visibility filter lives in the query: filtered after
+        // the page was cut, this caller would be shown an empty page and a
+        // cursor over 50 rows that are not theirs.
+        final mine = await addGroup('mine');
+        for (var i = 0; i < 120; i++) {
+          await addGroup('other$i');
+        }
+        final body = await get(groups.router.call, '/v1/groups?limit=50', [
+          _role(Role.user, ScopeType.group, mine),
+        ]);
+        expect(ids(body), [mine]);
+        expect(body['next_cursor'], isNull);
+      },
+    );
 
     test('a caller with no role at all sees nothing', () async {
       await addGroup('g');
@@ -136,9 +137,7 @@ void main() {
     });
 
     test('a name filter combines with the cursor', () async {
-      final prod = [
-        for (var i = 0; i < 3; i++) await addGroup('prod-$i'),
-      ];
+      final prod = [for (var i = 0; i < 3; i++) await addGroup('prod-$i')];
       await addGroup('staging');
       final first = await get(
         groups.router.call,
@@ -148,33 +147,40 @@ void main() {
       expect(ids(first), [prod.last]);
       expect(first['next_cursor'], isNotNull);
       expect(
-        await walk(groups.router.call, '/v1/groups?name=prod', _admin,
-            limit: 1),
+        await walk(
+          groups.router.call,
+          '/v1/groups?name=prod',
+          _admin,
+          limit: 1,
+        ),
         prod.reversed.toList(),
       );
     });
 
-    test('a group created between two pages does not disturb the cursor',
-        () async {
-      final created = [for (var i = 0; i < 4; i++) await addGroup('g$i')];
-      final first = await get(
-        groups.router.call,
-        '/v1/groups?limit=2',
-        _admin,
-      );
-      await addGroup('late');
-      final second = await get(
-        groups.router.call,
-        '/v1/groups?limit=2&cursor=${first['next_cursor']}',
-        _admin,
-      );
-      expect(
-        [...ids(first), ...ids(second)],
-        created.reversed.toList(),
-        reason: 'the new group has a larger id, so a walk downwards from the '
-            'cursor never reaches it, and never skips an old one',
-      );
-    });
+    test(
+      'a group created between two pages does not disturb the cursor',
+      () async {
+        final created = [for (var i = 0; i < 4; i++) await addGroup('g$i')];
+        final first = await get(
+          groups.router.call,
+          '/v1/groups?limit=2',
+          _admin,
+        );
+        await addGroup('late');
+        final second = await get(
+          groups.router.call,
+          '/v1/groups?limit=2&cursor=${first['next_cursor']}',
+          _admin,
+        );
+        expect(
+          [...ids(first), ...ids(second)],
+          created.reversed.toList(),
+          reason:
+              'the new group has a larger id, so a walk downwards from the '
+              'cursor never reaches it, and never skips an old one',
+        );
+      },
+    );
   });
 
   group('projects', () {
@@ -190,30 +196,33 @@ void main() {
         _role(Role.user, ScopeType.group, g1),
         _role(Role.owner, ScopeType.project, p3),
       ];
-      expect(
-        await walk(projects.router.call, '/v1/projects', roles),
-        [p3, p2, p1],
-      );
+      expect(await walk(projects.router.call, '/v1/projects', roles), [
+        p3,
+        p2,
+        p1,
+      ]);
     });
 
-    test('group_id and name narrow the page, and the cursor continues it',
-        () async {
-      final g1 = await addGroup('g1');
-      final g2 = await addGroup('g2');
-      final a = [for (var i = 0; i < 3; i++) await addProject(g1, 'api-$i')];
-      await addProject(g1, 'web');
-      await addProject(g2, 'api-x');
+    test(
+      'group_id and name narrow the page, and the cursor continues it',
+      () async {
+        final g1 = await addGroup('g1');
+        final g2 = await addGroup('g2');
+        final a = [for (var i = 0; i < 3; i++) await addProject(g1, 'api-$i')];
+        await addProject(g1, 'web');
+        await addProject(g2, 'api-x');
 
-      expect(
-        await walk(
-          projects.router.call,
-          '/v1/projects?group_id=$g1&name=api',
-          _admin,
-          limit: 2,
-        ),
-        a.reversed.toList(),
-      );
-    });
+        expect(
+          await walk(
+            projects.router.call,
+            '/v1/projects?group_id=$g1&name=api',
+            _admin,
+            limit: 2,
+          ),
+          a.reversed.toList(),
+        );
+      },
+    );
 
     test('a non-integer group_id is still a 400', () async {
       await expectLater(
@@ -224,9 +233,7 @@ void main() {
             roles: _admin,
           ),
         ),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
       );
     });
   });
@@ -236,22 +243,24 @@ void main() {
   group('what a list shows equals what canRead allows', () {
     final roleSets =
         <String, List<EffectiveRole> Function(List<int>, List<int>)>{
-      'admin': (g, p) => _admin,
-      'a global user': (g, p) => [_role(Role.user, ScopeType.global)],
-      'owner of one group': (g, p) =>
-          [_role(Role.owner, ScopeType.group, g[0])],
-      'user of two groups': (g, p) => [
+          'admin': (g, p) => _admin,
+          'a global user': (g, p) => [_role(Role.user, ScopeType.global)],
+          'owner of one group': (g, p) => [
+            _role(Role.owner, ScopeType.group, g[0]),
+          ],
+          'user of two groups': (g, p) => [
             _role(Role.user, ScopeType.group, g[0]),
             _role(Role.user, ScopeType.group, g[2]),
           ],
-      'owner of one project': (g, p) =>
-          [_role(Role.owner, ScopeType.project, p[3])],
-      'a project in a group they hold no grant on': (g, p) => [
+          'owner of one project': (g, p) => [
+            _role(Role.owner, ScopeType.project, p[3]),
+          ],
+          'a project in a group they hold no grant on': (g, p) => [
             _role(Role.user, ScopeType.group, g[0]),
             _role(Role.user, ScopeType.project, p[5]),
           ],
-      'no roles': (g, p) => const [],
-    };
+          'no roles': (g, p) => const [],
+        };
 
     for (final entry in roleSets.entries) {
       test(entry.key, () async {
@@ -267,29 +276,26 @@ void main() {
         final roles = entry.value(gids, pids);
 
         final shownGroups = await walk(groups.router.call, '/v1/groups', roles);
-        final shownProjects =
-            await walk(projects.router.call, '/v1/projects', roles);
+        final shownProjects = await walk(
+          projects.router.call,
+          '/v1/projects',
+          roles,
+        );
 
-        expect(
-          shownGroups.toSet(),
-          {
-            for (final g in gids)
-              if (canRead(roles, targetType: ScopeType.group, targetId: g)) g
-          },
-        );
-        expect(
-          shownProjects.toSet(),
-          {
-            for (final p in pids)
-              if (canRead(
-                roles,
-                targetType: ScopeType.project,
-                targetId: p,
-                enclosingGroupId: owner[p],
-              ))
-                p
-          },
-        );
+        expect(shownGroups.toSet(), {
+          for (final g in gids)
+            if (canRead(roles, targetType: ScopeType.group, targetId: g)) g,
+        });
+        expect(shownProjects.toSet(), {
+          for (final p in pids)
+            if (canRead(
+              roles,
+              targetType: ScopeType.project,
+              targetId: p,
+              enclosingGroupId: owner[p],
+            ))
+              p,
+        });
       });
     }
   });
@@ -314,16 +320,16 @@ void main() {
     setUp(() async {
       final g = await addGroup('g');
       final p = await addProject(g, 'p');
-      await db.into(db.projectUsage).insert(
-            ProjectUsageCompanion.insert(projectId: Value(p)),
-          );
+      await db
+          .into(db.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(p)));
       final store = DriftLogStore(db);
       for (var i = 0; i < 5; i++) {
         await addGroup('extra$i');
         await addProject(g, 'extra$i');
-        await db.into(db.users).insert(
-              UsersCompanion.insert(username: 'u$i', passwordHash: 'x'),
-            );
+        await db
+            .into(db.users)
+            .insert(UsersCompanion.insert(username: 'u$i', passwordHash: 'x'));
         await AuditWriter(db).write(
           action: AuditAction.groupCreated,
           targetType: AuditTargetType.group,
@@ -347,57 +353,63 @@ void main() {
       final logs = LogRoutes(db, authorizer, store, LogBroadcast());
       final users = UserRoutes(db, authorizer, AuditWriter(db));
       final audit = AuditLogRoutes(db, authorizer);
-      Future<Response> call(Handle r, String path) => r(
-            authenticatedRequest('GET', 'http://x$path', roles: _admin),
-          );
+      Future<Response> call(Handle r, String path) =>
+          r(authenticatedRequest('GET', 'http://x$path', roles: _admin));
       lists = {
         '/v1/groups': (q) => call(groups.router.call, '/v1/groups$q'),
         '/v1/projects': (q) => call(projects.router.call, '/v1/projects$q'),
         '/v1/users': (q) => call(users.router.call, '/v1/users$q'),
         '/v1/audit-log': (q) => call(audit.router.call, '/v1/audit-log$q'),
         '/v1/logs': (q) => call(
-              logs.router.call,
-              '/v1/logs?project_id=$p${q.isEmpty ? '' : '&${q.substring(1)}'}',
-            ),
+          logs.router.call,
+          '/v1/logs?project_id=$p${q.isEmpty ? '' : '&${q.substring(1)}'}',
+        ),
       };
     });
 
-    test('pages are disjoint, descending, and the last has no cursor',
-        () async {
-      for (final entry in lists.entries) {
-        final seen = <int>[];
-        String? cursor;
-        var pages = 0;
-        do {
-          final response = await entry.value(
-            '?limit=2${cursor == null ? '' : '&cursor=$cursor'}',
-          );
-          expect(response.statusCode, 200, reason: entry.key);
-          final body = await decodeJson(response);
-          seen.addAll(ids(body));
-          cursor = body['next_cursor'] as String?;
-          pages++;
-        } while (cursor != null && pages < 50);
+    test(
+      'pages are disjoint, descending, and the last has no cursor',
+      () async {
+        for (final entry in lists.entries) {
+          final seen = <int>[];
+          String? cursor;
+          var pages = 0;
+          do {
+            final response = await entry.value(
+              '?limit=2${cursor == null ? '' : '&cursor=$cursor'}',
+            );
+            expect(response.statusCode, 200, reason: entry.key);
+            final body = await decodeJson(response);
+            seen.addAll(ids(body));
+            cursor = body['next_cursor'] as String?;
+            pages++;
+          } while (cursor != null && pages < 50);
 
-        expect(cursor, isNull, reason: '${entry.key}: the cursor must end');
-        expect(seen.toSet(), hasLength(seen.length),
-            reason: '${entry.key}: no id twice');
-        expect(
-          seen,
-          orderedEquals([...seen]..sort((a, b) => b.compareTo(a))),
-          reason: '${entry.key}: newest first',
-        );
-        expect(seen.length, greaterThan(2), reason: entry.key);
-      }
-    });
+          expect(cursor, isNull, reason: '${entry.key}: the cursor must end');
+          expect(
+            seen.toSet(),
+            hasLength(seen.length),
+            reason: '${entry.key}: no id twice',
+          );
+          expect(
+            seen,
+            orderedEquals([...seen]..sort((a, b) => b.compareTo(a))),
+            reason: '${entry.key}: newest first',
+          );
+          expect(seen.length, greaterThan(2), reason: entry.key);
+        }
+      },
+    );
 
     test('a limit above the ceiling is brought to it', () async {
       for (final entry in lists.entries) {
         final response = await entry.value('?limit=100000');
         expect(response.statusCode, 200, reason: entry.key);
-        expect(ids(await decodeJson(response)).length,
-            lessThanOrEqualTo(maxPageSize),
-            reason: entry.key);
+        expect(
+          ids(await decodeJson(response)).length,
+          lessThanOrEqualTo(maxPageSize),
+          reason: entry.key,
+        );
       }
     });
 
@@ -407,7 +419,7 @@ void main() {
           '?limit=0',
           '?limit=-5',
           '?limit=abc',
-          '?cursor=x'
+          '?cursor=x',
         ]) {
           await expectLater(
             entry.value(bad),

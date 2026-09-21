@@ -125,7 +125,7 @@ class _Worker {
 
   final void Function() onReady;
   final void Function(_Worker, Object reason, {required bool spawnFailed})
-      onDied;
+  onDied;
 
   final ReceivePort _fromWorker = ReceivePort();
   final ReceivePort _exit = ReceivePort();
@@ -179,8 +179,11 @@ class _Worker {
   /// Stops the isolate; its in-flight job, if any, fails with [reason].
   void kill(Object reason) => _died(reason, killIsolate: true);
 
-  void _died(Object reason,
-      {bool killIsolate = false, bool spawnFailed = false}) {
+  void _died(
+    Object reason, {
+    bool killIsolate = false,
+    bool spawnFailed = false,
+  }) {
     if (_dead) return;
     _dead = true;
     if (killIsolate) _isolate?.kill(priority: Isolate.immediate);

@@ -10,9 +10,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -30,7 +28,9 @@ void main() {
 
   /// A record of [action] placed [ageDays] in the past.
   Future<void> seed(AuditAction action, {required int ageDays}) async {
-    await db.into(db.auditLogEntries).insert(
+    await db
+        .into(db.auditLogEntries)
+        .insert(
           AuditLogEntriesCompanion.insert(
             action: action.wire,
             targetType: 'user',
@@ -93,8 +93,7 @@ void main() {
     );
   });
 
-  test(
-      'an administrative record of the same age as a deleted auth event '
+  test('an administrative record of the same age as a deleted auth event '
       'survives', () async {
     await seed(AuditAction.secretKeyRevoked, ageDays: 60);
     await seed(AuditAction.authThrottled, ageDays: 60);
@@ -147,8 +146,7 @@ void main() {
     expect(remaining, ['audit.purged']);
   });
 
-  test(
-      'the administrative sweep runs first, so its own trace is not swept '
+  test('the administrative sweep runs first, so its own trace is not swept '
       'by the auth sweep in the same pass', () async {
     // `audit.purged` is an administrative action. Were the auth sweep to run
     // first and the admin sweep second, the trace the auth sweep just wrote
@@ -159,8 +157,9 @@ void main() {
 
     await purge(auditRetentionDays: 30, authEventRetentionDays: 30);
 
-    final traces =
-        (await rows()).where((r) => r.action == 'audit.purged').toList();
+    final traces = (await rows())
+        .where((r) => r.action == 'audit.purged')
+        .toList();
     expect(traces, hasLength(2), reason: 'one per class, both kept');
   });
 
@@ -172,11 +171,9 @@ void main() {
     final removed = await purge(authEventRetentionDays: 30, chunkSize: 4);
 
     expect(removed.auth, 25);
-    expect(
-      await actions(),
-      ['audit.purged'],
-      reason: 'every expired record is gone, not just the first chunk',
-    );
+    expect(await actions(), [
+      'audit.purged',
+    ], reason: 'every expired record is gone, not just the first chunk');
   });
 
   test('a record exactly at the horizon is kept', () async {

@@ -240,38 +240,38 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (Migrator m) async {
-          await m.createAll();
-          for (final statement in _additionalIndexStatements) {
-            await customStatement(statement);
-          }
-          for (final statement in _v2IndexStatements) {
-            await customStatement(statement);
-          }
-        },
-        // Drift opens a database written by a *newer* schema without a word,
-        // and older code would then read and write tables it does not
-        // understand. Refuse instead: running an old build against a newer
-        // database (a rolled-back deploy) is the one migration mistake that
-        // damages data silently.
-        beforeOpen: (details) async {
-          final before = details.versionBefore;
-          if (before != null && before > schemaVersion) {
-            throw StateError(
-              'The database is at schema version $before, newer than the '
-              '$schemaVersion this build understands. Run a newer build, or '
-              'restore a backup made before the upgrade.',
-            );
-          }
-        },
-        onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
-            for (final statement in _v2IndexStatements) {
-              await customStatement(statement);
-            }
-          }
-        },
-      );
+    onCreate: (Migrator m) async {
+      await m.createAll();
+      for (final statement in _additionalIndexStatements) {
+        await customStatement(statement);
+      }
+      for (final statement in _v2IndexStatements) {
+        await customStatement(statement);
+      }
+    },
+    // Drift opens a database written by a *newer* schema without a word,
+    // and older code would then read and write tables it does not
+    // understand. Refuse instead: running an old build against a newer
+    // database (a rolled-back deploy) is the one migration mistake that
+    // damages data silently.
+    beforeOpen: (details) async {
+      final before = details.versionBefore;
+      if (before != null && before > schemaVersion) {
+        throw StateError(
+          'The database is at schema version $before, newer than the '
+          '$schemaVersion this build understands. Run a newer build, or '
+          'restore a backup made before the upgrade.',
+        );
+      }
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 2) {
+        for (final statement in _v2IndexStatements) {
+          await customStatement(statement);
+        }
+      }
+    },
+  );
 
   /// Added in schema version 2. Every request authenticated by a project
   /// secret key looks its hash up, and so does every token refresh; without an

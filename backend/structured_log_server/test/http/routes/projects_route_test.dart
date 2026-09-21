@@ -15,9 +15,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -31,15 +29,19 @@ void main() {
     db = openInMemory();
     authorizer = Authorizer(db);
     routes = ProjectRoutes(db, authorizer, AuditWriter(db));
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
   });
   tearDown(() => db.close());
 
   List<EffectiveRole> ownerOf(int groupId) => [
-        EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
-      ];
+    EffectiveRole(
+      role: Role.owner,
+      scopeType: ScopeType.group,
+      scopeId: groupId,
+    ),
+  ];
 
   group('createProject', () {
     test('an owner of the group can create a project with a quota', () async {
@@ -79,26 +81,29 @@ void main() {
       final body = await decodeJson(response);
       final usage = await (db.select(
         db.projectUsage,
-      )..where((t) => t.projectId.equals(body['id'] as int)))
-          .getSingle();
+      )..where((t) => t.projectId.equals(body['id'] as int))).getSingle();
       expect(usage.entryCount, 0);
       expect(usage.totalBytes, 0);
     });
 
-    test('a caller without write access to the group is rejected with 403',
-        () async {
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'POST',
-            'http://x/v1/groups/$groupId/projects',
-            roles: _noRoles,
-            jsonBody: {'name': 'p', 'retention_days': 7},
+    test(
+      'a caller without write access to the group is rejected with 403',
+      () async {
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'POST',
+              'http://x/v1/groups/$groupId/projects',
+              roles: _noRoles,
+              jsonBody: {'name': 'p', 'retention_days': 7},
+            ),
           ),
-        ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
-      );
-    });
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403),
+          ),
+        );
+      },
+    );
 
     test('an unknown group is rejected with 404', () async {
       await expectLater(
@@ -131,13 +136,18 @@ void main() {
 
   group('updateProjectQuota', () {
     Future<int> createTestProject() async {
-      final id = await db.into(db.projects).insert(
+      final id = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
-                groupId: groupId, name: 'p', retentionDays: 30),
+              groupId: groupId,
+              name: 'p',
+              retentionDays: 30,
+            ),
           );
-      await db.into(db.projectUsage).insert(
-            ProjectUsageCompanion.insert(projectId: Value(id)),
-          );
+      await db
+          .into(db.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(id)));
       return id;
     }
 
@@ -159,29 +169,31 @@ void main() {
       expect(body['retention_days'], 30); // untouched field preserved
     });
 
-    test('max_entries can be cleared back to unlimited with an explicit null',
-        () async {
-      final projectId = await createTestProject();
-      await routes.router.call(
-        authenticatedRequest(
-          'PATCH',
-          'http://x/v1/projects/$projectId',
-          roles: ownerOf(groupId),
-          jsonBody: {'max_entries': 500},
-        ),
-      );
+    test(
+      'max_entries can be cleared back to unlimited with an explicit null',
+      () async {
+        final projectId = await createTestProject();
+        await routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/projects/$projectId',
+            roles: ownerOf(groupId),
+            jsonBody: {'max_entries': 500},
+          ),
+        );
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'PATCH',
-          'http://x/v1/projects/$projectId',
-          roles: ownerOf(groupId),
-          jsonBody: {'max_entries': null},
-        ),
-      );
-      final body = await decodeJson(response);
-      expect(body['max_entries'], isNull);
-    });
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/projects/$projectId',
+            roles: ownerOf(groupId),
+            jsonBody: {'max_entries': null},
+          ),
+        );
+        final body = await decodeJson(response);
+        expect(body['max_entries'], isNull);
+      },
+    );
 
     test('a caller with only read access is rejected with 403', () async {
       final projectId = await createTestProject();
@@ -220,7 +232,9 @@ void main() {
 
   group('listProjects', () {
     Future<int> addProject(int inGroup, String name, {bool blocked = false}) {
-      return db.into(db.projects).insert(
+      return db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
               groupId: inGroup,
               name: name,
@@ -241,9 +255,7 @@ void main() {
         authenticatedRequest(
           'GET',
           'http://x/v1/projects',
-          roles: [
-            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
-          ],
+          roles: [EffectiveRole(role: Role.admin, scopeType: ScopeType.global)],
         ),
       );
 
@@ -309,9 +321,7 @@ void main() {
         authenticatedRequest(
           'GET',
           'http://x/v1/projects?group_id=$other',
-          roles: [
-            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
-          ],
+          roles: [EffectiveRole(role: Role.admin, scopeType: ScopeType.global)],
         ),
       );
 
@@ -328,9 +338,7 @@ void main() {
         authenticatedRequest(
           'GET',
           'http://x/v1/projects?name=check',
-          roles: [
-            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
-          ],
+          roles: [EffectiveRole(role: Role.admin, scopeType: ScopeType.global)],
         ),
       );
 
@@ -350,9 +358,7 @@ void main() {
         authenticatedRequest(
           'GET',
           'http://x/v1/projects?name=checkout&group_id=$other',
-          roles: [
-            EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
-          ],
+          roles: [EffectiveRole(role: Role.admin, scopeType: ScopeType.global)],
         ),
       );
 
@@ -414,11 +420,18 @@ void main() {
 
   group('getProject', () {
     Future<int> createTestProject() async {
-      final id = await db.into(db.projects).insert(
+      final id = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
-                groupId: groupId, name: 'p', retentionDays: 30),
+              groupId: groupId,
+              name: 'p',
+              retentionDays: 30,
+            ),
           );
-      await db.into(db.projectUsage).insert(
+      await db
+          .into(db.projectUsage)
+          .insert(
             ProjectUsageCompanion.insert(
               projectId: Value(id),
               entryCount: const Value(12),
@@ -480,13 +493,18 @@ void main() {
 
   group('the audit record', () {
     Future<int> createTestProject() async {
-      final id = await db.into(db.projects).insert(
+      final id = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
-                groupId: groupId, name: 'p', retentionDays: 30),
+              groupId: groupId,
+              name: 'p',
+              retentionDays: 30,
+            ),
           );
-      await db.into(db.projectUsage).insert(
-            ProjectUsageCompanion.insert(projectId: Value(id)),
-          );
+      await db
+          .into(db.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(id)));
       return id;
     }
 
@@ -578,9 +596,14 @@ void main() {
 
   group('blockProject / unblockProject', () {
     Future<int> createTestProject() {
-      return db.into(db.projects).insert(
+      return db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
-                groupId: groupId, name: 'p', retentionDays: 30),
+              groupId: groupId,
+              name: 'p',
+              retentionDays: 30,
+            ),
           );
     }
 
@@ -610,8 +633,7 @@ void main() {
       expect(unblocked['is_blocked'], isFalse);
     });
 
-    test(
-        'the owner of the enclosing group is rejected with 403 — admin '
+    test('the owner of the enclosing group is rejected with 403 — admin '
         'only, even for their own project', () async {
       final projectId = await createTestProject();
 
@@ -640,8 +662,7 @@ void main() {
       );
     });
 
-    test(
-        'blocking leaves project.blocked, unblocking leaves '
+    test('blocking leaves project.blocked, unblocking leaves '
         'project.unblocked', () async {
       final projectId = await createTestProject();
 

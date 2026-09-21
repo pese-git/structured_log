@@ -8,9 +8,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -20,19 +18,20 @@ void main() {
   late int otherUserId;
 
   Future<int> versionOf(int id) async {
-    final user =
-        await (db.select(db.users)..where((t) => t.id.equals(id))).getSingle();
+    final user = await (db.select(
+      db.users,
+    )..where((t) => t.id.equals(id))).getSingle();
     return user.tokenVersion;
   }
 
   setUp(() async {
     db = openInMemory();
-    userId = await db.into(db.users).insert(
-          UsersCompanion.insert(username: 'u', passwordHash: 'x'),
-        );
-    otherUserId = await db.into(db.users).insert(
-          UsersCompanion.insert(username: 'other', passwordHash: 'x'),
-        );
+    userId = await db
+        .into(db.users)
+        .insert(UsersCompanion.insert(username: 'u', passwordHash: 'x'));
+    otherUserId = await db
+        .into(db.users)
+        .insert(UsersCompanion.insert(username: 'other', passwordHash: 'x'));
   });
   tearDown(() => db.close());
 
@@ -79,18 +78,21 @@ void main() {
     late int teamId;
 
     setUp(() async {
-      groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      teamId = await db.into(db.teams).insert(
-            TeamsCompanion.insert(groupId: groupId, name: 't'),
-          );
+      groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      teamId = await db
+          .into(db.teams)
+          .insert(TeamsCompanion.insert(groupId: groupId, name: 't'));
     });
 
     test('bumps every current member, in one call', () async {
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-          );
-      await db.into(db.teamMembers).insert(
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
+      await db
+          .into(db.teamMembers)
+          .insert(
             TeamMembersCompanion.insert(teamId: teamId, userId: otherUserId),
           );
 
@@ -101,9 +103,9 @@ void main() {
     });
 
     test('does not touch a user who isn\'t a member of this team', () async {
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-          );
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
 
       await incrementTokenVersionsForTeam(db, teamId);
 
@@ -111,10 +113,12 @@ void main() {
     });
 
     test('does not touch a member of a different team', () async {
-      final otherTeamId = await db.into(db.teams).insert(
-            TeamsCompanion.insert(groupId: groupId, name: 't2'),
-          );
-      await db.into(db.teamMembers).insert(
+      final otherTeamId = await db
+          .into(db.teams)
+          .insert(TeamsCompanion.insert(groupId: groupId, name: 't2'));
+      await db
+          .into(db.teamMembers)
+          .insert(
             TeamMembersCompanion.insert(teamId: otherTeamId, userId: userId),
           );
 
@@ -149,7 +153,9 @@ void main() {
     test('resolves effective roles from storage at issuance time', () async {
       expect((await resolver.resolve(userId)).roles, isEmpty);
 
-      await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: userId,
@@ -168,7 +174,9 @@ void main() {
     });
 
     test('does not mix in another user\'s roles', () async {
-      await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: otherUserId,

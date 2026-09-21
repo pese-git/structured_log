@@ -7,9 +7,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -20,8 +18,11 @@ void main() {
   tearDown(() => db.close());
 
   test('creates an administrator on an empty database', () async {
-    final outcome =
-        await createAdmin(db, username: 'root', password: 's3cret-pass');
+    final outcome = await createAdmin(
+      db,
+      username: 'root',
+      password: 's3cret-pass',
+    );
     expect(outcome.success, isTrue);
 
     final user = await db.select(db.users).getSingle();
@@ -34,8 +35,11 @@ void main() {
   });
 
   test('an operator-supplied password does not require change', () async {
-    final outcome =
-        await createAdmin(db, username: 'root', password: 's3cret-pass');
+    final outcome = await createAdmin(
+      db,
+      username: 'root',
+      password: 's3cret-pass',
+    );
     expect(outcome.success, isTrue);
     expect(outcome.generatedPassword, isNull);
 
@@ -51,13 +55,18 @@ void main() {
     final user = await db.select(db.users).getSingle();
     expect(user.mustChangePassword, isTrue);
     expect(
-        verifyPassword(outcome.generatedPassword!, user.passwordHash), isTrue);
+      verifyPassword(outcome.generatedPassword!, user.passwordHash),
+      isTrue,
+    );
   });
 
   test('fails when an active admin already exists', () async {
     await createAdmin(db, username: 'first', password: 'password-a');
-    final outcome =
-        await createAdmin(db, username: 'second', password: 'password-b');
+    final outcome = await createAdmin(
+      db,
+      username: 'second',
+      password: 'password-b',
+    );
     expect(outcome.success, isFalse);
     expect(outcome.error, isNotNull);
 
@@ -66,8 +75,11 @@ void main() {
   });
 
   test('succeeds again once the sole admin is deactivated', () async {
-    final first =
-        await createAdmin(db, username: 'first', password: 'password-a');
+    final first = await createAdmin(
+      db,
+      username: 'first',
+      password: 'password-a',
+    );
     expect(first.success, isTrue);
 
     final firstUser = await db.select(db.users).getSingle();
@@ -75,14 +87,20 @@ void main() {
       const UsersCompanion(isActive: Value(false)),
     );
 
-    final second =
-        await createAdmin(db, username: 'second', password: 'password-b');
+    final second = await createAdmin(
+      db,
+      username: 'second',
+      password: 'password-b',
+    );
     expect(second.success, isTrue);
   });
 
   test('a second created admin does not become is_primary_admin', () async {
-    final firstOutcome =
-        await createAdmin(db, username: 'first', password: 'password-a');
+    final firstOutcome = await createAdmin(
+      db,
+      username: 'first',
+      password: 'password-a',
+    );
     expect(firstOutcome.success, isTrue);
     final firstUser = await db.select(db.users).getSingle();
     await (db.update(db.users)..where((t) => t.id.equals(firstUser.id))).write(
@@ -93,24 +111,28 @@ void main() {
 
     final second = await (db.select(
       db.users,
-    )..where((t) => t.username.equals('second')))
-        .getSingle();
+    )..where((t) => t.username.equals('second'))).getSingle();
     expect(second.isPrimaryAdmin, isFalse);
   });
 
-  test('a password outside the policy is refused and nothing is written',
-      () async {
-    for (final (password, expected) in [
-      ('short', 'at least 8 characters'),
-      ('x' * 73, 'at most 72 bytes'),
-    ]) {
-      final outcome =
-          await createAdmin(db, username: 'root', password: password);
-      expect(outcome.success, isFalse);
-      expect(outcome.error, contains(expected));
-      // The message says what is wrong, never what was typed.
-      expect(outcome.error, isNot(contains(password)));
-    }
-    expect(await db.select(db.users).get(), isEmpty);
-  });
+  test(
+    'a password outside the policy is refused and nothing is written',
+    () async {
+      for (final (password, expected) in [
+        ('short', 'at least 8 characters'),
+        ('x' * 73, 'at most 72 bytes'),
+      ]) {
+        final outcome = await createAdmin(
+          db,
+          username: 'root',
+          password: password,
+        );
+        expect(outcome.success, isFalse);
+        expect(outcome.error, contains(expected));
+        // The message says what is wrong, never what was typed.
+        expect(outcome.error, isNot(contains(password)));
+      }
+      expect(await db.select(db.users).get(), isEmpty);
+    },
+  );
 }

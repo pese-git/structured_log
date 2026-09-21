@@ -14,9 +14,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -31,22 +29,28 @@ void main() {
     db = openInMemory();
     authorizer = Authorizer(db);
     routes = SecretKeyRoutes(db, authorizer, AuditWriter(db));
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    projectId = await db.into(db.projects).insert(
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
-              groupId: groupId, name: 'p', retentionDays: 30),
+            groupId: groupId,
+            name: 'p',
+            retentionDays: 30,
+          ),
         );
   });
   tearDown(() => db.close());
 
   List<EffectiveRole> userOnProject(int projectId) => [
-        EffectiveRole(
-          role: Role.user,
-          scopeType: ScopeType.project,
-          scopeId: projectId,
-        ),
-      ];
+    EffectiveRole(
+      role: Role.user,
+      scopeType: ScopeType.project,
+      scopeId: projectId,
+    ),
+  ];
 
   group('createSecretKey', () {
     test('an admin can create a key and receives the plaintext once', () async {
@@ -189,14 +193,18 @@ void main() {
     test('a key belonging to another project is 404, not revoked', () async {
       // The key id alone must not address a key: an owner of one project
       // could otherwise revoke another project's key by guessing its id.
-      final otherProject = await db.into(db.projects).insert(
+      final otherProject = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
               groupId: groupId,
               name: 'other',
               retentionDays: 30,
             ),
           );
-      final foreignKey = await db.into(db.projectSecretKeys).insert(
+      final foreignKey = await db
+          .into(db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(
               projectId: otherProject,
               keyHash: 'hash',
@@ -214,9 +222,9 @@ void main() {
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
       );
 
-      final row = await (db.select(db.projectSecretKeys)
-            ..where((t) => t.id.equals(foreignKey)))
-          .getSingle();
+      final row = await (db.select(
+        db.projectSecretKeys,
+      )..where((t) => t.id.equals(foreignKey))).getSingle();
       expect(row.revokedAt, isNull);
     });
 
@@ -234,8 +242,7 @@ void main() {
 
       final row = await (db.select(
         db.projectSecretKeys,
-      )..where((t) => t.id.equals(keyId)))
-          .getSingle();
+      )..where((t) => t.id.equals(keyId))).getSingle();
       expect(row.revokedAt, isNotNull);
     });
 
@@ -266,25 +273,34 @@ void main() {
       );
     });
 
-    test('a key id belonging to a different project is rejected with 404',
-        () async {
-      final keyId = await createTestKey();
-      final otherProjectId = await db.into(db.projects).insert(
-            ProjectsCompanion.insert(
-                groupId: groupId, name: 'other', retentionDays: 30),
-          );
+    test(
+      'a key id belonging to a different project is rejected with 404',
+      () async {
+        final keyId = await createTestKey();
+        final otherProjectId = await db
+            .into(db.projects)
+            .insert(
+              ProjectsCompanion.insert(
+                groupId: groupId,
+                name: 'other',
+                retentionDays: 30,
+              ),
+            );
 
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'DELETE',
-            'http://x/v1/projects/$otherProjectId/secret-keys/$keyId',
-            roles: _admin,
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'DELETE',
+              'http://x/v1/projects/$otherProjectId/secret-keys/$keyId',
+              roles: _admin,
+            ),
           ),
-        ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404)),
-      );
-    });
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 404),
+          ),
+        );
+      },
+    );
   });
 
   group('the audit record', () {

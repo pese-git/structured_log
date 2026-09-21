@@ -7,9 +7,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -21,18 +19,22 @@ void main() {
 
   DateTime clock() => _now;
 
-  Future<int> newProject(
-      {required int retentionDays, String name = 'p'}) async {
-    final id = await db.into(db.projects).insert(
+  Future<int> newProject({
+    required int retentionDays,
+    String name = 'p',
+  }) async {
+    final id = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: name,
             retentionDays: retentionDays,
           ),
         );
-    await db.into(db.projectUsage).insert(
-          ProjectUsageCompanion.insert(projectId: Value(id)),
-        );
+    await db
+        .into(db.projectUsage)
+        .insert(ProjectUsageCompanion.insert(projectId: Value(id)));
     return id;
   }
 
@@ -44,7 +46,9 @@ void main() {
     int sizeBytes = 100,
     String event = 'e',
   }) async {
-    final id = await db.into(db.logEntries).insert(
+    final id = await db
+        .into(db.logEntries)
+        .insert(
           LogEntriesCompanion.insert(
             projectId: projectId,
             receivedAt: _now.subtract(Duration(days: ageDays)),
@@ -55,9 +59,9 @@ void main() {
             contextJson: '{}',
           ),
         );
-    await (db.update(db.projectUsage)
-          ..where((t) => t.projectId.equals(projectId)))
-        .write(
+    await (db.update(
+      db.projectUsage,
+    )..where((t) => t.projectId.equals(projectId))).write(
       ProjectUsageCompanion.custom(
         entryCount: db.projectUsage.entryCount + const Constant(1),
         totalBytes: db.projectUsage.totalBytes + Constant(sizeBytes),
@@ -66,21 +70,22 @@ void main() {
     return id;
   }
 
-  Future<ProjectUsageData> usageOf(int projectId) =>
-      (db.select(db.projectUsage)..where((t) => t.projectId.equals(projectId)))
-          .getSingle();
+  Future<ProjectUsageData> usageOf(int projectId) => (db.select(
+    db.projectUsage,
+  )..where((t) => t.projectId.equals(projectId))).getSingle();
 
   Future<List<String>> eventsOf(int projectId) async {
-    final rows = await (db.select(db.logEntries)
-          ..where((t) => t.projectId.equals(projectId)))
-        .get();
+    final rows = await (db.select(
+      db.logEntries,
+    )..where((t) => t.projectId.equals(projectId))).get();
     return rows.map((e) => e.event).toList();
   }
 
   setUp(() async {
     db = openInMemory();
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
   });
   tearDown(() => db.close());
 
@@ -174,26 +179,30 @@ void main() {
       expect((await usageOf(other)).totalBytes, 700);
     });
 
-    test('a counter that already drifted low is clamped, not driven negative',
-        () async {
-      // If a counter ever understates what is stored, subtracting the real
-      // size would take it below zero — and a negative total reads as an
-      // enormous amount of free quota.
-      final project = await newProject(retentionDays: 1);
-      await addEntry(project, ageDays: 10, sizeBytes: 500);
-      await (db.update(db.projectUsage)
-            ..where((t) => t.projectId.equals(project.toInt())))
-          .write(const ProjectUsageCompanion(
-        entryCount: Value(0),
-        totalBytes: Value(0),
-      ));
+    test(
+      'a counter that already drifted low is clamped, not driven negative',
+      () async {
+        // If a counter ever understates what is stored, subtracting the real
+        // size would take it below zero — and a negative total reads as an
+        // enormous amount of free quota.
+        final project = await newProject(retentionDays: 1);
+        await addEntry(project, ageDays: 10, sizeBytes: 500);
+        await (db.update(
+          db.projectUsage,
+        )..where((t) => t.projectId.equals(project.toInt()))).write(
+          const ProjectUsageCompanion(
+            entryCount: Value(0),
+            totalBytes: Value(0),
+          ),
+        );
 
-      await purgeExpiredEntries(db, clock: clock);
+        await purgeExpiredEntries(db, clock: clock);
 
-      final after = await usageOf(project);
-      expect(after.entryCount, 0);
-      expect(after.totalBytes, 0);
-    });
+        final after = await usageOf(project);
+        expect(after.entryCount, 0);
+        expect(after.totalBytes, 0);
+      },
+    );
 
     test('purging frees room under a quota that was full', () async {
       final project = await newProject(retentionDays: 5);
@@ -223,21 +232,26 @@ void main() {
       expect((await usageOf(project)).entryCount, 0);
     });
 
-    test('a chunk boundary landing exactly on the last row terminates',
-        () async {
-      // The loop breaks on a short chunk; an exact multiple has to end by
-      // the following empty read instead, which is the case that loops
-      // forever if that read is missing.
-      final project = await newProject(retentionDays: 1);
-      for (var i = 0; i < 10; i++) {
-        await addEntry(project, ageDays: 5, event: 'e$i');
-      }
+    test(
+      'a chunk boundary landing exactly on the last row terminates',
+      () async {
+        // The loop breaks on a short chunk; an exact multiple has to end by
+        // the following empty read instead, which is the case that loops
+        // forever if that read is missing.
+        final project = await newProject(retentionDays: 1);
+        for (var i = 0; i < 10; i++) {
+          await addEntry(project, ageDays: 5, event: 'e$i');
+        }
 
-      final outcome = await purgeExpiredEntries(db, clock: clock, chunkSize: 5)
-          .timeout(const Duration(seconds: 10));
+        final outcome = await purgeExpiredEntries(
+          db,
+          clock: clock,
+          chunkSize: 5,
+        ).timeout(const Duration(seconds: 10));
 
-      expect(outcome.deletedEntries, 10);
-    });
+        expect(outcome.deletedEntries, 10);
+      },
+    );
 
     test('rejects a chunk size below one', () {
       expect(
@@ -273,8 +287,9 @@ void main() {
       final outcome = await scheduler.runOnce();
 
       expect(outcome!.deletedEntries, 1);
-      final logged =
-          captured.singleWhere((e) => e['event'] == 'retention.purged');
+      final logged = captured.singleWhere(
+        (e) => e['event'] == 'retention.purged',
+      );
       expect(logged['deleted_entries'], 1);
       expect(logged['freed_bytes'], 42);
     });
@@ -331,10 +346,7 @@ void main() {
       // An unhandled error on a timer would take down the isolate; the next
       // pass may well succeed, so it must be reported and swallowed.
       expect(await scheduler.runOnce(), isNull);
-      expect(
-        captured.single['event'],
-        'retention.purge_failed',
-      );
+      expect(captured.single['event'], 'retention.purge_failed');
 
       db = openInMemory(); // so tearDown has something to close
     });
@@ -360,11 +372,9 @@ void main() {
       await addEntry(project, ageDays: 10, event: 'after-stop');
       await Future<void>.delayed(const Duration(milliseconds: 80));
 
-      expect(
-        await eventsOf(project),
-        ['after-stop'],
-        reason: 'a stopped scheduler must stay stopped',
-      );
+      expect(await eventsOf(project), [
+        'after-stop',
+      ], reason: 'a stopped scheduler must stay stopped');
     });
 
     test('passes never overlap', () async {
@@ -373,12 +383,17 @@ void main() {
         await addEntry(project, ageDays: 10, event: 'e$i');
       }
 
-      final scheduler =
-          PurgeScheduler(db, interval: const Duration(hours: 1), clock: clock);
+      final scheduler = PurgeScheduler(
+        db,
+        interval: const Duration(hours: 1),
+        clock: clock,
+      );
       // Two passes started together: the second must decline rather than
       // double-count the decrement against the same rows.
-      final results =
-          await Future.wait([scheduler.runOnce(), scheduler.runOnce()]);
+      final results = await Future.wait([
+        scheduler.runOnce(),
+        scheduler.runOnce(),
+      ]);
 
       expect(results.where((r) => r == null), hasLength(1));
       expect((await usageOf(project)).entryCount, 0);
@@ -388,10 +403,12 @@ void main() {
 
   group('purgeExpiredRefreshTokens', () {
     Future<void> token(String hash, {required int expiresInDays}) async {
-      final userId = await db.into(db.users).insert(
-            UsersCompanion.insert(username: 'u$hash', passwordHash: 'x'),
-          );
-      await db.into(db.refreshTokens).insert(
+      final userId = await db
+          .into(db.users)
+          .insert(UsersCompanion.insert(username: 'u$hash', passwordHash: 'x'));
+      await db
+          .into(db.refreshTokens)
+          .insert(
             RefreshTokensCompanion.insert(
               userId: userId,
               tokenHash: hash,
@@ -401,25 +418,29 @@ void main() {
           );
     }
 
-    test('removes expired tokens and keeps unexpired ones, revoked or not',
-        () async {
-      await token('old', expiresInDays: -1);
-      await token('live', expiresInDays: 5);
+    test(
+      'removes expired tokens and keeps unexpired ones, revoked or not',
+      () async {
+        await token('old', expiresInDays: -1);
+        await token('live', expiresInDays: 5);
 
-      final removed = await purgeExpiredRefreshTokens(db, clock: clock);
+        final removed = await purgeExpiredRefreshTokens(db, clock: clock);
 
-      expect(removed, 1);
-      final left = await db.select(db.refreshTokens).get();
-      // Kept although revoked: presenting it again is how theft is noticed.
-      expect(left.map((t) => t.tokenHash), ['live']);
-    });
+        expect(removed, 1);
+        final left = await db.select(db.refreshTokens).get();
+        // Kept although revoked: presenting it again is how theft is noticed.
+        expect(left.map((t) => t.tokenHash), ['live']);
+      },
+    );
 
     test('works through more rows than one chunk', () async {
       for (var i = 0; i < 7; i++) {
         await token('t$i', expiresInDays: -2);
       }
       expect(
-          await purgeExpiredRefreshTokens(db, clock: clock, chunkSize: 3), 7);
+        await purgeExpiredRefreshTokens(db, clock: clock, chunkSize: 3),
+        7,
+      );
       expect(await db.select(db.refreshTokens).get(), isEmpty);
     });
 

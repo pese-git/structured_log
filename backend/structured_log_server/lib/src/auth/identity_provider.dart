@@ -12,9 +12,9 @@ class EffectiveRole {
     required this.scopeType,
     this.scopeId,
   }) : assert(
-          (scopeType == ScopeType.global) == (scopeId == null),
-          'scopeId must be null iff scopeType is global',
-        );
+         (scopeType == ScopeType.global) == (scopeId == null),
+         'scopeId must be null iff scopeType is global',
+       );
 
   @override
   bool operator ==(Object other) =>

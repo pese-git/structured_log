@@ -11,9 +11,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -51,13 +49,17 @@ void main() {
       logger: getLogger(),
     );
 
-    final userId = await db.into(db.users).insert(
+    final userId = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: 'alice',
             passwordHash: hashPassword('sup3r-s3cret-pw'),
           ),
         );
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -65,20 +67,25 @@ void main() {
             scopeType: 'global',
           ),
         );
-    final groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    projectId = await db.into(db.projects).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p',
             retentionDays: 7,
           ),
         );
-    await db.into(db.projectUsage).insert(
-          ProjectUsageCompanion.insert(projectId: Value(projectId)),
-        );
+    await db
+        .into(db.projectUsage)
+        .insert(ProjectUsageCompanion.insert(projectId: Value(projectId)));
     secretKey = generateProjectSecretKey();
-    await db.into(db.projectSecretKeys).insert(
+    await db
+        .into(db.projectSecretKeys)
+        .insert(
           ProjectSecretKeysCompanion.insert(
             projectId: projectId,
             keyHash: hashToken(secretKey),
@@ -105,26 +112,30 @@ void main() {
   });
 
   group('request logging', () {
-    test('records one entry per request, with the fields that matter',
-        () async {
-      captured.clear();
-      await handler(Request('GET', Uri.parse('http://x/healthz')));
+    test(
+      'records one entry per request, with the fields that matter',
+      () async {
+        captured.clear();
+        await handler(Request('GET', Uri.parse('http://x/healthz')));
 
-      final completed =
-          captured.where((e) => e['event'] == 'request.completed').toList();
-      expect(completed, hasLength(1));
-      expect(completed.single['method'], 'GET');
-      expect(completed.single['path'], '/healthz');
-      expect(completed.single['status'], 200);
-      expect(completed.single['duration_ms'], isA<int>());
-      expect(completed.single['request_id'], isA<String>());
-    });
+        final completed = captured
+            .where((e) => e['event'] == 'request.completed')
+            .toList();
+        expect(completed, hasLength(1));
+        expect(completed.single['method'], 'GET');
+        expect(completed.single['path'], '/healthz');
+        expect(completed.single['status'], 200);
+        expect(completed.single['duration_ms'], isA<int>());
+        expect(completed.single['request_id'], isA<String>());
+      },
+    );
 
     test('level follows the outcome', () async {
       captured.clear();
       await handler(Request('GET', Uri.parse('http://x/v1/groups')));
-      final unauthorized =
-          captured.singleWhere((e) => e['event'] == 'request.completed');
+      final unauthorized = captured.singleWhere(
+        (e) => e['event'] == 'request.completed',
+      );
       expect(unauthorized['status'], 401);
       expect(unauthorized['level'], 'warning', reason: "the caller's problem");
 
@@ -150,32 +161,33 @@ void main() {
   });
 
   group('secrets never reach the diagnostics', () {
-    test('logging in leaks neither the password nor the issued tokens',
-        () async {
-      captured.clear();
-      final response = await handler(
-        Request(
-          'POST',
-          Uri.parse('http://x/v1/auth/token'),
-          body: 'grant_type=password&username=alice&password=sup3r-s3cret-pw',
-          headers: {'content-type': 'application/x-www-form-urlencoded'},
-        ),
-      );
-      final issued =
-          jsonDecode(await response.readAsString()) as Map<String, Object?>;
-
-      expect(loggedText(), isNot(contains('sup3r-s3cret-pw')));
-      expect(loggedText(), isNot(contains(issued['access_token'])));
-      expect(loggedText(), isNot(contains(issued['refresh_token'])));
-      expect(
-        loggedText(),
-        contains('request.completed'),
-        reason: 'the request was logged — the absence above is not vacuous',
-      );
-    });
-
     test(
-        'a failed login leaks neither the attempted password nor the name of '
+      'logging in leaks neither the password nor the issued tokens',
+      () async {
+        captured.clear();
+        final response = await handler(
+          Request(
+            'POST',
+            Uri.parse('http://x/v1/auth/token'),
+            body: 'grant_type=password&username=alice&password=sup3r-s3cret-pw',
+            headers: {'content-type': 'application/x-www-form-urlencoded'},
+          ),
+        );
+        final issued =
+            jsonDecode(await response.readAsString()) as Map<String, Object?>;
+
+        expect(loggedText(), isNot(contains('sup3r-s3cret-pw')));
+        expect(loggedText(), isNot(contains(issued['access_token'])));
+        expect(loggedText(), isNot(contains(issued['refresh_token'])));
+        expect(
+          loggedText(),
+          contains('request.completed'),
+          reason: 'the request was logged — the absence above is not vacuous',
+        );
+      },
+    );
+
+    test('a failed login leaks neither the attempted password nor the name of '
         'the header', () async {
       captured.clear();
       await handler(
@@ -209,32 +221,34 @@ void main() {
       expect(loggedText(), isNot(contains(accessToken)));
     });
 
-    test('ingesting logs leaks neither the project key nor the entries',
-        () async {
-      captured.clear();
-      await handler(
-        Request(
-          'POST',
-          Uri.parse('http://x/v1/logs'),
-          body: jsonEncode([
-            {
-              'event': 'tenant-business-data',
-              'level': 'info',
-              'timestamp': '2026-01-01T00:00:00Z',
-              'card_number': '4111-1111-1111-1111',
-            }
-          ]),
-          headers: {'authorization': 'Bearer $secretKey'},
-        ),
-      );
+    test(
+      'ingesting logs leaks neither the project key nor the entries',
+      () async {
+        captured.clear();
+        await handler(
+          Request(
+            'POST',
+            Uri.parse('http://x/v1/logs'),
+            body: jsonEncode([
+              {
+                'event': 'tenant-business-data',
+                'level': 'info',
+                'timestamp': '2026-01-01T00:00:00Z',
+                'card_number': '4111-1111-1111-1111',
+              },
+            ]),
+            headers: {'authorization': 'Bearer $secretKey'},
+          ),
+        );
 
-      expect(loggedText(), isNot(contains(secretKey)));
-      expect(
-        loggedText(),
-        isNot(contains('4111-1111-1111-1111')),
-        reason: "a tenant's payload must not be copied into our diagnostics",
-      );
-    });
+        expect(loggedText(), isNot(contains(secretKey)));
+        expect(
+          loggedText(),
+          isNot(contains('4111-1111-1111-1111')),
+          reason: "a tenant's payload must not be copied into our diagnostics",
+        );
+      },
+    );
 
     test('the refresh token is not logged when it is revoked', () async {
       captured.clear();
@@ -268,7 +282,7 @@ void main() {
               'event': 'the-only-entry',
               'level': 'info',
               'timestamp': '2026-01-01T00:00:00Z',
-            }
+            },
           ]),
           headers: {'authorization': 'Bearer $secretKey'},
         ),
@@ -284,17 +298,17 @@ void main() {
     });
 
     test('diagnostics do not inflate a project usage counter', () async {
-      final before = await (db.select(db.projectUsage)
-            ..where((t) => t.projectId.equals(projectId)))
-          .getSingle();
+      final before = await (db.select(
+        db.projectUsage,
+      )..where((t) => t.projectId.equals(projectId))).getSingle();
 
       for (var i = 0; i < 5; i++) {
         await handler(Request('GET', Uri.parse('http://x/healthz')));
       }
 
-      final after = await (db.select(db.projectUsage)
-            ..where((t) => t.projectId.equals(projectId)))
-          .getSingle();
+      final after = await (db.select(
+        db.projectUsage,
+      )..where((t) => t.projectId.equals(projectId))).getSingle();
       expect(after.entryCount, before.entryCount);
       expect(after.totalBytes, before.totalBytes);
     });

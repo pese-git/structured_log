@@ -8,9 +8,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -51,22 +49,24 @@ void main() {
     expect(row.createdAt, isNotNull);
   });
 
-  test('an event with nobody behind it stores that, rather than nothing',
-      () async {
-    // A login attempt under a username that does not exist has no actor and no
-    // target row to point at. Both being null is the honest record of what
-    // happened, and the column is nullable for exactly this.
-    await audit.write(
-      action: AuditAction.authLoginFailed,
-      targetType: AuditTargetType.user,
-      metadata: {'reason': 'unknown_user'},
-    );
+  test(
+    'an event with nobody behind it stores that, rather than nothing',
+    () async {
+      // A login attempt under a username that does not exist has no actor and no
+      // target row to point at. Both being null is the honest record of what
+      // happened, and the column is nullable for exactly this.
+      await audit.write(
+        action: AuditAction.authLoginFailed,
+        targetType: AuditTargetType.user,
+        metadata: {'reason': 'unknown_user'},
+      );
 
-    final row = (await rows()).single;
-    expect(row.actorUserId, isNull);
-    expect(row.targetId, isNull);
-    expect(row.targetType, 'user');
-  });
+      final row = (await rows()).single;
+      expect(row.actorUserId, isNull);
+      expect(row.targetId, isNull);
+      expect(row.targetType, 'user');
+    },
+  );
 
   test('metadata is an empty object when there is nothing to say', () async {
     await audit.write(

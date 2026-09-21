@@ -27,7 +27,8 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'the audit log is readable and nothing else; a write path to it '
+      reason:
+          'the audit log is readable and nothing else; a write path to it '
           'turns every record in it from a fact into a claim',
     );
   });
@@ -103,10 +104,9 @@ List<({String verb, String path, String file})> declaredRoutes() {
   final generic = RegExp(r"@Route\(\s*'(\w+)'\s*,\s*'([^']+)'");
 
   final routes = <({String verb, String path, String file})>[];
-  for (final file in Directory('lib/src/http/routes')
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('_route.dart'))) {
+  for (final file in Directory(
+    'lib/src/http/routes',
+  ).listSync().whereType<File>().where((f) => f.path.endsWith('_route.dart'))) {
     final source = file.readAsStringSync();
     for (final pattern in [named, generic]) {
       for (final match in pattern.allMatches(source)) {

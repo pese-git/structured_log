@@ -189,8 +189,9 @@ bool canCreateOrRevokeRoleAssignment(
 /// target blindly.
 bool canSearchUsers(List<EffectiveRole> roles) {
   if (isGlobalAdmin(roles)) return true;
-  return roles
-      .any((r) => r.role == Role.owner && r.scopeType == ScopeType.group);
+  return roles.any(
+    (r) => r.role == Role.owner && r.scopeType == ScopeType.group,
+  );
 }
 
 /// Whether [roles] may *read* the role-assignment list for the group/project
@@ -206,13 +207,12 @@ bool canReadRoleAssignmentsForScope(
   required ScopeType scopeType,
   required int scopeId,
   int? enclosingGroupId,
-}) =>
-    canWrite(
-      roles,
-      targetType: scopeType,
-      targetId: scopeId,
-      enclosingGroupId: enclosingGroupId,
-    );
+}) => canWrite(
+  roles,
+  targetType: scopeType,
+  targetId: scopeId,
+  enclosingGroupId: enclosingGroupId,
+);
 
 /// Whether [roles] grants write access (`admin`/`owner` only, not `user`)
 /// to the resource at ([targetType], [targetId]).

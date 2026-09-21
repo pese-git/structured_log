@@ -13,9 +13,7 @@ import 'test_helpers.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -27,7 +25,9 @@ void main() {
   setUp(() async {
     db = openInMemory();
     routes = ChangePasswordRoutes(db, AuditWriter(db));
-    userId = await db.into(db.users).insert(
+    userId = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: 'alice',
             passwordHash: hashPassword('old-pass'),
@@ -38,29 +38,33 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('a correct current password updates the hash and clears the flag',
-      () async {
-    final response = await routes.router.call(
-      authenticatedRequest(
-        'POST',
-        'http://x/v1/auth/change-password',
-        roles: const [],
-        userId: userId,
-        jsonBody: {'current_password': 'old-pass', 'new_password': 'new-pass'},
-      ),
-    );
+  test(
+    'a correct current password updates the hash and clears the flag',
+    () async {
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'POST',
+          'http://x/v1/auth/change-password',
+          roles: const [],
+          userId: userId,
+          jsonBody: {
+            'current_password': 'old-pass',
+            'new_password': 'new-pass',
+          },
+        ),
+      );
 
-    expect(response.statusCode, 200);
-    final body = jsonDecode(await response.readAsString());
-    expect(body, {});
+      expect(response.statusCode, 200);
+      final body = jsonDecode(await response.readAsString());
+      expect(body, {});
 
-    final row = await (db.select(
-      db.users,
-    )..where((t) => t.id.equals(userId)))
-        .getSingle();
-    expect(row.mustChangePassword, isFalse);
-    expect(verifyPassword('new-pass', row.passwordHash), isTrue);
-  });
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(userId))).getSingle();
+      expect(row.mustChangePassword, isFalse);
+      expect(verifyPassword('new-pass', row.passwordHash), isTrue);
+    },
+  );
 
   test('changing the password increments token_version', () async {
     await routes.router.call(
@@ -74,33 +78,33 @@ void main() {
     );
     final row = await (db.select(
       db.users,
-    )..where((t) => t.id.equals(userId)))
-        .getSingle();
+    )..where((t) => t.id.equals(userId))).getSingle();
     expect(row.tokenVersion, 4);
   });
 
-  test('an incorrect current password is rejected and nothing changes',
-      () async {
-    await expectLater(
-      routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/auth/change-password',
-          roles: const [],
-          userId: userId,
-          jsonBody: {'current_password': 'wrong', 'new_password': 'new-pass'},
+  test(
+    'an incorrect current password is rejected and nothing changes',
+    () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/auth/change-password',
+            roles: const [],
+            userId: userId,
+            jsonBody: {'current_password': 'wrong', 'new_password': 'new-pass'},
+          ),
         ),
-      ),
-      throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401)),
-    );
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401)),
+      );
 
-    final row = await (db.select(
-      db.users,
-    )..where((t) => t.id.equals(userId)))
-        .getSingle();
-    expect(row.mustChangePassword, isTrue);
-    expect(verifyPassword('old-pass', row.passwordHash), isTrue);
-  });
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(userId))).getSingle();
+      expect(row.mustChangePassword, isTrue);
+      expect(verifyPassword('old-pass', row.passwordHash), isTrue);
+    },
+  );
 
   test('works even when must_change_password was already false', () async {
     await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
@@ -160,7 +164,8 @@ void main() {
       expect(
         row.targetId,
         userId,
-        reason: 'actor and target are the same account — this endpoint only '
+        reason:
+            'actor and target are the same account — this endpoint only '
             'ever changes your own',
       );
       expect(auditMetadata(row), isEmpty);
@@ -176,10 +181,7 @@ void main() {
             'http://x/v1/auth/change-password',
             roles: const [],
             userId: userId,
-            jsonBody: {
-              'current_password': 'wrong',
-              'new_password': 'new-pass',
-            },
+            jsonBody: {'current_password': 'wrong', 'new_password': 'new-pass'},
           ),
         ),
         throwsA(isA<ApiError>()),
@@ -188,62 +190,69 @@ void main() {
       expect(
         await auditRows(db),
         isEmpty,
-        reason: 'a refused attempt is an authentication event, not a password '
+        reason:
+            'a refused attempt is an authentication event, not a password '
             'change — and this endpoint does not record those',
       );
     });
   });
 
-  test('a new password over 72 bytes is rejected with 400, nothing changes',
-      () async {
-    await expectLater(
-      routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/auth/change-password',
-          roles: const [],
-          userId: userId,
-          jsonBody: {
-            'current_password': 'old-pass',
-            'new_password': 'Ж' * 40,
-          },
+  test(
+    'a new password over 72 bytes is rejected with 400, nothing changes',
+    () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/auth/change-password',
+            roles: const [],
+            userId: userId,
+            jsonBody: {
+              'current_password': 'old-pass',
+              'new_password': 'Ж' * 40,
+            },
+          ),
         ),
-      ),
-      throwsA(
-        isA<ApiError>()
-            .having((e) => e.statusCode, 'statusCode', 400)
-            .having((e) => e.details?['field'], 'field', 'new_password')
-            .having((e) => e.details?['reason'], 'reason', 'too_long'),
-      ),
-    );
-    final row = await (db.select(db.users)..where((t) => t.id.equals(userId)))
-        .getSingle();
-    expect(verifyPassword('old-pass', row.passwordHash), isTrue);
-    expect(row.mustChangePassword, isTrue);
-  });
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['field'], 'field', 'new_password')
+              .having((e) => e.details?['reason'], 'reason', 'too_long'),
+        ),
+      );
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(userId))).getSingle();
+      expect(verifyPassword('old-pass', row.passwordHash), isTrue);
+      expect(row.mustChangePassword, isTrue);
+    },
+  );
 
-  test('a new password below the minimum length is rejected, nothing changes',
-      () async {
-    await expectLater(
-      routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/auth/change-password',
-          roles: const [],
-          userId: userId,
-          jsonBody: {'current_password': 'old-pass', 'new_password': 'short'},
+  test(
+    'a new password below the minimum length is rejected, nothing changes',
+    () async {
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/auth/change-password',
+            roles: const [],
+            userId: userId,
+            jsonBody: {'current_password': 'old-pass', 'new_password': 'short'},
+          ),
         ),
-      ),
-      throwsA(
-        isA<ApiError>()
-            .having((e) => e.statusCode, 'statusCode', 400)
-            .having((e) => e.details?['field'], 'field', 'new_password')
-            .having((e) => e.details?['reason'], 'reason', 'too_short'),
-      ),
-    );
-    final row = await (db.select(db.users)..where((t) => t.id.equals(userId)))
-        .getSingle();
-    expect(verifyPassword('old-pass', row.passwordHash), isTrue);
-    expect(row.mustChangePassword, isTrue);
-  });
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.details?['field'], 'field', 'new_password')
+              .having((e) => e.details?['reason'], 'reason', 'too_short'),
+        ),
+      );
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(userId))).getSingle();
+      expect(verifyPassword('old-pass', row.passwordHash), isTrue);
+      expect(row.mustChangePassword, isTrue);
+    },
+  );
 }

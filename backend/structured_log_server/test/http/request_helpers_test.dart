@@ -9,10 +9,10 @@ Request withBody(String body) =>
     Request('POST', Uri.parse('http://x/y'), body: body);
 
 Matcher throwsApiError(int statusCode, String code) => throwsA(
-      isA<ApiError>()
-          .having((e) => e.statusCode, 'statusCode', statusCode)
-          .having((e) => e.code, 'code', code),
-    );
+  isA<ApiError>()
+      .having((e) => e.statusCode, 'statusCode', statusCode)
+      .having((e) => e.code, 'code', code),
+);
 
 void main() {
   group('parsePathId', () {
@@ -41,8 +41,11 @@ void main() {
       expect(
         () => parsePathId('x', 'keyId'),
         throwsA(
-          isA<ApiError>()
-              .having((e) => e.message, 'message', contains('keyId')),
+          isA<ApiError>().having(
+            (e) => e.message,
+            'message',
+            contains('keyId'),
+          ),
         ),
       );
     });
@@ -78,10 +81,12 @@ void main() {
 
     test('preserves nested structure', () async {
       final decoded = await readJsonBody(
-        withBody(jsonEncode({
-          'nested': {'a': 1},
-          'list': [1, 2],
-        })),
+        withBody(
+          jsonEncode({
+            'nested': {'a': 1},
+            'list': [1, 2],
+          }),
+        ),
       );
       expect(decoded['nested'], {'a': 1});
       expect(decoded['list'], [1, 2]);
@@ -99,12 +104,13 @@ void main() {
         'POST',
         Uri.parse('http://x/y'),
         headers: {'content-length': '100'},
-        body: Stream<List<int>>.fromIterable([
-          [1]
-        ]).map((c) {
-          read = true;
-          return c;
-        }),
+        body:
+            Stream<List<int>>.fromIterable([
+              [1],
+            ]).map((c) {
+              read = true;
+              return c;
+            }),
       );
       await expectLater(
         readBodyCapped(request, 10),

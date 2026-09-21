@@ -16,9 +16,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -35,7 +33,9 @@ void main() {
   tearDown(() => db.close());
 
   Future<int> insertUser({String username = 'bob'}) {
-    return db.into(db.users).insert(
+    return db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: username,
             passwordHash: hashPassword('s3cret'),
@@ -48,7 +48,9 @@ void main() {
   }
 
   Future<int> insertProject(int groupId, {String name = 'p'}) {
-    return db.into(db.projects).insert(
+    return db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: name,
@@ -58,9 +60,9 @@ void main() {
   }
 
   Future<int> insertTeam(int groupId, {String name = 't'}) {
-    return db.into(db.teams).insert(
-          TeamsCompanion.insert(groupId: groupId, name: name),
-        );
+    return db
+        .into(db.teams)
+        .insert(TeamsCompanion.insert(groupId: groupId, name: name));
   }
 
   group('createRoleAssignment', () {
@@ -222,78 +224,93 @@ void main() {
       );
     });
 
-    test('granting to a team bumps token_version for every current member',
-        () async {
-      final groupId = await insertGroup();
-      final teamId = await insertTeam(groupId);
-      final memberA = await insertUser(username: 'a');
-      final memberB = await insertUser(username: 'b');
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: memberA),
-          );
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: memberB),
-          );
+    test(
+      'granting to a team bumps token_version for every current member',
+      () async {
+        final groupId = await insertGroup();
+        final teamId = await insertTeam(groupId);
+        final memberA = await insertUser(username: 'a');
+        final memberB = await insertUser(username: 'b');
+        await db
+            .into(db.teamMembers)
+            .insert(
+              TeamMembersCompanion.insert(teamId: teamId, userId: memberA),
+            );
+        await db
+            .into(db.teamMembers)
+            .insert(
+              TeamMembersCompanion.insert(teamId: teamId, userId: memberB),
+            );
 
-      await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/role-assignments',
-          roles: _admin,
-          jsonBody: {
-            'subject_type': 'team',
-            'subject_id': teamId,
-            'role': 'user',
-            'scope_type': 'group',
-            'scope_id': groupId,
-          },
-        ),
-      );
+        await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: _admin,
+            jsonBody: {
+              'subject_type': 'team',
+              'subject_id': teamId,
+              'role': 'user',
+              'scope_type': 'group',
+              'scope_id': groupId,
+            },
+          ),
+        );
 
-      final a = await (db.select(db.users)..where((t) => t.id.equals(memberA)))
-          .getSingle();
-      final b = await (db.select(db.users)..where((t) => t.id.equals(memberB)))
-          .getSingle();
-      expect(a.tokenVersion, 1);
-      expect(b.tokenVersion, 1);
-    });
-
-    test('the owner of group G can grant a role to a team belonging to G',
-        () async {
-      final groupId = await insertGroup();
-      final teamId = await insertTeam(groupId);
-      final ownerRoles = [
-        EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
-      ];
-
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/role-assignments',
-          roles: ownerRoles,
-          jsonBody: {
-            'subject_type': 'team',
-            'subject_id': teamId,
-            'role': 'user',
-            'scope_type': 'group',
-            'scope_id': groupId,
-          },
-        ),
-      );
-
-      expect(response.statusCode, 201);
-    });
+        final a = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(memberA))).getSingle();
+        final b = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(memberB))).getSingle();
+        expect(a.tokenVersion, 1);
+        expect(b.tokenVersion, 1);
+      },
+    );
 
     test(
-        'the owner of group G cannot grant a role to a team belonging to '
+      'the owner of group G can grant a role to a team belonging to G',
+      () async {
+        final groupId = await insertGroup();
+        final teamId = await insertTeam(groupId);
+        final ownerRoles = [
+          EffectiveRole(
+            role: Role.owner,
+            scopeType: ScopeType.group,
+            scopeId: groupId,
+          ),
+        ];
+
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: ownerRoles,
+            jsonBody: {
+              'subject_type': 'team',
+              'subject_id': teamId,
+              'role': 'user',
+              'scope_type': 'group',
+              'scope_id': groupId,
+            },
+          ),
+        );
+
+        expect(response.statusCode, 201);
+      },
+    );
+
+    test('the owner of group G cannot grant a role to a team belonging to '
         'another group', () async {
       final groupId = await insertGroup();
       final otherGroupId = await insertGroup(name: 'g2');
       final teamOfOtherGroup = await insertTeam(otherGroupId);
       final ownerRoles = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       await expectLater(
@@ -336,27 +353,31 @@ void main() {
       );
     });
 
-    test('a group/project scope without scope_id is rejected with 400',
-        () async {
-      final subjectId = await insertUser();
+    test(
+      'a group/project scope without scope_id is rejected with 400',
+      () async {
+        final subjectId = await insertUser();
 
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'POST',
-            'http://x/v1/role-assignments',
-            roles: _admin,
-            jsonBody: {
-              'subject_type': 'user',
-              'subject_id': subjectId,
-              'role': 'owner',
-              'scope_type': 'group',
-            },
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'POST',
+              'http://x/v1/role-assignments',
+              roles: _admin,
+              jsonBody: {
+                'subject_type': 'user',
+                'subject_id': subjectId,
+                'role': 'owner',
+                'scope_type': 'group',
+              },
+            ),
           ),
-        ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
-      );
-    });
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400),
+          ),
+        );
+      },
+    );
 
     test('an unknown subject_id is rejected with 404', () async {
       await expectLater(
@@ -401,9 +422,9 @@ void main() {
 
     test('grants invalidate the subject\'s already-issued tokens', () async {
       final subjectId = await insertUser();
-      final before = await (db.select(db.users)
-            ..where((t) => t.id.equals(subjectId)))
-          .getSingle();
+      final before = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(subjectId))).getSingle();
 
       await routes.router.call(
         authenticatedRequest(
@@ -419,46 +440,51 @@ void main() {
         ),
       );
 
-      final after = await (db.select(db.users)
-            ..where((t) => t.id.equals(subjectId)))
-          .getSingle();
+      final after = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(subjectId))).getSingle();
       expect(after.tokenVersion, before.tokenVersion + 1);
     });
 
-    test('leaves an audit record naming actor, subject, role, and scope',
-        () async {
-      final subjectId = await insertUser();
+    test(
+      'leaves an audit record naming actor, subject, role, and scope',
+      () async {
+        final subjectId = await insertUser();
 
-      await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/role-assignments',
-          roles: _admin,
-          userId: 7,
-          jsonBody: {
-            'subject_type': 'user',
-            'subject_id': subjectId,
-            'role': 'user',
-            'scope_type': 'global',
-          },
-        ),
-      );
+        await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: _admin,
+            userId: 7,
+            jsonBody: {
+              'subject_type': 'user',
+              'subject_id': subjectId,
+              'role': 'user',
+              'scope_type': 'global',
+            },
+          ),
+        );
 
-      final row = (await auditRows(db)).single;
-      expect(row.action, 'role_assignment.created');
-      expect(row.actorUserId, 7);
-      final metadata = auditMetadata(row);
-      expect(metadata['subject_id'], subjectId);
-      expect(metadata['role'], 'user');
-      expect(metadata['scope_type'], 'global');
-    });
+        final row = (await auditRows(db)).single;
+        expect(row.action, 'role_assignment.created');
+        expect(row.actorUserId, 7);
+        final metadata = auditMetadata(row);
+        expect(metadata['subject_id'], subjectId);
+        expect(metadata['role'], 'user');
+        expect(metadata['scope_type'], 'global');
+      },
+    );
 
     test('the owner of the group can grant a user role within it', () async {
       final subjectId = await insertUser();
       final groupId = await insertGroup();
       final ownerRoles = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       final response = await routes.router.call(
@@ -479,40 +505,48 @@ void main() {
       expect(response.statusCode, 201);
     });
 
-    test('the owner of the enclosing group can grant a role on its project',
-        () async {
-      final subjectId = await insertUser();
-      final groupId = await insertGroup();
-      final projectId = await insertProject(groupId);
-      final ownerRoles = [
-        EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
-      ];
+    test(
+      'the owner of the enclosing group can grant a role on its project',
+      () async {
+        final subjectId = await insertUser();
+        final groupId = await insertGroup();
+        final projectId = await insertProject(groupId);
+        final ownerRoles = [
+          EffectiveRole(
+            role: Role.owner,
+            scopeType: ScopeType.group,
+            scopeId: groupId,
+          ),
+        ];
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/role-assignments',
-          roles: ownerRoles,
-          jsonBody: {
-            'subject_type': 'user',
-            'subject_id': subjectId,
-            'role': 'owner',
-            'scope_type': 'project',
-            'scope_id': projectId,
-          },
-        ),
-      );
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/role-assignments',
+            roles: ownerRoles,
+            jsonBody: {
+              'subject_type': 'user',
+              'subject_id': subjectId,
+              'role': 'owner',
+              'scope_type': 'project',
+              'scope_id': projectId,
+            },
+          ),
+        );
 
-      expect(response.statusCode, 201);
-    });
+        expect(response.statusCode, 201);
+      },
+    );
 
     test('an owner cannot grant the admin role', () async {
       final subjectId = await insertUser();
       final groupId = await insertGroup();
       final ownerRoles = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       await expectLater(
@@ -534,35 +568,42 @@ void main() {
       );
     });
 
-    test('an owner cannot grant a role on a different group\'s project',
-        () async {
-      final subjectId = await insertUser();
-      final groupId = await insertGroup();
-      final otherGroupId = await insertGroup(name: 'other');
-      final otherProjectId = await insertProject(otherGroupId);
-      final ownerRoles = [
-        EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
-      ];
-
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'POST',
-            'http://x/v1/role-assignments',
-            roles: ownerRoles,
-            jsonBody: {
-              'subject_type': 'user',
-              'subject_id': subjectId,
-              'role': 'user',
-              'scope_type': 'project',
-              'scope_id': otherProjectId,
-            },
+    test(
+      'an owner cannot grant a role on a different group\'s project',
+      () async {
+        final subjectId = await insertUser();
+        final groupId = await insertGroup();
+        final otherGroupId = await insertGroup(name: 'other');
+        final otherProjectId = await insertProject(otherGroupId);
+        final ownerRoles = [
+          EffectiveRole(
+            role: Role.owner,
+            scopeType: ScopeType.group,
+            scopeId: groupId,
           ),
-        ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
-      );
-    });
+        ];
+
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'POST',
+              'http://x/v1/role-assignments',
+              roles: ownerRoles,
+              jsonBody: {
+                'subject_type': 'user',
+                'subject_id': subjectId,
+                'role': 'user',
+                'scope_type': 'project',
+                'scope_id': otherProjectId,
+              },
+            ),
+          ),
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403),
+          ),
+        );
+      },
+    );
 
     test('a refused attempt leaves no audit record', () async {
       await expectLater(
@@ -593,7 +634,9 @@ void main() {
       String scopeType = 'global',
       int? scopeId,
     }) {
-      return db.into(db.roleAssignments).insert(
+      return db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: subjectId,
@@ -610,7 +653,9 @@ void main() {
       String scopeType = 'global',
       int? scopeId,
     }) {
-      return db.into(db.roleAssignments).insert(
+      return db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'team',
               subjectId: teamId,
@@ -621,61 +666,65 @@ void main() {
           );
     }
 
-    test('filters by subject_id and resolves the subject\'s username',
-        () async {
-      final alice = await insertUser(username: 'alice');
-      final bob = await insertUser(username: 'bob');
-      await grant(subjectId: alice);
-      await grant(subjectId: bob);
+    test(
+      'filters by subject_id and resolves the subject\'s username',
+      () async {
+        final alice = await insertUser(username: 'alice');
+        final bob = await insertUser(username: 'bob');
+        await grant(subjectId: alice);
+        await grant(subjectId: bob);
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/role-assignments?subject_id=$alice',
-          roles: _admin,
-        ),
-      );
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/role-assignments?subject_id=$alice',
+            roles: _admin,
+          ),
+        );
 
-      expect(response.statusCode, 200);
-      final body = await decodeJson(response);
-      final items = body['items'] as List;
-      expect(items, hasLength(1));
-      expect(items.single['subject_id'], alice);
-      expect(items.single['subject_name'], 'alice');
-    });
+        expect(response.statusCode, 200);
+        final body = await decodeJson(response);
+        final items = body['items'] as List;
+        expect(items, hasLength(1));
+        expect(items.single['subject_id'], alice);
+        expect(items.single['subject_name'], 'alice');
+      },
+    );
 
-    test('filters by scope_type and scope_id and resolves the group\'s name',
-        () async {
-      final subjectId = await insertUser();
-      final groupId = await insertGroup(name: 'payments');
-      final otherGroupId = await insertGroup(name: 'other');
-      await grant(
-        subjectId: subjectId,
-        role: 'owner',
-        scopeType: 'group',
-        scopeId: groupId,
-      );
-      await grant(
-        subjectId: subjectId,
-        role: 'owner',
-        scopeType: 'group',
-        scopeId: otherGroupId,
-      );
+    test(
+      'filters by scope_type and scope_id and resolves the group\'s name',
+      () async {
+        final subjectId = await insertUser();
+        final groupId = await insertGroup(name: 'payments');
+        final otherGroupId = await insertGroup(name: 'other');
+        await grant(
+          subjectId: subjectId,
+          role: 'owner',
+          scopeType: 'group',
+          scopeId: groupId,
+        );
+        await grant(
+          subjectId: subjectId,
+          role: 'owner',
+          scopeType: 'group',
+          scopeId: otherGroupId,
+        );
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/role-assignments?scope_type=group&scope_id=$groupId',
-          roles: _admin,
-        ),
-      );
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/role-assignments?scope_type=group&scope_id=$groupId',
+            roles: _admin,
+          ),
+        );
 
-      final body = await decodeJson(response);
-      final items = body['items'] as List;
-      expect(items, hasLength(1));
-      expect(items.single['scope_id'], groupId);
-      expect(items.single['scope_name'], 'payments');
-    });
+        final body = await decodeJson(response);
+        final items = body['items'] as List;
+        expect(items, hasLength(1));
+        expect(items.single['scope_id'], groupId);
+        expect(items.single['scope_name'], 'payments');
+      },
+    );
 
     test('resolves a project scope\'s name the same way', () async {
       final subjectId = await insertUser();
@@ -740,20 +789,22 @@ void main() {
       expect(item['subject_name'], 'on-call');
     });
 
-    test('no filter and no matches both return an empty list, not an error',
-        () async {
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/role-assignments?subject_id=999',
-          roles: _admin,
-        ),
-      );
+    test(
+      'no filter and no matches both return an empty list, not an error',
+      () async {
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/role-assignments?subject_id=999',
+            roles: _admin,
+          ),
+        );
 
-      expect(response.statusCode, 200);
-      final body = await decodeJson(response);
-      expect(body['items'], isEmpty);
-    });
+        expect(response.statusCode, 200);
+        final body = await decodeJson(response);
+        expect(body['items'], isEmpty);
+      },
+    );
 
     test('a non-admin is rejected with 403', () async {
       await expectLater(
@@ -779,7 +830,10 @@ void main() {
       );
       final ownerRoles = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       final response = await routes.router.call(
@@ -818,13 +872,15 @@ void main() {
       );
     });
 
-    test(
-        'a plain user role on the scope is still refused — reading is '
+    test('a plain user role on the scope is still refused — reading is '
         '`owner`/`admin`, not `user`', () async {
       final groupId = await insertGroup();
       final userRoles = [
         EffectiveRole(
-            role: Role.user, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       await expectLater(
@@ -839,8 +895,7 @@ void main() {
       );
     });
 
-    test(
-        'the owner of a project\'s enclosing group can read the project\'s '
+    test('the owner of a project\'s enclosing group can read the project\'s '
         'access list too', () async {
       final groupId = await insertGroup();
       final projectId = await insertProject(groupId);
@@ -852,7 +907,10 @@ void main() {
       );
       final ownerOfGroup = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       final response = await routes.router.call(
@@ -866,14 +924,16 @@ void main() {
       expect(response.statusCode, 200);
     });
 
-    test(
-        'an owner is still refused when filtering by subject_id alone — '
+    test('an owner is still refused when filtering by subject_id alone — '
         'that shape stays admin-only', () async {
       final groupId = await insertGroup();
       final subjectId = await insertUser();
       final ownerRoles = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       await expectLater(
@@ -896,7 +956,9 @@ void main() {
       String scopeType = 'global',
       int? scopeId,
     }) async {
-      return db.into(db.roleAssignments).insert(
+      return db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: subjectId,
@@ -921,9 +983,9 @@ void main() {
 
       expect(response.statusCode, 204);
       expect(
-        await (db.select(db.roleAssignments)
-              ..where((t) => t.id.equals(assignmentId)))
-            .getSingleOrNull(),
+        await (db.select(
+          db.roleAssignments,
+        )..where((t) => t.id.equals(assignmentId))).getSingleOrNull(),
         isNull,
       );
     });
@@ -963,7 +1025,10 @@ void main() {
       );
       final ownerRoles = [
         EffectiveRole(
-            role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.owner,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       final response = await routes.router.call(
@@ -1020,27 +1085,29 @@ void main() {
       );
     });
 
-    test('revocation invalidates the subject\'s already-issued tokens',
-        () async {
-      final subjectId = await insertUser();
-      final assignmentId = await grant(subjectId);
-      final before = await (db.select(db.users)
-            ..where((t) => t.id.equals(subjectId)))
-          .getSingle();
+    test(
+      'revocation invalidates the subject\'s already-issued tokens',
+      () async {
+        final subjectId = await insertUser();
+        final assignmentId = await grant(subjectId);
+        final before = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(subjectId))).getSingle();
 
-      await routes.router.call(
-        authenticatedRequest(
-          'DELETE',
-          'http://x/v1/role-assignments/$assignmentId',
-          roles: _admin,
-        ),
-      );
+        await routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/role-assignments/$assignmentId',
+            roles: _admin,
+          ),
+        );
 
-      final after = await (db.select(db.users)
-            ..where((t) => t.id.equals(subjectId)))
-          .getSingle();
-      expect(after.tokenVersion, before.tokenVersion + 1);
-    });
+        final after = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(subjectId))).getSingle();
+        expect(after.tokenVersion, before.tokenVersion + 1);
+      },
+    );
 
     test('leaves an audit record', () async {
       final subjectId = await insertUser();
@@ -1061,20 +1128,21 @@ void main() {
       expect(row.targetId, assignmentId);
     });
 
-    test(
-        'revoking a team grant bumps token_version for every current '
+    test('revoking a team grant bumps token_version for every current '
         'member', () async {
       final groupId = await insertGroup();
       final teamId = await insertTeam(groupId);
       final memberA = await insertUser(username: 'a');
       final memberB = await insertUser(username: 'b');
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: memberA),
-          );
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: memberB),
-          );
-      final assignmentId = await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: memberA));
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: memberB));
+      final assignmentId = await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'team',
               subjectId: teamId,
@@ -1093,21 +1161,24 @@ void main() {
       );
 
       expect(response.statusCode, 204);
-      final a = await (db.select(db.users)..where((t) => t.id.equals(memberA)))
-          .getSingle();
-      final b = await (db.select(db.users)..where((t) => t.id.equals(memberB)))
-          .getSingle();
+      final a = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(memberA))).getSingle();
+      final b = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(memberB))).getSingle();
       expect(a.tokenVersion, 1);
       expect(b.tokenVersion, 1);
     });
 
-    test(
-        'an owner of a different group cannot revoke a grant to a team of '
+    test('an owner of a different group cannot revoke a grant to a team of '
         'this group', () async {
       final groupId = await insertGroup();
       final otherGroupId = await insertGroup(name: 'g2');
       final teamId = await insertTeam(groupId);
-      final assignmentId = await db.into(db.roleAssignments).insert(
+      final assignmentId = await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'team',
               subjectId: teamId,

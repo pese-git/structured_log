@@ -84,8 +84,7 @@ Future<LogScope> resolveLogScope(
     if (projectId == null) throw ApiError.notFound('project_id not found.');
     final project = await (db.select(
       db.projects,
-    )..where((t) => t.id.equals(projectId)))
-        .getSingleOrNull();
+    )..where((t) => t.id.equals(projectId))).getSingleOrNull();
     if (project == null) throw ApiError.notFound('project_id not found.');
     if (!canRead(
       roles,
@@ -105,16 +104,14 @@ Future<LogScope> resolveLogScope(
   if (groupId == null) throw ApiError.notFound('group_id not found.');
   final group = await (db.select(
     db.groups,
-  )..where((t) => t.id.equals(groupId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(groupId))).getSingleOrNull();
   if (group == null) throw ApiError.notFound('group_id not found.');
   if (!canRead(roles, targetType: ScopeType.group, targetId: groupId)) {
     throw ApiError.forbidden();
   }
   final projects = await (db.select(
     db.projects,
-  )..where((t) => t.groupId.equals(groupId) & t.isBlocked.equals(false)))
-      .get();
+  )..where((t) => t.groupId.equals(groupId) & t.isBlocked.equals(false))).get();
   return (
     projectIds: projects.map((p) => p.id).toList(),
     projectId: null,

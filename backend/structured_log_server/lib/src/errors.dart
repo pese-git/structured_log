@@ -29,8 +29,7 @@ class ApiError implements Exception {
   factory ApiError.invalidRequest(
     String message, {
     Map<String, Object?>? details,
-  }) =>
-      ApiError(400, 'invalid_request', message, details: details);
+  }) => ApiError(400, 'invalid_request', message, details: details);
 
   factory ApiError.unauthorized([String message = 'Unauthorized.']) =>
       ApiError(401, 'unauthorized', message);
@@ -44,10 +43,10 @@ class ApiError implements Exception {
   /// [ApiError.forbidden] — the client reacts by prompting for a new
   /// password, not by reporting a missing right.
   factory ApiError.mustChangePassword() => ApiError(
-        403,
-        'must_change_password',
-        'This account must change its password before continuing.',
-      );
+    403,
+    'must_change_password',
+    'This account must change its password before continuing.',
+  );
 
   factory ApiError.notFound([String message = 'Resource not found.']) =>
       ApiError(404, 'not_found', message);
@@ -75,10 +74,7 @@ class ApiError implements Exception {
     return Response(
       statusCode,
       body: jsonEncode(body),
-      headers: {
-        'content-type': 'application/json',
-        ...?headers,
-      },
+      headers: {'content-type': 'application/json', ...?headers},
     );
   }
 

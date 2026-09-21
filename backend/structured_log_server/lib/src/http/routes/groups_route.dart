@@ -66,8 +66,9 @@ class GroupRoutes {
     // group that does not, are both worse than the request failing
     // (`specs/log-server-audit`).
     final id = await _db.transaction(() async {
-      final id =
-          await _db.into(_db.groups).insert(GroupsCompanion.insert(name: name));
+      final id = await _db
+          .into(_db.groups)
+          .insert(GroupsCompanion.insert(name: name));
       await _audit.write(
         action: AuditAction.groupCreated,
         targetType: AuditTargetType.group,
@@ -80,8 +81,7 @@ class GroupRoutes {
 
     final group = await (_db.select(
       _db.groups,
-    )..where((t) => t.id.equals(id)))
-        .getSingle();
+    )..where((t) => t.id.equals(id))).getSingle();
     return jsonOk(groupJson(group), statusCode: 201);
   }
 

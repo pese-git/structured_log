@@ -97,16 +97,13 @@ void main() {
     test('a public endpoint allows no origin', () async {
       final response = await from('http://elsewhere.test', path: '/healthz');
 
-      expect(
-        response.statusCode,
-        200,
-        reason: 'the request itself is served',
-      );
+      expect(response.statusCode, 200, reason: 'the request itself is served');
       for (final header in crossOriginHeaders) {
         expect(
           response.headers,
           isNot(contains(header)),
-          reason: 'a browser that receives this without $header cannot hand it '
+          reason:
+              'a browser that receives this without $header cannot hand it '
               'to the page — which is the intended answer, not a bug',
         );
       }
@@ -116,10 +113,7 @@ void main() {
       // Refused for want of a token, which is beside the point: what matters
       // is that even the refusal carries no permission to read it
       // cross-origin.
-      final response = await from(
-        'http://elsewhere.test',
-        path: '/v1/groups',
-      );
+      final response = await from('http://elsewhere.test', path: '/v1/groups');
 
       expect(response.statusCode, 401);
       for (final header in crossOriginHeaders) {
@@ -144,13 +138,11 @@ void main() {
       expect(
         response.statusCode,
         isNot(200),
-        reason: 'no route answers OPTIONS, and none should: a preflight '
+        reason:
+            'no route answers OPTIONS, and none should: a preflight '
             'that succeeded would be the first half of a CORS policy',
       );
-      expect(
-        response.headers,
-        isNot(contains('access-control-allow-origin')),
-      );
+      expect(response.headers, isNot(contains('access-control-allow-origin')));
     });
   });
 
@@ -228,81 +220,81 @@ void main() {
       },
     );
 
-    test(
-      'the preflight short-circuit skips rate limiting entirely',
-      () async {
-        // A preflight carries no Authorization and must never be counted
-        // against a rate-limit bucket a real request would then find empty.
-        final rateLimited = buildHandler(
-          db,
-          signingSecret: 'test-secret',
-          issuer: 'test',
-          config: configWith(
-            corsAllowedOrigins: {allowed},
-            rateLimitEnabled: true,
-            rateLimitBucketCapacity: 2,
-          ),
-        );
+    test('the preflight short-circuit skips rate limiting entirely', () async {
+      // A preflight carries no Authorization and must never be counted
+      // against a rate-limit bucket a real request would then find empty.
+      final rateLimited = buildHandler(
+        db,
+        signingSecret: 'test-secret',
+        issuer: 'test',
+        config: configWith(
+          corsAllowedOrigins: {allowed},
+          rateLimitEnabled: true,
+          rateLimitBucketCapacity: 2,
+        ),
+      );
 
-        for (var i = 0; i < 5; i++) {
-          final response = await Future<Response>.value(
-            rateLimited(
-              Request(
-                'OPTIONS',
-                Uri.parse('http://logs.example.test/v1/auth/token'),
-                headers: {
-                  'origin': allowed,
-                  'access-control-request-method': 'POST',
-                },
-              ),
-            ),
-          );
-          expect(response.statusCode, 204, reason: 'preflight $i');
-        }
-
-        final loginResponse = await Future<Response>.value(
+      for (var i = 0; i < 5; i++) {
+        final response = await Future<Response>.value(
           rateLimited(
             Request(
-              'POST',
+              'OPTIONS',
               Uri.parse('http://logs.example.test/v1/auth/token'),
-              body: 'grant_type=password&username=x&password=x',
               headers: {
                 'origin': allowed,
-                'content-type': 'application/x-www-form-urlencoded',
+                'access-control-request-method': 'POST',
               },
             ),
           ),
         );
+        expect(response.statusCode, 204, reason: 'preflight $i');
+      }
+
+      final loginResponse = await Future<Response>.value(
+        rateLimited(
+          Request(
+            'POST',
+            Uri.parse('http://logs.example.test/v1/auth/token'),
+            body: 'grant_type=password&username=x&password=x',
+            headers: {
+              'origin': allowed,
+              'content-type': 'application/x-www-form-urlencoded',
+            },
+          ),
+        ),
+      );
+      expect(
+        loginResponse.statusCode,
+        isNot(429),
+        reason:
+            'five preflights must not have spent the two-token bucket a '
+            'real request still needs',
+      );
+    });
+
+    test(
+      'an origin outside the list gets nothing, even with CORS on',
+      () async {
+        final response = await get('http://elsewhere.test', path: '/healthz');
         expect(
-          loginResponse.statusCode,
-          isNot(429),
-          reason: 'five preflights must not have spent the two-token bucket a '
-              'real request still needs',
+          response.headers,
+          isNot(contains('access-control-allow-origin')),
+        );
+
+        final preflightResponse = await preflight(
+          'http://elsewhere.test',
+          path: '/v1/logs',
+        );
+        expect(
+          preflightResponse.statusCode,
+          isNot(200),
+          reason: 'unmatched origin — same as CORS being off entirely',
+        );
+        expect(
+          preflightResponse.headers,
+          isNot(contains('access-control-allow-origin')),
         );
       },
     );
-
-    test('an origin outside the list gets nothing, even with CORS on',
-        () async {
-      final response = await get('http://elsewhere.test', path: '/healthz');
-      expect(
-        response.headers,
-        isNot(contains('access-control-allow-origin')),
-      );
-
-      final preflightResponse = await preflight(
-        'http://elsewhere.test',
-        path: '/v1/logs',
-      );
-      expect(
-        preflightResponse.statusCode,
-        isNot(200),
-        reason: 'unmatched origin — same as CORS being off entirely',
-      );
-      expect(
-        preflightResponse.headers,
-        isNot(contains('access-control-allow-origin')),
-      );
-    });
   });
 }

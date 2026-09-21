@@ -16,25 +16,25 @@ class Authorizer {
   /// Direct [RoleAssignments] of [userId], plus every [RoleAssignments]
   /// granted to a team [userId] currently belongs to.
   Future<List<EffectiveRole>> effectiveRoles(int userId) async {
-    final direct = await (_db.select(_db.roleAssignments)
-          ..where(
-            (t) => t.subjectType.equals('user') & t.subjectId.equals(userId),
-          ))
-        .get();
+    final direct =
+        await (_db.select(_db.roleAssignments)..where(
+              (t) => t.subjectType.equals('user') & t.subjectId.equals(userId),
+            ))
+            .get();
 
-    final teamIds = await (_db.selectOnly(_db.teamMembers)
-          ..addColumns([_db.teamMembers.teamId])
-          ..where(_db.teamMembers.userId.equals(userId)))
-        .map((row) => row.read(_db.teamMembers.teamId)!)
-        .get();
+    final teamIds =
+        await (_db.selectOnly(_db.teamMembers)
+              ..addColumns([_db.teamMembers.teamId])
+              ..where(_db.teamMembers.userId.equals(userId)))
+            .map((row) => row.read(_db.teamMembers.teamId)!)
+            .get();
 
     final viaTeams = teamIds.isEmpty
         ? <RoleAssignment>[]
-        : await (_db.select(_db.roleAssignments)
-              ..where(
+        : await (_db.select(_db.roleAssignments)..where(
                 (t) => t.subjectType.equals('team') & t.subjectId.isIn(teamIds),
               ))
-            .get();
+              .get();
 
     return [
       ...direct,

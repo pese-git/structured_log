@@ -49,12 +49,12 @@ String _description(TokenErrorCode code) {
 }
 
 Map<String, Object?> _pairJson(TokenPair pair) => {
-      'access_token': pair.accessToken,
-      'token_type': 'Bearer',
-      'expires_in': pair.accessTokenTtl.inSeconds,
-      'refresh_token': pair.refreshToken,
-      'refresh_expires_in': pair.refreshTokenTtl.inSeconds,
-    };
+  'access_token': pair.accessToken,
+  'token_type': 'Bearer',
+  'expires_in': pair.accessTokenTtl.inSeconds,
+  'refresh_token': pair.refreshToken,
+  'refresh_expires_in': pair.refreshTokenTtl.inSeconds,
+};
 
 /// The form body, or `null` when it is malformed or over the cap. Public and
 /// unauthenticated, so the cap is enforced while reading rather than after.
@@ -78,7 +78,7 @@ class AuthRoutes {
   final int _trustedProxyHops;
 
   AuthRoutes(this._tokenService, {int trustedProxyHops = 0})
-      : _trustedProxyHops = trustedProxyHops;
+    : _trustedProxyHops = trustedProxyHops;
 
   Router get router => _$AuthRoutesRouter(this);
 
@@ -89,7 +89,9 @@ class AuthRoutes {
     final form = await _readForm(request);
     if (form == null) {
       return _rfc6749Error(
-          400, const TokenError(TokenErrorCode.invalidRequest));
+        400,
+        const TokenError(TokenErrorCode.invalidRequest),
+      );
     }
     final grantType = form['grant_type'];
 
@@ -166,12 +168,16 @@ class AuthRoutes {
     final form = await _readForm(request);
     if (form == null) {
       return _rfc6749Error(
-          400, const TokenError(TokenErrorCode.invalidRequest));
+        400,
+        const TokenError(TokenErrorCode.invalidRequest),
+      );
     }
     final refreshToken = form['refresh_token'];
     if (refreshToken == null) {
       return _rfc6749Error(
-          400, const TokenError(TokenErrorCode.invalidRequest));
+        400,
+        const TokenError(TokenErrorCode.invalidRequest),
+      );
     }
     await _tokenService.revoke(
       refreshToken,

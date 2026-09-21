@@ -47,11 +47,11 @@ PasswordViolation? passwordViolation(String password) {
 }
 
 String _violationMessage(PasswordViolation violation) => switch (violation) {
-      PasswordViolation.tooShort =>
-        'The password must be at least $minPasswordLength characters.',
-      PasswordViolation.tooLong =>
-        'The password must be at most $maxPasswordBytes bytes in UTF-8.',
-    };
+  PasswordViolation.tooShort =>
+    'The password must be at least $minPasswordLength characters.',
+  PasswordViolation.tooLong =>
+    'The password must be at most $maxPasswordBytes bytes in UTF-8.',
+};
 
 /// [passwordViolation] as a sentence, for places that are not an HTTP request
 /// — configuration checked at startup, the `create-admin` command. `null` if
@@ -125,8 +125,9 @@ Future<bool> verifyPasswordAsync(String password, String hash) {
 /// running bcrypt while a real account with a wrong password took ~130 ms —
 /// so the response time alone told an attacker which usernames exist. Checking
 /// against this makes the two cost the same. Made once, at first use.
-final Future<String> dummyPasswordHash =
-    hashPasswordAsync(generateRandomToken());
+final Future<String> dummyPasswordHash = hashPasswordAsync(
+  generateRandomToken(),
+);
 
 /// Generates a high-entropy, cryptographically random secret suitable for a
 /// project secret key or a refresh token — never remembered by a human, so
