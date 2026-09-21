@@ -221,6 +221,16 @@ class LogStreamRoutes {
 
     body = StreamController<List<int>>(onCancel: stop);
 
+    // The first thing on the wire, before any entry and before the first
+    // heartbeat. `dart:io` sends the response headers with the first byte of the
+    // body, so a subscription with nothing to say — the common case, on a quiet
+    // project — answered nothing at all until a heartbeat, 25 s by default: a
+    // client, a proxy or a browser waiting for headers saw a connection that
+    // was neither open nor failed. A comment carries no event, and it is
+    // authorization that has already happened by here, so a rejected caller still
+    // gets its plain JSON error rather than a stream.
+    body.add(sseComment('connected'));
+
     upstream = _broadcast.stream.listen(
       (entry) {
         if (buffering) {
