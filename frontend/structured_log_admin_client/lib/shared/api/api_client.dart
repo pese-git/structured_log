@@ -1,3 +1,4 @@
+import 'package:cherrypick/cherrypick.dart';
 import 'package:dio/dio.dart';
 
 import '../auth/token_pair.dart';
@@ -31,7 +32,7 @@ import 'users_api.dart';
 /// across both — but it also needs a response delivered as it arrives, and
 /// dio's browser adapter cannot do that (see `streaming_adapter_web.dart`).
 /// Off the web it is an ordinary `Dio` with no adapter of its own.
-class ApiClient {
+class ApiClient implements Disposable {
   final Dio dio;
 
   /// What `GET /v1/logs/stream` runs on (decision 37).
@@ -47,6 +48,10 @@ class ApiClient {
   final UsersApi users;
   final RoleAssignmentsApi roleAssignments;
 
+  /// Every `Dio` this client created, [dio] and [streamDio] included — the
+  /// two uninterceptored ones live only inside the interceptor.
+  final List<Dio> _owned;
+
   ApiClient._({
     required this.dio,
     required this.streamDio,
@@ -59,7 +64,8 @@ class ApiClient {
     required this.logs,
     required this.users,
     required this.roleAssignments,
-  });
+    required List<Dio> owned,
+  }) : _owned = owned;
 
   factory ApiClient({
     required AppConfig config,
@@ -149,6 +155,18 @@ class ApiClient {
       logs: LogsApi(dio),
       users: UsersApi(dio),
       roleAssignments: RoleAssignmentsApi(dio),
+      owned: [dio, streamDio, refreshClient, retryClient],
     );
+  }
+
+  /// Called by the scope that created this client when it is disposed: closes
+  /// the connections it holds. `force`, because a scope going away is not a
+  /// request to wait for whatever is still in flight — including a live
+  /// subscription that would otherwise never end.
+  @override
+  Future<void> dispose() async {
+    for (final client in _owned) {
+      client.close(force: true);
+    }
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cherrypick/cherrypick.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -117,6 +119,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void dispose() {
     widget.session.removeListener(_onSessionChanged);
+    unawaited(closeAuthScope(widget.scope));
     super.dispose();
   }
 

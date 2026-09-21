@@ -1,4 +1,5 @@
 import 'package:cherrypick/cherrypick.dart';
+import 'package:cherrypick_annotations/cherrypick_annotations.dart';
 
 import '../../../shared/api/api_client.dart';
 import '../../audit/application/query_audit_log.dart';
@@ -14,68 +15,72 @@ import '../domain/users_repository.dart';
 import '../infrastructure/users_repository_impl.dart';
 import '../presentation/users_cubit.dart';
 
+part 'users_module.module.cherrypick.g.dart';
+
 /// User management, in its own subscope (design.md decision 35). Opened by
 /// the shell only for a reader whose token carries the global admin role —
 /// an offer, not a gate: the authority is the server's 403 on every one of
 /// these endpoints (`AuditModule`, same reasoning).
-class UsersModule extends Module {
-  @override
-  void builder(Scope currentScope) {
-    bind<UsersRepository>()
-        .toProvide(() => UsersRepositoryImpl(currentScope.resolve<ApiClient>()))
-        .singleton();
+@module()
+abstract class UsersModule extends Module {
+  @singleton()
+  @provide()
+  UsersRepository usersRepository(ApiClient api) => UsersRepositoryImpl(api);
 
-    // For the role-grant form's group/project search — the same repository
-    // `ResourcesModule` binds for the Groups/Projects screens, rebound here
-    // because this subscope is opened independently of that one and cannot
-    // resolve into it (`AuditModule`, same shape of problem).
-    bind<ResourcesRepository>()
-        .toProvide(
-          () => ResourcesRepositoryImpl(currentScope.resolve<ApiClient>()),
-        )
-        .singleton();
+  // For the role-grant form's group/project search — the same repository
+  // `ResourcesModule` binds for the Groups/Projects screens, rebound here
+  // because this subscope is opened independently of that one and cannot
+  // resolve into it (`AuditModule`, same shape of problem).
+  @singleton()
+  @provide()
+  ResourcesRepository resourcesRepository(ApiClient api) =>
+      ResourcesRepositoryImpl(api);
 
-    // Same rebinding, same reason, for the role-grant list/grant/revoke —
-    // `ResourcesModule` binds the same class for the group/project «Доступ»
-    // section.
-    bind<RoleAssignmentsRepository>()
-        .toProvide(
-          () =>
-              RoleAssignmentsRepositoryImpl(currentScope.resolve<ApiClient>()),
-        )
-        .singleton();
+  // Same rebinding, same reason, for the role-grant list/grant/revoke —
+  // `ResourcesModule` binds the same class for the group/project «Доступ»
+  // section.
+  @singleton()
+  @provide()
+  RoleAssignmentsRepository roleAssignmentsRepository(ApiClient api) =>
+      RoleAssignmentsRepositoryImpl(api);
 
-    // Same rebinding again, for `UserDetailPage`'s "Последние события
-    // аудита" card — `AuditModule` binds the same classes for the audit
-    // screen itself.
-    bind<AuditRepository>()
-        .toProvide(() => AuditRepositoryImpl(currentScope.resolve<ApiClient>()))
-        .singleton();
+  // Same rebinding again, for `UserDetailPage`'s "Последние события
+  // аудита" card — `AuditModule` binds the same classes for the audit
+  // screen itself.
+  @singleton()
+  @provide()
+  AuditRepository auditRepository(ApiClient api) => AuditRepositoryImpl(api);
 
-    bind<ManageUsers>().toProvide(
-      () => ManageUsers(currentScope.resolve<UsersRepository>()),
-    );
-    bind<ManageRoleAssignments>().toProvide(
-      () => ManageRoleAssignments(
-        currentScope.resolve<RoleAssignmentsRepository>(),
-      ),
-    );
-    bind<QueryAuditLog>().toProvide(
-      () => QueryAuditLog(currentScope.resolve<AuditRepository>()),
-    );
+  @provide()
+  ManageUsers manageUsers(UsersRepository repository) =>
+      ManageUsers(repository);
 
-    // Not a singleton: the cubit belongs to the screen that opened it and is
-    // closed with it (`AuditModule`, same rule).
-    bind<UsersCubit>().toProvide(
-      () => UsersCubit(
-        currentScope.resolve<ManageUsers>(),
-        currentScope.resolve<ResourcesRepository>(),
-        currentScope.resolve<ManageRoleAssignments>(),
-        currentScope.resolve<QueryAuditLog>(),
-      ),
-    );
-  }
+  @provide()
+  ManageRoleAssignments manageRoleAssignments(
+    RoleAssignmentsRepository repository,
+  ) => ManageRoleAssignments(repository);
+
+  @provide()
+  QueryAuditLog queryAuditLog(AuditRepository repository) =>
+      QueryAuditLog(repository);
+
+  // Not a singleton: the cubit belongs to the screen that opened it and is
+  // closed with it (`AuditModule`, same rule).
+  @provide()
+  UsersCubit usersCubit(
+    ManageUsers users,
+    ResourcesRepository resources,
+    ManageRoleAssignments roleAssignments,
+    QueryAuditLog audit,
+  ) => UsersCubit(users, resources, roleAssignments, audit);
 }
 
+const usersScopeName = 'users';
+
 Scope openUsersScope(Scope parent) =>
-    parent.openSubScope('users')..installModules([UsersModule()]);
+    parent.openSubScope(usersScopeName)..installModules([$UsersModule()]);
+
+/// Disposes what users's scope created and forgets it, so the next
+/// [openUsersScope] starts from nothing rather than on top of the last one.
+Future<void> closeUsersScope(Scope parent) =>
+    parent.closeSubScope(usersScopeName);

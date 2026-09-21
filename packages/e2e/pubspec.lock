@@ -45,10 +45,18 @@ packages:
     dependency: transitive
     description:
       name: cherrypick
-      sha256: "9302fd465fea44d2e5785142046b8a269fd2e173d29ed6b28423e88d9fb543ac"
+      sha256: "3328e4d38e8bed9feed8c3d6b13f4c6b09325733266c457910e4760b0afbe74c"
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.0"
+    version: "4.0.0-dev.5"
+  cherrypick_annotations:
+    dependency: transitive
+    description:
+      name: cherrypick_annotations
+      sha256: "7702ac303122d8028a84f1704d5d8542832fb704dc17d59dcc5a84cdf68a35e0"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0-dev.1"
   clock:
     dependency: transitive
     description:

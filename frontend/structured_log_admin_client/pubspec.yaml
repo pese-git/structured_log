@@ -8,7 +8,7 @@ environment:
   # null-aware elements (`?instance.field`) for `includeIfNull: false`, and
   # that language feature only exists from 3.8. A lower floor makes the generated
   # code unparseable rather than merely unsupported.
-  sdk: ^3.8.0
+  sdk: ^3.9.0
   flutter: ">=3.44.0" # fluent_ui 4.16.0+ needs this — see structured_log_admin_ui
 
 dependencies:
@@ -41,6 +41,7 @@ dependencies:
 
   # DI (decision 35) and state (decision 36).
   cherrypick: ^4.0.0-dev.5
+  cherrypick_annotations: ^4.0.0-dev.1
   flutter_bloc: ^8.1.6
 
   # Tokens never touch shared preferences (decision 20).
@@ -79,6 +80,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
   build_runner: ^2.4.13
+  cherrypick_generator: ^4.0.0-dev.5
   freezed: ^3.0.0
   json_serializable: ^6.8.0
   # 10.x, not 9.x: retrofit_generator 9.7.0 declares `retrofit: ^4.6.0` but
