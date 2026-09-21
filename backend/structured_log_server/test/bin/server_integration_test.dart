@@ -79,6 +79,135 @@ void main() {
     timeout: const Timeout(Duration(seconds: 60)),
   );
 
+  test('an idle subscription over a real socket gets its headers at once, not at '
+      'the first heartbeat', () async {
+    // `dart:io` sends the response headers with the first byte of the body, so
+    // a stream with nothing to say answered nothing — for a heartbeat interval,
+    // 25 s by default — and a client or proxy waiting for headers saw neither an
+    // open connection nor a failed one. A handler test cannot see it: the
+    // `Response` exists at once; only a real socket shows when the headers go.
+    final dir = Directory.systemTemp.createTempSync('server_idle_stream');
+    addTearDown(() => dir.deleteSync(recursive: true));
+
+    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = probe.port;
+    await probe.close();
+
+    final process = await Process.start(
+      'dart',
+      [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+        // Far longer than the test: only something other than a heartbeat can
+        // be what the client hears.
+        '--sse-heartbeat-interval-seconds=300',
+      ],
+      environment: {
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
+      },
+    );
+    addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+    final stdoutLines = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .asBroadcastStream();
+    await stdoutLines
+        .firstWhere((line) => line.contains('Listening on'))
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () =>
+              throw StateError('server did not report ready in time'),
+        );
+
+    final client = HttpClient();
+    addTearDown(() => client.close(force: true));
+
+    Future<Map<String, Object?>> call(
+      String method,
+      String path, {
+      Object? json,
+      String? bearer,
+      String? form,
+    }) async {
+      final request = await client.open(method, 'localhost', port, path);
+      if (bearer != null) {
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
+      }
+      if (form != null) {
+        request.headers.contentType = ContentType(
+          'application',
+          'x-www-form-urlencoded',
+        );
+        request.write(form);
+      } else if (json != null) {
+        request.headers.contentType = ContentType.json;
+        request.write(jsonEncode(json));
+      }
+      final response = await request.close();
+      final text = await response.transform(utf8.decoder).join();
+      expect(response.statusCode, lessThan(300), reason: '$method $path $text');
+      return text.isEmpty ? const {} : jsonDecode(text) as Map<String, Object?>;
+    }
+
+    Future<String> login(String password) async =>
+        (await call(
+              'POST',
+              '/v1/auth/token',
+              form: 'grant_type=password&username=root&password=$password',
+            ))['access_token']
+            as String;
+
+    var token = await login('bootstrap-pw');
+    await call(
+      'POST',
+      '/v1/auth/change-password',
+      bearer: token,
+      json: {
+        'current_password': 'bootstrap-pw',
+        'new_password': 'real-password-1',
+      },
+    );
+    token = await login('real-password-1');
+    final group = await call(
+      'POST',
+      '/v1/groups',
+      bearer: token,
+      json: {'name': 'g'},
+    );
+
+    final request = await client.get(
+      'localhost',
+      port,
+      '/v1/logs/stream?group_id=${group['id']}',
+    );
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+    final stopwatch = Stopwatch()..start();
+    final response = await request.close().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => throw StateError(
+        'no response headers within 5 s on an idle stream — they were waiting '
+        'for the first heartbeat',
+      ),
+    );
+    final headersAfter = stopwatch.elapsed;
+
+    expect(response.statusCode, 200);
+    expect(response.headers.contentType?.mimeType, 'text/event-stream');
+    expect(headersAfter, lessThan(const Duration(seconds: 5)));
+    final firstChunk = await response
+        .transform(utf8.decoder)
+        .first
+        .timeout(const Duration(seconds: 5));
+    expect(firstChunk, startsWith(':'), reason: 'a comment, not an event');
+  }, timeout: const Timeout(Duration(seconds: 90)));
+
   test(
     'a live subscription over a real socket delivers new entries and catches '
     'up by since_id',

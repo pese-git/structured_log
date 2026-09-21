@@ -114,6 +114,20 @@ The response headers carry `Cache-Control: no-cache, no-transform` and
 `X-Accel-Buffering: no` for the same reason — an intermediary proxy that
 decides to "collect" the body reproduces exactly the same picture.
 
+### The first frame: headers wait for a byte
+
+`dart:io` sends the response headers together with the first byte of the
+body. A subscription with nothing to say — the usual state of a quiet project
+— therefore answered nothing at all, headers included, until the first
+heartbeat: 25 s by default. A client, a proxy or a browser waiting for
+headers saw a connection that was neither open nor failed. So the stream's
+first frame is a comment, `: connected`, written as soon as the subscription
+exists (after authorization, so a rejected caller still gets its plain JSON
+error). It carries no event and clients ignore it, as they do heartbeats. Like
+buffering above, this cannot be seen from a handler test — the `Response`
+exists at once — and is pinned by a test on a real socket with a heartbeat far
+longer than the test.
+
 ## Re-validating a long-lived connection
 
 An access token is short-lived by design (minutes — see

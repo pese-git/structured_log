@@ -377,6 +377,28 @@ void main() {
   });
 
   group('delivery', () {
+    test(
+      'a new subscription says something at once, before any entry or heartbeat',
+      () async {
+        // With nothing to send, the response used to stay silent — and headerless,
+        // since `dart:io` sends them with the first byte — until the first
+        // heartbeat. Here the heartbeat is an hour away.
+        handler = buildHandler(
+          db,
+          signingSecret: 'test-secret',
+          issuer: 'test',
+          broadcast: broadcast,
+          sseHeartbeatInterval: const Duration(hours: 1),
+        );
+
+        final reader = await open('project_id=$projectId');
+
+        await reader.waitFor(() => reader.frames.isNotEmpty);
+        expect(reader.frames.first.comment, isTrue);
+        expect(reader.logs, isEmpty);
+      },
+    );
+
     test('an entry accepted after subscribing is delivered', () async {
       final reader = await open('project_id=$projectId');
 
