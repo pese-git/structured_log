@@ -6,15 +6,20 @@ import 'package:structured_log/structured_log.dart';
 import '../audit/audit_module.dart';
 import '../audit/audit_writer.dart';
 import '../auth/auth_module.dart';
+import '../auth/hash_worker_pool.dart';
 import '../auth/identity_provider.dart';
 import '../auth/token_settings.dart';
 import '../config/server_config.dart';
 import '../errors.dart';
 import '../rbac/rbac_module.dart';
 import '../live/log_broadcast.dart';
+import '../logging/setup.dart';
 import '../storage/database.dart';
 import '../storage/storage_module.dart';
 import 'app_module.dart';
+import 'host_module.dart';
+import 'infra_module.dart';
+import 'process_resources.dart';
 import 'cors_middleware.dart';
 import 'http_settings.dart';
 import 'logging_middleware.dart';
@@ -42,28 +47,35 @@ const serverScopeName = 'server';
 /// before its own — so the order the graph goes down in is its nesting, not a
 /// list somebody has to keep right.
 ///
-/// - the scope itself: what the server is *given* — database, settings,
-///   broadcast (`AppModule`);
+/// - the scope itself: what the server is *given* — settings, the broadcast, and
+///   for a process the logging, closed last (`AppModule`);
+/// - [serverInfraScopeName]: the database and the hash workers, which everything
+///   else is built on (`InfraModule`);
 /// - [serverServicesScopeName]: what is built from those and holds no route —
 ///   the authorizer, the audit writer, tokens, identity, the log store;
-/// - [serverAppScopeName]: what serves requests — the route classes.
+/// - [serverAppScopeName]: what serves requests — the route classes;
+/// - [serverHostScopeName]: what only a process has — the purge and the listening
+///   server, closed first (`HostModule`, opened by [openServerHost]).
 ///
 /// Layers by dependency, not one scope per feature as the client has: routes of
 /// every feature use the same services, and a scope resolves *up*, never
 /// sideways, so a scope per feature would rebind them all.
+const serverInfraScopeName = 'infra';
 const serverServicesScopeName = 'services';
 const serverAppScopeName = 'app';
+const serverHostScopeName = 'host';
 
 /// Opens the scope that holds the server's object graph, declared by the
 /// modules (`app_module.dart` and the `*_module.dart` beside each feature), and
-/// returns its innermost layer, from which everything resolves.
+/// returns its innermost graph layer, from which everything resolves.
 ///
 /// By default the outermost scope is one of its own for every call, not the
 /// global root: tests build many, each on a database of its own, and they must
 /// not see each other's objects. The real server passes [into] — the scope it
 /// opened through `CherryPick.openScope` and closes at shutdown — so the
 /// process's graph lives where the helper's global observer and cycle detection
-/// reach it.
+/// reach it, and [process], which makes that scope the owner of the database,
+/// the hash workers and the logging.
 Scope openServerScope(
   StructuredLogDatabase db, {
   required String signingSecret,
@@ -72,11 +84,11 @@ Scope openServerScope(
   Duration sseHeartbeatInterval = defaultSseHeartbeat,
   ServerConfig? config,
   Scope? into,
+  ProcessResources? process,
 }) {
   final given = (into ?? Scope(null, observer: SilentCherryPickObserver()))
     ..installModules([
       AppModule(
-        db: db,
         tokens: TokenSettings(signingSecret: signingSecret, issuer: issuer),
         http: HttpSettings(
           trustedProxyHops: config?.trustedProxyHops ?? 0,
@@ -91,10 +103,22 @@ Scope openServerScope(
         // Owned by the caller when it needs to close it (the CLI entrypoint);
         // otherwise one per handler, which is what tests want.
         broadcast: broadcast ?? LogBroadcast(),
+        logging: process?.logging,
       ),
     ]);
 
-  final services = given.openSubScope(serverServicesScopeName)
+  final infra = given.openSubScope(serverInfraScopeName)
+    ..installModules([InfraModule(db: db, owned: process != null)]);
+
+  // A scope closes what it *created*, and a provider runs when something asks:
+  // the ones that nothing else asks for are created here, or never closed.
+  if (process != null) {
+    given.resolve<ServerLogging>();
+    infra.resolve<StructuredLogDatabase>();
+    infra.resolve<HashWorkerPool>();
+  }
+
+  final services = infra.openSubScope(serverServicesScopeName)
     ..installModules([
       $RbacModule(),
       $AuditModule(),
@@ -106,15 +130,29 @@ Scope openServerScope(
     ..installModules([$RoutesModule()]);
 }
 
+/// The innermost graph layer under [root], the scope [openServerScope] was given.
+Scope _appLayer(Scope root) => root
+    .openSubScope(serverInfraScopeName)
+    .openSubScope(serverServicesScopeName)
+    .openSubScope(serverAppScopeName);
+
 /// Whether the graph under [root] — the scope [openServerScope] was given — has
 /// been built: the innermost layer answers for a route, which it can only do if
 /// every layer above it did too.
 bool serverGraphIsBuilt(Scope root) =>
-    root
-        .openSubScope(serverServicesScopeName)
-        .openSubScope(serverAppScopeName)
-        .tryResolve<LogRoutes>() !=
-    null;
+    _appLayer(root).tryResolve<LogRoutes>() != null;
+
+/// Opens the layer only a process has — the purge and the listening server —
+/// under the graph in [root], and returns it. Nothing in it is started.
+Scope openServerHost(
+  Scope root, {
+  required ServerConfig config,
+  required Handler handler,
+  BoundLogger? logger,
+}) => _appLayer(root).openSubScope(serverHostScopeName)
+  ..installModules([
+    HostModule(config: config, handler: handler, logger: logger),
+  ]);
 
 /// Builds the full `shelf` [Handler] for the server.
 ///
@@ -153,6 +191,9 @@ Handler buildHandler(
 
   /// Where the object graph is installed; see [openServerScope].
   Scope? scope,
+
+  /// What a process hands over to be closed with the scope.
+  ProcessResources? process,
 }) {
   final graph = openServerScope(
     db,
@@ -162,6 +203,7 @@ Handler buildHandler(
     sseHeartbeatInterval: sseHeartbeatInterval,
     config: config,
     into: scope,
+    process: process,
   );
 
   final audit = graph.resolve<AuditWriter>();

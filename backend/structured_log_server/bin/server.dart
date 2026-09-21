@@ -2,18 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cherrypick/cherrypick.dart';
-import 'package:shelf/shelf_io.dart' as shelf_io;
-import 'package:structured_log_server/src/audit/audit_writer.dart';
+import 'package:structured_log/structured_log.dart';
 import 'package:structured_log_server/src/auth/bootstrap_admin.dart';
 import 'package:structured_log_server/src/auth/create_admin.dart';
 import 'package:structured_log_server/src/auth/hashing.dart'
-    show dummyPasswordHash, hashWorkerPool;
+    show dummyPasswordHash;
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
+import 'package:structured_log_server/src/http/process_resources.dart';
 import 'package:structured_log_server/src/http/server.dart';
+import 'package:structured_log_server/src/http/server_host.dart';
 import 'package:structured_log_server/src/logging/setup.dart';
 import 'package:structured_log_server/src/retention/purge_job.dart';
-import 'package:structured_log_server/src/live/log_broadcast.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 
 const _version = '0.1.0-dev.0';
@@ -150,23 +150,21 @@ Future<void> _runServe(
         log.warning('bootstrap.warning', context: {'message': message}),
   );
 
-  // Owned here rather than by buildHandler so shutdown can close it and
-  // every open `GET /v1/logs/stream` subscription ends with the process
-  // instead of hanging on a stream that will never produce again.
-  final logBroadcast = LogBroadcast();
-  // The process's object graph lives in a scope opened through the helper and
-  // closed by `_shutdown`: one place for the container's global settings to
-  // reach, and the place lifecycle will hang off.
+  // The process's object graph lives in a scope opened through the helper, and
+  // that scope *owns* what the process hands it — the database, the hash
+  // workers, the logging (`ProcessResources`) — and closes them as it goes
+  // down. Its layers (`http/server.dart`) are what make the order of that
+  // right, so shutdown is one call rather than a list to keep in order.
   final graph = CherryPick.openScope(scopeName: serverScopeName);
   final handler = buildHandler(
     db,
     signingSecret: config.jwtSecret!,
     issuer: config.jwtIssuer,
-    broadcast: logBroadcast,
     sseHeartbeatInterval: Duration(seconds: config.sseHeartbeatIntervalSeconds),
     config: config,
     logger: log,
     scope: graph,
+    process: ProcessResources(logging: logging),
   );
   // Says whether the handler was built *into* that scope: a scope that was
   // opened and stayed empty looks the same from outside as one that was used.
@@ -175,30 +173,27 @@ Future<void> _runServe(
     context: {'scope': serverScopeName, 'populated': serverGraphIsBuilt(graph)},
   );
 
+  // The innermost layer: what only a running process has. Both are built by the
+  // container and started here, in the order startup needs.
+  final host = openServerHost(
+    graph,
+    config: config,
+    handler: handler,
+    logger: log,
+  );
+
   // The periodic retention purge needs a long-running process to live in,
   // which is precisely why it belongs here and not in the library
   // (`tasks.md` 7.3). Started before the port opens so a backlog from a
   // previous run begins clearing immediately.
-  final purge = PurgeScheduler(
-    db,
-    interval: Duration(seconds: config.retentionPurgeIntervalSeconds),
-    logger: log,
-    audit: AuditWriter(db),
-    auditRetentionDays: config.auditRetentionDays,
-    authEventRetentionDays: config.authEventRetentionDays,
-    auditChunkSize: config.auditPurgeBatchSize,
-  )..start();
+  host.resolve<PurgeScheduler>().start();
 
   // Before the first request: the dummy hash a login checks against for an
   // account that does not exist is made on first use, and that one login would
   // take twice as long as every other — a difference visible from outside.
   await dummyPasswordHash;
 
-  final server = await shelf_io.serve(
-    handler,
-    config.httpHost,
-    config.httpPort,
-  );
+  final server = await host.resolve<ServerHost>().start();
 
   // Signal handlers before the readiness line, not after: that line is what
   // a supervisor waits for before considering the process up, and until the
@@ -206,13 +201,9 @@ Future<void> _runServe(
   // it outright instead of shutting it down.
   final done = Completer<void>();
   final subscriptions = <StreamSubscription<ProcessSignal>>[
-    ProcessSignal.sigint.watch().listen(
-      (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
-    ),
+    ProcessSignal.sigint.watch().listen((_) => _shutdown(log, done)),
     if (!Platform.isWindows)
-      ProcessSignal.sigterm.watch().listen(
-        (_) => _shutdown(server, db, logBroadcast, purge, logging, done),
-      ),
+      ProcessSignal.sigterm.watch().listen((_) => _shutdown(log, done)),
   ];
 
   log.info(
@@ -230,37 +221,16 @@ Future<void> _runServe(
   }
 }
 
-Future<void> _shutdown(
-  HttpServer server,
-  StructuredLogDatabase db,
-  LogBroadcast broadcast,
-  PurgeScheduler purge,
-  ServerLogging logging,
-  Completer<void> done,
-) async {
+Future<void> _shutdown(BoundLogger log, Completer<void> done) async {
   if (done.isCompleted) return;
-  logging.logger.info('server.stopping');
+  log.info('server.stopping');
   stdout.writeln('Shutting down...');
-  // Before the database closes: a purge pass firing against a closed
-  // connection would be an unhandled error on the way out.
-  purge.stop();
-  // Close the broadcast before the server: an open subscription that is
-  // still being fed while the socket goes away would keep the process
-  // alive on a stream nobody can read.
-  await broadcast.close();
-  await server.close(force: false);
-  await db.close();
-  // Idle workers hold a port open; nothing may still be hashing by now, since
-  // the server has stopped taking requests.
-  await hashWorkerPool.close();
-  // The graph's scope, after everything that used it has stopped. Nothing in it
-  // needs disposing yet; what does will be closed here, in order.
+  // Everything the process owns goes down here, innermost layer first: the
+  // server stops accepting and its live subscriptions end, then the purge, then
+  // the services, then the database and the hash workers, and last the logging,
+  // so its queued writes land after everything that could still write a line
+  // (`http/server.dart`, the layers).
   await CherryPick.closeScope(scopeName: serverScopeName);
-  logging.logger.debug(
-    'server.graph_closed',
-    context: {'scope': serverScopeName},
-  );
-  // Last, so queued file writes land before the process goes away.
-  await logging.flush();
+  log.debug('server.graph_closed', context: {'scope': serverScopeName});
   done.complete();
 }

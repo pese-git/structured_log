@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cherrypick/cherrypick.dart' show Disposable;
 import 'package:drift/drift.dart';
 import 'package:structured_log/structured_log.dart';
 
@@ -287,7 +288,7 @@ Expression<int> _atLeastZero(Expression<int> value) => CaseWhenExpression<int>(
 /// Passes never overlap. If one takes longer than the interval, the next
 /// tick is skipped rather than queued, because two purges running against
 /// the same rows would double-count the decrement.
-class PurgeScheduler {
+class PurgeScheduler implements Disposable {
   final StructuredLogDatabase _db;
   final Duration interval;
   final BoundLogger? _logger;
@@ -327,6 +328,12 @@ class PurgeScheduler {
     _timer?.cancel();
     _timer = null;
   }
+
+  /// A scope that owns the scheduler stops it as it goes down, before the
+  /// database below it (a pass firing against a closed connection would be an
+  /// unhandled error on the way out).
+  @override
+  Future<void> dispose() async => stop();
 
   /// One pass, also callable directly — which is how tests drive it without
   /// waiting out an interval.

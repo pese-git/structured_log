@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cherrypick/cherrypick.dart' show Disposable;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:sqlite3/sqlite3.dart' show Database;
@@ -192,8 +193,14 @@ class LogEntries extends Table {
     LogEntries,
   ],
 )
-class StructuredLogDatabase extends _$StructuredLogDatabase {
+class StructuredLogDatabase extends _$StructuredLogDatabase
+    implements Disposable {
   StructuredLogDatabase(super.executor);
+
+  /// What a scope that owns this database calls when it goes down: the
+  /// connections close (`server` layers, `http/server.dart`).
+  @override
+  Future<void> dispose() => close();
 
   /// Opens (creating if absent) the SQLite database file at [path] in WAL
   /// mode (`log-server-storage` — reads must not block on concurrent
