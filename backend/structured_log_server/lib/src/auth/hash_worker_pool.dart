@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:isolate';
 
+import 'package:cherrypick/cherrypick.dart' show Disposable;
 import 'package:bcrypt/bcrypt.dart';
 
 /// What a worker is asked to do. Sent as an index, not an enum, because only
@@ -20,7 +21,7 @@ const _opVerify = 1;
 ///
 /// The pool's [close] must be called on shutdown: an idle worker holds a
 /// receive port open.
-class HashWorkerPool {
+class HashWorkerPool implements Disposable {
   HashWorkerPool(this.size) {
     if (size < 1) throw ArgumentError.value(size, 'size', 'must be at least 1');
   }
@@ -86,6 +87,9 @@ class HashWorkerPool {
     _workers.add(worker);
     worker.start();
   }
+
+  @override
+  Future<void> dispose() => close();
 
   /// Stops every worker and fails whatever has not run.
   Future<void> close() async {

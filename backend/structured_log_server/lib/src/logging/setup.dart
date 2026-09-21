@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cherrypick/cherrypick.dart' show Disposable;
 import 'package:structured_log/structured_log.dart';
 
 import '../config/config_resolver.dart';
@@ -16,7 +17,7 @@ import '../config/server_config.dart';
 /// what the process itself did. Diagnostics must not reach `log_entries` —
 /// they belong to no project and would distort someone's quota — and must
 /// not stand in for the audit log, which cannot be turned down by a level.
-class ServerLogging {
+class ServerLogging implements Disposable {
   /// The root logger. Handlers derive from it with `bind`/`withCorrelation`
   /// rather than reaching for a global.
   final BoundLogger logger;
@@ -28,6 +29,11 @@ class ServerLogging {
   /// Waits for queued file writes to land. Called before the process exits;
   /// without it the last lines of a clean shutdown can be lost.
   Future<void> flush() async => _file?.flushed;
+
+  /// A scope that owns the logging flushes it last, after everything that
+  /// could still write a line has gone down.
+  @override
+  Future<void> dispose() => flush();
 }
 
 /// Configures `structured_log` for this process and returns the root logger.
