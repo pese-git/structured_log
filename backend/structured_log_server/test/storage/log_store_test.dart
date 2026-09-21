@@ -5,6 +5,8 @@ import 'package:structured_log_server/src/storage/log_store.dart';
 import 'package:structured_log_server/src/storage/query.dart';
 import 'package:test/test.dart';
 
+import '../support/query_recorder.dart';
+
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
     NativeDatabase.memory(
@@ -95,6 +97,141 @@ void main() {
 
       final rows = await db.select(db.logEntries).get();
       expect(rows, isEmpty);
+    });
+  });
+
+  group('insertBatch, as the ingest path uses it', () {
+    late Recorder recorder;
+    late StructuredLogDatabase recorded;
+    late DriftLogStore recordedStore;
+    late int project;
+
+    setUp(() async {
+      recorder = Recorder();
+      recorded = StructuredLogDatabase(
+        NativeDatabase.memory(
+                setup: (d) => d.execute('PRAGMA foreign_keys=ON;'))
+            .interceptWith(recorder),
+      );
+      recordedStore = DriftLogStore(recorded);
+      final g = await recorded
+          .into(recorded.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      project = await recorded.into(recorded.projects).insert(
+          ProjectsCompanion.insert(groupId: g, name: 'p', retentionDays: 30));
+      recorder.clear();
+    });
+    tearDown(() => recorded.close());
+
+    test('returns rows in order, with consecutive ids, exactly as stored',
+        () async {
+      // Something else in the table first, so the ids do not start at 1.
+      await recordedStore.insertBatch(project, [entry(event: 'earlier')]);
+
+      final rows = await recordedStore.insertBatch(
+        project,
+        [
+          for (var i = 0; i < 25; i++)
+            entry(event: 'e$i', level: i.isEven ? 'info' : 'error')
+        ],
+      );
+
+      expect(rows.map((r) => r.event), [for (var i = 0; i < 25; i++) 'e$i']);
+      expect(
+        [for (var i = 1; i < rows.length; i++) rows[i].id - rows[i - 1].id],
+        everyElement(1),
+      );
+      final stored = await (recorded.select(recorded.logEntries)
+            ..where((t) => t.id.isBetweenValues(rows.first.id, rows.last.id)))
+          .get();
+      expect(rows, stored);
+      expect(rows.first.id, greaterThan(1));
+    });
+
+    test('an empty batch touches nothing', () async {
+      expect(await recordedStore.insertBatch(project, const []), isEmpty);
+      expect(recorder.statements, isEmpty);
+      expect(recorder.transactions, isEmpty);
+    });
+
+    test('inside the caller\'s transaction it opens none of its own', () async {
+      await recorded.transaction(() async {
+        await recordedStore
+            .insertBatch(project, [entry(event: 'a'), entry(event: 'b')]);
+      });
+
+      // One: the caller's. A second, nested one is a SAVEPOINT, and that alone
+      // cost half of an ingest batch.
+      expect(recorder.transactions, ['top-level']);
+    });
+
+    test('outside a transaction it runs in one of its own, and only one',
+        () async {
+      await recordedStore.insertBatch(project, [entry(event: 'a')]);
+      expect(recorder.transactions, ['top-level']);
+    });
+
+    test('the number of statements does not grow with the batch', () async {
+      Future<int> statementsFor(int n) async {
+        recorder.clear();
+        await recorded.transaction(() async {
+          await recordedStore.insertBatch(
+              project, [for (var i = 0; i < n; i++) entry(event: 'x$i')]);
+        });
+        return recorder.statements.length;
+      }
+
+      final one = await statementsFor(1);
+      final hundred = await statementsFor(100);
+      // Before: one INSERT ... RETURNING per entry, each a round trip.
+      expect(hundred, one);
+    });
+
+    test(
+        'is atomic with its caller: rolling the transaction back removes the rows',
+        () async {
+      await expectLater(
+        recorded.transaction(() async {
+          await recordedStore.insertBatch(project, [entry(event: 'gone')]);
+          throw StateError('the caller changes its mind');
+        }),
+        throwsStateError,
+      );
+      expect(await recorded.select(recorded.logEntries).get(), isEmpty);
+    });
+
+    test('is atomic on its own: a batch that cannot be stored stores nothing',
+        () async {
+      await expectLater(
+        recordedStore
+            .insertBatch(99999, [entry(event: 'a'), entry(event: 'b')]),
+        throwsA(anything),
+      );
+      expect(await recorded.select(recorded.logEntries).get(), isEmpty);
+    });
+
+    test('two concurrent batches each get back their own rows', () async {
+      final g2 = await recorded
+          .into(recorded.groups)
+          .insert(GroupsCompanion.insert(name: 'g2'));
+      final other = await recorded.into(recorded.projects).insert(
+          ProjectsCompanion.insert(groupId: g2, name: 'q', retentionDays: 30));
+
+      final results = await Future.wait([
+        for (var i = 0; i < 10; i++)
+          recordedStore.insertBatch(i.isEven ? project : other,
+              [for (var j = 0; j < 20; j++) entry(event: 'b$i-$j')]),
+      ]);
+
+      for (var i = 0; i < 10; i++) {
+        expect(results[i].map((r) => r.event),
+            [for (var j = 0; j < 20; j++) 'b$i-$j']);
+        expect(
+            results[i]
+                .every((r) => r.projectId == (i.isEven ? project : other)),
+            isTrue);
+      }
+      expect(await recorded.select(recorded.logEntries).get(), hasLength(200));
     });
   });
 

@@ -13,6 +13,7 @@ import 'package:structured_log_server/src/storage/database.dart';
 import 'package:structured_log_server/src/storage/log_store.dart';
 import 'package:test/test.dart';
 
+import '../../support/query_recorder.dart';
 import 'test_helpers.dart';
 
 const _admin = [EffectiveRole(role: Role.admin, scopeType: ScopeType.global)];
@@ -135,6 +136,50 @@ void main() {
       );
 
       expect(await db.select(db.logEntries).get(), isEmpty);
+    });
+
+    test(
+        'one ingest batch is one transaction, and its statements do not grow with it',
+        () async {
+      final recorder = Recorder();
+      final recorded = StructuredLogDatabase(
+        NativeDatabase.memory(
+                setup: (d) => d.execute('PRAGMA foreign_keys=ON;'))
+            .interceptWith(recorder),
+      );
+      addTearDown(recorded.close);
+      final g = await recorded
+          .into(recorded.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      final p = await recorded.into(recorded.projects).insert(
+          ProjectsCompanion.insert(groupId: g, name: 'p', retentionDays: 30));
+      await recorded
+          .into(recorded.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(p)));
+      final recordedRoutes = LogRoutes(recorded, Authorizer(recorded),
+          DriftLogStore(recorded), LogBroadcast());
+
+      Future<int> statementsFor(int n) async {
+        recorder.clear();
+        final response = await recordedRoutes.router.call(ingestRequest(p, [
+          for (var i = 0; i < n; i++)
+            {
+              'event': 'e$i',
+              'level': 'info',
+              'timestamp': '2026-01-01T00:00:00Z'
+            },
+        ]));
+        expect(response.statusCode, 202);
+        // The one transaction the route opens — a second, inside it, is a
+        // SAVEPOINT (what `insertBatch` used to add).
+        expect(recorder.transactions, ['top-level']);
+        return recorder.statements.length;
+      }
+
+      final one = await statementsFor(1);
+      final hundred = await statementsFor(100);
+      expect(hundred, one,
+          reason: 'a round trip per entry is what this replaced');
     });
 
     test('a body streamed past the limit is refused while reading', () async {

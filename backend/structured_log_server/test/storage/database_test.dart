@@ -603,4 +603,33 @@ void main() {
       expect(await again.select(again.users).get(), isEmpty);
     });
   });
+
+  group('isInTransaction', () {
+    test('is false outside a transaction and true inside one', () async {
+      final db = openInMemory();
+      addTearDown(db.close);
+
+      expect(db.isInTransaction, isFalse);
+      late bool inside;
+      late bool afterAwait;
+      await db.transaction(() async {
+        inside = db.isInTransaction;
+        await db.customSelect('SELECT 1').get();
+        afterAwait = db.isInTransaction;
+      });
+      expect(inside, isTrue);
+      expect(afterAwait, isTrue, reason: 'it follows the zone across awaits');
+      expect(db.isInTransaction, isFalse);
+    });
+
+    test('and true in a nested one', () async {
+      final db = openInMemory();
+      addTearDown(db.close);
+      late bool nested;
+      await db.transaction(() => db.transaction(() async {
+            nested = db.isInTransaction;
+          }));
+      expect(nested, isTrue);
+    });
+  });
 }
