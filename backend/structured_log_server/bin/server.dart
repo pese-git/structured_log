@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cherrypick/cherrypick.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/bootstrap_admin.dart';
 import 'package:structured_log_server/src/auth/create_admin.dart';
+import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/auth/hashing.dart'
     show dummyPasswordHash, hashWorkerPool;
 import 'package:structured_log_server/src/config/config_resolver.dart';
@@ -153,6 +155,10 @@ Future<void> _runServe(
   // every open `GET /v1/logs/stream` subscription ends with the process
   // instead of hanging on a stream that will never produce again.
   final logBroadcast = LogBroadcast();
+  // The process's object graph lives in a scope opened through the helper and
+  // closed by `_shutdown`: one place for the container's global settings to
+  // reach, and the place lifecycle will hang off.
+  final graph = CherryPick.openScope(scopeName: serverScopeName);
   final handler = buildHandler(
     db,
     signingSecret: config.jwtSecret!,
@@ -161,6 +167,16 @@ Future<void> _runServe(
     sseHeartbeatInterval: Duration(seconds: config.sseHeartbeatIntervalSeconds),
     config: config,
     logger: log,
+    scope: graph,
+  );
+  // Says whether the handler was built *into* that scope: a scope that was
+  // opened and stayed empty looks the same from outside as one that was used.
+  log.debug(
+    'server.graph_opened',
+    context: {
+      'scope': serverScopeName,
+      'populated': graph.tryResolve<IdentityProvider>() != null,
+    },
   );
 
   // The periodic retention purge needs a long-running process to live in,
@@ -241,6 +257,13 @@ Future<void> _shutdown(
   // Idle workers hold a port open; nothing may still be hashing by now, since
   // the server has stopped taking requests.
   await hashWorkerPool.close();
+  // The graph's scope, after everything that used it has stopped. Nothing in it
+  // needs disposing yet; what does will be closed here, in order.
+  await CherryPick.closeScope(scopeName: serverScopeName);
+  logging.logger.debug(
+    'server.graph_closed',
+    context: {'scope': serverScopeName},
+  );
   // Last, so queued file writes land before the process goes away.
   await logging.flush();
   done.complete();

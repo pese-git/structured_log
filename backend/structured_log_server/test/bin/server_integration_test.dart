@@ -934,6 +934,73 @@ void main() {
     expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  test('the running server opens its graph through the helper and closes it on '
+      'shutdown', () async {
+    // Fourth instance of the same hazard: the scope is opened and closed in
+    // bin/server.dart, and a scope that was never opened, or never closed,
+    // looks identical from outside to one that was — nothing in it needs
+    // disposing yet. Both events report themselves at debug for that reason.
+    final dir = Directory.systemTemp.createTempSync('server_graph_test');
+    addTearDown(() => dir.deleteSync(recursive: true));
+
+    final probe = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    final port = probe.port;
+    await probe.close();
+
+    final process = await Process.start(
+      'dart',
+      [
+        'run',
+        'bin/server.dart',
+        'serve',
+        '--db-path=${dir.path}/test.sqlite',
+        '--http-port=$port',
+        '--log-format=json',
+        '--log-level=debug',
+      ],
+      environment: {
+        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
+      },
+    );
+    addTearDown(() => process.kill(ProcessSignal.sigterm));
+
+    final lines = <String>[];
+    final stdoutLines = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .asBroadcastStream();
+    final done = Completer<void>();
+    stdoutLines.listen(lines.add, onDone: done.complete);
+    await stdoutLines
+        .firstWhere((line) => line.contains('Listening on'))
+        .timeout(
+          const Duration(seconds: 30),
+          onTimeout: () =>
+              throw StateError('server did not report ready in time'),
+        );
+
+    bool saw(String event) => lines.any(
+      (line) => line.startsWith('{') && line.contains('"event":"$event"'),
+    );
+    expect(saw('server.graph_opened'), isTrue, reason: lines.join('\n'));
+    expect(
+      lines.any(
+        (l) =>
+            l.contains('server.graph_opened') && l.contains('"populated":true'),
+      ),
+      isTrue,
+      reason: 'the handler must be built into the scope that was opened',
+    );
+    expect(saw('server.graph_closed'), isFalse);
+
+    process.kill(ProcessSignal.sigterm);
+    expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
+    await done.future.timeout(const Duration(seconds: 5));
+
+    expect(saw('server.graph_closed'), isTrue, reason: lines.join('\n'));
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
   test(
     'over a real process: create-admin marks the first administrator primary, '
     'refuses a second one, and the serving process accepts that account',
