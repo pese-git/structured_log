@@ -69,6 +69,42 @@ void main() {
     await closeApp(tester);
   });
 
+  testWidgets('an administrator is offered a way to create a group', (
+    tester,
+  ) async {
+    await pumpApp(tester, server, signedIn: true);
+
+    expect(find.text('Создать группу'), findsOneWidget);
+    await closeApp(tester);
+  });
+
+  testWidgets('a reader without the global admin role is not', (tester) async {
+    // The server would answer 403 to a group created by an owner, and the
+    // button led them into a dialog that ended in that refusal. There is no
+    // endpoint that creates a second account, so the only way to be someone else
+    // is to say what the token claims.
+    final owner = MockServer(
+      roles: const [
+        {'role': 'owner', 'scope_type': 'group', 'scope_id': 7},
+      ],
+    );
+    owner.groups.add({
+      'id': 7,
+      'name': 'acme',
+      'created_at': '2026-02-14T00:00:00.000Z',
+    });
+
+    await pumpApp(tester, owner, signedIn: true);
+
+    expect(find.text('acme'), findsOneWidget, reason: 'their group is listed');
+    expect(find.text('Создать группу'), findsNothing);
+    expect(
+      owner.requests.where((r) => r.method == 'POST' && r.path == '/v1/groups'),
+      isEmpty,
+    );
+    await closeApp(tester);
+  });
+
   testWidgets('a list longer than a page reaches its last row through the '
       'cursor the server gave', (tester) async {
     // 120 groups is three pages of 50. The server tells the client about the

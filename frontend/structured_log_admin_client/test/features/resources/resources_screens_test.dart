@@ -238,7 +238,7 @@ void main() {
         _host(
           BlocProvider.value(
             value: cubit,
-            child: GroupsPage(onOpen: (_) {}),
+            child: GroupsPage(onOpen: (_) {}, isAdmin: true),
           ),
         ),
       );
@@ -252,6 +252,78 @@ void main() {
       expect(find.text('Групп пока нет'), findsOneWidget);
     });
 
+    group('who is offered the way to create one', () {
+      Future<void> pumpAs(
+        WidgetTester tester, {
+        required bool isAdmin,
+        Locale locale = const Locale('ru'),
+      }) async {
+        useWideSurface(tester);
+        final cubit = GroupsCubit(ManageGroups(repository))..load();
+        addTearDown(cubit.close);
+        await tester.pumpWidget(
+          _host(
+            BlocProvider.value(
+              value: cubit,
+              child: GroupsPage(onOpen: (_) {}, isAdmin: isAdmin),
+            ),
+            locale: locale,
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('an administrator sees the action and the invitation', (
+        tester,
+      ) async {
+        await pumpAs(tester, isAdmin: true);
+
+        expect(find.text('Создать группу'), findsOneWidget);
+        expect(find.textContaining('Создайте первую'), findsOneWidget);
+      });
+
+      testWidgets('anyone else sees neither, and is told what gets a group', (
+        tester,
+      ) async {
+        await pumpAs(tester, isAdmin: false);
+
+        expect(find.text('Создать группу'), findsNothing);
+        expect(find.byIcon(FluentIcons.add), findsNothing);
+        expect(find.textContaining('Создайте первую'), findsNothing);
+        expect(
+          find.textContaining('Администратор может выдать вам роль'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('the same in English', (tester) async {
+        await pumpAs(tester, isAdmin: false, locale: const Locale('en'));
+
+        expect(find.text('Create group'), findsNothing);
+        expect(
+          find.textContaining('An administrator can give you a role'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('the list itself is unchanged for a reader who has groups', (
+        tester,
+      ) async {
+        repository.groupList = [
+          GroupDto(
+            id: 7,
+            name: 'payments',
+            createdAt: DateTime.utc(2026, 2, 14),
+          ),
+        ];
+
+        await pumpAs(tester, isAdmin: false);
+
+        expect(find.text('payments'), findsOneWidget);
+        expect(find.text('Создать группу'), findsNothing);
+      });
+    });
+
     testWidgets('the English locale shows English text, not Russian', (
       tester,
     ) async {
@@ -262,7 +334,7 @@ void main() {
         _host(
           BlocProvider.value(
             value: cubit,
-            child: GroupsPage(onOpen: (_) {}),
+            child: GroupsPage(onOpen: (_) {}, isAdmin: true),
           ),
           locale: const Locale('en'),
         ),

@@ -91,6 +91,7 @@ class _ResourcesSectionState extends State<ResourcesSection> {
         create: (_) =>
             GroupsCubit(widget.scope.resolve<ManageGroups>())..load(),
         child: GroupsPage(
+          isAdmin: widget.isAdmin,
           onOpen: (group) => _go(_GroupDetail(group.id, group.name)),
         ),
       ),

@@ -1640,6 +1640,12 @@ abstract class AppLocalizations {
   /// **'A group owns projects. Create the first one to add a project to it and start receiving logs.'**
   String get resNoGroupsHint;
 
+  /// The empty groups list, for a reader who is not an administrator and so cannot create a group: what gets them one instead
+  ///
+  /// In en, this message translates to:
+  /// **'You do not have access to any group yet. An administrator can give you a role in one.'**
+  String get resNoGroupsHintReader;
+
   /// resCreatedOn
   ///
   /// In en, this message translates to:

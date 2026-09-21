@@ -1218,6 +1218,10 @@
   "@resNoGroupsHint": {
     "description": "resNoGroupsHint"
   },
+  "resNoGroupsHintReader": "You do not have access to any group yet. An administrator can give you a role in one.",
+  "@resNoGroupsHintReader": {
+    "description": "The empty groups list, for a reader who is not an administrator and so cannot create a group: what gets them one instead"
+  },
   "resCreatedOn": "Created {date}",
   "@resCreatedOn": {
     "description": "resCreatedOn",

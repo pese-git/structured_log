@@ -11,15 +11,21 @@ import 'resource_failure_text.dart';
 
 /// The list of groups, and the way to add one (`Groups.dc.html`).
 ///
-/// Creating a group is an administrator's privilege, and this client has no
-/// way to know whether the caller is one: there is no endpoint that reports
-/// the caller's own roles in this stage. So the action is offered and a
-/// refusal is explained — the server stays the source of truth, which is what
-/// `specs/admin-client-resource-management` asks for either way.
+/// Creating a group is an administrator's privilege. There is no endpoint that
+/// reports the caller's own roles, so [isAdmin] is read from the access token
+/// (`shared/auth/access_token_claims.dart`): it decides what is *offered*, never
+/// what is allowed — the server's 403 stays the authority, and a refusal is still
+/// explained (`specs/admin-client-resource-management`). Offered to everyone, the
+/// button led a reader who could not use it into a dialog that ended in an error.
 class GroupsPage extends StatelessWidget {
   final ValueChanged<GroupDto> onOpen;
 
-  const GroupsPage({super.key, required this.onOpen});
+  /// Whether the reader's token carries the global administrator role. `false`
+  /// until it is known, so the action never flashes for someone who may not have
+  /// it: appearing a frame later is better than appearing and vanishing.
+  final bool isAdmin;
+
+  const GroupsPage({super.key, required this.onOpen, required this.isAdmin});
 
   @override
   Widget build(BuildContext context) {
@@ -55,16 +61,18 @@ class GroupsPage extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: AdminSpacing.x12),
-                      AdminButton(
-                        label: compact
-                            ? context.l10n.resGroup
-                            : context.l10n.resCreateGroup,
-                        icon: FluentIcons.add,
-                        variant: AdminButtonVariant.accent,
-                        size: AdminButtonSize.dialog,
-                        onPressed: () => _create(context),
-                      ),
+                      if (isAdmin) ...[
+                        const SizedBox(width: AdminSpacing.x12),
+                        AdminButton(
+                          label: compact
+                              ? context.l10n.resGroup
+                              : context.l10n.resCreateGroup,
+                          icon: FluentIcons.add,
+                          variant: AdminButtonVariant.accent,
+                          size: AdminButtonSize.dialog,
+                          onPressed: () => _create(context),
+                        ),
+                      ],
                     ],
                   );
                 },
@@ -93,7 +101,11 @@ class GroupsPage extends StatelessWidget {
       return AdminEmptyState(
         icon: FluentIcons.group,
         title: context.l10n.resNoGroups,
-        description: context.l10n.resNoGroupsHint,
+        // "Create the first one" is for someone who can; a reader without the
+        // role is told what actually gets them a group.
+        description: isAdmin
+            ? context.l10n.resNoGroupsHint
+            : context.l10n.resNoGroupsHintReader,
       );
     }
 

@@ -934,6 +934,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'Группа владеет проектами. Создайте первую, чтобы завести в ней проект и начать принимать логи.';
 
   @override
+  String get resNoGroupsHintReader =>
+      'У вас пока нет доступа ни к одной группе. Администратор может выдать вам роль в одной из них.';
+
+  @override
   String resCreatedOn(String date) {
     return 'Создана $date';
   }
