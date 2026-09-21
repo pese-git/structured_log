@@ -994,11 +994,41 @@ void main() {
     );
     expect(saw('server.graph_closed'), isFalse);
 
+    // The container's own observer is live in the process (`configureContainer`):
+    // it reports each module going into each layer. A scope opened without it
+    // would be silent, which from outside looks the same as one that never opened.
+    final installed = lines
+        .where(
+          (l) =>
+              l.startsWith('{') && l.contains('"event":"di.modules_installed"'),
+        )
+        .join('\n');
+    for (final module in [
+      'AppModule',
+      'InfraModule',
+      r'$RbacModule',
+      r'$AuthModule',
+      r'$RoutesModule',
+      'HostModule',
+    ]) {
+      expect(installed, contains(module), reason: '$module was never reported');
+    }
+
     process.kill(ProcessSignal.sigterm);
     expect(await process.exitCode.timeout(const Duration(seconds: 10)), 0);
     await done.future.timeout(const Duration(seconds: 5));
 
     expect(saw('server.graph_closed'), isTrue, reason: lines.join('\n'));
+    expect(
+      saw('di.scope_closed'),
+      isTrue,
+      reason: 'the observer heard it close',
+    );
+    expect(
+      lines.join('\n'),
+      isNot(contains('integration-test-secret')),
+      reason: 'the container must never print what it holds',
+    );
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   test(
