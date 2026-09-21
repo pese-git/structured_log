@@ -604,6 +604,50 @@ void main() {
     });
   });
 
+  group('read pool', () {
+    late Directory dir;
+    late StructuredLogDatabase db;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('read_pool_');
+      db = StructuredLogDatabase.open('${dir.path}/db.sqlite');
+    });
+
+    tearDown(() async {
+      await db.close();
+      await dir.delete(recursive: true);
+    });
+
+    test('a read made right after a write sees it', () async {
+      // Reads go to other connections; each must see what has been committed.
+      for (var i = 0; i < 25; i++) {
+        final id = await insertGroup(db, name: 'g$i');
+        final seen = await (db.select(db.groups)..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        expect(seen?.name, 'g$i');
+      }
+    });
+
+    test('a read inside a transaction sees the transaction\'s own write',
+        () async {
+      await db.transaction(() async {
+        final id = await insertGroup(db, name: 'inside');
+        final seen = await (db.select(db.groups)..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        expect(seen?.name, 'inside');
+      });
+    });
+
+    test('every connection has the pragmas', () async {
+      // Many concurrent reads, so that more than one connection answers.
+      final rows = await Future.wait([
+        for (var i = 0; i < 12; i++)
+          db.customSelect('PRAGMA busy_timeout').getSingle(),
+      ]);
+      expect(rows.map((r) => r.data.values.first), everyElement(5000));
+    });
+  });
+
   group('isInTransaction', () {
     test('is false outside a transaction and true inside one', () async {
       final db = openInMemory();

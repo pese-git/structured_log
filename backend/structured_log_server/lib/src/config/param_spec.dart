@@ -49,6 +49,12 @@ class ParamSpec {
   /// before the port opens).
   final bool mustBePositive;
 
+  /// For an int param whose valid range includes zero but is still bounded —
+  /// inclusive limits, either may be omitted. Checked with the rest of the
+  /// configuration, like [mustBePositive].
+  final int? minValue;
+  final int? maxValue;
+
   /// For a secret whose value has rules of its own: returns what is wrong with
   /// it, or `null`. The message is reported with the rest of the configuration
   /// errors and must not repeat the value — it is a secret, and startup output
@@ -64,6 +70,8 @@ class ParamSpec {
     this.requiredForCommands = const {},
     this.allowedValues,
     this.mustBePositive = false,
+    this.minValue,
+    this.maxValue,
     this.validator,
   });
 

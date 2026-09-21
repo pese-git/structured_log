@@ -270,6 +270,15 @@ _Coerced _coerce(ParamSpec spec, String raw) {
       if (spec.mustBePositive && parsed < 1) {
         return _Coerced.err('${spec.name}: must be at least 1, got "$raw"');
       }
+      final min = spec.minValue, max = spec.maxValue;
+      if ((min != null && parsed < min) || (max != null && parsed > max)) {
+        final range = min != null && max != null
+            ? 'between $min and $max'
+            : min != null
+                ? 'at least $min'
+                : 'at most $max';
+        return _Coerced.err('${spec.name}: must be $range, got "$raw"');
+      }
       return _Coerced.ok(parsed);
     case ParamType.bool:
       final normalized = raw.toLowerCase();
