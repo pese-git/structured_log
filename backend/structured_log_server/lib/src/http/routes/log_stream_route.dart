@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -28,6 +29,19 @@ const defaultSseHeartbeat = Duration(seconds: 30);
 /// a very old `since_id` can't make the server materialize an unbounded
 /// result set in memory.
 const _catchUpPageSize = 500;
+
+/// The SSE frame of an entry, encoded once however many subscriptions deliver
+/// it. Every subscription of a group receives the same [LogEntry] object from
+/// the broadcast and sends the same bytes (nothing in the frame depends on who
+/// is reading), so encoding per subscriber was the same JSON and UTF-8 work
+/// repeated once for each of them.
+final _encodedEvents = Expando<List<int>>('encoded log events');
+
+List<int> _eventBytes(LogEntry entry) => _encodedEvents[entry] ??= sseEvent(
+      id: entry.id,
+      event: 'log',
+      data: jsonEncode(logEntryJson(entry)),
+    );
 
 /// `GET /v1/logs/stream` — Server-Sent Events (`log-server-live-stream`).
 class LogStreamRoutes {
@@ -104,7 +118,42 @@ class LogStreamRoutes {
       await upstream.cancel();
     }
 
+    // What is waiting to be written. A batch of entries reaches a subscription
+    // within one turn of the event loop, and each `body.add` is a write to the
+    // socket — a system call — so ten entries cost ten of them per subscriber.
+    // They are collected here and written together once the turn's events have
+    // all arrived: the bytes and their order are the same, only the number of
+    // writes changes.
+    final outbox = <List<int>>[];
+    var flushScheduled = false;
+
+    void flush() {
+      flushScheduled = false;
+      if (outbox.isEmpty) return;
+      final chunks = List<List<int>>.of(outbox);
+      outbox.clear();
+      if (body.isClosed) return;
+      if (chunks.length == 1) {
+        body.add(chunks.single);
+        return;
+      }
+      final joined = BytesBuilder(copy: false);
+      chunks.forEach(joined.add);
+      body.add(joined.takeBytes());
+    }
+
+    void enqueue(List<int> bytes) {
+      outbox.add(bytes);
+      if (flushScheduled) return;
+      flushScheduled = true;
+      // Not a microtask: the broadcast hands a batch over one event per
+      // microtask, and a flush queued in between would write each on its own.
+      Timer.run(flush);
+    }
+
     Future<void> end(String reason) async {
+      // Anything already accepted goes out before the end frame, not after it.
+      flush();
       if (!body.isClosed) {
         body.add(sseEnd(reason));
         await body.close();
@@ -121,13 +170,7 @@ class LogStreamRoutes {
       if (entry.id <= lastDeliveredId) return;
       if (body.isClosed) return;
       lastDeliveredId = entry.id;
-      body.add(
-        sseEvent(
-          id: entry.id,
-          event: 'log',
-          data: jsonEncode(logEntryJson(entry)),
-        ),
-      );
+      enqueue(_eventBytes(entry));
     }
 
     /// Catch-up delivery: one entry at a time, awaited by the caller, so order
@@ -224,6 +267,7 @@ class LogStreamRoutes {
           await end(reason);
           return;
         }
+        flush();
         if (!body.isClosed) body.add(sseComment());
       } catch (_) {
         // Revalidation couldn't be completed (the database went away, say).
