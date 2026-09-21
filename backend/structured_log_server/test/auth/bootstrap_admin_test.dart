@@ -7,9 +7,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -53,32 +51,34 @@ void main() {
   });
   tearDown(() => db.close());
 
-  test('an empty database gets an administrator with both flags and no email',
-      () async {
-    final outcome = await bootstrapAdmin(
-      db,
-      baseConfig(bootstrapAdminPassword: 's3cret'),
-      logWarning: warnings.add,
-    );
-    expect(outcome.created, isTrue);
+  test(
+    'an empty database gets an administrator with both flags and no email',
+    () async {
+      final outcome = await bootstrapAdmin(
+        db,
+        baseConfig(bootstrapAdminPassword: 's3cret'),
+        logWarning: warnings.add,
+      );
+      expect(outcome.created, isTrue);
 
-    final user = await db.select(db.users).getSingle();
-    expect(user.username, 'admin');
-    expect(user.isPrimaryAdmin, isTrue);
-    expect(user.mustChangePassword, isTrue);
-    expect(user.email, isNull);
-    expect(verifyPassword('s3cret', user.passwordHash), isTrue);
+      final user = await db.select(db.users).getSingle();
+      expect(user.username, 'admin');
+      expect(user.isPrimaryAdmin, isTrue);
+      expect(user.mustChangePassword, isTrue);
+      expect(user.email, isNull);
+      expect(verifyPassword('s3cret', user.passwordHash), isTrue);
 
-    final roles = await db.select(db.roleAssignments).get();
-    expect(roles, hasLength(1));
-    expect(roles.single.role, 'admin');
-    expect(roles.single.scopeType, 'global');
-  });
+      final roles = await db.select(db.roleAssignments).get();
+      expect(roles, hasLength(1));
+      expect(roles.single.role, 'admin');
+      expect(roles.single.scopeType, 'global');
+    },
+  );
 
   test('a non-empty database is left untouched', () async {
-    await db.into(db.users).insert(
-          UsersCompanion.insert(username: 'existing', passwordHash: 'h'),
-        );
+    await db
+        .into(db.users)
+        .insert(UsersCompanion.insert(username: 'existing', passwordHash: 'h'));
 
     final outcome = await bootstrapAdmin(
       db,
@@ -92,46 +92,52 @@ void main() {
     expect(users.single.username, 'existing');
   });
 
-  test('explicit parameters on a non-empty database produce a warning',
-      () async {
-    await db.into(db.users).insert(
-          UsersCompanion.insert(username: 'existing', passwordHash: 'h'),
-        );
+  test(
+    'explicit parameters on a non-empty database produce a warning',
+    () async {
+      await db
+          .into(db.users)
+          .insert(
+            UsersCompanion.insert(username: 'existing', passwordHash: 'h'),
+          );
 
-    await bootstrapAdmin(
-      db,
-      baseConfig(bootstrapAdminPassword: 's3cret'),
-      logWarning: warnings.add,
-    );
-    expect(warnings, hasLength(1));
-    expect(warnings.single, contains('not applied'));
-  });
+      await bootstrapAdmin(
+        db,
+        baseConfig(bootstrapAdminPassword: 's3cret'),
+        logWarning: warnings.add,
+      );
+      expect(warnings, hasLength(1));
+      expect(warnings.single, contains('not applied'));
+    },
+  );
 
   test('a non-empty database with default parameters logs nothing', () async {
-    await db.into(db.users).insert(
-          UsersCompanion.insert(username: 'existing', passwordHash: 'h'),
-        );
+    await db
+        .into(db.users)
+        .insert(UsersCompanion.insert(username: 'existing', passwordHash: 'h'));
 
     await bootstrapAdmin(db, baseConfig(), logWarning: warnings.add);
     expect(warnings, isEmpty);
   });
 
-  test('the switch disables creation, with a warning on an empty database',
-      () async {
-    final outcome = await bootstrapAdmin(
-      db,
-      baseConfig(bootstrapAdminEnabled: false),
-      logWarning: warnings.add,
-    );
-    expect(outcome.created, isFalse);
-    expect(await db.select(db.users).get(), isEmpty);
-    expect(warnings.single, contains('create-admin'));
-  });
+  test(
+    'the switch disables creation, with a warning on an empty database',
+    () async {
+      final outcome = await bootstrapAdmin(
+        db,
+        baseConfig(bootstrapAdminEnabled: false),
+        logWarning: warnings.add,
+      );
+      expect(outcome.created, isFalse);
+      expect(await db.select(db.users).get(), isEmpty);
+      expect(warnings.single, contains('create-admin'));
+    },
+  );
 
   test('a disabled switch on a non-empty database logs nothing', () async {
-    await db.into(db.users).insert(
-          UsersCompanion.insert(username: 'existing', passwordHash: 'h'),
-        );
+    await db
+        .into(db.users)
+        .insert(UsersCompanion.insert(username: 'existing', passwordHash: 'h'));
     await bootstrapAdmin(
       db,
       baseConfig(bootstrapAdminEnabled: false),
@@ -141,8 +147,11 @@ void main() {
   });
 
   test('an unset password is generated and reported exactly once', () async {
-    final outcome =
-        await bootstrapAdmin(db, baseConfig(), logWarning: warnings.add);
+    final outcome = await bootstrapAdmin(
+      db,
+      baseConfig(),
+      logWarning: warnings.add,
+    );
     expect(outcome.created, isTrue);
     expect(outcome.generatedPassword, isNotNull);
     expect(warnings, hasLength(1));
@@ -151,7 +160,9 @@ void main() {
 
     final user = await db.select(db.users).getSingle();
     expect(
-        verifyPassword(outcome.generatedPassword!, user.passwordHash), isTrue);
+      verifyPassword(outcome.generatedPassword!, user.passwordHash),
+      isTrue,
+    );
   });
 
   test('a password supplied via config is not logged', () async {

@@ -16,9 +16,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -39,7 +37,9 @@ void main() {
     String password = 's3cret',
     bool isPrimaryAdmin = false,
   }) async {
-    final id = await db.into(db.users).insert(
+    final id = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: username,
             passwordHash: hashPassword(password),
@@ -53,7 +53,9 @@ void main() {
     final groupId = await db
         .into(db.groups)
         .insert(GroupsCompanion.insert(name: groupName));
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -69,60 +71,65 @@ void main() {
   final tooLong = 'Ж' * 40;
 
   group('createUser', () {
-    test('two concurrent creations of one username: one wins, one is a 409',
-        () async {
-      Future<int> attempt() async {
-        try {
-          final response = await routes.router.call(
+    test(
+      'two concurrent creations of one username: one wins, one is a 409',
+      () async {
+        Future<int> attempt() async {
+          try {
+            final response = await routes.router.call(
+              authenticatedRequest(
+                'POST',
+                'http://x/v1/users',
+                roles: _admin,
+                jsonBody: {'username': 'twin', 'password': 'temp-1234'},
+              ),
+            );
+            return response.statusCode;
+          } on ApiError catch (e) {
+            return e.statusCode;
+          }
+        }
+
+        // Both pass the "is it taken?" lookup before either inserts, since the
+        // password is hashed in between. The unique index then refuses the
+        // second, and that has to reach the client as a 409, not as whatever the
+        // database driver throws.
+        final results = await Future.wait([attempt(), attempt()]);
+
+        expect(results..sort(), [201, 409]);
+        expect(
+          (await db.select(db.users).get()).where((u) => u.username == 'twin'),
+          hasLength(1),
+        );
+        // The loser left nothing behind: one creation, one audit record.
+        final created = (await auditRows(
+          db,
+        )).where((r) => r.action == 'user.created');
+        expect(created, hasLength(1));
+      },
+    );
+
+    test(
+      'a password below the minimum length is rejected, no user created',
+      () async {
+        await expectLater(
+          routes.router.call(
             authenticatedRequest(
               'POST',
               'http://x/v1/users',
               roles: _admin,
-              jsonBody: {'username': 'twin', 'password': 'temp-1234'},
+              jsonBody: {'username': 'newbie', 'password': 'short'},
             ),
-          );
-          return response.statusCode;
-        } on ApiError catch (e) {
-          return e.statusCode;
-        }
-      }
-
-      // Both pass the "is it taken?" lookup before either inserts, since the
-      // password is hashed in between. The unique index then refuses the
-      // second, and that has to reach the client as a 409, not as whatever the
-      // database driver throws.
-      final results = await Future.wait([attempt(), attempt()]);
-
-      expect(results..sort(), [201, 409]);
-      expect(
-        (await db.select(db.users).get()).where((u) => u.username == 'twin'),
-        hasLength(1),
-      );
-      // The loser left nothing behind: one creation, one audit record.
-      final created =
-          (await auditRows(db)).where((r) => r.action == 'user.created');
-      expect(created, hasLength(1));
-    });
-
-    test('a password below the minimum length is rejected, no user created',
-        () async {
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'POST',
-            'http://x/v1/users',
-            roles: _admin,
-            jsonBody: {'username': 'newbie', 'password': 'short'},
           ),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 400)
-              .having((e) => e.details?['reason'], 'reason', 'too_short'),
-        ),
-      );
-      expect(await db.select(db.users).get(), isEmpty);
-    });
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 400)
+                .having((e) => e.details?['reason'], 'reason', 'too_short'),
+          ),
+        );
+        expect(await db.select(db.users).get(), isEmpty);
+      },
+    );
 
     test('a password over 72 bytes is rejected with 400, not a 500', () async {
       await expectLater(
@@ -304,42 +311,46 @@ void main() {
       expect((body['items'] as List), hasLength(2));
     });
 
-    test('a non-admin with no owner role anywhere is rejected with 403',
-        () async {
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest('GET', 'http://x/v1/users', roles: _noRoles),
-        ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
-      );
-    });
-
     test(
-      'an owner of a group can search too — it feeds the grant/add-member '
-      'recipient picker, which 4.3/5.3/13.5 already let this owner use '
-      '(уточнение 18.09.2026, found live: the write side was opened, this '
-      'search was not)',
+      'a non-admin with no owner role anywhere is rejected with 403',
       () async {
-        final alice = await insertUser(username: 'alice');
-        await insertUser(username: 'bob');
-
-        final response = await routes.router.call(
-          authenticatedRequest(
-            'GET',
-            'http://x/v1/users?username=ali',
-            roles: const [
-              EffectiveRole(
-                  role: Role.owner, scopeType: ScopeType.group, scopeId: 1),
-            ],
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest('GET', 'http://x/v1/users', roles: _noRoles),
+          ),
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403),
           ),
         );
-
-        final body = await decodeJson(response);
-        final items = body['items'] as List;
-        expect(items, hasLength(1));
-        expect(items.single['id'], alice.id);
       },
     );
+
+    test('an owner of a group can search too — it feeds the grant/add-member '
+        'recipient picker, which 4.3/5.3/13.5 already let this owner use '
+        '(уточнение 18.09.2026, found live: the write side was opened, this '
+        'search was not)', () async {
+      final alice = await insertUser(username: 'alice');
+      await insertUser(username: 'bob');
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/users?username=ali',
+          roles: const [
+            EffectiveRole(
+              role: Role.owner,
+              scopeType: ScopeType.group,
+              scopeId: 1,
+            ),
+          ],
+        ),
+      );
+
+      final body = await decodeJson(response);
+      final items = body['items'] as List;
+      expect(items, hasLength(1));
+      expect(items.single['id'], alice.id);
+    });
 
     test('paginates by cursor without skipping or repeating rows', () async {
       for (var i = 0; i < 5; i++) {
@@ -367,10 +378,12 @@ void main() {
           ),
         ),
       );
-      final firstIds =
-          (firstPage['items'] as List).map((u) => (u as Map)['id']).toSet();
-      final secondIds =
-          (secondPage['items'] as List).map((u) => (u as Map)['id']).toSet();
+      final firstIds = (firstPage['items'] as List)
+          .map((u) => (u as Map)['id'])
+          .toSet();
+      final secondIds = (secondPage['items'] as List)
+          .map((u) => (u as Map)['id'])
+          .toSet();
       expect(firstIds.intersection(secondIds), isEmpty);
     });
 
@@ -444,128 +457,140 @@ void main() {
       expect((body['items'] as List), hasLength(1));
     });
 
-    test('?username= matching nothing returns an empty list, not an error',
-        () async {
-      await insertUser(username: 'alice');
+    test(
+      '?username= matching nothing returns an empty list, not an error',
+      () async {
+        await insertUser(username: 'alice');
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/users?username=zzz',
-          roles: _admin,
-        ),
-      );
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/users?username=zzz',
+            roles: _admin,
+          ),
+        );
 
-      expect(response.statusCode, 200);
-      final body = await decodeJson(response);
-      expect(body['items'], isEmpty);
-    });
+        expect(response.statusCode, 200);
+        final body = await decodeJson(response);
+        expect(body['items'], isEmpty);
+      },
+    );
   });
 
   group('updateUser', () {
-    test('a password below the minimum length is rejected, nothing changes',
-        () async {
-      final target = await insertUser();
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'PATCH',
-            'http://x/v1/users/${target.id}',
-            roles: _admin,
-            jsonBody: {'password': 'short'},
-          ),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 400)
-              .having((e) => e.details?['reason'], 'reason', 'too_short'),
-        ),
-      );
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.passwordHash, target.passwordHash);
-      expect(row.tokenVersion, target.tokenVersion);
-    });
-
-    test('a password over 72 bytes is rejected with 400, nothing changes',
-        () async {
-      final target = await insertUser();
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'PATCH',
-            'http://x/v1/users/${target.id}',
-            roles: _admin,
-            jsonBody: {'password': tooLong},
-          ),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 400)
-              .having((e) => e.details?['reason'], 'reason', 'too_long'),
-        ),
-      );
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.passwordHash, target.passwordHash);
-    });
-
-    test('an admin can change display_name without touching the password',
-        () async {
-      final target = await insertUser();
-
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'PATCH',
-          'http://x/v1/users/${target.id}',
-          roles: _admin,
-          jsonBody: {'display_name': 'Bob Diaz'},
-        ),
-      );
-
-      expect(response.statusCode, 200);
-      final body = await decodeJson(response);
-      expect(body['display_name'], 'Bob Diaz');
-      expect(body['must_change_password'], isFalse);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.tokenVersion, target.tokenVersion);
-    });
-
-    test('setting a new password marks it temporary and revokes sessions',
-        () async {
-      final target = await insertUser();
-      await db.into(db.refreshTokens).insert(
-            RefreshTokensCompanion.insert(
-              userId: target.id,
-              tokenHash: hashToken('a-refresh-token'),
-              expiresAt: DateTime.now().add(const Duration(days: 30)),
+    test(
+      'a password below the minimum length is rejected, nothing changes',
+      () async {
+        final target = await insertUser();
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'PATCH',
+              'http://x/v1/users/${target.id}',
+              roles: _admin,
+              jsonBody: {'password': 'short'},
             ),
-          );
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 400)
+                .having((e) => e.details?['reason'], 'reason', 'too_short'),
+          ),
+        );
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.passwordHash, target.passwordHash);
+        expect(row.tokenVersion, target.tokenVersion);
+      },
+    );
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'PATCH',
-          'http://x/v1/users/${target.id}',
-          roles: _admin,
-          jsonBody: {'password': 'new-temp-password'},
-        ),
-      );
+    test(
+      'a password over 72 bytes is rejected with 400, nothing changes',
+      () async {
+        final target = await insertUser();
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'PATCH',
+              'http://x/v1/users/${target.id}',
+              roles: _admin,
+              jsonBody: {'password': tooLong},
+            ),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 400)
+                .having((e) => e.details?['reason'], 'reason', 'too_long'),
+          ),
+        );
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.passwordHash, target.passwordHash);
+      },
+    );
 
-      final body = await decodeJson(response);
-      expect(body['must_change_password'], isTrue);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.tokenVersion, target.tokenVersion + 1);
-      final token = await (db.select(db.refreshTokens)
-            ..where((t) => t.userId.equals(target.id)))
-          .getSingle();
-      expect(token.revokedAt, isNotNull);
-    });
+    test(
+      'an admin can change display_name without touching the password',
+      () async {
+        final target = await insertUser();
+
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/users/${target.id}',
+            roles: _admin,
+            jsonBody: {'display_name': 'Bob Diaz'},
+          ),
+        );
+
+        expect(response.statusCode, 200);
+        final body = await decodeJson(response);
+        expect(body['display_name'], 'Bob Diaz');
+        expect(body['must_change_password'], isFalse);
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.tokenVersion, target.tokenVersion);
+      },
+    );
+
+    test(
+      'setting a new password marks it temporary and revokes sessions',
+      () async {
+        final target = await insertUser();
+        await db
+            .into(db.refreshTokens)
+            .insert(
+              RefreshTokensCompanion.insert(
+                userId: target.id,
+                tokenHash: hashToken('a-refresh-token'),
+                expiresAt: DateTime.now().add(const Duration(days: 30)),
+              ),
+            );
+
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/users/${target.id}',
+            roles: _admin,
+            jsonBody: {'password': 'new-temp-password'},
+          ),
+        );
+
+        final body = await decodeJson(response);
+        expect(body['must_change_password'], isTrue);
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.tokenVersion, target.tokenVersion + 1);
+        final token = await (db.select(
+          db.refreshTokens,
+        )..where((t) => t.userId.equals(target.id))).getSingle();
+        expect(token.revokedAt, isNotNull);
+      },
+    );
 
     test('an `email` field is silently ignored', () async {
       final target = await insertUser();
@@ -613,30 +638,32 @@ void main() {
       );
     });
 
-    test('the audit record names changed fields, never a password value',
-        () async {
-      final target = await insertUser();
+    test(
+      'the audit record names changed fields, never a password value',
+      () async {
+        final target = await insertUser();
 
-      await routes.router.call(
-        authenticatedRequest(
-          'PATCH',
-          'http://x/v1/users/${target.id}',
-          roles: _admin,
-          userId: 7,
-          jsonBody: {'display_name': 'Bob Diaz', 'password': 'new-secret'},
-        ),
-      );
+        await routes.router.call(
+          authenticatedRequest(
+            'PATCH',
+            'http://x/v1/users/${target.id}',
+            roles: _admin,
+            userId: 7,
+            jsonBody: {'display_name': 'Bob Diaz', 'password': 'new-secret'},
+          ),
+        );
 
-      final row = (await auditRows(db)).single;
-      expect(row.action, 'user.updated');
-      expect(row.actorUserId, 7);
-      final metadata = auditMetadata(row);
-      expect(
-        metadata['changed_fields'],
-        containsAll(['display_name', 'password']),
-      );
-      expect(row.metadata, isNot(contains('new-secret')));
-    });
+        final row = (await auditRows(db)).single;
+        expect(row.action, 'user.updated');
+        expect(row.actorUserId, 7);
+        final metadata = auditMetadata(row);
+        expect(
+          metadata['changed_fields'],
+          containsAll(['display_name', 'password']),
+        );
+        expect(row.metadata, isNot(contains('new-secret')));
+      },
+    );
 
     test('an empty patch writes no audit record', () async {
       final target = await insertUser();
@@ -657,7 +684,9 @@ void main() {
   group('blockUser / unblockUser', () {
     test('blocking deactivates, revokes sessions, and is reversible', () async {
       final target = await insertUser();
-      await db.into(db.refreshTokens).insert(
+      await db
+          .into(db.refreshTokens)
+          .insert(
             RefreshTokensCompanion.insert(
               userId: target.id,
               tokenHash: hashToken('a-refresh-token'),
@@ -675,13 +704,13 @@ void main() {
         ),
       );
       expect(blocked['is_active'], isFalse);
-      final blockedRow = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
+      final blockedRow = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(target.id))).getSingle();
       expect(blockedRow.tokenVersion, target.tokenVersion + 1);
-      final token = await (db.select(db.refreshTokens)
-            ..where((t) => t.userId.equals(target.id)))
-          .getSingle();
+      final token = await (db.select(
+        db.refreshTokens,
+      )..where((t) => t.userId.equals(target.id))).getSingle();
       expect(token.revokedAt, isNotNull);
 
       final unblocked = await decodeJson(
@@ -737,28 +766,30 @@ void main() {
       );
     });
 
-    test('blocking leaves user.blocked, unblocking leaves user.unblocked',
-        () async {
-      final target = await insertUser();
+    test(
+      'blocking leaves user.blocked, unblocking leaves user.unblocked',
+      () async {
+        final target = await insertUser();
 
-      await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/users/${target.id}/block',
-          roles: _admin,
-        ),
-      );
-      await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/users/${target.id}/unblock',
-          roles: _admin,
-        ),
-      );
+        await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/users/${target.id}/block',
+            roles: _admin,
+          ),
+        );
+        await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/users/${target.id}/unblock',
+            roles: _admin,
+          ),
+        );
 
-      final actions = (await auditRows(db)).map((r) => r.action).toList();
-      expect(actions, ['user.blocked', 'user.unblocked']);
-    });
+        final actions = (await auditRows(db)).map((r) => r.action).toList();
+        expect(actions, ['user.blocked', 'user.unblocked']);
+      },
+    );
   });
 
   group('deleteMe', () {
@@ -776,9 +807,9 @@ void main() {
       );
 
       expect(response.statusCode, 204);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(target.id))).getSingle();
       expect(row.deletedAt, isNotNull);
       final auditRow = (await auditRows(db)).single;
       expect(auditRow.action, 'user.deleted');
@@ -786,33 +817,35 @@ void main() {
       expect(auditRow.targetId, target.id);
     });
 
-    test('the wrong password is rejected with 401 and changes nothing',
-        () async {
-      final target = await insertUser(password: 'correct-horse');
+    test(
+      'the wrong password is rejected with 401 and changes nothing',
+      () async {
+        final target = await insertUser(password: 'correct-horse');
 
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'DELETE',
-            'http://x/v1/users/me',
-            roles: _noRoles,
-            userId: target.id,
-            jsonBody: {'password': 'wrong'},
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'DELETE',
+              'http://x/v1/users/me',
+              roles: _noRoles,
+              userId: target.id,
+              jsonBody: {'password': 'wrong'},
+            ),
           ),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 401)
-              .having((e) => e.code, 'code', 'invalid_grant'),
-        ),
-      );
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having((e) => e.code, 'code', 'invalid_grant'),
+          ),
+        );
 
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.deletedAt, isNull);
-      expect(await auditRows(db), isEmpty);
-    });
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.deletedAt, isNull);
+        expect(await auditRows(db), isEmpty);
+      },
+    );
 
     test('the primary administrator cannot delete themselves', () async {
       final target = await insertUser(isPrimaryAdmin: true);
@@ -892,9 +925,9 @@ void main() {
       );
 
       expect(response.statusCode, 204);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(target.id))).getSingle();
       expect(row.deletedAt, isNotNull);
       final auditRow = (await auditRows(db)).single;
       expect(auditRow.actorUserId, 999);
@@ -949,26 +982,28 @@ void main() {
       );
     });
 
-    test('cannot delete the primary administrator, no password required',
-        () async {
-      final target = await insertUser(isPrimaryAdmin: true);
+    test(
+      'cannot delete the primary administrator, no password required',
+      () async {
+        final target = await insertUser(isPrimaryAdmin: true);
 
-      await expectLater(
-        routes.router.call(
-          authenticatedRequest(
-            'DELETE',
-            'http://x/v1/users/${target.id}',
-            roles: _admin,
-            userId: 999,
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'DELETE',
+              'http://x/v1/users/${target.id}',
+              roles: _admin,
+              userId: 999,
+            ),
           ),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 403)
-              .having((e) => e.code, 'code', 'cannot_delete_primary_admin'),
-        ),
-      );
-    });
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 403)
+                .having((e) => e.code, 'code', 'cannot_delete_primary_admin'),
+          ),
+        );
+      },
+    );
 
     test('cannot delete a sole group owner', () async {
       final target = await insertUser();

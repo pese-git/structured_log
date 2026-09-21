@@ -15,9 +15,7 @@ const _agent = 'structured_log_admin_client/0.1';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -35,7 +33,9 @@ void main() {
       signingSecret: 'test-secret',
       issuer: 'test',
     );
-    userId = await db.into(db.users).insert(
+    userId = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: 'alice',
             passwordHash: hashPassword('correct'),
@@ -80,15 +80,18 @@ void main() {
     expect(metaOf(row)['client_ip'], _ip);
   });
 
-  test('a blocked account is refused for being blocked, not for its password',
-      () async {
-    await (db.update(db.users)..where((t) => t.id.equals(userId)))
-        .write(const UsersCompanion(isActive: Value(false)));
+  test(
+    'a blocked account is refused for being blocked, not for its password',
+    () async {
+      await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
+        const UsersCompanion(isActive: Value(false)),
+      );
 
-    await login();
+      await login();
 
-    expect(metaOf((await rows()).single)['reason'], 'blocked');
-  });
+      expect(metaOf((await rows()).single)['reason'], 'blocked');
+    },
+  );
 
   test('a deleted account is refused, and says so', () async {
     // Unreachable today — nothing sets `deleted_at`, because account deletion
@@ -106,8 +109,11 @@ void main() {
       clientIp: _ip,
     );
 
-    expect(result.isLeft(), isTrue,
-        reason: 'the credentials are still correct');
+    expect(
+      result.isLeft(),
+      isTrue,
+      reason: 'the credentials are still correct',
+    );
     expect(metaOf((await rows()).single)['reason'], 'deleted');
   });
 
@@ -147,15 +153,15 @@ void main() {
       username: 'alice',
       password: 'correct',
       clientIp: _ip,
-    ))
-        .getOrElse((_) => throw StateError('login failed'));
+    )).getOrElse((_) => throw StateError('login failed'));
 
     final before = (await rows()).length;
 
     var refresh = pair.refreshToken;
     for (var i = 0; i < 3; i++) {
-      final renewed = (await service.refreshTokenGrant(refresh))
-          .getOrElse((_) => throw StateError('refresh failed'));
+      final renewed = (await service.refreshTokenGrant(
+        refresh,
+      )).getOrElse((_) => throw StateError('refresh failed'));
       refresh = renewed.refreshToken;
     }
 
@@ -174,14 +180,9 @@ void main() {
         username: 'alice',
         password: 'correct',
         clientIp: _ip,
-      ))
-          .getOrElse((_) => throw StateError('login failed'));
+      )).getOrElse((_) => throw StateError('login failed'));
 
-      await service.revoke(
-        pair.refreshToken,
-        clientIp: _ip,
-        userAgent: _agent,
-      );
+      await service.revoke(pair.refreshToken, clientIp: _ip, userAgent: _agent);
 
       final row = (await rows()).last;
       expect(row.action, 'auth.logged_out');
@@ -189,26 +190,27 @@ void main() {
       expect(metaOf(row)['client_ip'], _ip);
     });
 
-    test('an unknown token records nothing, though the response is the same',
-        () async {
-      await service.revoke('never-issued', clientIp: _ip);
+    test(
+      'an unknown token records nothing, though the response is the same',
+      () async {
+        await service.revoke('never-issued', clientIp: _ip);
 
-      expect(
-        await rows(),
-        isEmpty,
-        reason:
-            'nobody logged out; the sameness that protects the caller is in '
-            'the response, not in the journal',
-      );
-    });
+        expect(
+          await rows(),
+          isEmpty,
+          reason:
+              'nobody logged out; the sameness that protects the caller is in '
+              'the response, not in the journal',
+        );
+      },
+    );
 
     test('a second logout of the same token records nothing', () async {
       final pair = (await service.passwordGrant(
         username: 'alice',
         password: 'correct',
         clientIp: _ip,
-      ))
-          .getOrElse((_) => throw StateError('login failed'));
+      )).getOrElse((_) => throw StateError('login failed'));
 
       await service.revoke(pair.refreshToken, clientIp: _ip);
       final after = (await rows()).length;

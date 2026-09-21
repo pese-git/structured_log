@@ -41,13 +41,13 @@ class LogQuery {
     this.limit = 50,
     this.cursor,
     this.afterId,
-  })  : assert(projectIds.length > 0, 'projectIds must not be empty'),
-        assert(limit > 0, 'limit must be positive'),
-        assert(
-          cursor == null || afterId == null,
-          'cursor (older than) and afterId (newer than) are opposite '
-          'directions and cannot be combined',
-        );
+  }) : assert(projectIds.length > 0, 'projectIds must not be empty'),
+       assert(limit > 0, 'limit must be positive'),
+       assert(
+         cursor == null || afterId == null,
+         'cursor (older than) and afterId (newer than) are opposite '
+         'directions and cannot be combined',
+       );
 }
 
 /// One page of [LogQuery] results. [nextCursor] is the `id` to pass back as
@@ -103,7 +103,8 @@ class LogQueryPage {
   // Catch-up reads forward and must replay in arrival order; paging reads
   // backward from the newest.
   final order = query.afterId != null ? 'ASC' : 'DESC';
-  final sql = 'SELECT * FROM log_entries '
+  final sql =
+      'SELECT * FROM log_entries '
       'WHERE ${conditions.join(' AND ')} '
       'ORDER BY id $order '
       'LIMIT ?';

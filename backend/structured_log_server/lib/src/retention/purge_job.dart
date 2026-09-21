@@ -43,13 +43,13 @@ class PurgeOutcome {
       deletedRefreshTokens == 0;
 
   Map<String, Object?> toContext() => {
-        'deleted_entries': deletedEntries,
-        'freed_bytes': freedBytes,
-        'affected_projects': affectedProjects,
-        'deleted_admin_audit': deletedAdminAudit,
-        'deleted_auth_audit': deletedAuthAudit,
-        'deleted_refresh_tokens': deletedRefreshTokens,
-      };
+    'deleted_entries': deletedEntries,
+    'freed_bytes': freedBytes,
+    'affected_projects': affectedProjects,
+    'deleted_admin_audit': deletedAdminAudit,
+    'deleted_auth_audit': deletedAuthAudit,
+    'deleted_refresh_tokens': deletedRefreshTokens,
+  };
 }
 
 /// Deletes entries older than their project's `retention_days` and brings
@@ -87,18 +87,21 @@ Future<PurgeOutcome> purgeExpiredEntries(
     while (true) {
       // Two columns, not the row: `context_json` is most of a row's bytes,
       // and nothing here reads it.
-      final chunk = await (db.selectOnly(db.logEntries)
-            ..addColumns([db.logEntries.id, db.logEntries.sizeBytes])
-            ..where(
-              db.logEntries.projectId.equals(project.id) &
-                  db.logEntries.receivedAt.isSmallerThanValue(cutoff),
-            )
-            ..limit(chunkSize))
-          .map((row) => (
-                id: row.read(db.logEntries.id)!,
-                size: row.read(db.logEntries.sizeBytes)!,
-              ))
-          .get();
+      final chunk =
+          await (db.selectOnly(db.logEntries)
+                ..addColumns([db.logEntries.id, db.logEntries.sizeBytes])
+                ..where(
+                  db.logEntries.projectId.equals(project.id) &
+                      db.logEntries.receivedAt.isSmallerThanValue(cutoff),
+                )
+                ..limit(chunkSize))
+              .map(
+                (row) => (
+                  id: row.read(db.logEntries.id)!,
+                  size: row.read(db.logEntries.sizeBytes)!,
+                ),
+              )
+              .get();
       if (chunk.isEmpty) break;
 
       final ids = chunk.map((e) => e.id).toList();
@@ -106,9 +109,9 @@ Future<PurgeOutcome> purgeExpiredEntries(
 
       await db.transaction(() async {
         await (db.delete(db.logEntries)..where((t) => t.id.isIn(ids))).go();
-        await (db.update(db.projectUsage)
-              ..where((t) => t.projectId.equals(project.id)))
-            .write(
+        await (db.update(
+          db.projectUsage,
+        )..where((t) => t.projectId.equals(project.id))).write(
           ProjectUsageCompanion.custom(
             // Clamped at zero: a counter that drifted below what is stored
             // would otherwise go negative and read as an enormous quota.
@@ -180,23 +183,29 @@ Future<({int admin, int auth})> purgeExpiredAuditEntries(
     var removed = 0;
 
     while (true) {
-      final ids = await (db.selectOnly(db.auditLogEntries)
-            ..addColumns([db.auditLogEntries.id])
-            ..where(
-              authEvents
-                  ? db.auditLogEntries.action.isIn(authWire) &
-                      db.auditLogEntries.createdAt.isSmallerThanValue(cutoff)
-                  : db.auditLogEntries.action.isNotIn(authWire) &
-                      db.auditLogEntries.createdAt.isSmallerThanValue(cutoff),
-            )
-            ..limit(chunkSize))
-          .map((row) => row.read(db.auditLogEntries.id)!)
-          .get();
+      final ids =
+          await (db.selectOnly(db.auditLogEntries)
+                ..addColumns([db.auditLogEntries.id])
+                ..where(
+                  authEvents
+                      ? db.auditLogEntries.action.isIn(authWire) &
+                            db.auditLogEntries.createdAt.isSmallerThanValue(
+                              cutoff,
+                            )
+                      : db.auditLogEntries.action.isNotIn(authWire) &
+                            db.auditLogEntries.createdAt.isSmallerThanValue(
+                              cutoff,
+                            ),
+                )
+                ..limit(chunkSize))
+              .map((row) => row.read(db.auditLogEntries.id)!)
+              .get();
       if (ids.isEmpty) break;
 
       await db.transaction(() async {
-        await (db.delete(db.auditLogEntries)..where((t) => t.id.isIn(ids)))
-            .go();
+        await (db.delete(
+          db.auditLogEntries,
+        )..where((t) => t.id.isIn(ids))).go();
       });
       removed += ids.length;
 
@@ -249,12 +258,13 @@ Future<int> purgeExpiredRefreshTokens(
   final now = (clock ?? DateTime.now)();
   var removed = 0;
   while (true) {
-    final ids = await (db.selectOnly(db.refreshTokens)
-          ..addColumns([db.refreshTokens.id])
-          ..where(db.refreshTokens.expiresAt.isSmallerThanValue(now))
-          ..limit(chunkSize))
-        .map((row) => row.read(db.refreshTokens.id)!)
-        .get();
+    final ids =
+        await (db.selectOnly(db.refreshTokens)
+              ..addColumns([db.refreshTokens.id])
+              ..where(db.refreshTokens.expiresAt.isSmallerThanValue(now))
+              ..limit(chunkSize))
+            .map((row) => row.read(db.refreshTokens.id)!)
+            .get();
     if (ids.isEmpty) break;
     await (db.delete(db.refreshTokens)..where((t) => t.id.isIn(ids))).go();
     removed += ids.length;
@@ -263,10 +273,10 @@ Future<int> purgeExpiredRefreshTokens(
   return removed;
 }
 
-Expression<int> _atLeastZero(Expression<int> value) =>
-    CaseWhenExpression<int>(cases: [
-      CaseWhen(value.isSmallerThanValue(0), then: const Constant(0)),
-    ], orElse: value);
+Expression<int> _atLeastZero(Expression<int> value) => CaseWhenExpression<int>(
+  cases: [CaseWhen(value.isSmallerThanValue(0), then: const Constant(0))],
+  orElse: value,
+);
 
 /// Runs [purgeExpiredEntries] on a timer for the lifetime of the process.
 ///
@@ -305,9 +315,9 @@ class PurgeScheduler {
     this.auditRetentionDays,
     this.authEventRetentionDays,
     this.auditChunkSize = 500,
-  })  : _logger = logger,
-        _clock = clock,
-        _audit = audit;
+  }) : _logger = logger,
+       _clock = clock,
+       _audit = audit;
 
   void start() {
     _timer ??= Timer.periodic(interval, (_) => unawaited(runOnce()));
@@ -362,8 +372,10 @@ class PurgeScheduler {
         // is still worth emitting at all: "did the job run?" is otherwise
         // unanswerable from the outside, since a pass that deleted nothing
         // looks exactly like a scheduler that was never started.
-        _logger?.debug('retention.purge_completed',
-            context: outcome.toContext());
+        _logger?.debug(
+          'retention.purge_completed',
+          context: outcome.toContext(),
+        );
       } else {
         _logger?.info('retention.purged', context: outcome.toContext());
       }
@@ -371,10 +383,10 @@ class PurgeScheduler {
     } catch (error, stackTrace) {
       // A failed pass must not kill the timer — the next one may well
       // succeed, and an unhandled error here would take down the isolate.
-      _logger?.error('retention.purge_failed', context: {
-        'error': '$error',
-        'stack_trace': '$stackTrace',
-      });
+      _logger?.error(
+        'retention.purge_failed',
+        context: {'error': '$error', 'stack_trace': '$stackTrace'},
+      );
       return null;
     } finally {
       _running = false;

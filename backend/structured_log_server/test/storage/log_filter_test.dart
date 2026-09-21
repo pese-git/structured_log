@@ -9,9 +9,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -58,7 +56,7 @@ final _entries = <({String event, LogEntriesCompanion row})>[
       sizeBytes: 10,
       contextJson: jsonEncode({
         'order_id': null,
-        'nested': {'a': 1}
+        'nested': {'a': 1},
       }),
     ),
   ),
@@ -139,7 +137,7 @@ const _cases = <(String, LogFilter, List<String>)>[
   (
     'context boolean is not "true"',
     LogFilter(contextEquals: {'flagged': 'true'}),
-    []
+    [],
   ),
   ('context missing key', LogFilter(contextEquals: {'nope': 'x'}), []),
   (
@@ -165,20 +163,19 @@ void main() {
   setUp(() async {
     db = openInMemory();
     store = DriftLogStore(db);
-    final groupId = await db.into(db.groups).insert(
-          GroupsCompanion.insert(name: 'g'),
-        );
-    projectId = await db.into(db.projects).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p',
             retentionDays: 30,
           ),
         );
-    await store.insertBatch(
-      projectId,
-      _entries.map((e) => e.row).toList(),
-    );
+    await store.insertBatch(projectId, _entries.map((e) => e.row).toList());
     stored = (await store.query(LogQuery(projectIds: [projectId]))).entries;
     expect(stored, hasLength(_entries.length));
   });
@@ -256,10 +253,10 @@ void main() {
           afterId: 0,
         ),
       );
-      expect(
-        page.entries.map((e) => e.event),
-        ['CHECKOUT failed', 'has_underscore'],
-      );
+      expect(page.entries.map((e) => e.event), [
+        'CHECKOUT failed',
+        'has_underscore',
+      ]);
     });
   });
 }

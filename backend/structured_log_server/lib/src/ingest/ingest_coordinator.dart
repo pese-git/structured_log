@@ -115,11 +115,14 @@ class IngestCoordinator {
         for (final request in group) {
           var current = usage[request.projectId];
           if (current == null) {
-            final row = await (_db.select(_db.projectUsage)
-                  ..where((t) => t.projectId.equals(request.projectId)))
-                .getSingleOrNull();
-            current = usage[request.projectId] =
-                _Usage(row?.entryCount ?? 0, row?.totalBytes ?? 0);
+            final row =
+                await (_db.select(_db.projectUsage)
+                      ..where((t) => t.projectId.equals(request.projectId)))
+                    .getSingleOrNull();
+            current = usage[request.projectId] = _Usage(
+              row?.entryCount ?? 0,
+              row?.totalBytes ?? 0,
+            );
           }
           final outcome = processIngestBatch(
             rawEntries: request.rawEntries,
@@ -142,9 +145,9 @@ class IngestCoordinator {
         final rows = await _logStore.insertRows(toInsert);
         for (final MapEntry(key: projectId, value: used) in usage.entries) {
           if (used.entryDelta == 0 && used.bytesDelta == 0) continue;
-          await (_db.update(_db.projectUsage)
-                ..where((t) => t.projectId.equals(projectId)))
-              .write(
+          await (_db.update(
+            _db.projectUsage,
+          )..where((t) => t.projectId.equals(projectId))).write(
             ProjectUsageCompanion.custom(
               entryCount:
                   _db.projectUsage.entryCount + Constant(used.entryDelta),

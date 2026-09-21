@@ -60,18 +60,18 @@ class RateLimitAttempt {
     required AuditWriter? audit,
     required String path,
     required String clientIp,
-  })  : _audit = audit,
-        _path = path,
-        _clientIp = clientIp;
+  }) : _audit = audit,
+       _path = path,
+       _clientIp = clientIp;
 
   /// An attempt that does nothing — the limiter is off, or this endpoint
   /// isn't throttled. Handlers call the same methods either way.
   RateLimitAttempt.inactive()
-      : _subjects = null,
-        _clock = DateTime.now,
-        _audit = null,
-        _path = '',
-        _clientIp = '';
+    : _subjects = null,
+      _clock = DateTime.now,
+      _audit = null,
+      _path = '',
+      _clientIp = '';
 
   bool get isActive => _subjects != null;
 
@@ -201,11 +201,14 @@ Middleware rateLimitMiddleware(
         // either an attack or a misconfigured client, and both are things
         // an operator wants to see (`design.md` decision 48). The address
         // is the only thing recorded — no body, no header.
-        logger?.warning('rate_limit.throttled', context: {
-          'path': path,
-          'client_ip': ip,
-          'retry_after_s': retryAfter.inSeconds,
-        });
+        logger?.warning(
+          'rate_limit.throttled',
+          context: {
+            'path': path,
+            'client_ip': ip,
+            'retry_after_s': retryAfter.inSeconds,
+          },
+        );
         throw ApiError.tooManyRequests(retryAfter);
       }
 

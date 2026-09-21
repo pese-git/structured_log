@@ -37,25 +37,30 @@ void main() {
     teams = TeamRoutes(db, authorizer, audit);
     grants = RoleAssignmentRoutes(db, authorizer, audit);
     users = UserRoutes(db, authorizer, audit);
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    teamId = await db.into(db.teams).insert(
-          TeamsCompanion.insert(groupId: groupId, name: 'owners'),
-        );
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    teamId = await db
+        .into(db.teams)
+        .insert(TeamsCompanion.insert(groupId: groupId, name: 'owners'));
   });
   tearDown(() => db.close());
 
-  Future<int> user(String name) => db.into(db.users).insert(
-        UsersCompanion.insert(username: name, passwordHash: 'x'),
-      );
+  Future<int> user(String name) => db
+      .into(db.users)
+      .insert(UsersCompanion.insert(username: name, passwordHash: 'x'));
 
-  Future<void> join(int teamId, int userId) => db.into(db.teamMembers).insert(
-        TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-      );
+  Future<void> join(int teamId, int userId) => db
+      .into(db.teamMembers)
+      .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
 
-  Future<int> grantOwner(
-      {required String subjectType, required int subjectId}) {
-    return db.into(db.roleAssignments).insert(
+  Future<int> grantOwner({
+    required String subjectType,
+    required int subjectId,
+  }) {
+    return db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: subjectType,
             subjectId: subjectId,
@@ -67,41 +72,41 @@ void main() {
   }
 
   Matcher soleOwnerConflict() => throwsA(
-        isA<ApiError>()
-            .having((e) => e.statusCode, 'statusCode', 409)
-            .having((e) => e.code, 'code', 'sole_group_owner')
-            .having(
-              (e) => (e.details?['blocking_groups'] as List).single,
-              'the group named',
-              containsPair('id', groupId),
-            ),
-      );
+    isA<ApiError>()
+        .having((e) => e.statusCode, 'statusCode', 409)
+        .having((e) => e.code, 'code', 'sole_group_owner')
+        .having(
+          (e) => (e.details?['blocking_groups'] as List).single,
+          'the group named',
+          containsPair('id', groupId),
+        ),
+  );
 
   Future<Object?> deleteUser(int id) => users.router.call(
-        authenticatedRequest(
-          'DELETE',
-          'http://x/v1/users/$id',
-          roles: _admin,
-          // Not the target: deleting oneself is a different route.
-          userId: 9999,
-        ),
-      );
+    authenticatedRequest(
+      'DELETE',
+      'http://x/v1/users/$id',
+      roles: _admin,
+      // Not the target: deleting oneself is a different route.
+      userId: 9999,
+    ),
+  );
 
   Future<Object?> removeMember(int teamId, int userId) => teams.router.call(
-        authenticatedRequest(
-          'DELETE',
-          'http://x/v1/teams/$teamId/members/$userId',
-          roles: _admin,
-        ),
-      );
+    authenticatedRequest(
+      'DELETE',
+      'http://x/v1/teams/$teamId/members/$userId',
+      roles: _admin,
+    ),
+  );
 
   Future<Object?> revoke(int assignmentId) => grants.router.call(
-        authenticatedRequest(
-          'DELETE',
-          'http://x/v1/role-assignments/$assignmentId',
-          roles: _admin,
-        ),
-      );
+    authenticatedRequest(
+      'DELETE',
+      'http://x/v1/role-assignments/$assignmentId',
+      roles: _admin,
+    ),
+  );
 
   Future<int> memberCount() async =>
       (await db.select(db.teamMembers).get()).length;
@@ -114,34 +119,39 @@ void main() {
 
       await expectLater(deleteUser(alice), soleOwnerConflict());
 
-      final row = await (db.select(db.users)..where((t) => t.id.equals(alice)))
-          .getSingle();
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(alice))).getSingle();
       expect(row.deletedAt, isNull, reason: 'nothing was deleted');
     });
 
-    test('a direct owner is not the sole one when a team owns the group too',
-        () async {
-      final alice = await user('alice');
-      final bob = await user('bob');
-      await grantOwner(subjectType: 'user', subjectId: alice);
-      await join(teamId, bob);
-      await grantOwner(subjectType: 'team', subjectId: teamId);
+    test(
+      'a direct owner is not the sole one when a team owns the group too',
+      () async {
+        final alice = await user('alice');
+        final bob = await user('bob');
+        await grantOwner(subjectType: 'user', subjectId: alice);
+        await join(teamId, bob);
+        await grantOwner(subjectType: 'team', subjectId: teamId);
 
-      final response = await deleteUser(alice) as dynamic;
-      expect(response.statusCode, 204);
-    });
+        final response = await deleteUser(alice) as dynamic;
+        expect(response.statusCode, 204);
+      },
+    );
 
-    test('nor is a team member, when another member keeps the team owning',
-        () async {
-      final alice = await user('alice');
-      final bob = await user('bob');
-      await join(teamId, alice);
-      await join(teamId, bob);
-      await grantOwner(subjectType: 'team', subjectId: teamId);
+    test(
+      'nor is a team member, when another member keeps the team owning',
+      () async {
+        final alice = await user('alice');
+        final bob = await user('bob');
+        await join(teamId, alice);
+        await join(teamId, bob);
+        await grantOwner(subjectType: 'team', subjectId: teamId);
 
-      final response = await deleteUser(alice) as dynamic;
-      expect(response.statusCode, 204);
-    });
+        final response = await deleteUser(alice) as dynamic;
+        expect(response.statusCode, 204);
+      },
+    );
 
     test('a person who is owner twice over is still one owner', () async {
       // Directly and through the team: deleting them leaves nobody, and
@@ -182,17 +192,19 @@ void main() {
       expect(response.statusCode, 204);
     });
 
-    test('the last member can go when someone owns the group directly',
-        () async {
-      final alice = await user('alice');
-      final bob = await user('bob');
-      await join(teamId, alice);
-      await grantOwner(subjectType: 'team', subjectId: teamId);
-      await grantOwner(subjectType: 'user', subjectId: bob);
+    test(
+      'the last member can go when someone owns the group directly',
+      () async {
+        final alice = await user('alice');
+        final bob = await user('bob');
+        await join(teamId, alice);
+        await grantOwner(subjectType: 'team', subjectId: teamId);
+        await grantOwner(subjectType: 'user', subjectId: bob);
 
-      final response = await removeMember(teamId, alice) as dynamic;
-      expect(response.statusCode, 204);
-    });
+        final response = await removeMember(teamId, alice) as dynamic;
+        expect(response.statusCode, 204);
+      },
+    );
 
     test('a team that owns nothing can lose any member', () async {
       final alice = await user('alice');
@@ -217,14 +229,16 @@ void main() {
       );
     });
 
-    test('the owning team\'s grant cannot be revoked if it is the only one',
-        () async {
-      final alice = await user('alice');
-      await join(teamId, alice);
-      final grant = await grantOwner(subjectType: 'team', subjectId: teamId);
+    test(
+      'the owning team\'s grant cannot be revoked if it is the only one',
+      () async {
+        final alice = await user('alice');
+        await join(teamId, alice);
+        final grant = await grantOwner(subjectType: 'team', subjectId: teamId);
 
-      await expectLater(revoke(grant), soleOwnerConflict());
-    });
+        await expectLater(revoke(grant), soleOwnerConflict());
+      },
+    );
 
     test('a grant can go when another owner remains', () async {
       final alice = await user('alice');
@@ -258,7 +272,9 @@ void main() {
 
     test('a non-owner grant is never held up by the rule', () async {
       final alice = await user('alice');
-      final grant = await db.into(db.roleAssignments).insert(
+      final grant = await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: alice,
@@ -274,27 +290,29 @@ void main() {
   });
 
   group('adding a member', () {
-    test('two requests for the same pair at once are both 204, one member',
-        () async {
-      final alice = await user('alice');
-      Future<Object?> add() => teams.router.call(
-            authenticatedRequest(
-              'POST',
-              'http://x/v1/teams/$teamId/members',
-              roles: _admin,
-              jsonBody: {'user_id': alice},
-            ),
-          );
+    test(
+      'two requests for the same pair at once are both 204, one member',
+      () async {
+        final alice = await user('alice');
+        Future<Object?> add() => teams.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/teams/$teamId/members',
+            roles: _admin,
+            jsonBody: {'user_id': alice},
+          ),
+        );
 
-      final results = await Future.wait([add(), add(), add()]);
+        final results = await Future.wait([add(), add(), add()]);
 
-      expect(results.map((r) => (r as dynamic).statusCode), [204, 204, 204]);
-      expect(await memberCount(), 1);
-      expect(
-        (await auditRows(db)).where((r) => r.action == 'team.member_added'),
-        hasLength(1),
-        reason: 'the ones that found it already done wrote nothing',
-      );
-    });
+        expect(results.map((r) => (r as dynamic).statusCode), [204, 204, 204]);
+        expect(await memberCount(), 1);
+        expect(
+          (await auditRows(db)).where((r) => r.action == 'team.member_added'),
+          hasLength(1),
+          reason: 'the ones that found it already done wrote nothing',
+        );
+      },
+    );
   });
 }

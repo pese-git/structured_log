@@ -41,8 +41,7 @@ Map<String, Object?> projectJson(
 Future<Group> _requireGroup(StructuredLogDatabase db, int groupId) async {
   final group = await (db.select(
     db.groups,
-  )..where((t) => t.id.equals(groupId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(groupId))).getSingleOrNull();
   if (group == null) throw ApiError.notFound('Group not found.');
   return group;
 }
@@ -50,8 +49,7 @@ Future<Group> _requireGroup(StructuredLogDatabase db, int groupId) async {
 Future<Project> _requireProject(StructuredLogDatabase db, int projectId) async {
   final project = await (db.select(
     db.projects,
-  )..where((t) => t.id.equals(projectId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(projectId))).getSingleOrNull();
   if (project == null) throw ApiError.notFound('Project not found.');
   return project;
 }
@@ -96,8 +94,9 @@ class ProjectRoutes {
     final params = request.url.queryParameters;
     final (:limit, :cursor) = parsePageRequest(params);
     final groupIdParam = params['group_id'];
-    final groupFilter =
-        groupIdParam == null ? null : int.tryParse(groupIdParam);
+    final groupFilter = groupIdParam == null
+        ? null
+        : int.tryParse(groupIdParam);
     if (groupIdParam != null && groupFilter == null) {
       throw ApiError.invalidRequest('group_id must be an integer.');
     }
@@ -179,7 +178,9 @@ class ProjectRoutes {
     }
 
     final projectId = await _db.transaction(() async {
-      final id = await _db.into(_db.projects).insert(
+      final id = await _db
+          .into(_db.projects)
+          .insert(
             ProjectsCompanion.insert(
               groupId: group.id,
               name: name,
@@ -246,16 +247,15 @@ class ProjectRoutes {
     // the whole value of a quota record is the pair, and reading it afterwards
     // would give the same numbers twice (`docs/api/models.md`).
     final quotaOf = (Project p) => {
-          'retention_days': p.retentionDays,
-          'max_entries': p.maxEntries,
-          'max_bytes': p.maxBytes,
-        };
+      'retention_days': p.retentionDays,
+      'max_entries': p.maxEntries,
+      'max_bytes': p.maxBytes,
+    };
 
     final updated = await _db.transaction(() async {
       await (_db.update(
         _db.projects,
-      )..where((t) => t.id.equals(projectId)))
-          .write(companion);
+      )..where((t) => t.id.equals(projectId))).write(companion);
 
       final updated = await _requireProject(_db, projectId);
       await _audit.write(
@@ -291,8 +291,7 @@ class ProjectRoutes {
 
     final usage = await (_db.select(
       _db.projectUsage,
-    )..where((t) => t.projectId.equals(projectId)))
-        .getSingleOrNull();
+    )..where((t) => t.projectId.equals(projectId))).getSingleOrNull();
 
     return jsonOk(
       projectJson(
@@ -332,13 +331,12 @@ class ProjectRoutes {
     await _requireProject(_db, projectId);
 
     await _db.transaction(() async {
-      await (_db.update(
-        _db.projects,
-      )..where((t) => t.id.equals(projectId)))
+      await (_db.update(_db.projects)..where((t) => t.id.equals(projectId)))
           .write(ProjectsCompanion(isBlocked: Value(blocked)));
       await _audit.write(
-        action:
-            blocked ? AuditAction.projectBlocked : AuditAction.projectUnblocked,
+        action: blocked
+            ? AuditAction.projectBlocked
+            : AuditAction.projectUnblocked,
         targetType: AuditTargetType.project,
         actorUserId: identity.userId,
         targetId: projectId,

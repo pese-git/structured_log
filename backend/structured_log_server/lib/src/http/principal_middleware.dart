@@ -32,9 +32,7 @@ Middleware principalMiddleware(
   return (Handler innerHandler) {
     return (Request request) async {
       final principal = await _resolve(provider, db, request);
-      return innerHandler(
-        request.change(context: {_contextKey: principal}),
-      );
+      return innerHandler(request.change(context: {_contextKey: principal}));
     };
   };
 }
@@ -54,8 +52,7 @@ Future<Principal> _resolve(
   if (token.startsWith(projectSecretKeyPrefix)) {
     final key = await (db.select(
       db.projectSecretKeys,
-    )..where((t) => t.keyHash.equals(hashToken(token))))
-        .getSingleOrNull();
+    )..where((t) => t.keyHash.equals(hashToken(token)))).getSingleOrNull();
     if (key == null || key.revokedAt != null) {
       return const AnonymousPrincipal();
     }

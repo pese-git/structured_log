@@ -13,14 +13,14 @@ Future<Set<int>> effectiveOwnerIds(
   StructuredLogDatabase db,
   int groupId,
 ) async {
-  final grants = await (db.select(db.roleAssignments)
-        ..where(
-          (t) =>
-              t.role.equals('owner') &
-              t.scopeType.equals('group') &
-              t.scopeId.equals(groupId),
-        ))
-      .get();
+  final grants =
+      await (db.select(db.roleAssignments)..where(
+            (t) =>
+                t.role.equals('owner') &
+                t.scopeType.equals('group') &
+                t.scopeId.equals(groupId),
+          ))
+          .get();
 
   final owners = <int>{};
   final teamIds = <int>[];
@@ -32,11 +32,12 @@ Future<Set<int>> effectiveOwnerIds(
     }
   }
   if (teamIds.isNotEmpty) {
-    final members = await (db.selectOnly(db.teamMembers)
-          ..addColumns([db.teamMembers.userId])
-          ..where(db.teamMembers.teamId.isIn(teamIds)))
-        .map((row) => row.read(db.teamMembers.userId)!)
-        .get();
+    final members =
+        await (db.selectOnly(db.teamMembers)
+              ..addColumns([db.teamMembers.userId])
+              ..where(db.teamMembers.teamId.isIn(teamIds)))
+            .map((row) => row.read(db.teamMembers.userId)!)
+            .get();
     owners.addAll(members);
   }
   return owners;
@@ -45,34 +46,36 @@ Future<Set<int>> effectiveOwnerIds(
 /// Every group [userId] is an owner of — by a grant of their own, or by
 /// belonging to a team that holds one.
 Future<Set<int>> groupIdsOwnedBy(StructuredLogDatabase db, int userId) async {
-  final direct = await (db.selectOnly(db.roleAssignments)
-        ..addColumns([db.roleAssignments.scopeId])
-        ..where(
-          db.roleAssignments.subjectType.equals('user') &
-              db.roleAssignments.subjectId.equals(userId) &
-              db.roleAssignments.role.equals('owner') &
-              db.roleAssignments.scopeType.equals('group'),
-        ))
-      .map((row) => row.read(db.roleAssignments.scopeId)!)
-      .get();
-
-  final teamIds = await (db.selectOnly(db.teamMembers)
-        ..addColumns([db.teamMembers.teamId])
-        ..where(db.teamMembers.userId.equals(userId)))
-      .map((row) => row.read(db.teamMembers.teamId)!)
-      .get();
-  final viaTeams = teamIds.isEmpty
-      ? const <int>[]
-      : await (db.selectOnly(db.roleAssignments)
+  final direct =
+      await (db.selectOnly(db.roleAssignments)
             ..addColumns([db.roleAssignments.scopeId])
             ..where(
-              db.roleAssignments.subjectType.equals('team') &
-                  db.roleAssignments.subjectId.isIn(teamIds) &
+              db.roleAssignments.subjectType.equals('user') &
+                  db.roleAssignments.subjectId.equals(userId) &
                   db.roleAssignments.role.equals('owner') &
                   db.roleAssignments.scopeType.equals('group'),
             ))
           .map((row) => row.read(db.roleAssignments.scopeId)!)
           .get();
+
+  final teamIds =
+      await (db.selectOnly(db.teamMembers)
+            ..addColumns([db.teamMembers.teamId])
+            ..where(db.teamMembers.userId.equals(userId)))
+          .map((row) => row.read(db.teamMembers.teamId)!)
+          .get();
+  final viaTeams = teamIds.isEmpty
+      ? const <int>[]
+      : await (db.selectOnly(db.roleAssignments)
+              ..addColumns([db.roleAssignments.scopeId])
+              ..where(
+                db.roleAssignments.subjectType.equals('team') &
+                    db.roleAssignments.subjectId.isIn(teamIds) &
+                    db.roleAssignments.role.equals('owner') &
+                    db.roleAssignments.scopeType.equals('group'),
+              ))
+            .map((row) => row.read(db.roleAssignments.scopeId)!)
+            .get();
 
   return {...direct, ...viaTeams};
 }
@@ -82,16 +85,17 @@ Future<Set<int>> groupIdsOwnedByTeam(
   StructuredLogDatabase db,
   int teamId,
 ) async {
-  final rows = await (db.selectOnly(db.roleAssignments)
-        ..addColumns([db.roleAssignments.scopeId])
-        ..where(
-          db.roleAssignments.subjectType.equals('team') &
-              db.roleAssignments.subjectId.equals(teamId) &
-              db.roleAssignments.role.equals('owner') &
-              db.roleAssignments.scopeType.equals('group'),
-        ))
-      .map((row) => row.read(db.roleAssignments.scopeId)!)
-      .get();
+  final rows =
+      await (db.selectOnly(db.roleAssignments)
+            ..addColumns([db.roleAssignments.scopeId])
+            ..where(
+              db.roleAssignments.subjectType.equals('team') &
+                  db.roleAssignments.subjectId.equals(teamId) &
+                  db.roleAssignments.role.equals('owner') &
+                  db.roleAssignments.scopeType.equals('group'),
+            ))
+          .map((row) => row.read(db.roleAssignments.scopeId)!)
+          .get();
   return rows.toSet();
 }
 

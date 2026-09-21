@@ -187,7 +187,8 @@ class LogFilter {
       // delivering an entry the historical query would have missed, rather
       // than withholding one it would have returned.
       final needle = q.toLowerCase();
-      final matchesText = entry.event.toLowerCase().contains(needle) ||
+      final matchesText =
+          entry.event.toLowerCase().contains(needle) ||
           entry.contextJson.toLowerCase().contains(needle);
       if (!matchesText) return false;
     }

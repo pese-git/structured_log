@@ -17,9 +17,7 @@ class DeleteUserOutcome {
   /// every group [deleteUser]'s target is the sole `owner` of.
   final List<Group> blockingGroups;
 
-  const DeleteUserOutcome.success()
-      : failure = null,
-        blockingGroups = const [];
+  const DeleteUserOutcome.success() : failure = null, blockingGroups = const [];
 
   const DeleteUserOutcome.failed(
     DeleteUserFailure this.failure, {
@@ -70,13 +68,13 @@ Future<DeleteUserOutcome> deleteUser(
   );
   await revokeAllRefreshTokens(db, target.id);
   await incrementTokenVersion(db, target.id);
-  await (db.delete(db.roleAssignments)
-        ..where(
-          (t) => t.subjectType.equals('user') & t.subjectId.equals(target.id),
-        ))
+  await (db.delete(db.roleAssignments)..where(
+        (t) => t.subjectType.equals('user') & t.subjectId.equals(target.id),
+      ))
       .go();
-  await (db.delete(db.teamMembers)..where((t) => t.userId.equals(target.id)))
-      .go();
+  await (db.delete(
+    db.teamMembers,
+  )..where((t) => t.userId.equals(target.id))).go();
 
   return const DeleteUserOutcome.success();
 }

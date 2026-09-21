@@ -13,11 +13,11 @@ class CreateAdminOutcome {
   final String? generatedPassword;
 
   const CreateAdminOutcome.success({this.generatedPassword})
-      : success = true,
-        error = null;
+    : success = true,
+      error = null;
   const CreateAdminOutcome.failure(this.error)
-      : success = false,
-        generatedPassword = null;
+    : success = false,
+      generatedPassword = null;
 }
 
 /// `create-admin` (`bin/server.dart` subcommand, `design.md` decisions
@@ -57,7 +57,9 @@ Future<CreateAdminOutcome> createAdmin(
     final resolvedPassword = password ?? generateRandomToken();
     final wasGenerated = password == null;
 
-    final userId = await db.into(db.users).insert(
+    final userId = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: username,
             passwordHash: hashPassword(resolvedPassword),
@@ -65,7 +67,9 @@ Future<CreateAdminOutcome> createAdmin(
             mustChangePassword: Value(wasGenerated),
           ),
         );
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -96,7 +100,8 @@ Future<bool> _activeAdminExists(StructuredLogDatabase db) async {
 Future<bool> _anyPrimaryAdminEverExisted(StructuredLogDatabase db) async {
   final row = await db
       .customSelect(
-          'SELECT COUNT(*) AS c FROM users WHERE is_primary_admin = 1')
+        'SELECT COUNT(*) AS c FROM users WHERE is_primary_admin = 1',
+      )
       .getSingle();
   return row.read<int>('c') > 0;
 }

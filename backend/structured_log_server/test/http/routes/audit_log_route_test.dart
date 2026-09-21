@@ -15,18 +15,12 @@ const _admin = [EffectiveRole(role: Role.admin, scopeType: ScopeType.global)];
 const _noRoles = <EffectiveRole>[];
 
 List<EffectiveRole> ownerOf(int groupId) => [
-      EffectiveRole(
-        role: Role.owner,
-        scopeType: ScopeType.group,
-        scopeId: groupId,
-      ),
-    ];
+  EffectiveRole(role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -74,20 +68,14 @@ void main() {
             roles: ownerOf(1),
           ),
         ),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 403)),
       );
     });
 
     test('a user with no roles may not', () async {
       await expectLater(
         routes.router.call(
-          authenticatedRequest(
-            'GET',
-            'http://x/v1/audit-log',
-            roles: _noRoles,
-          ),
+          authenticatedRequest('GET', 'http://x/v1/audit-log', roles: _noRoles),
         ),
         throwsA(isA<ApiError>()),
       );
@@ -158,9 +146,7 @@ void main() {
             roles: _admin,
           ),
         ),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
       );
     });
 

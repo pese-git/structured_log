@@ -16,9 +16,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -32,21 +30,24 @@ void main() {
     db = openInMemory();
     authorizer = Authorizer(db);
     routes = TeamRoutes(db, authorizer, AuditWriter(db));
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
   });
   tearDown(() => db.close());
 
   List<EffectiveRole> ownerOf(int groupId) => [
-        EffectiveRole(
-          role: Role.owner,
-          scopeType: ScopeType.group,
-          scopeId: groupId,
-        ),
-      ];
+    EffectiveRole(
+      role: Role.owner,
+      scopeType: ScopeType.group,
+      scopeId: groupId,
+    ),
+  ];
 
   Future<int> insertUser({String username = 'bob'}) {
-    return db.into(db.users).insert(
+    return db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: username,
             passwordHash: hashPassword('s3cret'),
@@ -55,9 +56,9 @@ void main() {
   }
 
   Future<int> insertTeam(int groupId, {String name = 't'}) {
-    return db.into(db.teams).insert(
-          TeamsCompanion.insert(groupId: groupId, name: name),
-        );
+    return db
+        .into(db.teams)
+        .insert(TeamsCompanion.insert(groupId: groupId, name: name));
   }
 
   group('listTeams', () {
@@ -83,7 +84,10 @@ void main() {
       await insertTeam(groupId);
       final userRoles = [
         EffectiveRole(
-            role: Role.user, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       final response = await routes.router.call(
@@ -98,8 +102,9 @@ void main() {
     });
 
     test('a team of another group is not included', () async {
-      final otherGroupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g2'));
+      final otherGroupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g2'));
       await insertTeam(otherGroupId, name: 'not-this-one');
 
       final response = await routes.router.call(
@@ -146,12 +151,12 @@ void main() {
       final teamId = await insertTeam(groupId);
       final alice = await insertUser(username: 'alice');
       final bob = await insertUser(username: 'bob2');
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: alice),
-          );
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: bob),
-          );
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: alice));
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: bob));
 
       final response = await routes.router.call(
         authenticatedRequest(
@@ -164,10 +169,7 @@ void main() {
       expect(response.statusCode, 200);
       final body = await decodeJson(response);
       final items = body['items'] as List;
-      expect(
-        items.map((m) => m['username']),
-        containsAll(['alice', 'bob2']),
-      );
+      expect(items.map((m) => m['username']), containsAll(['alice', 'bob2']));
     });
 
     test('an empty team returns an empty list, not an error', () async {
@@ -189,7 +191,10 @@ void main() {
       final teamId = await insertTeam(groupId);
       final userRoles = [
         EffectiveRole(
-            role: Role.user, scopeType: ScopeType.group, scopeId: groupId),
+          role: Role.user,
+          scopeType: ScopeType.group,
+          scopeId: groupId,
+        ),
       ];
 
       final response = await routes.router.call(
@@ -263,8 +268,9 @@ void main() {
     });
 
     test('the owner of a different group is refused with 403', () async {
-      final otherGroupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g2'));
+      final otherGroupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g2'));
 
       await expectLater(
         routes.router.call(
@@ -356,9 +362,11 @@ void main() {
       );
 
       expect(response.statusCode, 204);
-      final member = await (db.select(db.teamMembers)
-            ..where((t) => t.teamId.equals(teamId) & t.userId.equals(userId)))
-          .getSingleOrNull();
+      final member =
+          await (db.select(db.teamMembers)..where(
+                (t) => t.teamId.equals(teamId) & t.userId.equals(userId),
+              ))
+              .getSingleOrNull();
       expect(member, isNotNull);
     });
 
@@ -381,8 +389,9 @@ void main() {
     test('the owner of a different group is refused with 403', () async {
       final teamId = await insertTeam(groupId);
       final userId = await insertUser();
-      final otherGroupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g2'));
+      final otherGroupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g2'));
 
       await expectLater(
         routes.router.call(
@@ -429,32 +438,38 @@ void main() {
       );
     });
 
-    test('adding an already-current member is idempotent, not an error',
-        () async {
-      final teamId = await insertTeam(groupId);
-      final userId = await insertUser();
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-          );
+    test(
+      'adding an already-current member is idempotent, not an error',
+      () async {
+        final teamId = await insertTeam(groupId);
+        final userId = await insertUser();
+        await db
+            .into(db.teamMembers)
+            .insert(
+              TeamMembersCompanion.insert(teamId: teamId, userId: userId),
+            );
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'POST',
-          'http://x/v1/teams/$teamId/members',
-          roles: _admin,
-          jsonBody: {'user_id': userId},
-        ),
-      );
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'POST',
+            'http://x/v1/teams/$teamId/members',
+            roles: _admin,
+            jsonBody: {'user_id': userId},
+          ),
+        );
 
-      expect(response.statusCode, 204);
-      expect(await auditRows(db), isEmpty);
-    });
+        expect(response.statusCode, 204);
+        expect(await auditRows(db), isEmpty);
+      },
+    );
 
     test('bumps only the added member\'s token_version', () async {
       final teamId = await insertTeam(groupId);
       final addedId = await insertUser(username: 'added');
       final bystanderId = await insertUser(username: 'bystander');
-      await db.into(db.teamMembers).insert(
+      await db
+          .into(db.teamMembers)
+          .insert(
             TeamMembersCompanion.insert(teamId: teamId, userId: bystanderId),
           );
 
@@ -467,12 +482,12 @@ void main() {
         ),
       );
 
-      final added = await (db.select(db.users)
-            ..where((t) => t.id.equals(addedId)))
-          .getSingle();
-      final bystander = await (db.select(db.users)
-            ..where((t) => t.id.equals(bystanderId)))
-          .getSingle();
+      final added = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(addedId))).getSingle();
+      final bystander = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(bystanderId))).getSingle();
       expect(added.tokenVersion, 1);
       expect(
         bystander.tokenVersion,
@@ -507,9 +522,9 @@ void main() {
     test('an admin can remove a member', () async {
       final teamId = await insertTeam(groupId);
       final userId = await insertUser();
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-          );
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
 
       final response = await routes.router.call(
         authenticatedRequest(
@@ -531,9 +546,9 @@ void main() {
     test('the owner of the team\'s group can remove a member', () async {
       final teamId = await insertTeam(groupId);
       final userId = await insertUser();
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-          );
+      await db
+          .into(db.teamMembers)
+          .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
 
       final response = await routes.router.call(
         authenticatedRequest(
@@ -579,10 +594,14 @@ void main() {
       final teamId = await insertTeam(groupId);
       final removedId = await insertUser(username: 'removed');
       final bystanderId = await insertUser(username: 'bystander');
-      await db.into(db.teamMembers).insert(
+      await db
+          .into(db.teamMembers)
+          .insert(
             TeamMembersCompanion.insert(teamId: teamId, userId: removedId),
           );
-      await db.into(db.teamMembers).insert(
+      await db
+          .into(db.teamMembers)
+          .insert(
             TeamMembersCompanion.insert(teamId: teamId, userId: bystanderId),
           );
 
@@ -594,43 +613,48 @@ void main() {
         ),
       );
 
-      final removed = await (db.select(db.users)
-            ..where((t) => t.id.equals(removedId)))
-          .getSingle();
-      final bystander = await (db.select(db.users)
-            ..where((t) => t.id.equals(bystanderId)))
-          .getSingle();
+      final removed = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(removedId))).getSingle();
+      final bystander = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(bystanderId))).getSingle();
       expect(removed.tokenVersion, 1);
       expect(
         bystander.tokenVersion,
         0,
-        reason: 'removing one member does not affect the rest of the team\'s '
+        reason:
+            'removing one member does not affect the rest of the team\'s '
             'access',
       );
     });
 
-    test('leaves an audit record naming the team and the removed user',
-        () async {
-      final teamId = await insertTeam(groupId);
-      final userId = await insertUser();
-      await db.into(db.teamMembers).insert(
-            TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-          );
+    test(
+      'leaves an audit record naming the team and the removed user',
+      () async {
+        final teamId = await insertTeam(groupId);
+        final userId = await insertUser();
+        await db
+            .into(db.teamMembers)
+            .insert(
+              TeamMembersCompanion.insert(teamId: teamId, userId: userId),
+            );
 
-      await routes.router.call(
-        authenticatedRequest(
-          'DELETE',
-          'http://x/v1/teams/$teamId/members/$userId',
-          roles: _admin,
-          userId: 7,
-        ),
-      );
+        await routes.router.call(
+          authenticatedRequest(
+            'DELETE',
+            'http://x/v1/teams/$teamId/members/$userId',
+            roles: _admin,
+            userId: 7,
+          ),
+        );
 
-      final row = (await auditRows(db)).single;
-      expect(row.action, 'team.member_removed');
-      expect(row.actorUserId, 7);
-      expect(row.targetId, teamId);
-      expect(auditMetadata(row)['user_id'], userId);
-    });
+        final row = (await auditRows(db)).single;
+        expect(row.action, 'team.member_removed');
+        expect(row.actorUserId, 7);
+        expect(row.targetId, teamId);
+        expect(auditMetadata(row)['user_id'], userId);
+      },
+    );
   });
 }

@@ -3,11 +3,8 @@ import 'package:test/test.dart';
 
 final _t0 = DateTime.utc(2026, 1, 1);
 
-TokenBucket bucket({int capacity = 3, int refillPerMinute = 60}) => TokenBucket(
-      capacity: capacity,
-      refillPerMinute: refillPerMinute,
-      now: _t0,
-    );
+TokenBucket bucket({int capacity = 3, int refillPerMinute = 60}) =>
+    TokenBucket(capacity: capacity, refillPerMinute: refillPerMinute, now: _t0);
 
 void main() {
   // Time is a parameter here rather than read from the clock, which is the
@@ -43,8 +40,10 @@ void main() {
         b.tryConsume(_t0);
       }
 
-      expect(b.tokensAt(_t0.add(const Duration(milliseconds: 500))),
-          closeTo(0.5, 0.01));
+      expect(
+        b.tokensAt(_t0.add(const Duration(milliseconds: 500))),
+        closeTo(0.5, 0.01),
+      );
       expect(b.tokensAt(_t0.add(const Duration(seconds: 2))), closeTo(2, 0.01));
     });
 
@@ -118,8 +117,11 @@ void main() {
       b.tryConsume(_t0);
 
       final wait = b.timeUntilNextToken(_t0);
-      expect(b.tryConsume(_t0.add(wait)), isTrue,
-          reason: 'Retry-After must not point at a moment still too early');
+      expect(
+        b.tryConsume(_t0.add(wait)),
+        isTrue,
+        reason: 'Retry-After must not point at a moment still too early',
+      );
     });
   });
 

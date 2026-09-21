@@ -51,8 +51,11 @@ class LogRoutes {
     this.maxBodyBytes = defaultMaxIngestBodyBytes,
   });
 
-  late final IngestCoordinator _coordinator =
-      IngestCoordinator(_db, _logStore, _broadcast);
+  late final IngestCoordinator _coordinator = IngestCoordinator(
+    _db,
+    _logStore,
+    _broadcast,
+  );
 
   /// The coordinator, for tests that count how many transactions carried how
   /// many requests.
@@ -69,8 +72,7 @@ class LogRoutes {
 
     final project = await (_db.select(
       _db.projects,
-    )..where((t) => t.id.equals(projectId)))
-        .getSingleOrNull();
+    )..where((t) => t.id.equals(projectId))).getSingleOrNull();
     if (project == null || project.isBlocked) {
       throw const ApiError(
         403,
@@ -130,8 +132,9 @@ class LogRoutes {
       LogQuery(
         projectIds: scope.projectIds,
         filter: filter,
-        from:
-            params['from'] != null ? DateTime.tryParse(params['from']!) : null,
+        from: params['from'] != null
+            ? DateTime.tryParse(params['from']!)
+            : null,
         to: params['to'] != null ? DateTime.tryParse(params['to']!) : null,
         limit: paging.limit,
         cursor: paging.cursor,

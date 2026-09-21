@@ -6,9 +6,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -23,11 +21,17 @@ void main() {
 
   setUp(() async {
     db = openInMemory();
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    projectId = await db.into(db.projects).insert(
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
-              groupId: groupId, name: 'p', retentionDays: 30),
+            groupId: groupId,
+            name: 'p',
+            retentionDays: 30,
+          ),
         );
     directory = ProjectDirectory(db);
   });
@@ -37,8 +41,9 @@ void main() {
   });
 
   Future<void> block(int id, {bool blocked = true}) =>
-      (db.update(db.projects)..where((t) => t.id.equals(id)))
-          .write(ProjectsCompanion(isBlocked: Value(blocked)));
+      (db.update(db.projects)..where((t) => t.id.equals(id))).write(
+        ProjectsCompanion(isBlocked: Value(blocked)),
+      );
 
   group('remembering', () {
     test('answers from the database once, then from memory', () async {
@@ -76,9 +81,14 @@ void main() {
 
       // And one created after being asked about is found, not shadowed by the
       // earlier "no".
-      final late = await db.into(db.projects).insert(
+      final late = await db
+          .into(db.projects)
+          .insert(
             ProjectsCompanion.insert(
-                groupId: groupId, name: 'later', retentionDays: 30),
+              groupId: groupId,
+              name: 'later',
+              retentionDays: 30,
+            ),
           );
       expect((await directory.standing(late))!.groupId, groupId);
     });
@@ -88,17 +98,26 @@ void main() {
       addTearDown(small.close);
       final ids = [projectId];
       for (var i = 0; i < 3; i++) {
-        ids.add(await db.into(db.projects).insert(
-              ProjectsCompanion.insert(
-                  groupId: groupId, name: 'x$i', retentionDays: 30),
-            ));
+        ids.add(
+          await db
+              .into(db.projects)
+              .insert(
+                ProjectsCompanion.insert(
+                  groupId: groupId,
+                  name: 'x$i',
+                  retentionDays: 30,
+                ),
+              ),
+        );
       }
       await settle();
       for (final id in ids) {
         await small.standing(id);
       }
-      expect(ids.where((id) => small.peek(id) != null).length,
-          lessThanOrEqualTo(2));
+      expect(
+        ids.where((id) => small.peek(id) != null).length,
+        lessThanOrEqualTo(2),
+      );
     });
   });
 
@@ -124,21 +143,23 @@ void main() {
       expect((await directory.standing(projectId))!.isBlocked, isFalse);
     });
 
-    test('a change made inside a transaction is seen once it commits',
-        () async {
-      await directory.standing(projectId);
+    test(
+      'a change made inside a transaction is seen once it commits',
+      () async {
+        await directory.standing(projectId);
 
-      await db.transaction(() async {
-        await block(projectId);
+        await db.transaction(() async {
+          await block(projectId);
+          await settle();
+          // Not yet committed: nothing has been announced.
+          expect(directory.peek(projectId), isNotNull);
+        });
         await settle();
-        // Not yet committed: nothing has been announced.
-        expect(directory.peek(projectId), isNotNull);
-      });
-      await settle();
 
-      expect(directory.peek(projectId), isNull);
-      expect((await directory.standing(projectId))!.isBlocked, isTrue);
-    });
+        expect(directory.peek(projectId), isNull);
+        expect((await directory.standing(projectId))!.isBlocked, isTrue);
+      },
+    );
 
     test('any write to the table forgets, whatever it changes', () async {
       await directory.standing(projectId);
@@ -155,27 +176,31 @@ void main() {
       expect(directory.peek(projectId), isNotNull);
     });
 
-    test('a read that began before a change is answered but not remembered',
-        () async {
-      // Asked, then the table changes before the answer is in: what came back
-      // may be the old state, so it must not be kept.
-      final asking = directory.standing(projectId);
-      directory.invalidate();
-      await asking;
+    test(
+      'a read that began before a change is answered but not remembered',
+      () async {
+        // Asked, then the table changes before the answer is in: what came back
+        // may be the old state, so it must not be kept.
+        final asking = directory.standing(projectId);
+        directory.invalidate();
+        await asking;
 
-      expect(directory.peek(projectId), isNull);
-      await directory.standing(projectId);
-      expect(directory.databaseReads, 2);
-    });
+        expect(directory.peek(projectId), isNull);
+        await directory.standing(projectId);
+        expect(directory.databaseReads, 2);
+      },
+    );
 
-    test('a caller after a change does not join a read from before it',
-        () async {
-      final before = directory.standing(projectId);
-      directory.invalidate();
-      final after = directory.standing(projectId);
+    test(
+      'a caller after a change does not join a read from before it',
+      () async {
+        final before = directory.standing(projectId);
+        directory.invalidate();
+        final after = directory.standing(projectId);
 
-      await Future.wait([before, after]);
-      expect(directory.databaseReads, 2);
-    });
+        await Future.wait([before, after]);
+        expect(directory.databaseReads, 2);
+      },
+    );
   });
 }

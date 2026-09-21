@@ -7,9 +7,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -23,7 +21,9 @@ void main() {
     String username = 'bob',
     bool isPrimaryAdmin = false,
   }) async {
-    final id = await db.into(db.users).insert(
+    final id = await db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: username,
             passwordHash: hashPassword('s3cret'),
@@ -34,29 +34,34 @@ void main() {
   }
 
   group('the primary-administrator guard', () {
-    test('refuses to delete the primary administrator, no changes made',
-        () async {
-      final target = await insertUser(isPrimaryAdmin: true);
+    test(
+      'refuses to delete the primary administrator, no changes made',
+      () async {
+        final target = await insertUser(isPrimaryAdmin: true);
 
-      final outcome = await deleteUser(db, target);
+        final outcome = await deleteUser(db, target);
 
-      expect(outcome.isSuccess, isFalse);
-      expect(outcome.failure, DeleteUserFailure.cannotDeletePrimaryAdmin);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.deletedAt, isNull);
-      expect(row.isActive, isTrue);
-    });
+        expect(outcome.isSuccess, isFalse);
+        expect(outcome.failure, DeleteUserFailure.cannotDeletePrimaryAdmin);
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.deletedAt, isNull);
+        expect(row.isActive, isTrue);
+      },
+    );
 
     test('does not even reach the sole-owner check first', () async {
       // A primary admin who also happens to be a sole group owner still
       // gets the identity-based refusal, not the group one — the check
       // order in `deleteUser` stops at the first failure.
       final target = await insertUser(isPrimaryAdmin: true);
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      await db.into(db.roleAssignments).insert(
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: target.id,
@@ -76,9 +81,12 @@ void main() {
   group('the sole-group-owner guard', () {
     test('refuses when the target is the only owner of a group', () async {
       final target = await insertUser();
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      await db.into(db.roleAssignments).insert(
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: target.id,
@@ -93,19 +101,22 @@ void main() {
       expect(outcome.isSuccess, isFalse);
       expect(outcome.failure, DeleteUserFailure.soleGroupOwner);
       expect(outcome.blockingGroups.single.id, groupId);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(target.id))).getSingle();
       expect(row.deletedAt, isNull, reason: 'no changes on refusal');
     });
 
     test('succeeds once another owner exists on the same group', () async {
       final target = await insertUser();
       final other = await insertUser(username: 'other-owner');
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
       for (final ownerId in [target.id, other.id]) {
-        await db.into(db.roleAssignments).insert(
+        await db
+            .into(db.roleAssignments)
+            .insert(
               RoleAssignmentsCompanion.insert(
                 subjectType: 'user',
                 subjectId: ownerId,
@@ -125,9 +136,12 @@ void main() {
       // Only `owner` grants count towards "sole owner" — a plain `user`
       // grant on the group isn't a substitute owner.
       final target = await insertUser();
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      await db.into(db.roleAssignments).insert(
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: target.id,
@@ -137,7 +151,9 @@ void main() {
             ),
           );
       final other = await insertUser(username: 'reader');
-      await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: other.id,
@@ -154,12 +170,16 @@ void main() {
 
     test('lists every group the target is the sole owner of', () async {
       final target = await insertUser();
-      final groupA =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'a'));
-      final groupB =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'b'));
+      final groupA = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'a'));
+      final groupB = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'b'));
       for (final groupId in [groupA, groupB]) {
-        await db.into(db.roleAssignments).insert(
+        await db
+            .into(db.roleAssignments)
+            .insert(
               RoleAssignmentsCompanion.insert(
                 subjectType: 'user',
                 subjectId: target.id,
@@ -180,24 +200,28 @@ void main() {
   });
 
   group('on success', () {
-    test('sets deleted_at and is_active, and leaves the row otherwise intact',
-        () async {
-      final target = await insertUser();
+    test(
+      'sets deleted_at and is_active, and leaves the row otherwise intact',
+      () async {
+        final target = await insertUser();
 
-      final outcome = await deleteUser(db, target);
+        final outcome = await deleteUser(db, target);
 
-      expect(outcome.isSuccess, isTrue);
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
-      expect(row.deletedAt, isNotNull);
-      expect(row.isActive, isFalse);
-      expect(row.username, target.username, reason: 'the row is not erased');
-    });
+        expect(outcome.isSuccess, isTrue);
+        final row = await (db.select(
+          db.users,
+        )..where((t) => t.id.equals(target.id))).getSingle();
+        expect(row.deletedAt, isNotNull);
+        expect(row.isActive, isFalse);
+        expect(row.username, target.username, reason: 'the row is not erased');
+      },
+    );
 
     test('revokes every outstanding refresh token', () async {
       final target = await insertUser();
-      await db.into(db.refreshTokens).insert(
+      await db
+          .into(db.refreshTokens)
+          .insert(
             RefreshTokensCompanion.insert(
               userId: target.id,
               tokenHash: hashToken('a-refresh-token'),
@@ -207,33 +231,35 @@ void main() {
 
       await deleteUser(db, target);
 
-      final token = await (db.select(db.refreshTokens)
-            ..where((t) => t.userId.equals(target.id)))
-          .getSingle();
+      final token = await (db.select(
+        db.refreshTokens,
+      )..where((t) => t.userId.equals(target.id))).getSingle();
       expect(token.revokedAt, isNotNull);
     });
 
-    test(
-        'increments token_version, invalidating already-issued access '
+    test('increments token_version, invalidating already-issued access '
         'tokens', () async {
       final target = await insertUser();
 
       await deleteUser(db, target);
 
-      final row = await (db.select(db.users)
-            ..where((t) => t.id.equals(target.id)))
-          .getSingle();
+      final row = await (db.select(
+        db.users,
+      )..where((t) => t.id.equals(target.id))).getSingle();
       expect(row.tokenVersion, target.tokenVersion + 1);
     });
 
     test('removes the target\'s direct role assignments', () async {
       final target = await insertUser();
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
       // A second owner so the sole-owner guard doesn't refuse first.
       final other = await insertUser(username: 'other-owner');
       for (final ownerId in [target.id, other.id]) {
-        await db.into(db.roleAssignments).insert(
+        await db
+            .into(db.roleAssignments)
+            .insert(
               RoleAssignmentsCompanion.insert(
                 subjectType: 'user',
                 subjectId: ownerId,
@@ -246,19 +272,19 @@ void main() {
 
       await deleteUser(db, target);
 
-      final remaining = await (db.select(db.roleAssignments)
-            ..where(
-              (t) =>
-                  t.subjectType.equals('user') & t.subjectId.equals(target.id),
-            ))
-          .get();
+      final remaining =
+          await (db.select(db.roleAssignments)..where(
+                (t) =>
+                    t.subjectType.equals('user') &
+                    t.subjectId.equals(target.id),
+              ))
+              .get();
       expect(remaining, isEmpty);
       expect(
-        await (db.select(db.roleAssignments)
-              ..where(
-                (t) =>
-                    t.subjectType.equals('user') & t.subjectId.equals(other.id),
-              ))
+        await (db.select(db.roleAssignments)..where(
+              (t) =>
+                  t.subjectType.equals('user') & t.subjectId.equals(other.id),
+            ))
             .get(),
         hasLength(1),
         reason: 'the other owner is untouched',
@@ -267,21 +293,24 @@ void main() {
 
     test('removes the target from every team', () async {
       final target = await insertUser();
-      final groupId =
-          await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-      final teamId = await db.into(db.teams).insert(
-            TeamsCompanion.insert(groupId: groupId, name: 't'),
-          );
-      await db.into(db.teamMembers).insert(
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      final teamId = await db
+          .into(db.teams)
+          .insert(TeamsCompanion.insert(groupId: groupId, name: 't'));
+      await db
+          .into(db.teamMembers)
+          .insert(
             TeamMembersCompanion.insert(teamId: teamId, userId: target.id),
           );
 
       await deleteUser(db, target);
 
       expect(
-        await (db.select(db.teamMembers)
-              ..where((t) => t.userId.equals(target.id)))
-            .get(),
+        await (db.select(
+          db.teamMembers,
+        )..where((t) => t.userId.equals(target.id))).get(),
         isEmpty,
       );
     });

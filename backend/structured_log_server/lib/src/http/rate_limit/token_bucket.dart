@@ -24,8 +24,8 @@ class TokenBucket {
     required this.capacity,
     required this.refillPerMinute,
     required DateTime now,
-  })  : _tokens = capacity.toDouble(),
-        _lastRefill = now {
+  }) : _tokens = capacity.toDouble(),
+       _lastRefill = now {
     if (capacity < 1) {
       throw ArgumentError.value(capacity, 'capacity', 'must be at least 1');
     }
@@ -107,7 +107,8 @@ class TokenBucket {
     }
     if (elapsed == Duration.zero) return;
 
-    final earned = elapsed.inMicroseconds *
+    final earned =
+        elapsed.inMicroseconds *
         refillPerMinute /
         const Duration(minutes: 1).inMicroseconds;
     _tokens = (_tokens + earned).clamp(0, capacity.toDouble());

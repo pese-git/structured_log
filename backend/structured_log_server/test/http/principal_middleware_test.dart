@@ -24,9 +24,7 @@ class _FakeIdentityProvider implements IdentityProvider {
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -46,9 +44,9 @@ void main() {
     final handler = const Pipeline()
         .addMiddleware(principalMiddleware(provider, db))
         .addHandler((req) async {
-      seen = req.principal;
-      return Response.ok('ok');
-    });
+          seen = req.principal;
+          return Response.ok('ok');
+        });
     final response = await handler(request);
     expect(
       response.statusCode,
@@ -71,10 +69,12 @@ void main() {
     provider = _FakeIdentityProvider(
       (token) => token == 'good-token' ? _identity : null,
     );
-    final groupId = await db.into(db.groups).insert(
-          GroupsCompanion.insert(name: 'g'),
-        );
-    projectId = await db.into(db.projects).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
             groupId: groupId,
             name: 'p',
@@ -82,7 +82,9 @@ void main() {
           ),
         );
     activeKey = generateProjectSecretKey();
-    await db.into(db.projectSecretKeys).insert(
+    await db
+        .into(db.projectSecretKeys)
+        .insert(
           ProjectSecretKeysCompanion.insert(
             projectId: projectId,
             keyHash: hashToken(activeKey),
@@ -90,7 +92,9 @@ void main() {
           ),
         );
     revokedKey = generateProjectSecretKey();
-    await db.into(db.projectSecretKeys).insert(
+    await db
+        .into(db.projectSecretKeys)
+        .insert(
           ProjectSecretKeysCompanion.insert(
             projectId: projectId,
             keyHash: hashToken(revokedKey),
@@ -118,11 +122,13 @@ void main() {
       expect(await resolve(bearer(revokedKey)), isA<AnonymousPrincipal>());
     });
 
-    test('an unknown key with the scheme prefix resolves to anonymous',
-        () async {
-      final principal = await resolve(bearer(generateProjectSecretKey()));
-      expect(principal, isA<AnonymousPrincipal>());
-    });
+    test(
+      'an unknown key with the scheme prefix resolves to anonymous',
+      () async {
+        final principal = await resolve(bearer(generateProjectSecretKey()));
+        expect(principal, isA<AnonymousPrincipal>());
+      },
+    );
 
     test('a token the provider rejects resolves to anonymous', () async {
       expect(await resolve(bearer('bad-token')), isA<AnonymousPrincipal>());
@@ -170,9 +176,7 @@ void main() {
     test('throws 401 for an anonymous principal', () {
       expect(
         () => bearer(null).requireUser(),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401)),
       );
     });
 
@@ -182,9 +186,7 @@ void main() {
       );
       expect(
         () => request.requireUser(),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401)),
       );
     });
 
@@ -218,10 +220,7 @@ void main() {
       final request = bearer(null).change(
         context: {'structured_log_server.principal': UserPrincipal(temporary)},
       );
-      expect(
-        request.requireUser(allowTemporaryPassword: true).userId,
-        7,
-      );
+      expect(request.requireUser(allowTemporaryPassword: true).userId, 7);
     });
   });
 
@@ -236,9 +235,7 @@ void main() {
     test('throws 401 for an anonymous principal', () {
       expect(
         () => bearer(null).requireProject(),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401)),
       );
     });
 
@@ -248,9 +245,7 @@ void main() {
       );
       expect(
         () => request.requireProject(),
-        throwsA(
-          isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401),
-        ),
+        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 401)),
       );
     });
   });

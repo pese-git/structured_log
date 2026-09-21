@@ -8,9 +8,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -43,10 +41,7 @@ void main() {
 
   group('canRead', () {
     test('no roles grants nothing', () {
-      expect(
-        canRead([], targetType: ScopeType.group, targetId: 1),
-        isFalse,
-      );
+      expect(canRead([], targetType: ScopeType.group, targetId: 1), isFalse);
     });
 
     test('a global grant of any role covers everything', () {
@@ -71,13 +66,19 @@ void main() {
 
     test('a group grant covers that group and no other', () {
       expect(
-        canRead([onGroup(Role.user, 1)],
-            targetType: ScopeType.group, targetId: 1),
+        canRead(
+          [onGroup(Role.user, 1)],
+          targetType: ScopeType.group,
+          targetId: 1,
+        ),
         isTrue,
       );
       expect(
-        canRead([onGroup(Role.user, 1)],
-            targetType: ScopeType.group, targetId: 2),
+        canRead(
+          [onGroup(Role.user, 1)],
+          targetType: ScopeType.group,
+          targetId: 2,
+        ),
         isFalse,
       );
     });
@@ -142,8 +143,11 @@ void main() {
 
     test('a project grant does not widen to its group', () {
       expect(
-        canRead([onProject(Role.owner, 42)],
-            targetType: ScopeType.group, targetId: 1),
+        canRead(
+          [onProject(Role.owner, 42)],
+          targetType: ScopeType.group,
+          targetId: 1,
+        ),
         isFalse,
       );
     });
@@ -195,8 +199,11 @@ void main() {
 
     test('scope still applies to a writing role', () {
       expect(
-        canWrite([onGroup(Role.owner, 1)],
-            targetType: ScopeType.group, targetId: 2),
+        canWrite(
+          [onGroup(Role.owner, 1)],
+          targetType: ScopeType.group,
+          targetId: 2,
+        ),
         isFalse,
       );
     });
@@ -408,24 +415,26 @@ void main() {
       );
     });
 
-    test('owner of group G may not grant a team belonging to another group',
-        () {
-      expect(
-        canCreateOrRevokeRoleAssignment(
-          [onGroup(Role.owner, 1)],
-          targetRole: Role.user,
-          scopeType: ScopeType.group,
-          scopeId: 1,
-          subjectTeamGroupId: 2,
-        ),
-        isFalse,
-        reason: "the other group's owner controls that team's membership, "
-            'not this one',
-      );
-    });
-
     test(
-        'owner of group G may grant a team of G a role on one of G\'s '
+      'owner of group G may not grant a team belonging to another group',
+      () {
+        expect(
+          canCreateOrRevokeRoleAssignment(
+            [onGroup(Role.owner, 1)],
+            targetRole: Role.user,
+            scopeType: ScopeType.group,
+            scopeId: 1,
+            subjectTeamGroupId: 2,
+          ),
+          isFalse,
+          reason:
+              "the other group's owner controls that team's membership, "
+              'not this one',
+        );
+      },
+    );
+
+    test('owner of group G may grant a team of G a role on one of G\'s '
         'projects', () {
       expect(
         canCreateOrRevokeRoleAssignment(
@@ -489,10 +498,12 @@ void main() {
     setUp(() async {
       db = openInMemory();
       authorizer = Authorizer(db);
-      userId = await db.into(db.users).insert(
-            UsersCompanion.insert(username: 'u', passwordHash: 'x'),
-          );
-      await db.into(db.roleAssignments).insert(
+      userId = await db
+          .into(db.users)
+          .insert(UsersCompanion.insert(username: 'u', passwordHash: 'x'));
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: userId,
@@ -519,20 +530,25 @@ void main() {
     });
 
     test('an empty snapshot is still a snapshot, not a missing one', () async {
-      final identity =
-          VerifiedIdentity(userId: userId, username: 'u', roles: const []);
+      final identity = VerifiedIdentity(
+        userId: userId,
+        username: 'u',
+        roles: const [],
+      );
 
       expect(await resolveRoles(authorizer, identity), isEmpty);
     });
 
     test('falls back to storage when the provider supplied none', () async {
-      final identity =
-          VerifiedIdentity(userId: userId, username: 'u', roles: null);
-
-      expect(
-        await resolveRoles(authorizer, identity),
-        [onGroup(Role.owner, 5)],
+      final identity = VerifiedIdentity(
+        userId: userId,
+        username: 'u',
+        roles: null,
       );
+
+      expect(await resolveRoles(authorizer, identity), [
+        onGroup(Role.owner, 5),
+      ]);
     });
   });
 }

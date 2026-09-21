@@ -11,13 +11,15 @@ void main() {
   // client that silently sees the wrong thing (a truncated payload, or an
   // event it never receives).
   group('sseEvent', () {
-    test('writes id, event and data in that order, ending with a blank line',
-        () {
-      expect(
-        decode(sseEvent(id: 7, event: 'log', data: '{"a":1}')),
-        'id: 7\nevent: log\ndata: {"a":1}\n\n',
-      );
-    });
+    test(
+      'writes id, event and data in that order, ending with a blank line',
+      () {
+        expect(
+          decode(sseEvent(id: 7, event: 'log', data: '{"a":1}')),
+          'id: 7\nevent: log\ndata: {"a":1}\n\n',
+        );
+      },
+    );
 
     test('omits id and event when absent', () {
       expect(decode(sseEvent(data: 'x')), 'data: x\n\n');
@@ -39,8 +41,11 @@ void main() {
     test('encodes non-ASCII as UTF-8', () {
       final frame = sseEvent(data: 'привет');
       expect(decode(frame), 'data: привет\n\n');
-      expect(frame.length, greaterThan('data: привет\n\n'.length),
-          reason: 'multi-byte characters');
+      expect(
+        frame.length,
+        greaterThan('data: привет\n\n'.length),
+        reason: 'multi-byte characters',
+      );
     });
   });
 

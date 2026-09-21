@@ -48,7 +48,9 @@ class AuditWriter {
     int? targetId,
     Map<String, Object?> metadata = const {},
   }) {
-    return _db.into(_db.auditLogEntries).insert(
+    return _db
+        .into(_db.auditLogEntries)
+        .insert(
           AuditLogEntriesCompanion.insert(
             actorUserId: Value(actorUserId),
             action: action.wire,

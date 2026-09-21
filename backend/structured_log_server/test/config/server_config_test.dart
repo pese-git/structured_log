@@ -74,14 +74,10 @@ void main() {
   test(
     'ServerConfig.fromResolved consumes every resolved value without a typo\'d key',
     () {
-      final result = ConfigResolver(serverConfigParams).parse(
-        [],
-        {
-          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-          'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
-        },
-        command: commandServe,
-      );
+      final result = ConfigResolver(serverConfigParams).parse([], {
+        'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+      }, command: commandServe);
       expect(result.outcome, ConfigParseOutcome.success);
 
       final config = ServerConfig.fromResolved(result.values!);
@@ -95,11 +91,9 @@ void main() {
   );
 
   test('create-admin only requires db-path, not jwt-secret', () {
-    final result = ConfigResolver(serverConfigParams).parse(
-      [],
-      {'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite'},
-      command: commandCreateAdmin,
-    );
+    final result = ConfigResolver(serverConfigParams).parse([], {
+      'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+    }, command: commandCreateAdmin);
     expect(result.outcome, ConfigParseOutcome.success);
     final config = ServerConfig.fromResolved(result.values!);
     expect(config.jwtSecret, isNull);
@@ -109,14 +103,10 @@ void main() {
     ({ConfigParseOutcome outcome, ServerConfig? config}) resolve(
       List<String> args,
     ) {
-      final result = ConfigResolver(serverConfigParams).parse(
-        args,
-        {
-          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-          'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
-        },
-        command: commandServe,
-      );
+      final result = ConfigResolver(serverConfigParams).parse(args, {
+        'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+      }, command: commandServe);
       return (
         outcome: result.outcome,
         config: result.values == null
@@ -176,11 +166,9 @@ void main() {
 
   group('db-read-pool-size', () {
     ConfigParseResult resolve(List<String> args) =>
-        ConfigResolver(serverConfigParams).parse(
-          args,
-          {'STRUCTURED_LOG_JWT_SECRET': 'secret'},
-          command: commandServe,
-        );
+        ConfigResolver(serverConfigParams).parse(args, {
+          'STRUCTURED_LOG_JWT_SECRET': 'secret',
+        }, command: commandServe);
 
     test('defaults to two readers', () {
       final result = resolve(['--db-path=/tmp/x.db']);
@@ -195,8 +183,10 @@ void main() {
     test('a negative or absurdly large size is refused', () {
       for (final value in ['-1', '17']) {
         expect(
-          resolve(['--db-path=/tmp/x.db', '--db-read-pool-size=$value'])
-              .outcome,
+          resolve([
+            '--db-path=/tmp/x.db',
+            '--db-read-pool-size=$value',
+          ]).outcome,
           ConfigParseOutcome.errors,
           reason: value,
         );
@@ -206,14 +196,10 @@ void main() {
 
   group('cors-allowed-origins', () {
     ServerConfig resolve(List<String> args) {
-      final result = ConfigResolver(serverConfigParams).parse(
-        args,
-        {
-          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-          'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
-        },
-        command: commandServe,
-      );
+      final result = ConfigResolver(serverConfigParams).parse(args, {
+        'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+      }, command: commandServe);
       return ServerConfig.fromResolved(result.values!);
     }
 

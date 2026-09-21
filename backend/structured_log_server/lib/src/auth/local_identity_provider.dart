@@ -17,8 +17,8 @@ class LocalIdentityProvider implements IdentityProvider {
     this._db, {
     required String signingSecret,
     required String issuer,
-  })  : _signingKey = SecretKey(signingSecret),
-        _issuer = issuer;
+  }) : _signingKey = SecretKey(signingSecret),
+       _issuer = issuer;
 
   @override
   Future<VerifiedIdentity?> verifyAccessToken(String bearerToken) async {
@@ -41,8 +41,7 @@ class LocalIdentityProvider implements IdentityProvider {
 
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.id.equals(userId)))
-        .getSingleOrNull();
+    )..where((t) => t.id.equals(userId))).getSingleOrNull();
     if (user == null || user.tokenVersion != tv) return null;
 
     final roles = <EffectiveRole>[];

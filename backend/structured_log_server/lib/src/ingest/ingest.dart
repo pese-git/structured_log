@@ -20,10 +20,10 @@ class RejectedEntry {
   });
 
   Map<String, Object?> toJson() => {
-        'index': index,
-        'error': error,
-        'message': message,
-      };
+    'index': index,
+    'error': error,
+    'message': message,
+  };
 }
 
 /// The result of validating and quota-checking a submitted batch —
@@ -113,8 +113,8 @@ class _ValidatedEntry {
 
   const _ValidatedEntry.ok(this.companion, this.sizeBytes) : error = null;
   const _ValidatedEntry.invalid(this.error)
-      : companion = null,
-        sizeBytes = null;
+    : companion = null,
+      sizeBytes = null;
 }
 
 /// Names the server assigns to an entry when it reads one back.
@@ -156,8 +156,9 @@ _ValidatedEntry _validateEntry(Object? raw, DateTime receivedAt) {
   }
 
   final timestampRaw = map['timestamp'];
-  final timestamp =
-      timestampRaw is String ? DateTime.tryParse(timestampRaw) : null;
+  final timestamp = timestampRaw is String
+      ? DateTime.tryParse(timestampRaw)
+      : null;
   if (timestamp == null) {
     return const _ValidatedEntry.invalid(
       'timestamp: must be a valid ISO 8601 string',
@@ -181,7 +182,8 @@ _ValidatedEntry _validateEntry(Object? raw, DateTime receivedAt) {
   final connectionGeneration = map['connection_generation'];
   if (connectionGeneration != null && connectionGeneration is! int) {
     return const _ValidatedEntry.invalid(
-        'connection_generation: must be an integer');
+      'connection_generation: must be an integer',
+    );
   }
 
   final sizeBytes = utf8.encode(jsonEncode(map)).length;

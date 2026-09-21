@@ -27,8 +27,7 @@ class ClaimsResolver {
     final roles = await _authorizer.effectiveRoles(userId);
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.id.equals(userId)))
-        .getSingle();
+    )..where((t) => t.id.equals(userId))).getSingle();
     return TokenClaims(roles: roles, tokenVersion: user.tokenVersion);
   }
 }

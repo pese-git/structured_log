@@ -14,9 +14,7 @@ const _issuer = 'structured_log_server-test';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -46,7 +44,9 @@ void main() {
     String password = 's3cret',
     bool isActive = true,
   }) {
-    return db.into(db.users).insert(
+    return db
+        .into(db.users)
+        .insert(
           UsersCompanion.insert(
             username: username,
             passwordHash: hashPassword(password),
@@ -56,29 +56,31 @@ void main() {
   }
 
   group('passwordGrant', () {
-    test('valid credentials return a token pair with a well-formed JWT',
-        () async {
-      await insertUser();
-      final result = await service.passwordGrant(
-        clientIp: testClientIp,
-        username: 'alice',
-        password: 's3cret',
-      );
+    test(
+      'valid credentials return a token pair with a well-formed JWT',
+      () async {
+        await insertUser();
+        final result = await service.passwordGrant(
+          clientIp: testClientIp,
+          username: 'alice',
+          password: 's3cret',
+        );
 
-      final pair = result.getRight().toNullable();
-      expect(pair, isNotNull);
-      expect(pair!.refreshToken, isNotEmpty);
+        final pair = result.getRight().toNullable();
+        expect(pair, isNotNull);
+        expect(pair!.refreshToken, isNotEmpty);
 
-      final jwt = JWT.verify(
-        pair.accessToken,
-        SecretKey(_secret),
-        issuer: _issuer,
-      );
-      expect(jwt.subject, isNotNull);
-      expect((jwt.payload as Map)['preferred_username'], 'alice');
-      expect((jwt.payload as Map)['tv'], 0);
-      expect((jwt.payload as Map)['roles'], isEmpty);
-    });
+        final jwt = JWT.verify(
+          pair.accessToken,
+          SecretKey(_secret),
+          issuer: _issuer,
+        );
+        expect(jwt.subject, isNotNull);
+        expect((jwt.payload as Map)['preferred_username'], 'alice');
+        expect((jwt.payload as Map)['tv'], 0);
+        expect((jwt.payload as Map)['roles'], isEmpty);
+      },
+    );
 
     test('wrong password is rejected as invalid_grant', () async {
       await insertUser();
@@ -87,10 +89,7 @@ void main() {
         username: 'alice',
         password: 'wrong',
       );
-      expect(
-        result.getLeft().toNullable()?.code,
-        TokenErrorCode.invalidGrant,
-      );
+      expect(result.getLeft().toNullable()?.code, TokenErrorCode.invalidGrant);
     });
 
     test('unknown username is rejected as invalid_grant', () async {
@@ -99,29 +98,30 @@ void main() {
         username: 'nobody',
         password: 'irrelevant',
       );
-      expect(
-        result.getLeft().toNullable()?.code,
-        TokenErrorCode.invalidGrant,
-      );
+      expect(result.getLeft().toNullable()?.code, TokenErrorCode.invalidGrant);
     });
 
-    test('an inactive user is rejected even with the correct password',
-        () async {
-      await insertUser(isActive: false);
-      final result = await service.passwordGrant(
-        clientIp: testClientIp,
-        username: 'alice',
-        password: 's3cret',
-      );
-      expect(
-        result.getLeft().toNullable()?.code,
-        TokenErrorCode.invalidGrant,
-      );
-    });
+    test(
+      'an inactive user is rejected even with the correct password',
+      () async {
+        await insertUser(isActive: false);
+        final result = await service.passwordGrant(
+          clientIp: testClientIp,
+          username: 'alice',
+          password: 's3cret',
+        );
+        expect(
+          result.getLeft().toNullable()?.code,
+          TokenErrorCode.invalidGrant,
+        );
+      },
+    );
 
     test('roles claim reflects direct and team-inherited grants', () async {
       final userId = await insertUser();
-      await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: userId,
@@ -136,8 +136,11 @@ void main() {
         password: 's3cret',
       );
       final pair = result.getRight().toNullable()!;
-      final jwt =
-          JWT.verify(pair.accessToken, SecretKey(_secret), issuer: _issuer);
+      final jwt = JWT.verify(
+        pair.accessToken,
+        SecretKey(_secret),
+        issuer: _issuer,
+      );
       final roles = (jwt.payload as Map)['roles'] as List;
       expect(roles, [
         {'role': 'admin', 'scope_type': 'global', 'scope_id': null},
@@ -176,29 +179,33 @@ void main() {
       expect(blocked, greaterThan(wrongPassword ~/ 2));
     });
 
-    test('an over-long password is refused as invalid_grant, not a crash',
-        () async {
-      await insertUser();
-      for (final username in ['alice', 'nobody']) {
+    test(
+      'an over-long password is refused as invalid_grant, not a crash',
+      () async {
+        await insertUser();
+        for (final username in ['alice', 'nobody']) {
+          final result = await service.passwordGrant(
+            clientIp: testClientIp,
+            username: username,
+            password: 'Ж' * 60,
+          );
+          expect(result.isLeft(), isTrue, reason: username);
+        }
+      },
+    );
+
+    test(
+      'a blocked account is still refused with the right password',
+      () async {
+        await insertUser(username: 'bob', isActive: false);
         final result = await service.passwordGrant(
           clientIp: testClientIp,
-          username: username,
-          password: 'Ж' * 60,
+          username: 'bob',
+          password: 's3cret',
         );
-        expect(result.isLeft(), isTrue, reason: username);
-      }
-    });
-
-    test('a blocked account is still refused with the right password',
-        () async {
-      await insertUser(username: 'bob', isActive: false);
-      final result = await service.passwordGrant(
-        clientIp: testClientIp,
-        username: 'bob',
-        password: 's3cret',
-      );
-      expect(result.isLeft(), isTrue);
-    });
+        expect(result.isLeft(), isTrue);
+      },
+    );
   });
 
   group('refreshTokenGrant', () {
@@ -208,9 +215,7 @@ void main() {
         clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+      )).getRight().toNullable()!;
 
       final result = await service.refreshTokenGrant(issued.refreshToken);
       final rotated = result.getRight().toNullable();
@@ -218,30 +223,30 @@ void main() {
       expect(rotated!.refreshToken, isNot(issued.refreshToken));
     });
 
-    test('two concurrent refreshes of one token yield exactly one pair',
-        () async {
-      final userId = await insertUser();
-      final issued = (await service.passwordGrant(
-        clientIp: testClientIp,
-        username: 'alice',
-        password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+    test(
+      'two concurrent refreshes of one token yield exactly one pair',
+      () async {
+        final userId = await insertUser();
+        final issued = (await service.passwordGrant(
+          clientIp: testClientIp,
+          username: 'alice',
+          password: 's3cret',
+        )).getRight().toNullable()!;
 
-      final results = await Future.wait([
-        service.refreshTokenGrant(issued.refreshToken),
-        service.refreshTokenGrant(issued.refreshToken),
-      ]);
+        final results = await Future.wait([
+          service.refreshTokenGrant(issued.refreshToken),
+          service.refreshTokenGrant(issued.refreshToken),
+        ]);
 
-      expect(results.where((r) => r.isRight()), hasLength(1));
-      expect(results.where((r) => r.isLeft()), hasLength(1));
-      // The loser is treated as a reuse: nothing the user holds stays live.
-      final live = await (db.select(db.refreshTokens)
-            ..where((t) => t.userId.equals(userId) & t.revokedAt.isNull()))
-          .get();
-      expect(live, isEmpty);
-    });
+        expect(results.where((r) => r.isRight()), hasLength(1));
+        expect(results.where((r) => r.isLeft()), hasLength(1));
+        // The loser is treated as a reuse: nothing the user holds stays live.
+        final live = await (db.select(
+          db.refreshTokens,
+        )..where((t) => t.userId.equals(userId) & t.revokedAt.isNull())).get();
+        expect(live, isEmpty);
+      },
+    );
 
     test('the rotated-away token is rejected on reuse', () async {
       await insertUser();
@@ -249,42 +254,38 @@ void main() {
         clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+      )).getRight().toNullable()!;
       await service.refreshTokenGrant(issued.refreshToken);
 
       final reuse = await service.refreshTokenGrant(issued.refreshToken);
       expect(reuse.getLeft().toNullable()?.code, TokenErrorCode.invalidGrant);
     });
 
-    test('reusing an already-revoked token revokes the rest of the chain',
-        () async {
-      await insertUser();
-      final first = (await service.passwordGrant(
-        clientIp: testClientIp,
-        username: 'alice',
-        password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
-      final second = (await service.refreshTokenGrant(
-        first.refreshToken,
-      ))
-          .getRight()
-          .toNullable()!;
+    test(
+      'reusing an already-revoked token revokes the rest of the chain',
+      () async {
+        await insertUser();
+        final first = (await service.passwordGrant(
+          clientIp: testClientIp,
+          username: 'alice',
+          password: 's3cret',
+        )).getRight().toNullable()!;
+        final second = (await service.refreshTokenGrant(
+          first.refreshToken,
+        )).getRight().toNullable()!;
 
-      // `first` is already rotated away; presenting it again simulates theft.
-      await service.refreshTokenGrant(first.refreshToken);
+        // `first` is already rotated away; presenting it again simulates theft.
+        await service.refreshTokenGrant(first.refreshToken);
 
-      final afterCompromise = await service.refreshTokenGrant(
-        second.refreshToken,
-      );
-      expect(
-        afterCompromise.getLeft().toNullable()?.code,
-        TokenErrorCode.invalidGrant,
-      );
-    });
+        final afterCompromise = await service.refreshTokenGrant(
+          second.refreshToken,
+        );
+        expect(
+          afterCompromise.getLeft().toNullable()?.code,
+          TokenErrorCode.invalidGrant,
+        );
+      },
+    );
 
     test('an unknown refresh token is rejected', () async {
       final result = await service.refreshTokenGrant('not-a-real-token');
@@ -294,7 +295,9 @@ void main() {
     test('an expired refresh token is rejected', () async {
       final userId = await insertUser();
       final rawToken = generateRandomToken();
-      await db.into(db.refreshTokens).insert(
+      await db
+          .into(db.refreshTokens)
+          .insert(
             RefreshTokensCompanion.insert(
               userId: userId,
               tokenHash: hashToken(rawToken),
@@ -312,9 +315,7 @@ void main() {
         clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+      )).getRight().toNullable()!;
 
       await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
         const UsersCompanion(isActive: Value(false)),
@@ -330,11 +331,11 @@ void main() {
         clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+      )).getRight().toNullable()!;
 
-      await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: userId,
@@ -344,42 +345,49 @@ void main() {
           );
       await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
         UsersCompanion.custom(
-            tokenVersion: db.users.tokenVersion + const Constant(1)),
+          tokenVersion: db.users.tokenVersion + const Constant(1),
+        ),
       );
 
       final refreshed = (await service.refreshTokenGrant(
         issued.refreshToken,
-      ))
-          .getRight()
-          .toNullable()!;
-      final jwt = JWT.verify(refreshed.accessToken, SecretKey(_secret),
-          issuer: _issuer);
+      )).getRight().toNullable()!;
+      final jwt = JWT.verify(
+        refreshed.accessToken,
+        SecretKey(_secret),
+        issuer: _issuer,
+      );
       expect((jwt.payload as Map)['tv'], 1);
       expect((jwt.payload as Map)['roles'], isNotEmpty);
     });
   });
 
   group('revoke', () {
-    test('a revoked refresh token is rejected by a later refresh grant',
-        () async {
-      await insertUser();
-      final issued = (await service.passwordGrant(
-        clientIp: testClientIp,
-        username: 'alice',
-        password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+    test(
+      'a revoked refresh token is rejected by a later refresh grant',
+      () async {
+        await insertUser();
+        final issued = (await service.passwordGrant(
+          clientIp: testClientIp,
+          username: 'alice',
+          password: 's3cret',
+        )).getRight().toNullable()!;
 
-      await service.revoke(issued.refreshToken, clientIp: testClientIp);
+        await service.revoke(issued.refreshToken, clientIp: testClientIp);
 
-      final result = await service.refreshTokenGrant(issued.refreshToken);
-      expect(result.getLeft().toNullable()?.code, TokenErrorCode.invalidGrant);
-    });
+        final result = await service.refreshTokenGrant(issued.refreshToken);
+        expect(
+          result.getLeft().toNullable()?.code,
+          TokenErrorCode.invalidGrant,
+        );
+      },
+    );
 
     test('revoking an unknown token does not throw', () async {
       await expectLater(
-          service.revoke('never-issued', clientIp: testClientIp), completes);
+        service.revoke('never-issued', clientIp: testClientIp),
+        completes,
+      );
     });
 
     test('revoking an already-revoked token does not throw', () async {
@@ -388,13 +396,12 @@ void main() {
         clientIp: testClientIp,
         username: 'alice',
         password: 's3cret',
-      ))
-          .getRight()
-          .toNullable()!;
+      )).getRight().toNullable()!;
       await service.revoke(issued.refreshToken, clientIp: testClientIp);
       await expectLater(
-          service.revoke(issued.refreshToken, clientIp: testClientIp),
-          completes);
+        service.revoke(issued.refreshToken, clientIp: testClientIp),
+        completes,
+      );
     });
   });
 }

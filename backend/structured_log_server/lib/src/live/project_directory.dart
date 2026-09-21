@@ -55,7 +55,7 @@ class ProjectDirectory {
 
   final Map<int, ProjectStanding> _cache = {};
   final Map<int, ({int generation, Future<ProjectStanding?> lookup})>
-      _inflight = {};
+  _inflight = {};
   int _generation = 0;
   late final StreamSubscription<Set<TableUpdate>> _watch;
 
@@ -92,9 +92,9 @@ class ProjectDirectory {
   Future<ProjectStanding?> _read(int projectId, int generation) async {
     databaseReads++;
     try {
-      final row = await (_db.select(_db.projects)
-            ..where((t) => t.id.equals(projectId)))
-          .getSingleOrNull();
+      final row = await (_db.select(
+        _db.projects,
+      )..where((t) => t.id.equals(projectId))).getSingleOrNull();
       if (row == null) return null;
 
       final standing = ProjectStanding(

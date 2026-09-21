@@ -43,12 +43,12 @@ class AuditQuery {
     this.to,
     this.limit = 50,
     this.cursor,
-  })  : assert(limit > 0, 'limit must be positive'),
-        assert(
-          !(actorAbsent && actorUserId != null),
-          'actorAbsent asks for records with no actor; actorUserId asks for '
-          'one particular actor — together they match nothing',
-        );
+  }) : assert(limit > 0, 'limit must be positive'),
+       assert(
+         !(actorAbsent && actorUserId != null),
+         'actorAbsent asks for records with no actor; actorUserId asks for '
+         'one particular actor — together they match nothing',
+       );
 }
 
 /// One page of [AuditQuery] results. [nextCursor] is `null` once there is
@@ -110,7 +110,8 @@ class AuditQueryPage {
 
   variables.add(Variable.withInt(query.limit));
 
-  final sql = 'SELECT * FROM audit_log_entries '
+  final sql =
+      'SELECT * FROM audit_log_entries '
       'WHERE ${conditions.join(' AND ')} '
       'ORDER BY id DESC '
       'LIMIT ?';
@@ -141,11 +142,13 @@ Future<AuditQueryPage> runAuditQuery(
     ),
   );
 
-  final rows = await db.customSelect(
-    probe.sql,
-    variables: probe.variables,
-    readsFrom: {db.auditLogEntries},
-  ).get();
+  final rows = await db
+      .customSelect(
+        probe.sql,
+        variables: probe.variables,
+        readsFrom: {db.auditLogEntries},
+      )
+      .get();
 
   final page = pageFromProbe(
     rows.map((row) => db.auditLogEntries.map(row.data)).toList(),

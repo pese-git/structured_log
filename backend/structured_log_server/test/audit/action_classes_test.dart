@@ -11,7 +11,8 @@ void main() {
       expect(
         isAuthEvent(action) != isAdminAction(action),
         isTrue,
-        reason: '${action.wire} is in both classes or in neither — the two '
+        reason:
+            '${action.wire} is in both classes or in neither — the two '
             'retention periods would then either both delete it or neither '
             'would (`design.md` decision 46)',
       );
@@ -71,7 +72,8 @@ void main() {
     expect(
       AuditAction.values.map((a) => a.wire).toSet(),
       named,
-      reason: 'the enum and the specification must name the same twenty-five '
+      reason:
+          'the enum and the specification must name the same twenty-five '
           'actions — a value in one and not the other is a hole in a set whose '
           'only purpose is being closed',
     );

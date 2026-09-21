@@ -14,9 +14,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -133,8 +131,9 @@ void main() {
     });
 
     test('an unknown grant_type is unsupported_grant_type', () async {
-      final response = await routes.router
-          .call(form('POST', 'grant_type=client_credentials'));
+      final response = await routes.router.call(
+        form('POST', 'grant_type=client_credentials'),
+      );
 
       expect(response.statusCode, 400);
       final body = await decode(response);
@@ -149,35 +148,39 @@ void main() {
       expect((await decode(response))['error'], 'unsupported_grant_type');
     });
 
-    test('a password grant without username or password is invalid_request',
-        () async {
-      for (final body in [
-        'grant_type=password',
-        'grant_type=password&username=u',
-        'grant_type=password&password=p',
-      ]) {
-        final response = await routes.router.call(form('POST', body));
+    test(
+      'a password grant without username or password is invalid_request',
+      () async {
+        for (final body in [
+          'grant_type=password',
+          'grant_type=password&username=u',
+          'grant_type=password&password=p',
+        ]) {
+          final response = await routes.router.call(form('POST', body));
 
-        expect(response.statusCode, 400, reason: body);
-        expect(
-          (await decode(response))['error'],
-          'invalid_request',
-          reason: body,
-        );
-      }
-    });
+          expect(response.statusCode, 400, reason: body);
+          expect(
+            (await decode(response))['error'],
+            'invalid_request',
+            reason: body,
+          );
+        }
+      },
+    );
 
     test('a refresh grant without a token is invalid_request', () async {
-      final response =
-          await routes.router.call(form('POST', 'grant_type=refresh_token'));
+      final response = await routes.router.call(
+        form('POST', 'grant_type=refresh_token'),
+      );
 
       expect(response.statusCode, 400);
       expect((await decode(response))['error'], 'invalid_request');
     });
 
     test('the service rejecting credentials renders invalid_grant', () async {
-      service.passwordResult =
-          const Left(TokenError(TokenErrorCode.invalidGrant));
+      service.passwordResult = const Left(
+        TokenError(TokenErrorCode.invalidGrant),
+      );
 
       final response = await routes.router.call(
         form('POST', 'grant_type=password&username=u&password=wrong'),
@@ -187,10 +190,16 @@ void main() {
       final body = await decode(response);
       expect(body['error'], 'invalid_grant');
       expect(body['error_description'], isNotEmpty);
-      expect(body, isNot(contains('message')),
-          reason: 'the general envelope must not leak into this endpoint');
-      expect(body, isNot(contains('reason')),
-          reason: 'the extension field appears only when the service sets it');
+      expect(
+        body,
+        isNot(contains('message')),
+        reason: 'the general envelope must not leak into this endpoint',
+      );
+      expect(
+        body,
+        isNot(contains('reason')),
+        reason: 'the extension field appears only when the service sets it',
+      );
     });
 
     test('the service\'s reason extension is carried through', () async {
@@ -210,31 +219,33 @@ void main() {
       expect(body['reason'], 'email_not_verified');
     });
 
-    test('every TokenErrorCode renders a distinct code and a description',
-        () async {
-      // Guards the switch from acquiring a case that falls through to
-      // another's wording as new codes are added.
-      const expected = {
-        TokenErrorCode.invalidGrant: 'invalid_grant',
-        TokenErrorCode.invalidRequest: 'invalid_request',
-        TokenErrorCode.unsupportedGrantType: 'unsupported_grant_type',
-      };
-      expect(expected.keys, unorderedEquals(TokenErrorCode.values));
+    test(
+      'every TokenErrorCode renders a distinct code and a description',
+      () async {
+        // Guards the switch from acquiring a case that falls through to
+        // another's wording as new codes are added.
+        const expected = {
+          TokenErrorCode.invalidGrant: 'invalid_grant',
+          TokenErrorCode.invalidRequest: 'invalid_request',
+          TokenErrorCode.unsupportedGrantType: 'unsupported_grant_type',
+        };
+        expect(expected.keys, unorderedEquals(TokenErrorCode.values));
 
-      final descriptions = <String>{};
-      for (final entry in expected.entries) {
-        service.passwordResult = Left(TokenError(entry.key));
-        final body = await decode(
-          await routes.router.call(
-            form('POST', 'grant_type=password&username=u&password=p'),
-          ),
-        );
+        final descriptions = <String>{};
+        for (final entry in expected.entries) {
+          service.passwordResult = Left(TokenError(entry.key));
+          final body = await decode(
+            await routes.router.call(
+              form('POST', 'grant_type=password&username=u&password=p'),
+            ),
+          );
 
-        expect(body['error'], entry.value);
-        descriptions.add(body['error_description'] as String);
-      }
-      expect(descriptions, hasLength(expected.length));
-    });
+          expect(body['error'], entry.value);
+          descriptions.add(body['error_description'] as String);
+        }
+        expect(descriptions, hasLength(expected.length));
+      },
+    );
   });
 
   group('DELETE /v1/auth/token', () {
@@ -250,8 +261,9 @@ void main() {
     });
 
     test('revoking answers 200 with an empty body', () async {
-      final response =
-          await routes.router.call(form('DELETE', 'refresh_token=r'));
+      final response = await routes.router.call(
+        form('DELETE', 'refresh_token=r'),
+      );
 
       expect(response.statusCode, 200);
       expect(await response.readAsString(), isEmpty);
@@ -262,21 +274,24 @@ void main() {
       // RFC 7009 §2.2: the endpoint must not reveal whether the presented
       // token existed. The service swallows that distinction, and the route
       // must not reintroduce it.
-      final response = await routes.router
-          .call(form('DELETE', 'refresh_token=never-issued'));
+      final response = await routes.router.call(
+        form('DELETE', 'refresh_token=never-issued'),
+      );
 
       expect(response.statusCode, 200);
       expect(service.revoked, ['never-issued']);
     });
 
-    test('a missing refresh_token is invalid_request, and revokes nothing',
-        () async {
-      final response = await routes.router.call(form('DELETE', ''));
+    test(
+      'a missing refresh_token is invalid_request, and revokes nothing',
+      () async {
+        final response = await routes.router.call(form('DELETE', ''));
 
-      expect(response.statusCode, 400);
-      expect((await decode(response))['error'], 'invalid_request');
-      expect(service.revoked, isEmpty);
-    });
+        expect(response.statusCode, 400);
+        expect((await decode(response))['error'], 'invalid_request');
+        expect(service.revoked, isEmpty);
+      },
+    );
   });
 
   group('against the real TokenService', () {
@@ -293,7 +308,9 @@ void main() {
         issuer: 'test',
       );
       routes = AuthRoutes(service);
-      await db.into(db.users).insert(
+      await db
+          .into(db.users)
+          .insert(
             UsersCompanion.insert(
               username: 'alice',
               passwordHash: hashPassword('pw'),
@@ -315,9 +332,9 @@ void main() {
 
       final refreshToken = issued['refresh_token'] as String;
       expect(
-        (await routes.router
-                .call(form('DELETE', 'refresh_token=$refreshToken')))
-            .statusCode,
+        (await routes.router.call(
+          form('DELETE', 'refresh_token=$refreshToken'),
+        )).statusCode,
         200,
       );
 

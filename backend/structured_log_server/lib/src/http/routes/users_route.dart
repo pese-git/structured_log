@@ -46,8 +46,7 @@ Map<String, Object?> userJson(User user) {
 Future<User> _requireUser(StructuredLogDatabase db, int userId) async {
   final user = await (db.select(
     db.users,
-  )..where((t) => t.id.equals(userId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(userId))).getSingleOrNull();
   if (user == null) throw ApiError.notFound('User not found.');
   return user;
 }
@@ -119,8 +118,7 @@ class UserRoutes {
 
     final existing = await (_db.select(
       _db.users,
-    )..where((t) => t.username.equals(username)))
-        .getSingleOrNull();
+    )..where((t) => t.username.equals(username))).getSingleOrNull();
     if (existing != null) {
       throw const ApiError(409, 'username_taken', 'username is already taken.');
     }
@@ -130,7 +128,9 @@ class UserRoutes {
     final int userId;
     try {
       userId = await _db.transaction(() async {
-        final id = await _db.into(_db.users).insert(
+        final id = await _db
+            .into(_db.users)
+            .insert(
               UsersCompanion.insert(
                 username: username,
                 passwordHash: passwordHash,
@@ -158,11 +158,13 @@ class UserRoutes {
       // back — no user, no audit record.
       final nowTaken = await (_db.select(
         _db.users,
-      )..where((t) => t.username.equals(username)))
-          .getSingleOrNull();
+      )..where((t) => t.username.equals(username))).getSingleOrNull();
       if (nowTaken != null) {
         throw const ApiError(
-            409, 'username_taken', 'username is already taken.');
+          409,
+          'username_taken',
+          'username is already taken.',
+        );
       }
       rethrow;
     }
@@ -245,14 +247,12 @@ class UserRoutes {
       if (newPassword != null) 'password',
     ];
 
-    final newPasswordHash =
-        newPassword == null ? null : await hashPasswordAsync(newPassword);
+    final newPasswordHash = newPassword == null
+        ? null
+        : await hashPasswordAsync(newPassword);
 
     await _db.transaction(() async {
-      await (_db.update(
-        _db.users,
-      )..where((t) => t.id.equals(userId)))
-          .write(
+      await (_db.update(_db.users)..where((t) => t.id.equals(userId))).write(
         UsersCompanion(
           displayName: hasDisplayName
               ? Value(displayName as String?)
@@ -262,8 +262,9 @@ class UserRoutes {
               : const Value.absent(),
           // A password someone else set is never the account's own choice
           // (`log-server-forced-password-change`) — same rule as creation.
-          mustChangePassword:
-              newPassword != null ? const Value(true) : const Value.absent(),
+          mustChangePassword: newPassword != null
+              ? const Value(true)
+              : const Value.absent(),
         ),
       );
       if (newPassword != null) {
@@ -297,10 +298,9 @@ class UserRoutes {
     await _requireUser(_db, userId);
 
     await _db.transaction(() async {
-      await (_db.update(
-        _db.users,
-      )..where((t) => t.id.equals(userId)))
-          .write(const UsersCompanion(isActive: Value(false)));
+      await (_db.update(_db.users)..where((t) => t.id.equals(userId))).write(
+        const UsersCompanion(isActive: Value(false)),
+      );
       await revokeAllRefreshTokens(_db, userId);
       await incrementTokenVersion(_db, userId);
       await _audit.write(
@@ -334,10 +334,9 @@ class UserRoutes {
     }
 
     await _db.transaction(() async {
-      await (_db.update(
-        _db.users,
-      )..where((t) => t.id.equals(userId)))
-          .write(const UsersCompanion(isActive: Value(true)));
+      await (_db.update(_db.users)..where((t) => t.id.equals(userId))).write(
+        const UsersCompanion(isActive: Value(true)),
+      );
       await _audit.write(
         action: AuditAction.userUnblocked,
         targetType: AuditTargetType.user,

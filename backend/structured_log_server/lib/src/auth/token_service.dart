@@ -83,8 +83,8 @@ class TokenService {
     required String issuer,
     this.accessTokenTtl = const Duration(minutes: 15),
     this.refreshTokenTtl = const Duration(days: 30),
-  })  : _signingKey = SecretKey(signingSecret),
-        _issuer = issuer;
+  }) : _signingKey = SecretKey(signingSecret),
+       _issuer = issuer;
 
   /// The audit record is written here rather than by the route handler, and
   /// that is why [clientIp]/[userAgent] are parameters: the handler has
@@ -99,8 +99,7 @@ class TokenService {
   }) async {
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.username.equals(username)))
-        .getSingleOrNull();
+    )..where((t) => t.username.equals(username))).getSingleOrNull();
 
     // bcrypt runs whatever the account's state, against a dummy hash when there
     // is no usable one: skipping it for an unknown, blocked or deleted account
@@ -168,8 +167,7 @@ class TokenService {
     final hash = hashToken(presentedToken);
     final stored = await (_db.select(
       _db.refreshTokens,
-    )..where((t) => t.tokenHash.equals(hash)))
-        .getSingleOrNull();
+    )..where((t) => t.tokenHash.equals(hash))).getSingleOrNull();
 
     if (stored == null) {
       return left(const TokenError(TokenErrorCode.invalidGrant));
@@ -188,8 +186,7 @@ class TokenService {
 
     final user = await (_db.select(
       _db.users,
-    )..where((t) => t.id.equals(stored.userId)))
-        .getSingle();
+    )..where((t) => t.id.equals(stored.userId))).getSingle();
     if (!user.isActive) {
       return left(const TokenError(TokenErrorCode.invalidGrant));
     }
@@ -202,9 +199,10 @@ class TokenService {
     // decides who wins; the transaction keeps the winner's new token from being
     // written after the loser's sweep below.
     final pair = await _db.transaction(() async {
-      final claimed = await (_db.update(_db.refreshTokens)
-            ..where((t) => t.id.equals(stored.id) & t.revokedAt.isNull()))
-          .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
+      final claimed =
+          await (_db.update(_db.refreshTokens)
+                ..where((t) => t.id.equals(stored.id) & t.revokedAt.isNull()))
+              .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
       if (claimed == 0) return null;
       return _issuePair(user.id, user.username);
     });
@@ -231,14 +229,13 @@ class TokenService {
     String? userAgent,
   }) async {
     final hash = hashToken(presentedToken);
-    final stored = await (_db.select(_db.refreshTokens)
-          ..where((t) => t.tokenHash.equals(hash) & t.revokedAt.isNull()))
-        .getSingleOrNull();
+    final stored =
+        await (_db.select(_db.refreshTokens)
+              ..where((t) => t.tokenHash.equals(hash) & t.revokedAt.isNull()))
+            .getSingleOrNull();
     if (stored == null) return;
 
-    await (_db.update(
-      _db.refreshTokens,
-    )..where((t) => t.id.equals(stored.id)))
+    await (_db.update(_db.refreshTokens)..where((t) => t.id.equals(stored.id)))
         .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
 
     await _audit.write(
@@ -261,7 +258,9 @@ class TokenService {
     final accessToken = _signAccessToken(userId, username, claims);
 
     final refreshTokenPlain = generateRandomToken();
-    await _db.into(_db.refreshTokens).insert(
+    await _db
+        .into(_db.refreshTokens)
+        .insert(
           RefreshTokensCompanion.insert(
             userId: userId,
             tokenHash: hashToken(refreshTokenPlain),
@@ -278,22 +277,24 @@ class TokenService {
   }
 
   String _signAccessToken(int userId, String username, TokenClaims claims) {
-    final jwt = JWT({
-      'preferred_username': username,
-      'tv': claims.tokenVersion,
-      'roles': claims.roles
-          .map(
-            (r) => {
-              'role': r.role.name,
-              'scope_type': r.scopeType.name,
-              'scope_id': r.scopeId,
-            },
-          )
-          .toList(),
-    },
-        subject: '$userId',
-        issuer: _issuer,
-        jwtId: generateRandomToken(bytes: 16));
+    final jwt = JWT(
+      {
+        'preferred_username': username,
+        'tv': claims.tokenVersion,
+        'roles': claims.roles
+            .map(
+              (r) => {
+                'role': r.role.name,
+                'scope_type': r.scopeType.name,
+                'scope_id': r.scopeId,
+              },
+            )
+            .toList(),
+      },
+      subject: '$userId',
+      issuer: _issuer,
+      jwtId: generateRandomToken(bytes: 16),
+    );
 
     return jwt.sign(_signingKey, expiresIn: accessTokenTtl);
   }

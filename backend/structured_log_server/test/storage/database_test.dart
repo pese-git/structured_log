@@ -8,9 +8,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -24,7 +22,9 @@ Future<int> insertProject(
   String name = 'p',
   int retentionDays = 30,
 }) {
-  return db.into(db.projects).insert(
+  return db
+      .into(db.projects)
+      .insert(
         ProjectsCompanion.insert(
           groupId: groupId,
           name: name,
@@ -39,7 +39,9 @@ Future<int> insertUser(
   String? email,
   bool isPrimaryAdmin = false,
 }) {
-  return db.into(db.users).insert(
+  return db
+      .into(db.users)
+      .insert(
         UsersCompanion.insert(
           username: username,
           passwordHash: 'hash',
@@ -64,63 +66,71 @@ void main() {
 
     tearDown(() => db.close());
 
-    test('an entry is tied to exactly the project it was inserted under',
-        () async {
-      await db.into(db.logEntries).insert(
-            LogEntriesCompanion.insert(
-              projectId: projectA,
-              receivedAt: DateTime.now(),
-              timestamp: DateTime.now(),
-              level: 'info',
-              event: 'e',
-              sizeBytes: 1,
-              contextJson: '{}',
-            ),
-          );
+    test(
+      'an entry is tied to exactly the project it was inserted under',
+      () async {
+        await db
+            .into(db.logEntries)
+            .insert(
+              LogEntriesCompanion.insert(
+                projectId: projectA,
+                receivedAt: DateTime.now(),
+                timestamp: DateTime.now(),
+                level: 'info',
+                event: 'e',
+                sizeBytes: 1,
+                contextJson: '{}',
+              ),
+            );
 
-      final inA = await (db.select(
-        db.logEntries,
-      )..where((t) => t.projectId.equals(projectA)))
-          .get();
-      final inB = await (db.select(
-        db.logEntries,
-      )..where((t) => t.projectId.equals(projectB)))
-          .get();
+        final inA = await (db.select(
+          db.logEntries,
+        )..where((t) => t.projectId.equals(projectA))).get();
+        final inB = await (db.select(
+          db.logEntries,
+        )..where((t) => t.projectId.equals(projectB))).get();
 
-      expect(inA, hasLength(1));
-      expect(inB, isEmpty);
-    });
+        expect(inA, hasLength(1));
+        expect(inB, isEmpty);
+      },
+    );
 
-    test('an arbitrary context field round-trips through context_json',
-        () async {
-      final context = {
-        'event': 'checkout',
-        'order_id': 'ord_42',
-        'amount': 19.99
-      };
-      await db.into(db.logEntries).insert(
-            LogEntriesCompanion.insert(
-              projectId: projectA,
-              receivedAt: DateTime.now(),
-              timestamp: DateTime.now(),
-              level: 'info',
-              event: 'checkout',
-              sizeBytes: 1,
-              contextJson: jsonEncode(context),
-            ),
-          );
+    test(
+      'an arbitrary context field round-trips through context_json',
+      () async {
+        final context = {
+          'event': 'checkout',
+          'order_id': 'ord_42',
+          'amount': 19.99,
+        };
+        await db
+            .into(db.logEntries)
+            .insert(
+              LogEntriesCompanion.insert(
+                projectId: projectA,
+                receivedAt: DateTime.now(),
+                timestamp: DateTime.now(),
+                level: 'info',
+                event: 'checkout',
+                sizeBytes: 1,
+                contextJson: jsonEncode(context),
+              ),
+            );
 
-      final row = await db.select(db.logEntries).getSingle();
-      final decoded = jsonDecode(row.contextJson) as Map<String, dynamic>;
-      expect(decoded['order_id'], 'ord_42');
-      expect(decoded['amount'], 19.99);
-    });
+        final row = await db.select(db.logEntries).getSingle();
+        final decoded = jsonDecode(row.contextJson) as Map<String, dynamic>;
+        expect(decoded['order_id'], 'ord_42');
+        expect(decoded['amount'], 19.99);
+      },
+    );
 
     test('received_at is independent of timestamp', () async {
       final clientTimestamp = DateTime.utc(2020, 1, 1);
       final serverReceivedAt = DateTime.utc(2026, 6, 15, 10, 30);
 
-      await db.into(db.logEntries).insert(
+      await db
+          .into(db.logEntries)
+          .insert(
             LogEntriesCompanion.insert(
               projectId: projectA,
               receivedAt: serverReceivedAt,
@@ -138,16 +148,23 @@ void main() {
       expect(row.receivedAt, isNot(row.timestamp));
     });
 
-    test('filtering by project_id and level plans through the composite index',
-        () async {
-      final plan = await db.customSelect(
-        'EXPLAIN QUERY PLAN SELECT * FROM log_entries '
-        'WHERE project_id = ? AND level = ? ORDER BY timestamp',
-        variables: [Variable.withInt(projectA), Variable.withString('info')],
-      ).get();
-      final planText = plan.map((r) => r.data.values.join(' ')).join('\n');
-      expect(planText, contains('idx_log_entries_project_level_timestamp'));
-    });
+    test(
+      'filtering by project_id and level plans through the composite index',
+      () async {
+        final plan = await db
+            .customSelect(
+              'EXPLAIN QUERY PLAN SELECT * FROM log_entries '
+              'WHERE project_id = ? AND level = ? ORDER BY timestamp',
+              variables: [
+                Variable.withInt(projectA),
+                Variable.withString('info'),
+              ],
+            )
+            .get();
+        final planText = plan.map((r) => r.data.values.join(' ')).join('\n');
+        expect(planText, contains('idx_log_entries_project_level_timestamp'));
+      },
+    );
   });
 
   group('users', () {
@@ -158,21 +175,28 @@ void main() {
 
     test('username is unique across the whole table', () async {
       await insertUser(db, username: 'alice');
-      expect(() => insertUser(db, username: 'alice'),
-          throwsA(isA<SqliteException>()));
-    });
-
-    test('email is unique when set, but any number of users may have no email',
-        () async {
-      await insertUser(db, username: 'a', email: 'a@example.com');
-      await insertUser(db, username: 'b'); // no email
-      await insertUser(db, username: 'c'); // no email either — must not collide
-
       expect(
-        () => insertUser(db, username: 'd', email: 'a@example.com'),
+        () => insertUser(db, username: 'alice'),
         throwsA(isA<SqliteException>()),
       );
     });
+
+    test(
+      'email is unique when set, but any number of users may have no email',
+      () async {
+        await insertUser(db, username: 'a', email: 'a@example.com');
+        await insertUser(db, username: 'b'); // no email
+        await insertUser(
+          db,
+          username: 'c',
+        ); // no email either — must not collide
+
+        expect(
+          () => insertUser(db, username: 'd', email: 'a@example.com'),
+          throwsA(isA<SqliteException>()),
+        );
+      },
+    );
 
     test('at most one user may have is_primary_admin = true', () async {
       await insertUser(db, username: 'root', isPrimaryAdmin: true);
@@ -183,8 +207,11 @@ void main() {
     });
 
     test('a soft-deleted user keeps its username/email reserved', () async {
-      final id =
-          await insertUser(db, username: 'alice', email: 'alice@example.com');
+      final id = await insertUser(
+        db,
+        username: 'alice',
+        email: 'alice@example.com',
+      );
       await (db.update(db.users)..where((t) => t.id.equals(id))).write(
         UsersCompanion(deletedAt: Value(DateTime.now())),
       );
@@ -194,8 +221,11 @@ void main() {
         throwsA(isA<SqliteException>()),
       );
       expect(
-        () => insertUser(db,
-            username: 'someone-else', email: 'alice@example.com'),
+        () => insertUser(
+          db,
+          username: 'someone-else',
+          email: 'alice@example.com',
+        ),
         throwsA(isA<SqliteException>()),
       );
     });
@@ -219,16 +249,15 @@ void main() {
       final projectId = await insertProject(db, groupId: group);
       final row = await (db.select(
         db.projects,
-      )..where((t) => t.id.equals(projectId)))
-          .getSingle();
+      )..where((t) => t.id.equals(projectId))).getSingle();
       expect(row.isBlocked, isFalse);
     });
 
     test('a team always belongs to an existing group', () async {
       expect(
-        () => db.into(db.teams).insert(
-              TeamsCompanion.insert(groupId: 999, name: 't'),
-            ),
+        () => db
+            .into(db.teams)
+            .insert(TeamsCompanion.insert(groupId: 999, name: 't')),
         throwsA(isA<SqliteException>()),
       );
     });
@@ -241,7 +270,9 @@ void main() {
     tearDown(() => db.close());
 
     test('a global-scope assignment stores a null scope_id', () async {
-      final id = await db.into(db.roleAssignments).insert(
+      final id = await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: 1,
@@ -251,14 +282,15 @@ void main() {
           );
       final row = await (db.select(
         db.roleAssignments,
-      )..where((t) => t.id.equals(id)))
-          .getSingle();
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(row.scopeId, isNull);
     });
 
     test('a group-scope assignment stores the group id', () async {
       final group = await insertGroup(db);
-      final id = await db.into(db.roleAssignments).insert(
+      final id = await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: 1,
@@ -269,8 +301,7 @@ void main() {
           );
       final row = await (db.select(
         db.roleAssignments,
-      )..where((t) => t.id.equals(id)))
-          .getSingle();
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(row.scopeId, group);
     });
   });
@@ -285,52 +316,53 @@ void main() {
     });
     tearDown(() => db.close());
 
-    test('a revoked refresh token stays in storage with revoked_at set',
-        () async {
-      final now = DateTime.now();
-      final id = await db.into(db.refreshTokens).insert(
-            RefreshTokensCompanion.insert(
-              userId: userId,
-              tokenHash: 'h',
-              expiresAt: now.add(const Duration(days: 30)),
-            ),
-          );
+    test(
+      'a revoked refresh token stays in storage with revoked_at set',
+      () async {
+        final now = DateTime.now();
+        final id = await db
+            .into(db.refreshTokens)
+            .insert(
+              RefreshTokensCompanion.insert(
+                userId: userId,
+                tokenHash: 'h',
+                expiresAt: now.add(const Duration(days: 30)),
+              ),
+            );
 
-      await (db.update(db.refreshTokens)..where((t) => t.id.equals(id))).write(
-        RefreshTokensCompanion(revokedAt: Value(now)),
-      );
+        await (db.update(db.refreshTokens)..where((t) => t.id.equals(id)))
+            .write(RefreshTokensCompanion(revokedAt: Value(now)));
 
-      final row = await (db.select(
-        db.refreshTokens,
-      )..where((t) => t.id.equals(id)))
-          .getSingle();
-      expect(row.revokedAt, isNotNull);
-    });
+        final row = await (db.select(
+          db.refreshTokens,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(row.revokedAt, isNotNull);
+      },
+    );
 
-    test('a used password-reset token stays in storage with used_at set',
-        () async {
-      final now = DateTime.now();
-      final id = await db.into(db.passwordResetTokens).insert(
-            PasswordResetTokensCompanion.insert(
-              userId: userId,
-              tokenHash: 'h',
-              expiresAt: now.add(const Duration(minutes: 30)),
-            ),
-          );
+    test(
+      'a used password-reset token stays in storage with used_at set',
+      () async {
+        final now = DateTime.now();
+        final id = await db
+            .into(db.passwordResetTokens)
+            .insert(
+              PasswordResetTokensCompanion.insert(
+                userId: userId,
+                tokenHash: 'h',
+                expiresAt: now.add(const Duration(minutes: 30)),
+              ),
+            );
 
-      await (db.update(
-        db.passwordResetTokens,
-      )..where((t) => t.id.equals(id)))
-          .write(
-        PasswordResetTokensCompanion(usedAt: Value(now)),
-      );
+        await (db.update(db.passwordResetTokens)..where((t) => t.id.equals(id)))
+            .write(PasswordResetTokensCompanion(usedAt: Value(now)));
 
-      final row = await (db.select(
-        db.passwordResetTokens,
-      )..where((t) => t.id.equals(id)))
-          .getSingle();
-      expect(row.usedAt, isNotNull);
-    });
+        final row = await (db.select(
+          db.passwordResetTokens,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(row.usedAt, isNotNull);
+      },
+    );
   });
 
   group('audit_log_entries', () {
@@ -342,7 +374,9 @@ void main() {
     test('a rolled-back transaction leaves no audit entry behind', () async {
       await expectLater(
         db.transaction(() async {
-          await db.into(db.auditLogEntries).insert(
+          await db
+              .into(db.auditLogEntries)
+              .insert(
                 AuditLogEntriesCompanion.insert(
                   action: 'group.created',
                   targetType: 'group',
@@ -371,15 +405,14 @@ void main() {
     tearDown(() => db.close());
 
     test('usage grows on insert and shrinks on purge, atomically', () async {
-      await db.into(db.projectUsage).insert(
-            ProjectUsageCompanion.insert(projectId: Value(projectId)),
-          );
+      await db
+          .into(db.projectUsage)
+          .insert(ProjectUsageCompanion.insert(projectId: Value(projectId)));
 
       await db.transaction(() async {
         await (db.update(
           db.projectUsage,
-        )..where((t) => t.projectId.equals(projectId)))
-            .write(
+        )..where((t) => t.projectId.equals(projectId))).write(
           const ProjectUsageCompanion(
             entryCount: Value(10),
             totalBytes: Value(1000),
@@ -389,109 +422,119 @@ void main() {
 
       var row = await (db.select(
         db.projectUsage,
-      )..where((t) => t.projectId.equals(projectId)))
-          .getSingle();
+      )..where((t) => t.projectId.equals(projectId))).getSingle();
       expect(row.entryCount, 10);
       expect(row.totalBytes, 1000);
 
       await db.transaction(() async {
         await (db.update(
           db.projectUsage,
-        )..where((t) => t.projectId.equals(projectId)))
-            .write(
+        )..where((t) => t.projectId.equals(projectId))).write(
           const ProjectUsageCompanion(
-              entryCount: Value(6), totalBytes: Value(600)),
+            entryCount: Value(6),
+            totalBytes: Value(600),
+          ),
         );
       });
 
       row = await (db.select(
         db.projectUsage,
-      )..where((t) => t.projectId.equals(projectId)))
-          .getSingle();
+      )..where((t) => t.projectId.equals(projectId))).getSingle();
       expect(row.entryCount, 6);
       expect(row.totalBytes, 600);
     });
   });
 
   group('persistence and concurrency', () {
-    test('data survives closing and reopening the same database file',
-        () async {
-      final dir =
-          Directory.systemTemp.createTempSync('structured_log_server_test');
-      final dbPath = '${dir.path}/test.sqlite';
-      addTearDown(() => dir.deleteSync(recursive: true));
+    test(
+      'data survives closing and reopening the same database file',
+      () async {
+        final dir = Directory.systemTemp.createTempSync(
+          'structured_log_server_test',
+        );
+        final dbPath = '${dir.path}/test.sqlite';
+        addTearDown(() => dir.deleteSync(recursive: true));
 
-      final first = StructuredLogDatabase.open(dbPath);
-      final group = await insertGroup(first);
-      final projectId = await insertProject(first, groupId: group);
-      await first.into(first.logEntries).insert(
-            LogEntriesCompanion.insert(
-              projectId: projectId,
-              receivedAt: DateTime.now(),
-              timestamp: DateTime.now(),
-              level: 'info',
-              event: 'before_restart',
-              sizeBytes: 1,
-              contextJson: '{}',
-            ),
-          );
-      await first.close();
+        final first = StructuredLogDatabase.open(dbPath);
+        final group = await insertGroup(first);
+        final projectId = await insertProject(first, groupId: group);
+        await first
+            .into(first.logEntries)
+            .insert(
+              LogEntriesCompanion.insert(
+                projectId: projectId,
+                receivedAt: DateTime.now(),
+                timestamp: DateTime.now(),
+                level: 'info',
+                event: 'before_restart',
+                sizeBytes: 1,
+                contextJson: '{}',
+              ),
+            );
+        await first.close();
 
-      final second = StructuredLogDatabase.open(dbPath);
-      final rows = await second.select(second.logEntries).get();
-      expect(rows, hasLength(1));
-      expect(rows.single.event, 'before_restart');
-      await second.close();
-    });
+        final second = StructuredLogDatabase.open(dbPath);
+        final rows = await second.select(second.logEntries).get();
+        expect(rows, hasLength(1));
+        expect(rows.single.event, 'before_restart');
+        await second.close();
+      },
+    );
 
-    test('a read is not blocked by a concurrent write on a WAL database',
-        () async {
-      // Two live connections to the same file is the point of this test —
-      // silence drift's single-connection-per-file advisory warning for it.
-      final previousWarningSetting =
-          driftRuntimeOptions.dontWarnAboutMultipleDatabases;
-      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
-      addTearDown(
-        () => driftRuntimeOptions.dontWarnAboutMultipleDatabases =
-            previousWarningSetting,
-      );
+    test(
+      'a read is not blocked by a concurrent write on a WAL database',
+      () async {
+        // Two live connections to the same file is the point of this test —
+        // silence drift's single-connection-per-file advisory warning for it.
+        final previousWarningSetting =
+            driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+        driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+        addTearDown(
+          () => driftRuntimeOptions.dontWarnAboutMultipleDatabases =
+              previousWarningSetting,
+        );
 
-      final dir =
-          Directory.systemTemp.createTempSync('structured_log_server_test');
-      final dbPath = '${dir.path}/test.sqlite';
-      addTearDown(() => dir.deleteSync(recursive: true));
+        final dir = Directory.systemTemp.createTempSync(
+          'structured_log_server_test',
+        );
+        final dbPath = '${dir.path}/test.sqlite';
+        addTearDown(() => dir.deleteSync(recursive: true));
 
-      final writer = StructuredLogDatabase.open(dbPath);
-      final group = await insertGroup(writer);
-      final projectId = await insertProject(writer, groupId: group);
+        final writer = StructuredLogDatabase.open(dbPath);
+        final group = await insertGroup(writer);
+        final projectId = await insertProject(writer, groupId: group);
 
-      final reader = StructuredLogDatabase.open(dbPath);
+        final reader = StructuredLogDatabase.open(dbPath);
 
-      final writeFuture = writer.transaction(() async {
-        for (var i = 0; i < 50; i++) {
-          await writer.into(writer.logEntries).insert(
-                LogEntriesCompanion.insert(
-                  projectId: projectId,
-                  receivedAt: DateTime.now(),
-                  timestamp: DateTime.now(),
-                  level: 'info',
-                  event: 'e$i',
-                  sizeBytes: 1,
-                  contextJson: '{}',
-                ),
-              );
-        }
-      });
+        final writeFuture = writer.transaction(() async {
+          for (var i = 0; i < 50; i++) {
+            await writer
+                .into(writer.logEntries)
+                .insert(
+                  LogEntriesCompanion.insert(
+                    projectId: projectId,
+                    receivedAt: DateTime.now(),
+                    timestamp: DateTime.now(),
+                    level: 'info',
+                    event: 'e$i',
+                    sizeBytes: 1,
+                    contextJson: '{}',
+                  ),
+                );
+          }
+        });
 
-      final readFuture = reader.select(reader.groups).get();
+        final readFuture = reader.select(reader.groups).get();
 
-      await Future.wait([writeFuture, readFuture]).timeout(
-        const Duration(seconds: 5),
-      );
+        await Future.wait([
+          writeFuture,
+          readFuture,
+        ]).timeout(const Duration(seconds: 5));
 
-      await writer.close();
-      await reader.close();
-    });
+        await writer.close();
+        await reader.close();
+      },
+    );
   });
 
   group('credential hash indexes', () {
@@ -519,7 +562,9 @@ void main() {
       addTearDown(db.close);
       final g = await insertGroup(db);
       final p = await insertProject(db, groupId: g);
-      Future<void> key() => db.into(db.projectSecretKeys).insert(
+      Future<void> key() => db
+          .into(db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(projectId: p, keyHash: 'same'),
           );
       await key();
@@ -545,24 +590,26 @@ void main() {
   });
 
   group('connection settings', () {
-    test('a file database waits for a busy lock and syncs in NORMAL mode',
-        () async {
-      final dir = Directory.systemTemp.createTempSync('sl_pragma');
-      addTearDown(() => dir.deleteSync(recursive: true));
-      final db = StructuredLogDatabase.open('${dir.path}/db.sqlite');
-      addTearDown(db.close);
+    test(
+      'a file database waits for a busy lock and syncs in NORMAL mode',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('sl_pragma');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final db = StructuredLogDatabase.open('${dir.path}/db.sqlite');
+        addTearDown(db.close);
 
-      Future<Object?> pragma(String name) async {
-        final row = await db.customSelect('PRAGMA $name').getSingle();
-        return row.data.values.first;
-      }
+        Future<Object?> pragma(String name) async {
+          final row = await db.customSelect('PRAGMA $name').getSingle();
+          return row.data.values.first;
+        }
 
-      expect(await pragma('busy_timeout'), 5000);
-      // 1 is NORMAL; the default FULL is 2.
-      expect(await pragma('synchronous'), 1);
-      expect(await pragma('journal_mode'), 'wal');
-      expect(await pragma('foreign_keys'), 1);
-    });
+        expect(await pragma('busy_timeout'), 5000);
+        // 1 is NORMAL; the default FULL is 2.
+        expect(await pragma('synchronous'), 1);
+        expect(await pragma('journal_mode'), 'wal');
+        expect(await pragma('foreign_keys'), 1);
+      },
+    );
   });
 
   group('schema version guard', () {
@@ -622,21 +669,25 @@ void main() {
       // Reads go to other connections; each must see what has been committed.
       for (var i = 0; i < 25; i++) {
         final id = await insertGroup(db, name: 'g$i');
-        final seen = await (db.select(db.groups)..where((t) => t.id.equals(id)))
-            .getSingleOrNull();
+        final seen = await (db.select(
+          db.groups,
+        )..where((t) => t.id.equals(id))).getSingleOrNull();
         expect(seen?.name, 'g$i');
       }
     });
 
-    test('a read inside a transaction sees the transaction\'s own write',
-        () async {
-      await db.transaction(() async {
-        final id = await insertGroup(db, name: 'inside');
-        final seen = await (db.select(db.groups)..where((t) => t.id.equals(id)))
-            .getSingleOrNull();
-        expect(seen?.name, 'inside');
-      });
-    });
+    test(
+      'a read inside a transaction sees the transaction\'s own write',
+      () async {
+        await db.transaction(() async {
+          final id = await insertGroup(db, name: 'inside');
+          final seen = await (db.select(
+            db.groups,
+          )..where((t) => t.id.equals(id))).getSingleOrNull();
+          expect(seen?.name, 'inside');
+        });
+      },
+    );
 
     test('every connection has the pragmas', () async {
       // Many concurrent reads, so that more than one connection answers.
@@ -670,9 +721,11 @@ void main() {
       final db = openInMemory();
       addTearDown(db.close);
       late bool nested;
-      await db.transaction(() => db.transaction(() async {
-            nested = db.isInTransaction;
-          }));
+      await db.transaction(
+        () => db.transaction(() async {
+          nested = db.isInTransaction;
+        }),
+      );
       expect(nested, isTrue);
     });
   });

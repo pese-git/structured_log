@@ -11,13 +11,8 @@ class SecretResolution {
   final String? error;
 
   const SecretResolution.value(this.value, this.source) : error = null;
-  const SecretResolution.error(this.error)
-      : value = null,
-        source = null;
-  const SecretResolution.unset()
-      : value = null,
-        source = null,
-        error = null;
+  const SecretResolution.error(this.error) : value = null, source = null;
+  const SecretResolution.unset() : value = null, source = null, error = null;
 
   bool get isError => error != null;
   bool get isUnset => value == null && error == null;

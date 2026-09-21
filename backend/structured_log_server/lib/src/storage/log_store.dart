@@ -78,10 +78,11 @@ class DriftLogStore implements LogStore {
         (await _db.customSelect('SELECT last_insert_rowid() AS id').getSingle())
             .read<int>('id');
     final first = last - entries.length + 1;
-    final rows = await (_db.select(_db.logEntries)
-          ..where((t) => t.id.isBetweenValues(first, last))
-          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-        .get();
+    final rows =
+        await (_db.select(_db.logEntries)
+              ..where((t) => t.id.isBetweenValues(first, last))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
     if (rows.length != entries.length) {
       throw StateError(
         'Expected ${entries.length} rows with ids $first..$last after the '
@@ -108,11 +109,13 @@ class DriftLogStore implements LogStore {
         afterId: query.afterId,
       ),
     );
-    final rows = await _db.customSelect(
-      built.sql,
-      variables: built.variables,
-      readsFrom: {_db.logEntries},
-    ).get();
+    final rows = await _db
+        .customSelect(
+          built.sql,
+          variables: built.variables,
+          readsFrom: {_db.logEntries},
+        )
+        .get();
     final page = pageFromProbe(
       rows.map((row) => _db.logEntries.map(row.data)).toList(),
       query.limit,

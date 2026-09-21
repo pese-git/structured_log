@@ -7,9 +7,7 @@ import 'package:test/test.dart';
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -24,9 +22,9 @@ void main() {
   tearDown(() => db.close());
 
   Future<int> insertUser(String username) {
-    return db.into(db.users).insert(
-          UsersCompanion.insert(username: username, passwordHash: 'h'),
-        );
+    return db
+        .into(db.users)
+        .insert(UsersCompanion.insert(username: username, passwordHash: 'h'));
   }
 
   test('a user with no role assignments has no effective roles', () async {
@@ -36,7 +34,9 @@ void main() {
 
   test('a direct role assignment is returned', () async {
     final userId = await insertUser('alice');
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -53,16 +53,18 @@ void main() {
 
   test('a role granted through team membership is inherited', () async {
     final userId = await insertUser('alice');
-    final groupId = await db.into(db.groups).insert(
-          GroupsCompanion.insert(name: 'g'),
-        );
-    final teamId = await db.into(db.teams).insert(
-          TeamsCompanion.insert(groupId: groupId, name: 't'),
-        );
-    await db.into(db.teamMembers).insert(
-          TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-        );
-    await db.into(db.roleAssignments).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    final teamId = await db
+        .into(db.teams)
+        .insert(TeamsCompanion.insert(groupId: groupId, name: 't'));
+    await db
+        .into(db.teamMembers)
+        .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'team',
             subjectId: teamId,
@@ -75,26 +77,36 @@ void main() {
     final roles = await authorizer.effectiveRoles(userId);
     expect(roles, [
       EffectiveRole(
-          role: Role.owner, scopeType: ScopeType.group, scopeId: groupId),
+        role: Role.owner,
+        scopeType: ScopeType.group,
+        scopeId: groupId,
+      ),
     ]);
   });
 
   test('direct and team-inherited roles are both returned', () async {
     final userId = await insertUser('alice');
-    final groupId = await db.into(db.groups).insert(
-          GroupsCompanion.insert(name: 'g2'),
-        );
-    final projectId = await db.into(db.projects).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g2'));
+    final projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
-              groupId: groupId, name: 'p', retentionDays: 30),
+            groupId: groupId,
+            name: 'p',
+            retentionDays: 30,
+          ),
         );
-    final teamId = await db.into(db.teams).insert(
-          TeamsCompanion.insert(groupId: groupId, name: 't2'),
-        );
-    await db.into(db.teamMembers).insert(
-          TeamMembersCompanion.insert(teamId: teamId, userId: userId),
-        );
-    await db.into(db.roleAssignments).insert(
+    final teamId = await db
+        .into(db.teams)
+        .insert(TeamsCompanion.insert(groupId: groupId, name: 't2'));
+    await db
+        .into(db.teamMembers)
+        .insert(TeamMembersCompanion.insert(teamId: teamId, userId: userId));
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'user',
             subjectId: userId,
@@ -103,7 +115,9 @@ void main() {
             scopeId: Value(projectId),
           ),
         );
-    await db.into(db.roleAssignments).insert(
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'team',
             subjectId: teamId,
@@ -133,13 +147,15 @@ void main() {
 
   test('a role granted to a different team is not inherited', () async {
     final userId = await insertUser('alice');
-    final groupId = await db.into(db.groups).insert(
-          GroupsCompanion.insert(name: 'g3'),
-        );
-    final otherTeamId = await db.into(db.teams).insert(
-          TeamsCompanion.insert(groupId: groupId, name: 'other-team'),
-        );
-    await db.into(db.roleAssignments).insert(
+    final groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g3'));
+    final otherTeamId = await db
+        .into(db.teams)
+        .insert(TeamsCompanion.insert(groupId: groupId, name: 'other-team'));
+    await db
+        .into(db.roleAssignments)
+        .insert(
           RoleAssignmentsCompanion.insert(
             subjectType: 'team',
             subjectId: otherTeamId,

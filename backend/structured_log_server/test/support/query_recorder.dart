@@ -15,7 +15,10 @@ class Recorder extends QueryInterceptor {
 
   @override
   Future<void> runCustom(
-      QueryExecutor e, String statement, List<Object?> args) {
+    QueryExecutor e,
+    String statement,
+    List<Object?> args,
+  ) {
     statements.add(statement);
     return super.runCustom(e, statement, args);
   }
@@ -34,15 +37,20 @@ class Recorder extends QueryInterceptor {
 
   @override
   Future<List<Map<String, Object?>>> runSelect(
-      QueryExecutor e, String statement, List<Object?> args) {
+    QueryExecutor e,
+    String statement,
+    List<Object?> args,
+  ) {
     statements.add(statement);
     return super.runSelect(e, statement, args);
   }
 
   @override
   Future<void> runBatched(QueryExecutor e, BatchedStatements statements_) {
-    statements.add('BATCH(${statements_.statements.length} statement(s), '
-        '${statements_.arguments.length} row(s))');
+    statements.add(
+      'BATCH(${statements_.statements.length} statement(s), '
+      '${statements_.arguments.length} row(s))',
+    );
     return super.runBatched(e, statements_);
   }
 

@@ -47,7 +47,8 @@ Future<BootstrapOutcome> bootstrapAdmin(
   // a no-op, not silently ignored — see below. bootstrapAdminPassword has
   // no default (`null` iff never set), so its presence alone is decisive;
   // the username is compared against its own declared default.
-  final explicitParams = config.bootstrapAdminPassword != null ||
+  final explicitParams =
+      config.bootstrapAdminPassword != null ||
       config.bootstrapAdminUsername != 'admin';
 
   try {
@@ -64,7 +65,9 @@ Future<BootstrapOutcome> bootstrapAdmin(
       }
 
       final password = config.bootstrapAdminPassword ?? generateRandomToken();
-      final userId = await db.into(db.users).insert(
+      final userId = await db
+          .into(db.users)
+          .insert(
             UsersCompanion.insert(
               username: config.bootstrapAdminUsername,
               passwordHash: hashPassword(password),
@@ -72,7 +75,9 @@ Future<BootstrapOutcome> bootstrapAdmin(
               isPrimaryAdmin: const Value(true),
             ),
           );
-      await db.into(db.roleAssignments).insert(
+      await db
+          .into(db.roleAssignments)
+          .insert(
             RoleAssignmentsCompanion.insert(
               subjectType: 'user',
               subjectId: userId,
@@ -111,7 +116,8 @@ Future<BootstrapOutcome> bootstrapAdmin(
 }
 
 Future<bool> _usersTableIsEmpty(StructuredLogDatabase db) async {
-  final row =
-      await db.customSelect('SELECT COUNT(*) AS c FROM users').getSingle();
+  final row = await db
+      .customSelect('SELECT COUNT(*) AS c FROM users')
+      .getSingle();
   return row.read<int>('c') == 0;
 }

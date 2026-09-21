@@ -21,9 +21,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -49,145 +47,179 @@ void main() {
     authorizer = Authorizer(db);
     logStore = DriftLogStore(db);
     routes = LogRoutes(db, authorizer, logStore, LogBroadcast());
-    groupId =
-        await db.into(db.groups).insert(GroupsCompanion.insert(name: 'g'));
-    projectId = await db.into(db.projects).insert(
+    groupId = await db
+        .into(db.groups)
+        .insert(GroupsCompanion.insert(name: 'g'));
+    projectId = await db
+        .into(db.projects)
+        .insert(
           ProjectsCompanion.insert(
-              groupId: groupId, name: 'p', retentionDays: 30),
+            groupId: groupId,
+            name: 'p',
+            retentionDays: 30,
+          ),
         );
-    await db.into(db.projectUsage).insert(
-          ProjectUsageCompanion.insert(projectId: Value(projectId)),
-        );
+    await db
+        .into(db.projectUsage)
+        .insert(ProjectUsageCompanion.insert(projectId: Value(projectId)));
   });
   tearDown(() => db.close());
 
   group('ingestLogs', () {
-    test('a well-formed batch is accepted and persisted, project_usage updated',
-        () async {
-      final response = await routes.router.call(
-        ingestRequest(projectId, [
-          {'event': 'e1', 'level': 'info', 'timestamp': '2026-01-01T00:00:00Z'},
-          {
-            'event': 'e2',
-            'level': 'error',
-            'timestamp': '2026-01-01T00:00:01Z'
-          },
-        ]),
-      );
-
-      expect(response.statusCode, 202);
-      final body = jsonDecode(await response.readAsString()) as Map;
-      expect(body['accepted'], 2);
-      expect(body['rejected'], isEmpty);
-
-      final rows = await db.select(db.logEntries).get();
-      expect(rows, hasLength(2));
-
-      final usage = await (db.select(
-        db.projectUsage,
-      )..where((t) => t.projectId.equals(projectId)))
-          .getSingle();
-      expect(usage.entryCount, 2);
-    });
-
-    test('a partially invalid batch reports rejections and still returns 202',
-        () async {
-      final response = await routes.router.call(
-        ingestRequest(projectId, [
-          {'event': 'ok', 'level': 'info', 'timestamp': '2026-01-01T00:00:00Z'},
-          {'event': 'bad'}, // missing level
-        ]),
-      );
-
-      expect(response.statusCode, 202);
-      final body = jsonDecode(await response.readAsString()) as Map;
-      expect(body['accepted'], 1);
-      expect((body['rejected'] as List), hasLength(1));
-      expect((body['rejected'] as List).single, {
-        'index': 1,
-        'error': 'validation_error',
-        'message':
-            'level: must be one of trace, debug, info, warning, error, critical',
-      });
-    });
-
-    test('ingestion into a blocked project is rejected wholesale with 403',
-        () async {
-      await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
-          .write(
-        const ProjectsCompanion(isBlocked: Value(true)),
-      );
-
-      await expectLater(
-        routes.router.call(
+    test(
+      'a well-formed batch is accepted and persisted, project_usage updated',
+      () async {
+        final response = await routes.router.call(
           ingestRequest(projectId, [
             {
-              'event': 'e',
+              'event': 'e1',
               'level': 'info',
-              'timestamp': '2026-01-01T00:00:00Z'
+              'timestamp': '2026-01-01T00:00:00Z',
+            },
+            {
+              'event': 'e2',
+              'level': 'error',
+              'timestamp': '2026-01-01T00:00:01Z',
             },
           ]),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 403)
-              .having((e) => e.code, 'code', 'project_blocked'),
-        ),
-      );
+        );
 
-      expect(await db.select(db.logEntries).get(), isEmpty);
-    });
+        expect(response.statusCode, 202);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['accepted'], 2);
+        expect(body['rejected'], isEmpty);
+
+        final rows = await db.select(db.logEntries).get();
+        expect(rows, hasLength(2));
+
+        final usage = await (db.select(
+          db.projectUsage,
+        )..where((t) => t.projectId.equals(projectId))).getSingle();
+        expect(usage.entryCount, 2);
+      },
+    );
 
     test(
-        'one ingest batch is one transaction, and its statements do not grow with it',
-        () async {
-      final recorder = Recorder();
-      final recorded = StructuredLogDatabase(
-        NativeDatabase.memory(
-                setup: (d) => d.execute('PRAGMA foreign_keys=ON;'))
-            .interceptWith(recorder),
-      );
-      addTearDown(recorded.close);
-      final g = await recorded
-          .into(recorded.groups)
-          .insert(GroupsCompanion.insert(name: 'g'));
-      final p = await recorded.into(recorded.projects).insert(
-          ProjectsCompanion.insert(groupId: g, name: 'p', retentionDays: 30));
-      await recorded
-          .into(recorded.projectUsage)
-          .insert(ProjectUsageCompanion.insert(projectId: Value(p)));
-      final recordedRoutes = LogRoutes(recorded, Authorizer(recorded),
-          DriftLogStore(recorded), LogBroadcast());
-
-      Future<int> statementsFor(int n) async {
-        recorder.clear();
-        final response = await recordedRoutes.router.call(ingestRequest(p, [
-          for (var i = 0; i < n; i++)
+      'a partially invalid batch reports rejections and still returns 202',
+      () async {
+        final response = await routes.router.call(
+          ingestRequest(projectId, [
             {
-              'event': 'e$i',
+              'event': 'ok',
               'level': 'info',
-              'timestamp': '2026-01-01T00:00:00Z'
+              'timestamp': '2026-01-01T00:00:00Z',
             },
-        ]));
-        expect(response.statusCode, 202);
-        // The one transaction the route opens — a second, inside it, is a
-        // SAVEPOINT (what `insertBatch` used to add).
-        expect(recorder.transactions, ['top-level']);
-        return recorder.statements.length;
-      }
+            {'event': 'bad'}, // missing level
+          ]),
+        );
 
-      final one = await statementsFor(1);
-      final hundred = await statementsFor(100);
-      expect(hundred, one,
-          reason: 'a round trip per entry is what this replaced');
-    });
+        expect(response.statusCode, 202);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['accepted'], 1);
+        expect((body['rejected'] as List), hasLength(1));
+        expect((body['rejected'] as List).single, {
+          'index': 1,
+          'error': 'validation_error',
+          'message':
+              'level: must be one of trace, debug, info, warning, error, critical',
+        });
+      },
+    );
+
+    test(
+      'ingestion into a blocked project is rejected wholesale with 403',
+      () async {
+        await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+            .write(const ProjectsCompanion(isBlocked: Value(true)));
+
+        await expectLater(
+          routes.router.call(
+            ingestRequest(projectId, [
+              {
+                'event': 'e',
+                'level': 'info',
+                'timestamp': '2026-01-01T00:00:00Z',
+              },
+            ]),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 403)
+                .having((e) => e.code, 'code', 'project_blocked'),
+          ),
+        );
+
+        expect(await db.select(db.logEntries).get(), isEmpty);
+      },
+    );
+
+    test(
+      'one ingest batch is one transaction, and its statements do not grow with it',
+      () async {
+        final recorder = Recorder();
+        final recorded = StructuredLogDatabase(
+          NativeDatabase.memory(
+            setup: (d) => d.execute('PRAGMA foreign_keys=ON;'),
+          ).interceptWith(recorder),
+        );
+        addTearDown(recorded.close);
+        final g = await recorded
+            .into(recorded.groups)
+            .insert(GroupsCompanion.insert(name: 'g'));
+        final p = await recorded
+            .into(recorded.projects)
+            .insert(
+              ProjectsCompanion.insert(
+                groupId: g,
+                name: 'p',
+                retentionDays: 30,
+              ),
+            );
+        await recorded
+            .into(recorded.projectUsage)
+            .insert(ProjectUsageCompanion.insert(projectId: Value(p)));
+        final recordedRoutes = LogRoutes(
+          recorded,
+          Authorizer(recorded),
+          DriftLogStore(recorded),
+          LogBroadcast(),
+        );
+
+        Future<int> statementsFor(int n) async {
+          recorder.clear();
+          final response = await recordedRoutes.router.call(
+            ingestRequest(p, [
+              for (var i = 0; i < n; i++)
+                {
+                  'event': 'e$i',
+                  'level': 'info',
+                  'timestamp': '2026-01-01T00:00:00Z',
+                },
+            ]),
+          );
+          expect(response.statusCode, 202);
+          // The one transaction the route opens — a second, inside it, is a
+          // SAVEPOINT (what `insertBatch` used to add).
+          expect(recorder.transactions, ['top-level']);
+          return recorder.statements.length;
+        }
+
+        final one = await statementsFor(1);
+        final hundred = await statementsFor(100);
+        expect(
+          hundred,
+          one,
+          reason: 'a round trip per entry is what this replaced',
+        );
+      },
+    );
 
     group('concurrent requests are committed together', () {
       Map<String, Object?> one(String event) => {
-            'event': event,
-            'level': 'info',
-            'timestamp': '2026-01-01T00:00:00Z',
-          };
+        'event': event,
+        'level': 'info',
+        'timestamp': '2026-01-01T00:00:00Z',
+      };
 
       Future<List<Map>> fire(LogRoutes r, int project, int n) async {
         final responses = await Future.wait([
@@ -204,20 +236,31 @@ void main() {
         final recorder = Recorder();
         final recorded = StructuredLogDatabase(
           NativeDatabase.memory(
-                  setup: (d) => d.execute('PRAGMA foreign_keys=ON;'))
-              .interceptWith(recorder),
+            setup: (d) => d.execute('PRAGMA foreign_keys=ON;'),
+          ).interceptWith(recorder),
         );
         addTearDown(recorded.close);
         final g = await recorded
             .into(recorded.groups)
             .insert(GroupsCompanion.insert(name: 'g'));
-        final p = await recorded.into(recorded.projects).insert(
-            ProjectsCompanion.insert(groupId: g, name: 'p', retentionDays: 30));
+        final p = await recorded
+            .into(recorded.projects)
+            .insert(
+              ProjectsCompanion.insert(
+                groupId: g,
+                name: 'p',
+                retentionDays: 30,
+              ),
+            );
         await recorded
             .into(recorded.projectUsage)
             .insert(ProjectUsageCompanion.insert(projectId: Value(p)));
-        final recordedRoutes = LogRoutes(recorded, Authorizer(recorded),
-            DriftLogStore(recorded), LogBroadcast());
+        final recordedRoutes = LogRoutes(
+          recorded,
+          Authorizer(recorded),
+          DriftLogStore(recorded),
+          LogBroadcast(),
+        );
         recorder.clear();
 
         final bodies = await fire(recordedRoutes, p, 40);
@@ -229,34 +272,42 @@ void main() {
         // Requests that arrive while one transaction runs join the next.
         expect(recorder.transactions.length, lessThan(40 ~/ 2));
         expect(recorder.transactions, everyElement('top-level'));
-        expect(recordedRoutes.ingestCoordinator.groupsCommitted,
-            recorder.transactions.length);
+        expect(
+          recordedRoutes.ingestCoordinator.groupsCommitted,
+          recorder.transactions.length,
+        );
       });
 
-      test('a quota holds exactly across requests committed together',
-          () async {
-        await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
-            .write(const ProjectsCompanion(maxEntries: Value(10)));
+      test(
+        'a quota holds exactly across requests committed together',
+        () async {
+          await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+              .write(const ProjectsCompanion(maxEntries: Value(10)));
 
-        final bodies = await fire(routes, projectId, 30);
+          final bodies = await fire(routes, projectId, 30);
 
-        expect(bodies.fold<int>(0, (n, b) => n + (b['accepted'] as int)), 10);
-        expect(await db.select(db.logEntries).get(), hasLength(10));
-        final usage = await (db.select(
-          db.projectUsage,
-        )..where((t) => t.projectId.equals(projectId)))
-            .getSingle();
-        expect(usage.entryCount, 10);
-      });
+          expect(bodies.fold<int>(0, (n, b) => n + (b['accepted'] as int)), 10);
+          expect(await db.select(db.logEntries).get(), hasLength(10));
+          final usage = await (db.select(
+            db.projectUsage,
+          )..where((t) => t.projectId.equals(projectId))).getSingle();
+          expect(usage.entryCount, 10);
+        },
+      );
 
       test('what is published is in id order across projects', () async {
-        final other = await db.into(db.projects).insert(
+        final other = await db
+            .into(db.projects)
+            .insert(
               ProjectsCompanion.insert(
-                  groupId: groupId, name: 'q', retentionDays: 30),
+                groupId: groupId,
+                name: 'q',
+                retentionDays: 30,
+              ),
             );
-        await db.into(db.projectUsage).insert(
-              ProjectUsageCompanion.insert(projectId: Value(other)),
-            );
+        await db
+            .into(db.projectUsage)
+            .insert(ProjectUsageCompanion.insert(projectId: Value(other)));
         final broadcast = LogBroadcast();
         final seen = <int>[];
         final subscription = broadcast.stream.listen((e) => seen.add(e.id));
@@ -268,7 +319,8 @@ void main() {
         await Future.wait([
           for (var i = 0; i < 40; i++)
             shared.router.call(
-                ingestRequest(i.isEven ? projectId : other, [one('e$i')])),
+              ingestRequest(i.isEven ? projectId : other, [one('e$i')]),
+            ),
         ]);
         await Future<void>.delayed(Duration.zero);
 
@@ -278,8 +330,13 @@ void main() {
     });
 
     test('a body streamed past the limit is refused while reading', () async {
-      final capped =
-          LogRoutes(db, authorizer, logStore, LogBroadcast(), maxBodyBytes: 64);
+      final capped = LogRoutes(
+        db,
+        authorizer,
+        logStore,
+        LogBroadcast(),
+        maxBodyBytes: 64,
+      );
       var chunks = 0;
       Stream<List<int>> endless() async* {
         while (true) {
@@ -333,32 +390,39 @@ void main() {
       expect(usage.entryCount, 5);
     });
 
-    test('a body over the size limit is rejected with 413, nothing stored',
-        () async {
-      // The cap is a constructor field now — annotated handlers may not take
-      // optional parameters.
-      final capped =
-          LogRoutes(db, authorizer, logStore, LogBroadcast(), maxBodyBytes: 5);
-      await expectLater(
-        capped.router.call(
-          ingestRequest(projectId, [
-            {
-              'event': 'e',
-              'level': 'info',
-              'timestamp': '2026-01-01T00:00:00Z'
-            },
-          ]),
-        ),
-        throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 413)),
-      );
-      expect(await db.select(db.logEntries).get(), isEmpty);
-    });
+    test(
+      'a body over the size limit is rejected with 413, nothing stored',
+      () async {
+        // The cap is a constructor field now — annotated handlers may not take
+        // optional parameters.
+        final capped = LogRoutes(
+          db,
+          authorizer,
+          logStore,
+          LogBroadcast(),
+          maxBodyBytes: 5,
+        );
+        await expectLater(
+          capped.router.call(
+            ingestRequest(projectId, [
+              {
+                'event': 'e',
+                'level': 'info',
+                'timestamp': '2026-01-01T00:00:00Z',
+              },
+            ]),
+          ),
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 413),
+          ),
+        );
+        expect(await db.select(db.logEntries).get(), isEmpty);
+      },
+    );
 
     test('a non-array body is rejected with 400', () async {
       await expectLater(
-        routes.router.call(
-          ingestRequest(projectId, {'not': 'an array'}),
-        ),
+        routes.router.call(ingestRequest(projectId, {'not': 'an array'})),
         throwsA(isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400)),
       );
     });
@@ -495,101 +559,103 @@ void main() {
       );
     });
 
-    test('a directly-queried blocked project is rejected with project_blocked',
-        () async {
-      await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
-          .write(
-        const ProjectsCompanion(isBlocked: Value(true)),
-      );
-      await expectLater(
-        routes.router.call(
+    test(
+      'a directly-queried blocked project is rejected with project_blocked',
+      () async {
+        await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+            .write(const ProjectsCompanion(isBlocked: Value(true)));
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'GET',
+              'http://x/v1/logs?project_id=$projectId',
+              roles: _admin,
+            ),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 403)
+                .having((e) => e.code, 'code', 'project_blocked'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'a group_id query silently excludes a blocked project instead of failing',
+      () async {
+        await seedLogs();
+        await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+            .write(const ProjectsCompanion(isBlocked: Value(true)));
+
+        final response = await routes.router.call(
           authenticatedRequest(
             'GET',
-            'http://x/v1/logs?project_id=$projectId',
+            'http://x/v1/logs?group_id=$groupId',
             roles: _admin,
           ),
-        ),
-        throwsA(
-          isA<ApiError>()
-              .having((e) => e.statusCode, 'statusCode', 403)
-              .having((e) => e.code, 'code', 'project_blocked'),
-        ),
-      );
-    });
+        );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['items'], isEmpty);
+      },
+    );
 
     test(
-        'a group_id query silently excludes a blocked project instead of failing',
-        () async {
-      await seedLogs();
-      await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
-          .write(
-        const ProjectsCompanion(isBlocked: Value(true)),
-      );
-
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/logs?group_id=$groupId',
-          roles: _admin,
-        ),
-      );
-      final body = jsonDecode(await response.readAsString()) as Map;
-      expect(body['items'], isEmpty);
-    });
+      'a group with no visible non-blocked projects returns an empty page, not an error',
+      () async {
+        final emptyGroup = await db
+            .into(db.groups)
+            .insert(GroupsCompanion.insert(name: 'empty'));
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/logs?group_id=$emptyGroup',
+            roles: _admin,
+          ),
+        );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['items'], isEmpty);
+        expect(body['next_cursor'], isNull);
+      },
+    );
 
     test(
-        'a group with no visible non-blocked projects returns an empty page, not an error',
-        () async {
-      final emptyGroup = await db.into(db.groups).insert(
-            GroupsCompanion.insert(name: 'empty'),
-          );
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/logs?group_id=$emptyGroup',
-          roles: _admin,
-        ),
-      );
-      final body = jsonDecode(await response.readAsString()) as Map;
-      expect(body['items'], isEmpty);
-      expect(body['next_cursor'], isNull);
-    });
+      'a context.<key> query parameter filters on the custom field',
+      () async {
+        await logStore.insertBatch(projectId, [
+          LogEntriesCompanion.insert(
+            projectId: 0,
+            receivedAt: DateTime.now(),
+            timestamp: DateTime.now(),
+            level: 'info',
+            event: 'has-order',
+            sizeBytes: 1,
+            contextJson: '{"event":"has-order","order_id":"ord_1"}',
+          ),
+          LogEntriesCompanion.insert(
+            projectId: 0,
+            receivedAt: DateTime.now(),
+            timestamp: DateTime.now(),
+            level: 'info',
+            event: 'no-order',
+            sizeBytes: 1,
+            contextJson: '{"event":"no-order"}',
+          ),
+        ]);
 
-    test('a context.<key> query parameter filters on the custom field',
-        () async {
-      await logStore.insertBatch(projectId, [
-        LogEntriesCompanion.insert(
-          projectId: 0,
-          receivedAt: DateTime.now(),
-          timestamp: DateTime.now(),
-          level: 'info',
-          event: 'has-order',
-          sizeBytes: 1,
-          contextJson: '{"event":"has-order","order_id":"ord_1"}',
-        ),
-        LogEntriesCompanion.insert(
-          projectId: 0,
-          receivedAt: DateTime.now(),
-          timestamp: DateTime.now(),
-          level: 'info',
-          event: 'no-order',
-          sizeBytes: 1,
-          contextJson: '{"event":"no-order"}',
-        ),
-      ]);
-
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/logs?project_id=$projectId&context.order_id=ord_1',
-          roles: _admin,
-        ),
-      );
-      final body = jsonDecode(await response.readAsString()) as Map;
-      final items = body['items'] as List;
-      expect(items, hasLength(1));
-      expect((items.single as Map)['event'], 'has-order');
-    });
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/logs?project_id=$projectId&context.order_id=ord_1',
+            roles: _admin,
+          ),
+        );
+        final body = jsonDecode(await response.readAsString()) as Map;
+        final items = body['items'] as List;
+        expect(items, hasLength(1));
+        expect((items.single as Map)['event'], 'has-order');
+      },
+    );
   });
 
   group('healthCheck', () {

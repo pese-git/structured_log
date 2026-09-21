@@ -14,9 +14,7 @@ const _noRoles = <EffectiveRole>[];
 
 StructuredLogDatabase openInMemory() {
   return StructuredLogDatabase(
-    NativeDatabase.memory(
-      setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
-    ),
+    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
   );
 }
 
@@ -92,9 +90,9 @@ void main() {
     });
 
     test('a user only sees groups covered by their roles', () async {
-      final groupA = await db.into(db.groups).insert(
-            GroupsCompanion.insert(name: 'visible'),
-          );
+      final groupA = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'visible'));
       await db.into(db.groups).insert(GroupsCompanion.insert(name: 'hidden'));
 
       final response = await routes.router.call(
@@ -161,21 +159,25 @@ void main() {
       expect((body['items'] as List), hasLength(1));
     });
 
-    test('?name= matching nothing returns an empty list, not an error',
-        () async {
-      await db.into(db.groups).insert(GroupsCompanion.insert(name: 'payments'));
+    test(
+      '?name= matching nothing returns an empty list, not an error',
+      () async {
+        await db
+            .into(db.groups)
+            .insert(GroupsCompanion.insert(name: 'payments'));
 
-      final response = await routes.router.call(
-        authenticatedRequest(
-          'GET',
-          'http://x/v1/groups?name=nonexistent',
-          roles: _admin,
-        ),
-      );
-      expect(response.statusCode, 200);
-      final body = await decodeJson(response);
-      expect(body['items'], isEmpty);
-    });
+        final response = await routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/groups?name=nonexistent',
+            roles: _admin,
+          ),
+        );
+        expect(response.statusCode, 200);
+        final body = await decodeJson(response);
+        expect(body['items'], isEmpty);
+      },
+    );
   });
 
   group('the audit record', () {

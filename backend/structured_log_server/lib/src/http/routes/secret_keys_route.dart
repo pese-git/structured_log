@@ -31,8 +31,7 @@ Map<String, Object?> secretKeyJson(ProjectSecretKey key, {String? secret}) {
 Future<Project> _requireProject(StructuredLogDatabase db, int projectId) async {
   final project = await (db.select(
     db.projects,
-  )..where((t) => t.id.equals(projectId)))
-      .getSingleOrNull();
+  )..where((t) => t.id.equals(projectId))).getSingleOrNull();
   if (project == null) throw ApiError.notFound('Project not found.');
   return project;
 }
@@ -75,7 +74,9 @@ class SecretKeyRoutes {
 
     final plainKey = generateProjectSecretKey();
     final keyId = await _db.transaction(() async {
-      final keyId = await _db.into(_db.projectSecretKeys).insert(
+      final keyId = await _db
+          .into(_db.projectSecretKeys)
+          .insert(
             ProjectSecretKeysCompanion.insert(
               projectId: projectId,
               keyHash: hashToken(plainKey),
@@ -98,8 +99,7 @@ class SecretKeyRoutes {
 
     final row = await (_db.select(
       _db.projectSecretKeys,
-    )..where((t) => t.id.equals(keyId)))
-        .getSingle();
+    )..where((t) => t.id.equals(keyId))).getSingle();
     return jsonOk(secretKeyJson(row, secret: plainKey), statusCode: 201);
   }
 
@@ -122,8 +122,7 @@ class SecretKeyRoutes {
 
     final rows = await (_db.select(
       _db.projectSecretKeys,
-    )..where((t) => t.projectId.equals(projectId)))
-        .get();
+    )..where((t) => t.projectId.equals(projectId))).get();
     return jsonOk({'items': rows.map(secretKeyJson).toList()});
   }
 
@@ -149,20 +148,17 @@ class SecretKeyRoutes {
       throw ApiError.forbidden();
     }
 
-    final key = await (_db.select(_db.projectSecretKeys)
-          ..where(
-            (t) => t.id.equals(secretKeyId) & t.projectId.equals(projectId),
-          ))
-        .getSingleOrNull();
+    final key =
+        await (_db.select(_db.projectSecretKeys)..where(
+              (t) => t.id.equals(secretKeyId) & t.projectId.equals(projectId),
+            ))
+            .getSingleOrNull();
     if (key == null) throw ApiError.notFound('Secret key not found.');
 
     await _db.transaction(() async {
-      await (_db.update(
-        _db.projectSecretKeys,
-      )..where((t) => t.id.equals(secretKeyId)))
-          .write(
-        ProjectSecretKeysCompanion(revokedAt: Value(DateTime.now())),
-      );
+      await (_db.update(_db.projectSecretKeys)
+            ..where((t) => t.id.equals(secretKeyId)))
+          .write(ProjectSecretKeysCompanion(revokedAt: Value(DateTime.now())));
       await _audit.write(
         action: AuditAction.secretKeyRevoked,
         targetType: AuditTargetType.secretKey,

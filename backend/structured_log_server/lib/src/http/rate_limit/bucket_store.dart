@@ -43,8 +43,8 @@ class BucketStore {
     required this.maxKeys,
     required DateTime Function() clock,
     this.sweepInterval = const Duration(minutes: 1),
-  })  : _clock = clock,
-        _lastSweep = clock() {
+  }) : _clock = clock,
+       _lastSweep = clock() {
     if (maxKeys < 1) {
       throw ArgumentError.value(maxKeys, 'maxKeys', 'must be at least 1');
     }
