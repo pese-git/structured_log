@@ -34,6 +34,10 @@ typedef SseFrame = ({int? id, String? event, String data, bool comment});
 /// endpoint is that it never ends on its own.
 class StreamReader {
   final frames = <SseFrame>[];
+
+  /// How many separate writes the body delivered — each is a system call on
+  /// the server side.
+  var chunks = 0;
   late final StreamSubscription<List<int>> _subscription;
   var _buffer = '';
   var _done = false;
@@ -47,6 +51,7 @@ class StreamReader {
   }
 
   void _onChunk(List<int> chunk) {
+    chunks++;
     _buffer += utf8.decode(chunk);
     while (true) {
       final end = _buffer.indexOf('\n\n');
@@ -327,6 +332,32 @@ void main() {
 
       expect(reader.eventTexts, ['hello']);
       expect(reader.logs.single.id, isNotNull);
+    });
+
+    test('a batch reaches the client in one write, in order', () async {
+      final reader = await open('project_id=$projectId');
+      // The first entry of a project waits for a lookup; a batch after it is
+      // decided on the spot, which is the case worth measuring.
+      await ingest([entry('primer')]);
+      await reader.waitFor(() => reader.logs.length == 1);
+      final before = reader.chunks;
+
+      await ingest([for (var i = 0; i < 20; i++) entry('e$i')]);
+      await reader.waitFor(() => reader.logs.length == 21);
+
+      expect(reader.eventTexts.skip(1), [for (var i = 0; i < 20; i++) 'e$i']);
+      expect(reader.chunks - before, 1, reason: 'twenty entries, one write');
+    });
+
+    test('subscribers to one entry receive the same frame', () async {
+      final first = await open('project_id=$projectId');
+      final second = await open('group_id=$groupId');
+
+      await ingest([entry('shared')]);
+      await first.waitFor(() => first.logs.isNotEmpty);
+      await second.waitFor(() => second.logs.isNotEmpty);
+
+      expect(first.logs.single, second.logs.single);
     });
 
     test('nothing accepted before subscribing is delivered', () async {
