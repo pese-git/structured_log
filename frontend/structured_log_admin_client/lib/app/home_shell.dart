@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cherrypick/cherrypick.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -93,6 +95,17 @@ class _HomeShellState extends State<HomeShell> {
   late final Scope _authScope = openAuthScope(widget.scope);
 
   var _destination = _Destination.groups;
+
+  @override
+  void dispose() {
+    // The shell's own feature scopes; `auth` belongs to `AuthGate`, which
+    // opened it first and is still using it.
+    unawaited(closeLogBrowserScope(widget.scope));
+    unawaited(closeResourcesScope(widget.scope));
+    unawaited(closeUsersScope(widget.scope));
+    unawaited(closeAuditScope(widget.scope));
+    super.dispose();
+  }
 
   /// Whether to offer the audit section.
   ///

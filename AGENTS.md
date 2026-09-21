@@ -359,13 +359,32 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   мока. Не покрыт браузер — как и в `packages/e2e`.
 - `LogEntryDto` разобран вручную: сервер разливает `context` по верхнему уровню ответа, и
   `json_serializable` не умеет «эти ключи мои, остальное сохрани».
+- **DI: `cherrypick` 4.x, модули фич — `@module()`, генерируются.** Пять фичевых модулей (`features/<фича>/di/`) —
+  абстрактные классы с методами `@provide()`/`@singleton()`; `cherrypick_generator` пишет `$<Модуль>`
+  (`*.module.cherrypick.g.dart`, не коммитится, как остальные `*.g.dart`; директива `part` обязана называться
+  `<файл>.module.cherrypick.g.dart`). `AppModule` рукописный: ему нужны аргументы конструктора (конфиг, логгер,
+  подмены для тестов), а генерируемый класс их не принимает. **Только `@provide()`, не `@instance()`**: `@instance`
+  — это `toInstance`, который вычисляется сразу в `builder`, когда соседние биндинги модуля ещё не видны, и
+  `Can't resolve dependency` падает при `installModules`, хотя зависимость объявлена. Генератор **не проверяет граф**:
+  тип без провайдера проходит `analyze` и сборку и падает `StateError` при первом `resolve` — поэтому
+  `test/shared/di/scopes_test.dart` резолвит из каждого скоупа всё, что модуль обещает (мутацией проверено: убрать
+  метод — тест красный). Жизненный цикл: `ApiClient implements Disposable` и закрывает свои четыре `Dio` при закрытии
+  скоупа; `HomeShell` закрывает свои четыре скоупа в `dispose` (`close<Фича>Scope`), `AuthGate` — `auth` (скоуп
+  общий: `HomeShell` открывает его тем же именем, поэтому не закрывает). Включены детекция циклов
+  (`enableGlobalCycleDetection` + межскоуповая) и `StructuredLogCherryPickObserver` (сцена/модули/освобождение — debug,
+  цикл — error; **запросы и создание экземпляров не пишутся**: контейнер спрашивают постоянно, а печатать
+  экземпляр значит печатать `TokenStorage`). Наблюдатель — реализация интерфейса, не наследник
+  `SilentCherryPickObserver`: контейнер не зовёт наблюдателя, который им является. `cherrypick_flutter` не
+  используется намеренно: его `CherryPickProvider` отдаёт **глобальный** корневой скоуп, а клиент передаёт `Scope`
+  явно (`AdminApp(scope: ...)`), так что тесты не делят состояние.
 - Кодогенерация: `freezed`/`json_serializable`/`retrofit_generator` через `build_runner` —
   `dart run melos run generate` или из директории пакета; `*.g.dart`/`*.freezed.dart` не коммитятся.
   **`retrofit_generator` — 10.x, не 9.x**: 9.7.0 объявляет `retrofit: ^4.6.0`, но не компилируется с
   4.10 (в enum `Parser` появилось значение, которого нет в его switch) — тот же класс ловушки, что с
   `fluent_ui`/Flutter. 10.x требует `build ^4`, а `freezed` 2.x — `build ^2`, поэтому `freezed` здесь 3.x.
-- `environment.sdk` — `^3.8.0`, а не привычный воркспейсу `^3.0.0`: `json_serializable` генерирует
-  null-aware elements (`?instance.field`) для `includeIfNull: false`, ниже 3.8 такой код не парсится.
+- `environment.sdk` — `^3.9.0`, а не привычный воркспейсу `^3.0.0`: `json_serializable` генерирует
+  null-aware elements (`?instance.field`) для `includeIfNull: false` (нужен 3.8), а `cherrypick_generator`
+  требует 3.9.
 - `analysis_options.yaml` гасит `invalid_annotation_target` — `freezed` ставит `@JsonKey` на параметры
   конструктора, это штатный обходной путь самого `freezed`.
 

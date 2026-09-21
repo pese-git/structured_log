@@ -6,6 +6,7 @@ import 'package:structured_log/structured_log.dart';
 import '../api/api_client.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
+import 'structured_log_observer.dart';
 
 /// The application's shared dependencies.
 ///
@@ -95,6 +96,13 @@ Scope openAppScope({
   void Function()? onSessionExpired,
   void Function()? onPasswordChangeRequired,
 }) {
+  // Before the root scope is opened: a scope takes the global observer when it
+  // is created. Cycle detection stays on in release too — a cycle is a mistake
+  // in the wiring, and the alternative to reporting it is a stack overflow.
+  CherryPick.setGlobalObserver(StructuredLogCherryPickObserver(logger));
+  CherryPick.enableGlobalCycleDetection();
+  CherryPick.enableGlobalCrossScopeCycleDetection();
+
   final scope = CherryPick.openRootScope();
   scope.installModules([
     AppModule(
