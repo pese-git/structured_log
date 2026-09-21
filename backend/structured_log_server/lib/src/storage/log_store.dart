@@ -24,6 +24,11 @@ abstract class LogStore {
     List<LogEntriesCompanion> entries,
   );
 
+  /// Like [insertBatch] for entries of several projects at once: each
+  /// companion already carries its own `projectId`. The rows come back in the
+  /// order given, which is the order of their ids.
+  Future<List<LogEntry>> insertRows(List<LogEntriesCompanion> entries);
+
   /// Returns one page of entries matching [query] (`log-server-api`).
   Future<LogQueryPage> query(LogQuery query);
 }
@@ -38,13 +43,20 @@ class DriftLogStore implements LogStore {
     int projectId,
     List<LogEntriesCompanion> entries,
   ) {
+    return insertRows([
+      for (final entry in entries) entry.copyWith(projectId: Value(projectId)),
+    ]);
+  }
+
+  @override
+  Future<List<LogEntry>> insertRows(List<LogEntriesCompanion> entries) {
     if (entries.isEmpty) return Future.value(const []);
     // A transaction inside a transaction is a SAVEPOINT, and that alone cost
     // half of an ingest batch. `POST /v1/logs` already holds one around this
     // call, so join it; only a caller without one gets one here.
     return _db.isInTransaction
-        ? _insert(projectId, entries)
-        : _db.transaction(() => _insert(projectId, entries));
+        ? _insert(entries)
+        : _db.transaction(() => _insert(entries));
   }
 
   /// One statement batch, then one read of what it wrote.
@@ -59,16 +71,8 @@ class DriftLogStore implements LogStore {
   /// so the ids of the [entries] are exactly the `entries.length` ending at
   /// `last_insert_rowid()`. Anything else is a bug worth failing loudly for,
   /// not a row set to broadcast.
-  Future<List<LogEntry>> _insert(
-    int projectId,
-    List<LogEntriesCompanion> entries,
-  ) async {
-    await _db.batch(
-      (b) => b.insertAll(_db.logEntries, [
-        for (final entry in entries)
-          entry.copyWith(projectId: Value(projectId)),
-      ]),
-    );
+  Future<List<LogEntry>> _insert(List<LogEntriesCompanion> entries) async {
+    await _db.batch((b) => b.insertAll(_db.logEntries, entries));
 
     final last =
         (await _db.customSelect('SELECT last_insert_rowid() AS id').getSingle())
