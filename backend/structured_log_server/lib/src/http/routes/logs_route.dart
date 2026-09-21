@@ -1,11 +1,10 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import '../../errors.dart';
-import '../../ingest/ingest.dart';
+import '../../ingest/ingest_coordinator.dart';
 import '../../live/log_broadcast.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
@@ -52,6 +51,13 @@ class LogRoutes {
     this.maxBodyBytes = defaultMaxIngestBodyBytes,
   });
 
+  late final IngestCoordinator _coordinator =
+      IngestCoordinator(_db, _logStore, _broadcast);
+
+  /// The coordinator, for tests that count how many transactions carried how
+  /// many requests.
+  IngestCoordinator get ingestCoordinator => _coordinator;
+
   Router get router => _$LogRoutesRouter(this);
 
   /// Project-secret-key auth, validates and quota-checks each entry
@@ -88,45 +94,17 @@ class LogRoutes {
     // bare jsonDecode produced — this endpoint takes whatever a client sends.
     final decoded = await readJsonArrayBody(raw);
 
-    // Usage is read inside the same transaction that adds to it. Read outside,
-    // two concurrent batches would both be judged against the same snapshot and
-    // could together pass the quota that each alone respects
-    // (`log-server-quotas`).
-    final (:outcome, :inserted) = await _db.transaction(() async {
-      final usage = await (_db.select(
-        _db.projectUsage,
-      )..where((t) => t.projectId.equals(projectId)))
-          .getSingleOrNull();
-
-      final outcome = processIngestBatch(
-        rawEntries: decoded,
-        maxEntries: project.maxEntries,
-        maxBytes: project.maxBytes,
-        currentEntryCount: usage?.entryCount ?? 0,
-        currentTotalBytes: usage?.totalBytes ?? 0,
-        receivedAt: DateTime.now(),
-      );
-      if (outcome.accepted.isEmpty) {
-        return (outcome: outcome, inserted: const <LogEntry>[]);
-      }
-      final rows = await _logStore.insertBatch(projectId, outcome.accepted);
-      await (_db.update(
-        _db.projectUsage,
-      )..where((t) => t.projectId.equals(projectId)))
-          .write(
-        ProjectUsageCompanion.custom(
-          entryCount:
-              _db.projectUsage.entryCount + Constant(outcome.entryCountDelta),
-          totalBytes:
-              _db.projectUsage.totalBytes + Constant(outcome.bytesDelta),
-        ),
-      );
-      return (outcome: outcome, inserted: rows);
-    });
-    // After the commit, never inside it: a subscriber may react by
-    // reading these rows back (catch-up), and they have to be there
-    // (`log-server-live-stream`).
-    if (inserted.isNotEmpty) _broadcast.publish(inserted);
+    // Stored together with whatever else is arriving (`IngestCoordinator`):
+    // usage is read and updated in that transaction, so concurrent batches are
+    // judged one after another and cannot together pass a quota that each
+    // alone respects (`log-server-quotas`), and the rows are published after
+    // the commit.
+    final outcome = await _coordinator.submit(
+      projectId: projectId,
+      maxEntries: project.maxEntries,
+      maxBytes: project.maxBytes,
+      rawEntries: decoded,
+    );
 
     return jsonOk({
       'accepted': outcome.accepted.length,

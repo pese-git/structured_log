@@ -182,6 +182,101 @@ void main() {
           reason: 'a round trip per entry is what this replaced');
     });
 
+    group('concurrent requests are committed together', () {
+      Map<String, Object?> one(String event) => {
+            'event': event,
+            'level': 'info',
+            'timestamp': '2026-01-01T00:00:00Z',
+          };
+
+      Future<List<Map>> fire(LogRoutes r, int project, int n) async {
+        final responses = await Future.wait([
+          for (var i = 0; i < n; i++)
+            r.router.call(ingestRequest(project, [one('e$i')])),
+        ]);
+        return [
+          for (final response in responses)
+            jsonDecode(await response.readAsString()) as Map,
+        ];
+      }
+
+      test('forty single-entry requests need far fewer transactions', () async {
+        final recorder = Recorder();
+        final recorded = StructuredLogDatabase(
+          NativeDatabase.memory(
+                  setup: (d) => d.execute('PRAGMA foreign_keys=ON;'))
+              .interceptWith(recorder),
+        );
+        addTearDown(recorded.close);
+        final g = await recorded
+            .into(recorded.groups)
+            .insert(GroupsCompanion.insert(name: 'g'));
+        final p = await recorded.into(recorded.projects).insert(
+            ProjectsCompanion.insert(groupId: g, name: 'p', retentionDays: 30));
+        await recorded
+            .into(recorded.projectUsage)
+            .insert(ProjectUsageCompanion.insert(projectId: Value(p)));
+        final recordedRoutes = LogRoutes(recorded, Authorizer(recorded),
+            DriftLogStore(recorded), LogBroadcast());
+        recorder.clear();
+
+        final bodies = await fire(recordedRoutes, p, 40);
+
+        expect(bodies.every((b) => b['accepted'] == 1), isTrue);
+        expect(await recorded.select(recorded.logEntries).get(), hasLength(40));
+        final usage = await recorded.select(recorded.projectUsage).getSingle();
+        expect(usage.entryCount, 40);
+        // Requests that arrive while one transaction runs join the next.
+        expect(recorder.transactions.length, lessThan(40 ~/ 2));
+        expect(recorder.transactions, everyElement('top-level'));
+        expect(recordedRoutes.ingestCoordinator.groupsCommitted,
+            recorder.transactions.length);
+      });
+
+      test('a quota holds exactly across requests committed together',
+          () async {
+        await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+            .write(const ProjectsCompanion(maxEntries: Value(10)));
+
+        final bodies = await fire(routes, projectId, 30);
+
+        expect(bodies.fold<int>(0, (n, b) => n + (b['accepted'] as int)), 10);
+        expect(await db.select(db.logEntries).get(), hasLength(10));
+        final usage = await (db.select(
+          db.projectUsage,
+        )..where((t) => t.projectId.equals(projectId)))
+            .getSingle();
+        expect(usage.entryCount, 10);
+      });
+
+      test('what is published is in id order across projects', () async {
+        final other = await db.into(db.projects).insert(
+              ProjectsCompanion.insert(
+                  groupId: groupId, name: 'q', retentionDays: 30),
+            );
+        await db.into(db.projectUsage).insert(
+              ProjectUsageCompanion.insert(projectId: Value(other)),
+            );
+        final broadcast = LogBroadcast();
+        final seen = <int>[];
+        final subscription = broadcast.stream.listen((e) => seen.add(e.id));
+        addTearDown(subscription.cancel);
+        final shared = LogRoutes(db, authorizer, logStore, broadcast);
+
+        // Alternating projects, all at once: a group subscription drops an
+        // entry whose id is below the last one it delivered.
+        await Future.wait([
+          for (var i = 0; i < 40; i++)
+            shared.router.call(
+                ingestRequest(i.isEven ? projectId : other, [one('e$i')])),
+        ]);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(seen, hasLength(40));
+        expect(seen, [...seen]..sort());
+      });
+    });
+
     test('a body streamed past the limit is refused while reading', () async {
       final capped =
           LogRoutes(db, authorizer, logStore, LogBroadcast(), maxBodyBytes: 64);
