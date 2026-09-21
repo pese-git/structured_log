@@ -1,18 +1,22 @@
+import 'package:cherrypick/cherrypick.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:structured_log/structured_log.dart';
 
+import '../audit/audit_module.dart';
 import '../audit/audit_writer.dart';
-import '../auth/claims.dart';
-import '../auth/local_identity_provider.dart';
-import '../auth/token_service.dart';
+import '../auth/auth_module.dart';
+import '../auth/identity_provider.dart';
+import '../auth/token_settings.dart';
 import '../config/server_config.dart';
 import '../errors.dart';
-import '../rbac/authorizer.dart';
+import '../rbac/rbac_module.dart';
 import '../live/log_broadcast.dart';
 import '../storage/database.dart';
-import '../storage/log_store.dart';
+import '../storage/storage_module.dart';
+import 'app_module.dart';
 import 'cors_middleware.dart';
+import 'http_settings.dart';
 import 'logging_middleware.dart';
 import 'principal_middleware.dart';
 import 'rate_limit_middleware.dart';
@@ -22,11 +26,95 @@ import 'routes/change_password_route.dart';
 import 'routes/groups_route.dart';
 import 'routes/log_stream_route.dart';
 import 'routes/logs_route.dart';
+import 'routes_module.dart';
 import 'routes/projects_route.dart';
 import 'routes/role_assignments_route.dart';
 import 'routes/secret_keys_route.dart';
 import 'routes/teams_route.dart';
 import 'routes/users_route.dart';
+
+/// The name of the scope the real server's graph lives in, under the helper's
+/// root (`CherryPick.openScope(scopeName: serverScopeName)`).
+const serverScopeName = 'server';
+
+/// The layers under it, outermost first. A layer resolves what the layers above
+/// it bind, never what is below, and closing a scope closes the layers under it
+/// before its own — so the order the graph goes down in is its nesting, not a
+/// list somebody has to keep right.
+///
+/// - the scope itself: what the server is *given* — database, settings,
+///   broadcast (`AppModule`);
+/// - [serverServicesScopeName]: what is built from those and holds no route —
+///   the authorizer, the audit writer, tokens, identity, the log store;
+/// - [serverAppScopeName]: what serves requests — the route classes.
+///
+/// Layers by dependency, not one scope per feature as the client has: routes of
+/// every feature use the same services, and a scope resolves *up*, never
+/// sideways, so a scope per feature would rebind them all.
+const serverServicesScopeName = 'services';
+const serverAppScopeName = 'app';
+
+/// Opens the scope that holds the server's object graph, declared by the
+/// modules (`app_module.dart` and the `*_module.dart` beside each feature), and
+/// returns its innermost layer, from which everything resolves.
+///
+/// By default the outermost scope is one of its own for every call, not the
+/// global root: tests build many, each on a database of its own, and they must
+/// not see each other's objects. The real server passes [into] — the scope it
+/// opened through `CherryPick.openScope` and closes at shutdown — so the
+/// process's graph lives where the helper's global observer and cycle detection
+/// reach it.
+Scope openServerScope(
+  StructuredLogDatabase db, {
+  required String signingSecret,
+  required String issuer,
+  LogBroadcast? broadcast,
+  Duration sseHeartbeatInterval = defaultSseHeartbeat,
+  ServerConfig? config,
+  Scope? into,
+}) {
+  final given = (into ?? Scope(null, observer: SilentCherryPickObserver()))
+    ..installModules([
+      AppModule(
+        db: db,
+        tokens: TokenSettings(signingSecret: signingSecret, issuer: issuer),
+        http: HttpSettings(
+          trustedProxyHops: config?.trustedProxyHops ?? 0,
+          maxIngestBodyBytes:
+              config?.maxIngestBodyBytes ?? defaultMaxIngestBodyBytes,
+          sseHeartbeatInterval: sseHeartbeatInterval,
+        ),
+        auditRetention: AuditRetention(
+          auditRetentionDays: config?.auditRetentionDays,
+          authEventRetentionDays: config?.authEventRetentionDays,
+        ),
+        // Owned by the caller when it needs to close it (the CLI entrypoint);
+        // otherwise one per handler, which is what tests want.
+        broadcast: broadcast ?? LogBroadcast(),
+      ),
+    ]);
+
+  final services = given.openSubScope(serverServicesScopeName)
+    ..installModules([
+      $RbacModule(),
+      $AuditModule(),
+      $AuthModule(),
+      $StorageModule(),
+    ]);
+
+  return services.openSubScope(serverAppScopeName)
+    ..installModules([$RoutesModule()]);
+}
+
+/// Whether the graph under [root] — the scope [openServerScope] was given — has
+/// been built: the innermost layer answers for a route, which it can only do if
+/// every layer above it did too.
+bool serverGraphIsBuilt(Scope root) =>
+    root
+        .openSubScope(serverServicesScopeName)
+        .openSubScope(serverAppScopeName)
+        .tryResolve<LogRoutes>() !=
+    null;
 
 /// Builds the full `shelf` [Handler] for the server.
 ///
@@ -62,66 +150,38 @@ Handler buildHandler(
   ServerConfig? config,
   DateTime Function()? clock,
   BoundLogger? logger,
-}) {
-  final authorizer = Authorizer(db);
-  // One writer, handed to every route that mutates something. It holds no
-  // state of its own — what makes a record atomic with its mutation is the
-  // transaction the caller is already inside, not the writer
-  // (`audit_writer.dart`).
-  final audit = AuditWriter(db);
-  final claimsResolver = ClaimsResolver(db, authorizer);
-  final tokenService = TokenService(
-    db,
-    claimsResolver,
-    audit,
-    signingSecret: signingSecret,
-    issuer: issuer,
-  );
-  final identityProvider = LocalIdentityProvider(
-    db,
-    signingSecret: signingSecret,
-    issuer: issuer,
-  );
-  final logStore = DriftLogStore(db);
-  // Owned by the caller when it needs to close it (the CLI entrypoint);
-  // otherwise one per handler, which is what tests want.
-  final logBroadcast = broadcast ?? LogBroadcast();
 
+  /// Where the object graph is installed; see [openServerScope].
+  Scope? scope,
+}) {
+  final graph = openServerScope(
+    db,
+    signingSecret: signingSecret,
+    issuer: issuer,
+    broadcast: broadcast,
+    sseHeartbeatInterval: sseHeartbeatInterval,
+    config: config,
+    into: scope,
+  );
+
+  final audit = graph.resolve<AuditWriter>();
+  final identityProvider = graph.resolve<IdentityProvider>();
+
+  // Resolved here, all of them, so a route that cannot be built fails the
+  // moment the handler is built — in every test that builds one, and at startup
+  // in the real server — not on the first request that would have used it.
   final featureRouters = <Router>[
-    AuditLogRoutes(
-      db,
-      authorizer,
-      retention: AuditRetention(
-        auditRetentionDays: config?.auditRetentionDays,
-        authEventRetentionDays: config?.authEventRetentionDays,
-      ),
-    ).router,
-    AuthRoutes(
-      tokenService,
-      trustedProxyHops: config?.trustedProxyHops ?? 0,
-    ).router,
-    ChangePasswordRoutes(db, audit).router,
-    LogRoutes(
-      db,
-      authorizer,
-      logStore,
-      logBroadcast,
-      maxBodyBytes: config?.maxIngestBodyBytes ?? defaultMaxIngestBodyBytes,
-    ).router,
-    LogStreamRoutes(
-      db,
-      authorizer,
-      logStore,
-      logBroadcast,
-      identityProvider,
-      heartbeatInterval: sseHeartbeatInterval,
-    ).router,
-    GroupRoutes(db, authorizer, audit).router,
-    TeamRoutes(db, authorizer, audit).router,
-    ProjectRoutes(db, authorizer, audit).router,
-    SecretKeyRoutes(db, authorizer, audit).router,
-    UserRoutes(db, authorizer, audit).router,
-    RoleAssignmentRoutes(db, authorizer, audit).router,
+    graph.resolve<AuditLogRoutes>().router,
+    graph.resolve<AuthRoutes>().router,
+    graph.resolve<ChangePasswordRoutes>().router,
+    graph.resolve<LogRoutes>().router,
+    graph.resolve<LogStreamRoutes>().router,
+    graph.resolve<GroupRoutes>().router,
+    graph.resolve<TeamRoutes>().router,
+    graph.resolve<ProjectRoutes>().router,
+    graph.resolve<SecretKeyRoutes>().router,
+    graph.resolve<UserRoutes>().router,
+    graph.resolve<RoleAssignmentRoutes>().router,
   ];
 
   final router = Router();
