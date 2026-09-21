@@ -78,6 +78,16 @@ during the query is buffered, not missed. `since_id` is optional; when
 it's omitted, the stream simply starts from the moment of subscription
 with no catch-up.
 
+Handing the buffer over has the same shape of race in miniature. Delivering
+a buffered event can wait (an event of a project the server has not yet asked
+about costs a database read), and while it waits, more events arrive and are
+buffered. The flush therefore takes the buffer in batches until it finds it
+empty, and switches to live delivery in the same turn as that last look — an
+event that lands after the flush took its copy but before the switch is
+delivered, not discarded. (Clearing the buffer once at the end used to drop
+such events, and they were not in a later catch-up either: a client asks for
+one only when it reconnects.)
+
 ## Response buffering: `shelf` turns it on by default
 
 `shelf_io` buffers a streamed response body until the buffer fills — which
