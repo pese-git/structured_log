@@ -9,6 +9,7 @@ import 'package:structured_log_server/src/auth/hashing.dart'
     show dummyPasswordHash;
 import 'package:structured_log_server/src/config/config_resolver.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
+import 'package:structured_log_server/src/di/container_setup.dart';
 import 'package:structured_log_server/src/http/process_resources.dart';
 import 'package:structured_log_server/src/http/server.dart';
 import 'package:structured_log_server/src/http/server_host.dart';
@@ -155,6 +156,7 @@ Future<void> _runServe(
   // workers, the logging (`ProcessResources`) — and closes them as it goes
   // down. Its layers (`http/server.dart`) are what make the order of that
   // right, so shutdown is one call rather than a list to keep in order.
+  configureContainer(log);
   final graph = CherryPick.openScope(scopeName: serverScopeName);
   final handler = buildHandler(
     db,
