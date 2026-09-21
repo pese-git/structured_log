@@ -136,7 +136,10 @@ Future<void> _runServe(
     context: maskedConfigContext(serverConfigParams, resolved),
   );
 
-  final db = StructuredLogDatabase.open(config.dbPath);
+  final db = StructuredLogDatabase.open(
+    config.dbPath,
+    readPool: config.dbReadPoolSize,
+  );
 
   // Bootstrap runs before the port opens (design.md decision 49).
   await bootstrapAdmin(

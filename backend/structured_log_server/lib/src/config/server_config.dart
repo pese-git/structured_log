@@ -121,6 +121,16 @@ const serverConfigParams = <ParamSpec>[
     mustBePositive: true,
   ),
   ParamSpec(
+    name: 'db-read-pool-size',
+    type: ParamType.int,
+    description: 'Extra database connections, each on its own isolate, that '
+        'serve reads beside the single writer; 0 sends every read through the '
+        'writer.',
+    defaultValue: 2,
+    minValue: 0,
+    maxValue: 16,
+  ),
+  ParamSpec(
     name: 'log-file',
     type: ParamType.string,
     description:
@@ -234,6 +244,7 @@ class ServerConfig {
   final int? auditRetentionDays;
   final int? authEventRetentionDays;
   final int auditPurgeBatchSize;
+  final int dbReadPoolSize;
 
   const ServerConfig({
     required this.dbPath,
@@ -261,6 +272,7 @@ class ServerConfig {
     this.auditRetentionDays,
     this.authEventRetentionDays,
     this.auditPurgeBatchSize = 500,
+    this.dbReadPoolSize = 2,
   });
 
   /// Builds a [ServerConfig] from [ConfigResolver.parse]'s resolved values
@@ -294,6 +306,7 @@ class ServerConfig {
       auditRetentionDays: get('audit-retention-days'),
       authEventRetentionDays: get('auth-event-retention-days'),
       auditPurgeBatchSize: get('audit-purge-batch-size'),
+      dbReadPoolSize: get('db-read-pool-size'),
     );
   }
 }

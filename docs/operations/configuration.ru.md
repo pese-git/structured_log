@@ -146,6 +146,7 @@ design.md).
 | Хранение аудита | `--audit-retention-days` | не задано | Не задано = хранить вечно ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | Хранение auth-событий | `--auth-event-retention-days` | не задано | Отделено от предыдущего намеренно |
 | Порция очистки аудита | `--audit-purge-batch-size` | `500` | Удаление порциями не блокирует приём логов |
+| Соединения БД для чтения | `--db-read-pool-size` | `2` | Дополнительные соединения рядом с единственным писателем, `0`–`16`; `0` — читать через писателя. Чтение не стоит в очереди за приёмом |
 | Heartbeat живого потока | `--stream-heartbeat-seconds` | TBD | Он же перепроверяет авторизацию ([live-streaming.md](../architecture/live-streaming.ru.md)) |
 | Уровень собственного лога | `--log-level` | `info` | Диагностика самого сервера, не принятые записи ([README.md](../architecture/README.ru.md#цепочка-middleware)) |
 | Формат собственного лога | `--log-format` | `console` | `console` или `json` для машинного сбора |

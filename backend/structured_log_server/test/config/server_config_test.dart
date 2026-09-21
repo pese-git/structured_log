@@ -35,6 +35,7 @@ const _expectedParamNames = {
   'audit-retention-days',
   'auth-event-retention-days',
   'audit-purge-batch-size',
+  'db-read-pool-size',
 };
 
 void main() {
@@ -170,6 +171,36 @@ void main() {
         resolve(['--audit-purge-batch-size=0']).outcome,
         ConfigParseOutcome.errors,
       );
+    });
+  });
+
+  group('db-read-pool-size', () {
+    ConfigParseResult resolve(List<String> args) =>
+        ConfigResolver(serverConfigParams).parse(
+          args,
+          {'STRUCTURED_LOG_JWT_SECRET': 'secret'},
+          command: commandServe,
+        );
+
+    test('defaults to two readers', () {
+      final result = resolve(['--db-path=/tmp/x.db']);
+      expect(ServerConfig.fromResolved(result.values!).dbReadPoolSize, 2);
+    });
+
+    test('zero is allowed and means no readers', () {
+      final result = resolve(['--db-path=/tmp/x.db', '--db-read-pool-size=0']);
+      expect(ServerConfig.fromResolved(result.values!).dbReadPoolSize, 0);
+    });
+
+    test('a negative or absurdly large size is refused', () {
+      for (final value in ['-1', '17']) {
+        expect(
+          resolve(['--db-path=/tmp/x.db', '--db-read-pool-size=$value'])
+              .outcome,
+          ConfigParseOutcome.errors,
+          reason: value,
+        );
+      }
     });
   });
 

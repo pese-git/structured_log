@@ -198,10 +198,15 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
   /// Opens (creating if absent) the SQLite database file at [path] in WAL
   /// mode (`log-server-storage` — reads must not block on concurrent
   /// ingestion writes).
-  factory StructuredLogDatabase.open(String path) {
+  ///
+  /// [readPool] is the number of extra connections, each on its own isolate,
+  /// that serve `SELECT`s made outside a transaction; writes and everything
+  /// inside a transaction stay on the one writer. WAL lets them run beside it.
+  factory StructuredLogDatabase.open(String path, {int readPool = 2}) {
     return StructuredLogDatabase(
       NativeDatabase.createInBackground(
         File(path),
+        readPool: readPool,
         setup: (Database db) {
           db.execute('PRAGMA journal_mode=WAL;');
           db.execute('PRAGMA foreign_keys=ON;');
