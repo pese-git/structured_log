@@ -248,10 +248,21 @@ class LogStreamRoutes {
         if (sinceId != null) {
           await _replaySince(sinceId, scope, filter, deliver);
         }
-        for (final entry in List<LogEntry>.of(buffered)) {
-          await deliver(entry);
+        // Delivering a buffered entry can wait (a project not yet known is a
+        // database read), and while it does the listener above keeps adding to
+        // the buffer. So the buffer is taken in batches until it is found empty,
+        // and only then does delivery go live — with nothing in between, so no
+        // entry can land after the last look and before the switch. Clearing the
+        // buffer once at the end threw away whatever arrived meanwhile: never
+        // delivered, and not in a catch-up either, which a client asks for only
+        // when it reconnects.
+        while (buffered.isNotEmpty) {
+          final batch = List<LogEntry>.of(buffered);
+          buffered.clear();
+          for (final entry in batch) {
+            await deliver(entry);
+          }
         }
-        buffered.clear();
         buffering = false;
       } catch (_) {
         await end('server_error');

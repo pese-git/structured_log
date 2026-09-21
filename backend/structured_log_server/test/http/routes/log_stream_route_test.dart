@@ -17,10 +17,54 @@ import 'package:test/test.dart';
 
 import 'test_helpers.dart';
 
-StructuredLogDatabase openInMemory() {
-  return StructuredLogDatabase(
-    NativeDatabase.memory(setup: (db) => db.execute('PRAGMA foreign_keys=ON;')),
+StructuredLogDatabase openInMemory([QueryInterceptor? interceptor]) {
+  final executor = NativeDatabase.memory(
+    setup: (db) => db.execute('PRAGMA foreign_keys=ON;'),
   );
+  return StructuredLogDatabase(
+    interceptor == null ? executor : executor.interceptWith(interceptor),
+  );
+}
+
+/// A read of [table], whether drift or the hand-written query builder quoted it.
+RegExp _from(String table) => RegExp('from\\s+"?$table"?\\b');
+
+/// Holds selects at chosen points so a test can place an event in a window a
+/// real database read would otherwise close in microseconds. Inert until armed.
+class _Gate extends QueryInterceptor {
+  /// The first read of `log_entries` — the catch-up query — runs, and its answer
+  /// is held back until this completes: an entry committed meanwhile is missing
+  /// from that answer, exactly as one committed a moment after the query ran.
+  Completer<void>? afterCatchUpRead;
+
+  /// Every read of `projects` waits for this: the delivery of a buffered entry
+  /// asks for its project's standing, and on a cold cache that is a read.
+  Completer<void>? projects;
+
+  /// Completes when a read of `projects` is being held.
+  Completer<void>? projectsHeld;
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+    QueryExecutor executor,
+    String statement,
+    List<Object?> args,
+  ) async {
+    final rows = await super.runSelect(executor, statement, args);
+    final sql = statement.toLowerCase();
+    final replay = afterCatchUpRead;
+    if (replay != null && _from('log_entries').hasMatch(sql)) {
+      afterCatchUpRead = null;
+      await replay.future;
+    }
+    final held = projects;
+    if (held != null && _from('projects').hasMatch(sql)) {
+      final signal = projectsHeld;
+      if (signal != null && !signal.isCompleted) signal.complete();
+      await held.future;
+    }
+    return rows;
+  }
 }
 
 /// One decoded SSE frame. `comment` is a keep-alive; the rest carry a
@@ -116,6 +160,7 @@ class StreamReader {
 
 void main() {
   late StructuredLogDatabase db;
+  final gate = _Gate();
   late LogBroadcast broadcast;
   late Handler handler;
   late int userId;
@@ -129,7 +174,7 @@ void main() {
   /// Everything the suite needs: an admin who can read, a group with two
   /// projects, and an ingest key for the first.
   setUp(() async {
-    db = openInMemory();
+    db = openInMemory(gate);
     broadcast = LogBroadcast();
     handler = buildHandler(
       db,
@@ -542,6 +587,74 @@ void main() {
       expect(reader.ids, orderedEquals(reader.ids.toList()..sort()));
       expect(reader.eventTexts.length, 11, reason: '10 missed + 1 new');
       expect(reader.eventTexts.last, 'racing');
+    });
+
+    test('an entry that arrives while the buffer is flushed is not lost', () async {
+      // The buffered entries are delivered one at a time, and each waits on its
+      // project's standing — a database read when nothing has asked about the
+      // project yet. An entry published *during* that wait lands in the buffer
+      // after the flush took its copy, and clearing the buffer afterwards threw
+      // it away: never delivered, and never in a catch-up either, which the
+      // client only asks for when it reconnects.
+      Future<LogEntry> stored(String event) => db
+          .into(db.logEntries)
+          .insertReturning(
+            LogEntriesCompanion.insert(
+              projectId: projectId,
+              receivedAt: DateTime.now(),
+              timestamp: DateTime.now(),
+              level: 'info',
+              event: event,
+              sizeBytes: 10,
+              contextJson: jsonEncode({'event': event, 'level': 'info'}),
+            ),
+          );
+
+      // No heartbeat inside the test: its revalidation asks for the project's
+      // standing too, and would warm the cache the window depends on being cold.
+      handler = buildHandler(
+        db,
+        signingSecret: 'test-secret',
+        issuer: 'test',
+        broadcast: broadcast,
+        sseHeartbeatInterval: const Duration(hours: 1),
+      );
+
+      final since = await stored('since');
+      final catchUp = Completer<void>();
+      gate.afterCatchUpRead = catchUp;
+
+      // The catch-up read runs now and finds nothing newer than `since`; its
+      // answer is held.
+      final reader = await open('project_id=$projectId&since_id=${since.id}');
+
+      // Committed and published after that read: only the live path can carry it.
+      final first = await stored('first');
+      broadcast.publish([first]);
+
+      // Let the catch-up finish; the flush starts on [first], whose delivery waits
+      // on a read of the project that is held.
+      final release = Completer<void>();
+      gate.projects = release;
+      gate.projectsHeld = Completer<void>();
+      catchUp.complete();
+      await gate.projectsHeld!.future.timeout(const Duration(seconds: 5));
+
+      // In the window: the flush has its copy and is waiting.
+      final second = await stored('second');
+      broadcast.publish([second]);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(
+        reader.eventTexts,
+        isEmpty,
+        reason: 'the window is real: the flush is still waiting on the read',
+      );
+      release.complete();
+      gate.projects = null;
+
+      await reader.waitFor(() => reader.eventTexts.length == 2);
+      expect(reader.eventTexts, ['first', 'second']);
     });
 
     test('an unparsable since_id is 400', () async {
