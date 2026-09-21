@@ -224,6 +224,17 @@ class StructuredLogDatabase extends _$StructuredLogDatabase {
     );
   }
 
+  /// Whether the caller is already inside a [transaction] of this database.
+  ///
+  /// Only for code that must not open a transaction of its own when it does not
+  /// have to: a `transaction` inside a `transaction` is not free — drift makes
+  /// it a `SAVEPOINT`, and SQLite then writes a sub-journal page for every page
+  /// the statements touch (half the cost of an ingest batch, measured). Relies
+  /// on `resolvedEngine`, which drift marks internal, so
+  /// `test/storage/database_test.dart` pins what it answers.
+  // ignore: invalid_use_of_internal_member
+  bool get isInTransaction => !identical(resolvedEngine, this);
+
   @override
   int get schemaVersion => 2;
 
