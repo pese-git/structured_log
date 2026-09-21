@@ -40,7 +40,7 @@ dependencies:
   json_annotation: ^4.9.0
 
   # DI (decision 35) and state (decision 36).
-  cherrypick: ^2.0.0
+  cherrypick: ^4.0.0-dev.5
   flutter_bloc: ^8.1.6
 
   # Tokens never touch shared preferences (decision 20).
