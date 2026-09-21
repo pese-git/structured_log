@@ -8,9 +8,12 @@ import 'query.dart';
 /// kept as an interface so callers (HTTP routes, tests) depend on behavior,
 /// not on `drift` directly.
 abstract class LogStore {
-  /// Inserts [entries] under [projectId] in one transaction, returning the
-  /// stored rows in the same order as [entries] — ids assigned
-  /// (`log-server-storage`: every entry is tied to exactly one project).
+  /// Inserts [entries] under [projectId] atomically, returning the stored rows
+  /// in the same order as [entries] — ids assigned (`log-server-storage`: every
+  /// entry is tied to exactly one project).
+  ///
+  /// Called inside the caller's transaction it joins it, and opens none of its
+  /// own; called outside one, it runs in a transaction of its own.
   ///
   /// The rows rather than their ids, because the live stream broadcasts
   /// exactly what was committed (`log-server-live-stream`) and rebuilding
@@ -35,16 +38,53 @@ class DriftLogStore implements LogStore {
     int projectId,
     List<LogEntriesCompanion> entries,
   ) {
-    return _db.transaction(() async {
-      final rows = <LogEntry>[];
-      for (final entry in entries) {
-        final row = await _db
-            .into(_db.logEntries)
-            .insertReturning(entry.copyWith(projectId: Value(projectId)));
-        rows.add(row);
-      }
-      return rows;
-    });
+    if (entries.isEmpty) return Future.value(const []);
+    // A transaction inside a transaction is a SAVEPOINT, and that alone cost
+    // half of an ingest batch. `POST /v1/logs` already holds one around this
+    // call, so join it; only a caller without one gets one here.
+    return _db.isInTransaction
+        ? _insert(projectId, entries)
+        : _db.transaction(() => _insert(projectId, entries));
+  }
+
+  /// One statement batch, then one read of what it wrote.
+  ///
+  /// This replaced an `insertReturning` per entry, each an awaited round trip
+  /// to the database's isolate: 100 of them per batch, and the ingest path is
+  /// one long chain of them.
+  ///
+  /// The rows are found by id range. That is sound because the ids are
+  /// `AUTOINCREMENT` and this runs on the one connection, inside a transaction
+  /// that holds it — nothing else can insert between the batch and the read —
+  /// so the ids of the [entries] are exactly the `entries.length` ending at
+  /// `last_insert_rowid()`. Anything else is a bug worth failing loudly for,
+  /// not a row set to broadcast.
+  Future<List<LogEntry>> _insert(
+    int projectId,
+    List<LogEntriesCompanion> entries,
+  ) async {
+    await _db.batch(
+      (b) => b.insertAll(_db.logEntries, [
+        for (final entry in entries)
+          entry.copyWith(projectId: Value(projectId)),
+      ]),
+    );
+
+    final last =
+        (await _db.customSelect('SELECT last_insert_rowid() AS id').getSingle())
+            .read<int>('id');
+    final first = last - entries.length + 1;
+    final rows = await (_db.select(_db.logEntries)
+          ..where((t) => t.id.isBetweenValues(first, last))
+          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+        .get();
+    if (rows.length != entries.length) {
+      throw StateError(
+        'Expected ${entries.length} rows with ids $first..$last after the '
+        'insert, found ${rows.length}.',
+      );
+    }
+    return rows;
   }
 
   @override
