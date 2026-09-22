@@ -10,6 +10,24 @@ their design. For the reasoning behind any specific decision, see
 — this document cites decision numbers (`decision N`) so you can jump
 straight to the relevant paragraph there.
 
+`structured_log_server` and its companion packages make up a self-hosted
+log-collection service: applications send structured log entries to a
+server over HTTP, and administrators search, filter, and live-tail them
+through a companion Flutter admin client. The rest of this page names
+the packages involved and how they talk to each other.
+
+## Why a server at all
+
+Before this change, `structured_log` could only write to local
+destinations (console, file, rotating file). There was no way to collect
+logs from multiple running instances of an application — or from
+multiple applications — into one place to search and filter centrally.
+`structured_log_server` fills that gap as a self-hosted alternative to
+a SaaS log platform or a heavyweight stack like ELK, in the same Dart
+ecosystem as the rest of the workspace. See `proposal.md`'s `## Why` for
+the full framing (the case for building this instead of adopting a SaaS
+platform or ELK).
+
 ## Components
 
 ```mermaid
@@ -68,17 +86,6 @@ communicate only over the documented HTTP/JSON contract (decision 19),
 and `structured_log_http` only knows the wire format of `POST /v1/logs`,
 not the server's internals.
 
-## Why a server at all
-
-Before this change, `structured_log` could only write to local
-destinations (console, file, rotating file). There was no way to collect
-logs from multiple running instances of an application — or from
-multiple applications — into one place to search and filter centrally.
-`structured_log_server` fills that gap as a self-hosted alternative to
-a SaaS log platform or a heavyweight stack like ELK, in the same Dart
-ecosystem as the rest of the workspace. See `proposal.md`'s `## Why` for
-the full framing.
-
 ## Request flow, end to end
 
 ```mermaid
@@ -106,17 +113,12 @@ sequenceDiagram
 
 ## The middleware chain
 
-Three kinds of request reach the server, and each passes through a
-different chain. What rejects a request, and in what order, is a
-deliberate design decision rather than an accident of wiring. One stage
-wraps all three and isn't part of any of them: when
-`--cors-allowed-origins` names the request's `Origin`, a matching
-`OPTIONS` preflight is answered immediately, ahead of every chain below
-— ingestion included — and every other response, success or error, gets
-`Access-Control-Allow-Origin`/`Vary` added on the way out
-([http-api.md](../api/http-api.md#cross-origin-requests-cors-log-server-api)).
-Off by default, and a no-op for any `Origin` not on the list, which is
-why the three chains below can be read as if it didn't exist:
+A middleware chain is the ordered sequence of checks — auth,
+rate-limiting, CORS — a request passes through before reaching the code
+that actually handles it. Three kinds of request reach the server, and
+each passes through a different chain. What rejects a request, and in
+what order, is a deliberate design decision rather than an accident of
+wiring.
 
 ```mermaid
 flowchart TB
@@ -142,6 +144,15 @@ flowchart TB
         J3 --> J4["Handler\n(logs paths also check\n403 project_blocked)"]
     end
 ```
+
+One stage wraps all three and isn't part of any of them: when
+`--cors-allowed-origins` names the request's `Origin`, a matching
+`OPTIONS` preflight is answered immediately, ahead of every chain above
+— ingestion included — and every other response, success or error, gets
+`Access-Control-Allow-Origin`/`Vary` added on the way out
+([http-api.md](../api/http-api.md#cross-origin-requests-cors-log-server-api)).
+Off by default, and a no-op for any `Origin` not on the list, which is
+why the three chains above can be read as if it didn't exist.
 
 Three things about this order are load-bearing:
 
@@ -174,22 +185,22 @@ Every step above is configurable only at startup, never at runtime — see
 These aren't specific to one capability — they show up repeatedly in
 `design.md` and are worth internalizing before reading the topic docs.
 
-- **No magic, no codegen in the four original embeddable libraries; a
-  deliberately widened exception for the two new packages.** The
-  workspace has a standing "no magic" principle (`add-structured-log-flutter/design.md`,
-  decision 4); `shelf`/`shelf_router` over `dart_frog` follows it
-  (decision 1). `drift` (and therefore `build_runner`) was the first
-  sanctioned exception, scoped to `structured_log_server`'s storage
-  layer, adopted by explicit user direction (decision 2). Decisions
-  34/37 extend that same exception — still by explicit user direction,
-  still scoped to these two new packages — to `freezed`/`json_serializable`
-  in both `structured_log_server` and `structured_log_admin_client`, and
-  to `retrofit_generator` in the client alone. `structured_log`,
-  `structured_log_flutter`, `structured_log_material`, `structured_log_fluent`,
-  `structured_log_cupertino`, and `structured_log_http` remain
-  codegen-free — none of this is a
-  precedent for them. See [technology-stack.md](technology-stack.md) for
-  the full stack.
+- **No magic, no codegen — with a deliberately widened exception for the
+  two new packages.** The workspace has a standing "no magic" principle
+  (`add-structured-log-flutter/design.md`, decision 4); `shelf`/`shelf_router`
+  over `dart_frog` follows it (decision 1). `drift` (and therefore
+  `build_runner`) was the first sanctioned exception, scoped to
+  `structured_log_server`'s storage layer, adopted by explicit user
+  direction (decision 2), and decisions 34/37 extend that same
+  exception — still by explicit user direction, still scoped to these
+  two new packages — to `freezed`/`json_serializable` in both
+  `structured_log_server` and `structured_log_admin_client`, and to
+  `retrofit_generator` in the client alone. None of this is a precedent
+  for the rest of the workspace, which stays codegen-free:
+  `structured_log`, `structured_log_flutter`, `structured_log_material`,
+  `structured_log_fluent`, `structured_log_cupertino`, and
+  `structured_log_http`. See [technology-stack.md](technology-stack.md)
+  for the full stack.
 - **One process, no premature scaling — but not one connection anymore.**
   Everything still runs in a single process, and cross-isolate *request
   handling* is still an explicit non-goal rather than a half-built
@@ -254,7 +265,8 @@ The workspace is organized into `emb/` (embeddable libraries),
 `backend/`, `frontend/` (two packages — `structured_log_admin_ui` and
 `structured_log_admin_client`), and `packages/` (anything that doesn't
 fit the three categories above — currently `structured_log_e2e`,
-end-to-end tests across the whole system) — see decision 23.
+end-to-end tests across the whole system) — see decision 23 (why the
+workspace was split into these categories in the first place).
 `structured_log_admin_ui` sits in `frontend/`, not `emb/`, despite being
 a "library" in form: `emb/` is specifically for libraries embeddable in
 *any* third-party application, whereas this one is a component set

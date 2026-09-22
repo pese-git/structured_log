@@ -105,6 +105,17 @@ and JSON models, authentication and RBAC, storage, live streaming,
 quotas, and operational configuration — in bilingual pairs; see
 [docs/README.md](docs/README.md) for the full table of contents.
 
+**[`site/`](site/)** publishes that same [docs/](docs/) content as a
+browsable, searchable website (English/Russian) — an
+[Astro](https://astro.build)+[Starlight](https://starlight.astro.build)
+project, outside the Dart/Flutter Melos workspace. It's generated from
+`docs/` by a script, not hand-authored; see [site/README.md](site/README.md).
+Run it locally with:
+
+```bash
+cd site && npm install && npm run dev
+```
+
 Design and planning history for the Flutter log-viewer packages lives in
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/),

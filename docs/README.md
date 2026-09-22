@@ -4,55 +4,18 @@
 
 This directory documents the design of `structured_log_server`,
 `structured_log_http`, and `structured_log_admin_client` — the
-self-hosted, multi-tenant log-collection service and its client packages
-originally proposed by
-[openspec/changes/add-structured-log-server/](../openspec/changes/add-structured-log-server/)
-and now implemented (see [AGENTS.md](../AGENTS.md) for what's shipped
-and what remains, capability by capability).
+self-hosted, multi-tenant log-collection service and its client
+packages.
 
 **Two kinds of reading are collected here, for two different readers.**
 [guides/](guides/) is task-oriented product documentation — a *user*,
 *administrator*, and *developer* guide, written for someone using or
-integrating the running system, and the material intended for a future
-project website. Everything else in this directory (`architecture/`,
-`operations/`, `api/`) is a narrative reading aid over the OpenSpec
-artifacts, written for a contributor, reviewer, or AI coding agent who
-wants the reasoning behind a decision before touching the code — it
-exists so a reader doesn't have to read every `proposal.md`/`design.md`/
-`specs/*.md`/`tasks.md` (several thousand lines across multiple changes)
-end to end to get oriented. Where the two overlap on a fact (an endpoint
-shape, a config flag), they should agree; if they ever don't, the
-`architecture`/`operations`/`api` documents below trace to `design.md`/
-`specs/*.md` and win.
-
-## How this relates to AGENTS.md and OpenSpec
-
-```text
-AGENTS.md
-    │
-    └── mandatory repository-wide engineering rules
-
-docs/
-    │
-    └── system design: components, data model, protocols, why they're
-        shaped this way — this directory
-
-openspec/changes/add-structured-log-server/
-    │
-    ├── proposal.md   — what's changing and why, capability list
-    ├── design.md     — every decision, its alternatives, and why they
-    │                   were rejected (31 decisions as of this writing)
-    ├── specs/*.md    — normative SHALL requirements + Scenario blocks,
-    │                   one capability per file
-    └── tasks.md      — implementation checklist
-```
-
-`design.md` is the source of truth for *why*; the documents here are a
-reading aid over it, organized by topic instead of by decision number.
-Every claim in this directory traces back to a specific decision in
-`design.md` or a requirement in `specs/`, cited by name — if the two
-ever disagree, `design.md`/`specs/` win, and this directory should be
-corrected to match.
+integrating the running system. Everything else here —
+`architecture/`, `operations/`, `api/` — is reference documentation:
+how the system is built and why, for someone who wants to understand
+its design rather than just operate or integrate with it. Where the
+two overlap on a fact (an endpoint shape, a config flag), they should
+agree.
 
 ## Contents
 
@@ -102,9 +65,8 @@ corrected to match.
 
 **`architecture/`, `operations/`, `api/`:**
 
-- Contributors picking up `tasks.md` items, who want the reasoning behind
-  a task before writing code against it.
-- Reviewers checking whether an implementation matches the agreed design.
-- AI coding agents, who benefit from a narrative summary instead of
-  re-deriving the design from dozens of decisions and spec files on
-  every session.
+- Anyone who wants the reasoning behind a design decision, not just the
+  end result — how the pieces fit together and why they're shaped this
+  way.
+- Reviewers checking whether an implementation matches the intended
+  design.

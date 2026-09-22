@@ -115,6 +115,16 @@ RBAC, хранилище, живая трансляция, квоты и экс�
 конфигурация — билингвальными парами; полное оглавление в
 [docs/README.md](docs/README.md).
 
+**[`site/`](site/)** публикует то же самое содержимое [docs/](docs/) как
+просматриваемый и с поиском сайт (английский/русский) — проект на
+[Astro](https://astro.build)+[Starlight](https://starlight.astro.build),
+вне Dart/Flutter Melos workspace. Он сгенерирован из `docs/` скриптом, а
+не написан вручную; см. [site/README.md](site/README.md). Запуск локально:
+
+```bash
+cd site && npm install && npm run dev
+```
+
 История дизайна и планирования Flutter-пакетов просмотра логов — в
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)

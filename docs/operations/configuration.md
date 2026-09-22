@@ -107,25 +107,25 @@ uses, so it cannot drift from the real set of options.
 
 ## Which settings a command needs
 
-Bootstrap settings are read only by a normal server start, never by
-`create-admin`, and none of them is required: an unset password means
-"generate one", not "fail". Requirements are evaluated per command. `create-admin`
-([auth.md](../architecture/auth.md)) needs only the database path —
-demanding a JWT secret from a command that writes one
-row would block first-time setup on configuration that isn't
-relevant yet.
+Not every setting applies to every subcommand. For example,
+`create-admin` ([auth.md](../architecture/auth.md)) only needs a
+database path — it shouldn't be blocked on a JWT secret it never uses.
+Bootstrap-admin settings (`--bootstrap-admin-username`,
+`STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD`) are read only by a normal
+server start, and none of them is required: an unset password just
+means one gets generated.
 
 ## Reference
 
-Defaults marked *TBD* are deliberately not fixed by the design — they
-are settled with the first implementation (see design.md's Open
-Questions). This table also carries a few rows for capabilities that
-are part of the original design (self-registration, password reset,
-email verification — see [auth.md](../architecture/auth.md)) but have
-**no corresponding flag in the running server at all**; each is marked
-"planned, not implemented" in its Notes column, so a value listed there
-is what the flag *would* be named if the capability existed, not a flag
-you can pass today.
+Most rows below show a concrete default (or `—` where the setting is
+required and has none). This table also carries a few rows for
+capabilities that are part of the original design (self-registration,
+password reset, email verification — see
+[auth.md](../architecture/auth.md)) but have **no corresponding flag
+in the running server at all**; each is marked "planned, not
+implemented" in its Notes column, so a value listed there is what the
+flag *would* be named if the capability existed, not a flag you can
+pass today.
 
 | Setting | Flag / variable | Default | Notes |
 |---|---|---|---|

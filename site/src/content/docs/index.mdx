@@ -1,0 +1,103 @@
+---
+title: structured_log
+tableOfContents: false
+template: splash
+hero:
+  tagline: Structured logging for Dart and Flutter, inspired by Python's structlog.
+  actions:
+    - text: Read the docs
+      link: /overview/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/pese-git/structured_log
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+
+A core library, an in-app log-viewer ecosystem, and a self-hosted
+server to ship logs off the device and read them back.
+
+## Quick start
+
+<Steps>
+
+1. **Run the server.** Starts `structured_log_server` and the admin
+   client behind one nginx — nothing else to install.
+
+   ```bash
+   cd deploy && cp .env.example .env && ./deploy.sh
+   ```
+
+   Open `http://localhost:8080` and sign in with the temporary password
+   printed to the server's startup log (details:
+   [Administrator Guide](/guides/admin-guide/)).
+
+2. **Create a project and a secret key.** In the admin client: a group,
+   a project inside it, then a secret key for that project — shown once,
+   on creation (walkthrough with screenshots:
+   [User Guide](/guides/user-guide/)).
+
+3. **Ship logs from your app.**
+
+   ```dart
+   import 'package:structured_log/structured_log.dart';
+   import 'package:structured_log_http/structured_log_http.dart';
+
+   void main() {
+     StructlogConfiguration.configure(sinks: [
+       LogSink(name: 'server', output: HttpLogOutput(
+         serverUrl: 'https://logs.example.com',
+         projectSecretKey: 'slk_...', // from step 2
+       )),
+     ]);
+
+     getLogger().info('user_login', context: {'user_id': 42});
+   }
+   ```
+
+   Entries show up live in the admin client's log browser as they're
+   sent — no restart, no polling (details:
+   [Developer Guide](/guides/developer-guide/)).
+
+</Steps>
+
+## Nine packages, one system
+
+<CardGrid stagger>
+	<Card title="structured_log" icon="seti:dart">
+		Structured JSON logging for Dart — context binding, correlation
+		fields, processors, multi-sink routing. Zero dependencies beyond
+		`meta`. [pub.dev](https://pub.dev/packages/structured_log).
+	</Card>
+	<Card title="structured_log_flutter" icon="seti:flow">
+		A headless in-app log-viewer core for Flutter — a `LogBuffer` sink
+		and a filterable `LogViewerController`, no design-system lock-in.
+		[pub.dev](https://pub.dev/packages/structured_log_flutter).
+	</Card>
+	<Card title="structured_log_material, structured_log_fluent, structured_log_cupertino" icon="puzzle">
+		Three ready-to-use in-app log viewers on top of it — Material 3,
+		Fluent UI, and Cupertino — each with search and filtering built in.
+		pub.dev.
+	</Card>
+	<Card title="structured_log_http" icon="rocket">
+		Ships log entries to `structured_log_server` over HTTP — batching,
+		retry with backoff, a bounded buffer. Used in the quick start above.
+		Not yet published.
+	</Card>
+	<Card title="structured_log_server" icon="setting">
+		The self-hosted, multi-tenant server — ingests and stores your apps'
+		logs, lets you search and tail them live. SQLite or PostgreSQL.
+	</Card>
+	<Card title="structured_log_admin_client" icon="laptop">
+		The web app operators use day to day — dashboard, resource
+		management, live log search, user management, audit log.
+	</Card>
+</CardGrid>
+
+Details: [User Guide](/guides/user-guide/) ·
+[Administrator Guide](/guides/admin-guide/) ·
+[Developer Guide](/guides/developer-guide/) ·
+[Architecture](/architecture/)

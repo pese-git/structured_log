@@ -1,0 +1,106 @@
+---
+title: structured_log
+tableOfContents: false
+template: splash
+hero:
+  tagline: Структурированное логирование для Dart и Flutter, вдохновлённое Python structlog.
+  actions:
+    - text: Читать документацию
+      link: /ru/overview/
+      icon: right-arrow
+      variant: primary
+    - text: Открыть на GitHub
+      link: https://github.com/pese-git/structured_log
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+
+Базовая библиотека, экосистема in-app просмотра логов и self-hosted
+сервер, чтобы отправлять логи с устройства и читать их обратно.
+
+## Быстрый старт
+
+<Steps>
+
+1. **Запустите сервер.** Поднимает `structured_log_server` и
+   admin-клиент за одним nginx — больше ничего устанавливать не нужно.
+
+   ```bash
+   cd deploy && cp .env.example .env && ./deploy.sh
+   ```
+
+   Откройте `http://localhost:8080` и войдите с временным паролем,
+   напечатанным в стартовом логе сервера (подробности:
+   [Руководство администратора](/ru/guides/admin-guide/)).
+
+2. **Создайте проект и секретный ключ.** В admin-клиенте: группа,
+   проект внутри неё, затем секретный ключ для этого проекта — он
+   показывается один раз, при создании (пошагово со скриншотами:
+   [Руководство пользователя](/ru/guides/user-guide/)).
+
+3. **Отправьте логи из своего приложения.**
+
+   ```dart
+   import 'package:structured_log/structured_log.dart';
+   import 'package:structured_log_http/structured_log_http.dart';
+
+   void main() {
+     StructlogConfiguration.configure(sinks: [
+       LogSink(name: 'server', output: HttpLogOutput(
+         serverUrl: 'https://logs.example.com',
+         projectSecretKey: 'slk_...', // из шага 2
+       )),
+     ]);
+
+     getLogger().info('user_login', context: {'user_id': 42});
+   }
+   ```
+
+   Записи появляются в живой ленте admin-клиента сразу же — без
+   перезапуска, без опроса (подробности:
+   [Руководство разработчика](/ru/guides/developer-guide/)).
+
+</Steps>
+
+## Девять пакетов, одна система
+
+<CardGrid stagger>
+	<Card title="structured_log" icon="seti:dart">
+		Структурированное JSON-логирование для Dart — привязка контекста,
+		correlation-поля, процессоры, маршрутизация по нескольким выходам.
+		Без сторонних зависимостей, кроме `meta`.
+		[pub.dev](https://pub.dev/packages/structured_log).
+	</Card>
+	<Card title="structured_log_flutter" icon="seti:flow">
+		Headless-ядро просмотра логов для Flutter — `LogBuffer`-sink и
+		фильтрующий `LogViewerController`, без привязки к дизайн-системе.
+		[pub.dev](https://pub.dev/packages/structured_log_flutter).
+	</Card>
+	<Card title="structured_log_material, structured_log_fluent, structured_log_cupertino" icon="puzzle">
+		Три готовых к использованию просмотрщика логов поверх него —
+		Material 3, Fluent UI и Cupertino — у каждого поиск и фильтрация
+		из коробки. pub.dev.
+	</Card>
+	<Card title="structured_log_http" icon="rocket">
+		Отправляет записи на `structured_log_server` по HTTP — батчинг,
+		retry с backoff, ограниченный буфер. Использован в быстром старте
+		выше. Пока не опубликован.
+	</Card>
+	<Card title="structured_log_server" icon="setting">
+		Self-hosted, multi-tenant сервер — принимает и хранит логи ваших
+		приложений, позволяет искать их и следить за ними в реальном
+		времени. SQLite или PostgreSQL.
+	</Card>
+	<Card title="structured_log_admin_client" icon="laptop">
+		Веб-приложение для повседневной работы операторов — дашборд,
+		управление ресурсами, живой поиск логов, управление
+		пользователями, аудит-лог.
+	</Card>
+</CardGrid>
+
+Подробнее: [Руководство пользователя](/ru/guides/user-guide/) ·
+[Руководство администратора](/ru/guides/admin-guide/) ·
+[Руководство разработчика](/ru/guides/developer-guide/) ·
+[Архитектура](/ru/architecture/)

@@ -95,15 +95,21 @@ the value is shown exactly once, at creation; store it the same way
 you'd store any other application secret (an env var, a mounted secret
 file — never committed to source control).
 
-What you get for free: batching by size or timeout (whichever comes
-first), retry with backoff on network failures/timeouts/5xx (never on a
-4xx — a revoked key answers 401 forever, so retrying it only delays
-what's queued behind it), a bounded in-memory buffer that drops the
-*oldest* unsent entries first if the server is unreachable for a while
-(an unbounded queue would turn a logging outage into an application
-outage, which is backwards), and failures reported to `stderr` rather
-than thrown — nothing this package does can make a `log.info(...)` call
-itself fail. Full parameter reference:
+What you get for free:
+
+- **Batching** by size or timeout, whichever comes first.
+- **Retry with backoff** on network failures/timeouts/5xx, never on a
+  4xx — a revoked key answers 401 forever, so retrying it only delays
+  what's queued behind it.
+- **Buffer eviction**: a bounded in-memory buffer drops the *oldest*
+  unsent entries first if the server is unreachable for a while — an
+  unbounded queue would turn a logging outage into an application
+  outage, which is backwards.
+- **Failure reporting**: failures go to `stderr` rather than being
+  thrown — nothing this package does can make a `log.info(...)` call
+  itself fail.
+
+Full parameter reference:
 [`emb/structured_log_http/README.md`](../../emb/structured_log_http/README.md).
 
 Keep a console sink alongside the server sink during development — each
@@ -258,10 +264,12 @@ does it, rather than the native `EventSource` API.
 ## Authenticating as a person
 
 The management/query API (everything except `POST /v1/logs`, which
-uses a project secret key instead) uses short-lived JWT access tokens
-via an endpoint shaped like Keycloak's OAuth2 token endpoint closely
-enough that an off-the-shelf OAuth2 client can talk to it, though there
-is no actual Keycloak involved:
+uses a project secret key instead) uses short-lived JWT (JSON Web
+Token) access tokens, issued through a standard OAuth2 password-grant
+endpoint (`POST /v1/auth/token`). The endpoint's shape closely follows
+Keycloak's token endpoint — closely enough that an off-the-shelf
+OAuth2 client library can talk to it — but no Keycloak or other
+identity provider actually sits behind it:
 
 ```bash
 # Form-encoded (RFC 6749), not JSON — the one endpoint in this API that departs
@@ -330,6 +338,11 @@ curl -X POST https://logs.example.com/v1/role-assignments \
   -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
   -d '{"subject_type": "user", "subject_id": 42, "role": "user", "scope_type": "project", "scope_id": 7}'
 ```
+
+`subject_type` is `user` or `team`; `scope_type` is `group` or
+`project` — see
+[api/http-api.md](../api/http-api.md#post-v1role-assignments) for the
+full set.
 
 Role rules mirror what's in the [User Guide](user-guide.md#what-your-role-lets-you-do):
 `admin` reaches everything; `owner` can act within groups they own

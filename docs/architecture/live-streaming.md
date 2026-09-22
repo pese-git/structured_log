@@ -8,13 +8,14 @@ Normative requirements:
 
 ## Why SSE, not WebSocket or polling
 
-`GET /v1/logs/stream` is strictly one-directional (server → client; the
-client only chooses its scope/filters once, via query parameters at
-subscribe time). WebSocket would add protocol complexity (handshake,
-framing, hand-rolled keep-alive) for a duplex capability nothing here
-uses. Polling was rejected outright — the user asked for push delivery
-specifically, and polling either wastes cycles on frequent empty
-responses or adds latency if infrequent. SSE is a plain HTTP request
+`GET /v1/logs/stream` only ever sends data one way, from server to
+client — the client picks its scope and filters once, via query
+parameters, when it subscribes. WebSocket supports two-way ("duplex")
+communication, which this doesn't need, at the cost of extra protocol
+complexity (handshake, framing, hand-rolled keep-alive). Polling was
+rejected outright — the user asked for push delivery specifically, and
+polling either wastes cycles on frequent empty responses or adds
+latency if infrequent. SSE (Server-Sent Events) is a plain HTTP request
 with a streamed response body (`Content-Type: text/event-stream`) — it
 rides the same `shelf` `Pipeline` and the same infrastructure (proxies,
 load balancers) as the rest of the API.
@@ -82,10 +83,13 @@ during the query is buffered, not missed. `since_id` is optional; when
 it's omitted, the stream simply starts from the moment of subscription
 with no catch-up.
 
-Handing the buffer over has the same shape of race in miniature. Delivering
-a buffered event can wait (an event of a project the server has not yet asked
-about costs a database read), and while it waits, more events arrive and are
-buffered. The flush therefore takes the buffer in batches until it finds it
+Handing the buffer over has the same shape of race in miniature. Say the
+buffer holds events 101–103 when a flush starts reading them. If event
+104 arrives mid-flush, it must not be dropped just because the buffer
+was already being drained — delivering a buffered event can wait (an
+event of a project the server has not yet asked about costs a database
+read), and while it waits, more events arrive and are buffered. The
+flush therefore takes the buffer in batches until it finds it
 empty, and switches to live delivery in the same turn as that last look — an
 event that lands after the flush took its copy but before the switch is
 delivered, not discarded. (Clearing the buffer once at the end used to drop

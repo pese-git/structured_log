@@ -8,14 +8,9 @@ Shared object shapes live in [models.md](models.md); the full error
 catalog (shared across endpoints) lives in [errors.md](errors.md) — this
 document links to both rather than repeating them per endpoint.
 
-This is a reading aid over the normative OpenSpec artifacts, not a
-replacement for them — `specs/*.md` describe required *behavior*
-(SHALL statements + scenarios); this document commits to the concrete
-wire-level shapes (exact field names, envelopes, pagination mechanics)
-needed to write a client or a `curl` request, filling in details the
-specs deliberately leave at "a JSON object identifying the error." If
-`specs/*.md` is ever revised with a conflicting shape, that wins and
-this page should follow.
+This is a reading aid over the normative OpenSpec specs, not a
+replacement — it fills in the concrete wire-level shapes the specs
+leave abstract. If `specs/*.md` changes, it wins.
 
 ## Pagination (`log-server-pagination`)
 

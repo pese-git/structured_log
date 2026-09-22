@@ -12,10 +12,11 @@ requirements:
 
 ## One app, not core + skin
 
-The workspace's three existing viewer packages
-(`structured_log_flutter`/`material`/`fluent`) split into a headless
-core (`LogViewerController`/`LogBuffer`) plus design-system-specific
-skins, because there was more than one skin to justify the split. That
+The wider workspace also ships three log-*viewing* widget packages for
+Flutter apps (`structured_log_flutter`/`material`/`fluent`, unrelated
+to the admin client covered here), which split into a headless core
+(`LogViewerController`/`LogBuffer`) plus design-system-specific skins,
+because there was more than one skin to justify the split. That
 pattern doesn't fit here (decision 18): the entire point of this app is
 being *the* UI over `structured_log_server`'s specific HTTP contract —
 authentication, RBAC, quotas — concepts that don't exist in the headless

@@ -20,7 +20,7 @@ flowchart TD
 
 | Role | Can do | Cannot do |
 |---|---|---|
-| `admin` | Everything, any scope — the only role that can create `Group`s/`User`s, grant `admin`, block/unblock, delete any user | — |
+| `admin` | Everything, any scope — the only role that can create `Group`s/`User`s, grant `admin`, block/unblock, delete any user | (nothing) |
 | `owner` (on a group `G`) | Create/manage `Team`/`Project` inside `G`, edit quotas, rotate secret keys, grant `owner`/`user` on `G` or its projects | Grant `admin`; block/unblock anyone or anything, even inside their own group; delete anyone, including themselves via the admin path |
 | `user` | Read/search logs in explicitly granted scopes | Grant any role; manage any resource |
 
@@ -39,8 +39,10 @@ model exists for (decision 7).
 
 A `role_assignment` is a `(role, scope_type, scope_id)` triple, and the
 two parts answer different questions: `scope_type`/`scope_id` say *how
-far* the grant reaches (via `_covers` in `access_check.dart`), `role`
-says *what* it lets its holder do there. Reach first:
+far* the grant reaches (via `_covers`, in `access_check.dart`), `role`
+says *what* it lets its holder do there. The table below covers *reach*
+first (how far a grant extends), then *capability* (what each role can
+do once it reaches its target).
 
 | Grant's `scope_type` | Reaches |
 |---|---|
@@ -69,8 +71,8 @@ target — an `owner` grant scoped directly to a `project` (legal in the
 schema, just unusual) can still write to that project (`canWrite` has no
 such restriction) but cannot grant or revoke roles on it. The asymmetry
 exists because delegation is a group-owner privilege specifically
-(`design.md`, Этап 4, 4.3), not a general consequence of "can write
-here."
+(`design.md`, Stage 4, section 4.3), not a general consequence of "can
+write here."
 
 ## Blocking vs. deletion: same mechanics, different operations
 
