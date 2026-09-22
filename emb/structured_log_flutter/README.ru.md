@@ -11,8 +11,11 @@ Cupertino или любой другой дизайн-системы: пакет
 [`structured_log_fluent`](../structured_log_fluent) и
 [`structured_log_cupertino`](../structured_log_cupertino).
 
-> **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`). Подключайте как
-> path-зависимость внутри этого monorepo.
+> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_flutter)
+> (`0.1.0`). `structured_log_material`, `structured_log_fluent` и
+> `structured_log_cupertino` подключают его как обычную hosted-зависимость;
+> внутри этого monorepo `melos bootstrap` подставляет вместо неё
+> path-зависимость.
 
 ## Возможности
 
@@ -30,7 +33,13 @@ Cupertino или любой другой дизайн-системы: пакет
 
 ## Установка
 
-Внутри этого monorepo:
+```yaml
+dependencies:
+  structured_log_flutter: ^0.1.0
+```
+
+Внутри этого monorepo `melos bootstrap` подставляет вместо этого
+path-зависимость:
 
 ```yaml
 dependencies:

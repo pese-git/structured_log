@@ -22,7 +22,7 @@ flowchart LR
 
     subgraph Server["structured_log_server"]
         API["HTTP API\n(shelf + shelf_router)"]
-        DB[("SQLite\n(drift, WAL)")]
+        DB[("SQLite или PostgreSQL\n(drift)")]
         API <--> DB
     end
 
@@ -87,7 +87,7 @@ sequenceDiagram
     participant App as Приложение
     participant HTTP as HttpLogOutput
     participant Srv as structured_log_server
-    participant DB as SQLite (drift)
+    participant DB as SQLite/PostgreSQL (drift)
     participant Admin as structured_log_admin_client
 
     App->>HTTP: log.info('event', context: {...})
@@ -193,8 +193,9 @@ flowchart TB
   на `freezed`/`json_serializable` в обоих (`structured_log_server` и
   `structured_log_admin_client`), и на `retrofit_generator` — только в
   клиенте. `structured_log`, `structured_log_flutter`,
-  `structured_log_material`, `structured_log_fluent` и
-  `structured_log_http` остаются без codegen — ничто из этого не
+  `structured_log_material`, `structured_log_fluent`,
+  `structured_log_cupertino` и `structured_log_http` остаются без
+  codegen — ничто из этого не
   прецедент для них. Полный стек —
   [technology-stack.md](technology-stack.ru.md).
 - **Один процесс, никакого преждевременного масштабирования — но больше не одно соединение.**
@@ -259,15 +260,16 @@ flowchart TB
 
 ## Где живёт каждый пакет
 
-Воркспейс реструктурируется в `emb/` (встраиваемые библиотеки),
-`backend/`, `frontend/` (теперь два пакета — `structured_log_admin_ui` и
-`structured_log_admin_client`, не только последний) и `packages/`
-(зарезервировано, сейчас пусто) — см. decision 23.
+Воркспейс организован в `emb/` (встраиваемые библиотеки), `backend/`,
+`frontend/` (два пакета — `structured_log_admin_ui` и
+`structured_log_admin_client`) и `packages/` (то, что не подпадает ни
+под одну из трёх категорий выше — сейчас `structured_log_e2e`,
+сквозные тесты по всей системе) — см. decision 23.
 `structured_log_admin_ui` живёт в `frontend/`, не в `emb/`, хотя формой
 и является «библиотекой»: `emb/` — конкретно для библиотек,
 встраиваемых в *любое* стороннее приложение, тогда как эта — набор
 компонентов конкретно под внешний вид и предметный словарь
-`structured_log_admin_client` (decision 39). На момент написания эта
-реструктуризация, как и все четыре пакета, существуют только как
-OpenSpec change; ни один из путей выше ещё не создан на диске. Раздел 1
-`tasks.md` покрывает `git mv` и скаффолдинг.
+`structured_log_admin_client` (decision 39). Все четыре пакета, о
+которых этот документ рассказывает, реализованы и лежат на диске — что
+именно поставлено и что, если осталось, ещё нет — см.
+[AGENTS.md](../../AGENTS.md).

@@ -22,10 +22,14 @@
 
 ## Установка
 
+Пока не опубликован на pub.dev (`0.1.0-dev.0`) — подключайте как path- или
+git-зависимость:
+
 ```yaml
 dependencies:
   structured_log: ^0.2.0
-  structured_log_http: ^0.1.0
+  structured_log_http:
+    path: ../structured_log_http # внутри этого monorepo
 ```
 
 ## Быстрый старт

@@ -21,9 +21,9 @@ than a convention, which a directory inside the client could not do.
 
 | Level | Contents |
 |---|---|
-| `tokens` | `AdminColors`, `AdminTypography`, `AdminSpacing`/`AdminRadius`/`AdminSizes`, `AdminLogLevel` + `AdminLogLevelColors`, `AdminTheme` |
+| `tokens` | `AdminColors`, `AdminTypography`, `AdminSpacing`/`AdminRadius`/`AdminSizes`, `AdminBreakpoints`, `AdminLogLevel` + `AdminLogLevelColors`, `AdminTheme` |
 | `atoms` | `AdminLogLevelBadge`, `AdminButton`, `AdminTag`, `AdminLoadingIndicator`, `AdminEmptyState` |
-| `molecules` | `AdminSearchField`, `AdminFilterChip`, `AdminKeyValueRow`, `AdminQuotaBar`, `AdminStatusTag`, `AdminLabeledToggle`, `AdminTextField`, `AdminBanner`, `AdminLivePill`, `AdminDateRangeField`, `AdminTimeRangeField` |
+| `molecules` | `AdminSearchField`, `AdminFilterChip`, `AdminKeyValueRow`, `AdminQuotaBar`, `AdminStatusTag`, `AdminLabeledToggle`, `AdminTextField`, `AdminBanner`, `AdminLivePill`, `AdminDateRangeField`, `AdminTimeRangeField`, `AdminAccountMenu`, `AdminSearchPicker`/`AdminSearchPickerItem` |
 | `organisms` | `AdminAppShell`, `AdminResourceRow`, `AdminFilterBar`, `AdminConfirmDialog`, `AdminLogEntryRow`, `AdminFeedStatusStrip`, `AdminTable` |
 
 There is no `templates` or `pages` level. Those assemble whole screens around
@@ -51,9 +51,12 @@ code says so:
   foreground over the surface at 16%, so the rule is implemented and pinned
   against the canvas hexes in `test/tokens/admin_log_level_test.dart`; that is
   what makes `trace` and `critical`, drawn nowhere, consistent with the rest.
-- **Adaptive layouts** — deliberately absent. Every artboard is one desktop
-  width, so there is nothing to build against yet; see task 23.9 of the
-  `add-structured-log-server` change.
+- **Adaptive layouts** — most artboards are one desktop width, but narrow
+  states are implemented where the canvas draws them (`GroupsNarrow.dc.html`,
+  `LogBrowserNarrow.dc.html`) and designed where it doesn't: `AdminAppShell`
+  collapses its nav rail below `AdminBreakpoints.navRail`, and `AdminTable`
+  scrolls horizontally rather than overflowing below its own width
+  threshold. See task 23.9 of the `add-structured-log-server` change.
 
 ## Running the gallery
 

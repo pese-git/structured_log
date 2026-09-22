@@ -14,10 +14,10 @@ as a plain embeddable widget (`FluentLogViewer`) for dropping into existing
 page chrome — a `Flyout`, a side panel, a tab, ...
 
 > **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_fluent)
-> as a dev prerelease. `fluent_ui` needs Flutter `3.44.0+` (see
-> [pubspec.yaml](pubspec.yaml)) — this package's own `environment.flutter`
-> constraint doesn't enforce that yet; if your Flutter SDK is older, `pub
-> get` will resolve fine but the build will fail deep inside `fluent_ui`.
+> (`0.1.0`). `fluent_ui` needs Flutter `3.44.0+` — enforced by this
+> package's own `environment.flutter` constraint (see
+> [pubspec.yaml](pubspec.yaml)), so an older Flutter SDK fails at `pub get`
+> rather than deep inside `fluent_ui` at build time.
 > Design reference: the
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
 > canvas (Fluent section).
@@ -56,7 +56,13 @@ page chrome — a `Flyout`, a side panel, a tab, ...
 
 ## Installation
 
-Within this monorepo:
+```yaml
+dependencies:
+  structured_log_fluent: ^0.1.0
+```
+
+Within this monorepo, `melos bootstrap` resolves the two internal deps to
+path dependencies instead:
 
 ```yaml
 dependencies:

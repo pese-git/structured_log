@@ -21,12 +21,9 @@ iOS-паттерн «переход в детали» (как в Почте/На
 выше него список и немодальная панель деталей показываются рядом — как те
 же приложения ведут себя на iPad.
 
-> **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`), но больше не
-> заблокирован технически — `publish_to: none` снят, пакет провалидирован
-> (`dart pub publish --dry-run` проходит; `CHANGELOG.md` появится, когда
-> прогонят `melos version`, см. [AGENTS.md](../AGENTS.md)). История дизайна
-> и решений:
-> [openspec/changes/add-structured-log-cupertino/](../openspec/changes/add-structured-log-cupertino/).
+> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_cupertino)
+> (`0.1.0`). История дизайна и решений:
+> [openspec/changes/add-structured-log-cupertino/](../../openspec/changes/add-structured-log-cupertino/).
 
 ## Возможности
 
@@ -67,7 +64,13 @@ iOS-паттерн «переход в детали» (как в Почте/На
 
 ## Установка
 
-Внутри этого monorepo:
+```yaml
+dependencies:
+  structured_log_cupertino: ^0.1.0
+```
+
+Внутри этого monorepo `melos bootstrap` подставляет вместо обеих
+path-зависимости:
 
 ```yaml
 dependencies:

@@ -22,7 +22,7 @@ flowchart LR
 
     subgraph Server["structured_log_server"]
         API["HTTP API\n(shelf + shelf_router)"]
-        DB[("SQLite\n(drift, WAL)")]
+        DB[("SQLite or PostgreSQL\n(drift)")]
         API <--> DB
     end
 
@@ -86,7 +86,7 @@ sequenceDiagram
     participant App as Logging app
     participant HTTP as HttpLogOutput
     participant Srv as structured_log_server
-    participant DB as SQLite (drift)
+    participant DB as SQLite/PostgreSQL (drift)
     participant Admin as structured_log_admin_client
 
     App->>HTTP: log.info('event', context: {...})
@@ -186,7 +186,8 @@ These aren't specific to one capability — they show up repeatedly in
   in both `structured_log_server` and `structured_log_admin_client`, and
   to `retrofit_generator` in the client alone. `structured_log`,
   `structured_log_flutter`, `structured_log_material`, `structured_log_fluent`,
-  and `structured_log_http` remain codegen-free — none of this is a
+  `structured_log_cupertino`, and `structured_log_http` remain
+  codegen-free — none of this is a
   precedent for them. See [technology-stack.md](technology-stack.md) for
   the full stack.
 - **One process, no premature scaling — but not one connection anymore.**
@@ -249,15 +250,15 @@ These aren't specific to one capability — they show up repeatedly in
 
 ## Where each package lives
 
-The workspace is being restructured into `emb/` (embeddable libraries),
-`backend/`, `frontend/` (now two packages — `structured_log_admin_ui`
-and `structured_log_admin_client`, not just the latter), and `packages/`
-(reserved, currently empty) — see decision 23.
+The workspace is organized into `emb/` (embeddable libraries),
+`backend/`, `frontend/` (two packages — `structured_log_admin_ui` and
+`structured_log_admin_client`), and `packages/` (anything that doesn't
+fit the three categories above — currently `structured_log_e2e`,
+end-to-end tests across the whole system) — see decision 23.
 `structured_log_admin_ui` sits in `frontend/`, not `emb/`, despite being
 a "library" in form: `emb/` is specifically for libraries embeddable in
 *any* third-party application, whereas this one is a component set
 specific to `structured_log_admin_client`'s own look and domain
-vocabulary (decision 39). As of this writing that restructuring, and all
-four packages themselves, exist only as the OpenSpec change; none of the
-paths above are on disk yet. `tasks.md` section 1 covers the `git mv`
-and scaffolding.
+vocabulary (decision 39). All four packages this document describes are
+implemented and on disk — see [AGENTS.md](../../AGENTS.md) for what
+each one ships today and what, if anything, is still outstanding.

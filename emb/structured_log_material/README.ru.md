@@ -12,12 +12,11 @@
 (`MaterialLogViewer`) — чтобы вставить его в уже существующую хрому
 страницы: вкладку, боковую панель, диалог и т.п.
 
-> **Статус:** пока не опубликован на pub.dev (`0.1.0-dev.1`, `publish_to: none`
-> — зависит от тоже неопубликованного `structured_log_flutter` через path).
-> Дизайн-референс: canvas
+> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_material)
+> (`0.1.0`). Дизайн-референс: canvas
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
 > (раздел Material — [`structured_log_fluent`](../structured_log_fluent) и
-> [`structured_log_cupertino`](../structured_log_cupertino) теперь тоже
+> [`structured_log_cupertino`](../structured_log_cupertino) тоже
 > реализованы, из разделов Fluent/Cupertino того же canvas).
 
 ## Возможности
@@ -57,7 +56,13 @@
 
 ## Установка
 
-Внутри этого monorepo:
+```yaml
+dependencies:
+  structured_log_material: ^0.1.0
+```
+
+Внутри этого monorepo `melos bootstrap` подставляет вместо обеих
+path-зависимости:
 
 ```yaml
 dependencies:

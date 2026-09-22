@@ -20,29 +20,30 @@ self-hosted server for shipping logs off the device and reading them back.
   log-viewer core for Flutter apps: a bounded `LogBuffer` that plugs
   directly into `structured_log` as a sink, and a filterable
   `LogViewerController`. No dependency on any specific design system —
-  the foundation any UI skin builds on. *Not yet published.*
+  the foundation any UI skin builds on. Published on
+  [pub.dev](https://pub.dev/packages/structured_log_flutter).
 
 - **[`structured_log_material`](emb/structured_log_material/)** — a
   ready-to-use Material 3 in-app log viewer built on
   `structured_log_flutter`: live list, search and level filtering,
   expanded-entry detail with copy, and empty states. Includes a runnable
-  example app (`emb/structured_log_material/example/`, web-capable). *Not yet
-  published.*
+  example app (`emb/structured_log_material/example/`, web-capable).
+  Published on [pub.dev](https://pub.dev/packages/structured_log_material).
 
 - **[`structured_log_fluent`](emb/structured_log_fluent/)** — a ready-to-use
   Fluent UI (WinUI-style) in-app log viewer built on
   `structured_log_flutter`: master-detail split view, search and level
   filtering, a detail pane with copy, and empty states. Includes a
   runnable example app (`emb/structured_log_fluent/example/`, web-capable).
-  *Not yet published.*
+  Published on [pub.dev](https://pub.dev/packages/structured_log_fluent).
 
 - **[`structured_log_cupertino`](emb/structured_log_cupertino/)** — a
   ready-to-use Cupertino (iOS-style) in-app log viewer built on
   `structured_log_flutter`: search, category and level filtering, a
   pushed detail screen on narrow screens (list + master-detail split on
   wide/iPad-size ones instead), and empty states. Includes a runnable
-  example app (`emb/structured_log_cupertino/example/`, web-capable). *Not yet
-  published.*
+  example app (`emb/structured_log_cupertino/example/`, web-capable).
+  Published on [pub.dev](https://pub.dev/packages/structured_log_cupertino).
 
 - **[`structured_log_http`](emb/structured_log_http/)** — an `HttpLogOutput`
   sink that ships log entries to a `structured_log_server` instance over
@@ -52,12 +53,35 @@ self-hosted server for shipping logs off the device and reading them back.
 
 - **[`structured_log_server`](backend/structured_log_server/)** — a
   self-hosted, multi-tenant server for log ingestion, storage, query and
-  live streaming (`shelf`/`shelf_router` + `drift`/SQLite). Ingestion,
-  querying, SSE live streaming, groups/projects/secret keys,
-  authentication, RBAC, quotas, retention and rate limiting work today;
-  user management, teams, role assignment, the audit log and the email
-  flows are specified but not built yet. Not published — it is a service
-  you run, not a library you depend on.
+  live streaming (`shelf`/`shelf_router` + `drift`, SQLite by default or
+  PostgreSQL as an operator-chosen alternative). Ingestion, querying, SSE
+  live streaming, groups/projects/secret keys/teams, authentication,
+  RBAC, quotas, retention, rate limiting, user management, and the audit
+  log all work today; self-service registration, password recovery, and
+  email verification are specified but not built yet. Not published — it
+  is a service you run, not a library you depend on.
+
+- **[`structured_log_admin_ui`](frontend/structured_log_admin_ui/)** — the
+  Flutter UI component library the admin client is built from (Atomic
+  Design: tokens/atoms/molecules/organisms, Fluent UI–based). Depends
+  only on `flutter` and `fluent_ui` — no knowledge of the client's data
+  layer or navigation. Includes a runnable component gallery
+  (`frontend/structured_log_admin_ui/example/`, web-capable). Not
+  published — styled specifically for this client, not a general-purpose kit.
+
+- **[`structured_log_admin_client`](frontend/structured_log_admin_client/)**
+  — the web app operators and their teams actually use: sign-in and
+  forced password change, a role-scoped admin dashboard, groups/
+  projects/teams/secret keys, log search with live tailing, user
+  management, and the audit log. Localized (English/Russian). Not
+  published — a standalone application, not a library.
+
+- **[`structured_log_e2e`](packages/e2e/)** — end-to-end tests that run
+  the real server as a subprocess and drive it through
+  `structured_log`/`HttpLogOutput` on the way in and the admin client's
+  own repositories/`ApiClient` on the way out, covering the seams unit
+  and integration tests each stop short of. Not published — a test
+  harness, not a library.
 
 ## Repository Layout
 
@@ -65,11 +89,12 @@ Packages are grouped by top-level category, each listed by its full path
 in [melos.yaml](melos.yaml): `emb/` for libraries meant to be embedded in
 another app (`structured_log` and its log-viewer skins, `structured_log_http`),
 `backend/` for standalone server apps (`structured_log_server`), `frontend/`
-for standalone client apps with a UI (currently empty — `structured_log_admin_client`
-lands here as it's built), and `packages/` reserved for anything that doesn't
-fit the three categories above (currently empty). See [AGENTS.md](AGENTS.md)
-for the full toolchain reference (commands, conventions, versioning, CI) if
-you're contributing.
+for standalone client apps with a UI (`structured_log_admin_ui`,
+`structured_log_admin_client`), and `packages/` for anything that doesn't
+fit the three categories above (`structured_log_e2e`, end-to-end tests
+across the whole system). See [AGENTS.md](AGENTS.md) for the full
+toolchain reference (commands, conventions, versioning, CI) if you're
+contributing.
 
 **New to the server system?** Start with
 [docs/guides/](docs/guides/README.md) — a User Guide, an

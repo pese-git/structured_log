@@ -23,11 +23,13 @@ screen that opens onto nothing is worse than one that is not offered —
 [tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) says
 exactly what is and isn't done.
 
-**One thing to know before running it against a server on another host: you
-cannot.** The server sends no CORS headers at all, so a browser refuses the
-request before it leaves the page. The client is served beside the API behind
-one origin ([deploy/](../../deploy/)), and its bundle is built with an empty
-base URL. Opening the API up is a change to the server, not a proxy setting.
+**One thing to know before running it against a server on another host: by
+default you cannot.** The server sends no CORS headers unless the operator
+explicitly turns them on (`--cors-allowed-origins`, see the server's own
+README) — with CORS off, a browser refuses the request before it leaves the
+page. The client is served beside the API behind one origin
+([deploy/](../../deploy/)), and its bundle is built with an empty base URL;
+that stays the reference deployment even where CORS is available.
 
 ### Languages
 
@@ -56,7 +58,8 @@ A record with no actor says which kind of nobody it was — an attempt under a
 username that does not exist, or the server itself — and no request goes out to
 resolve a name, because there is no account to resolve. The action tag shows the
 wire value (`project.quota_updated`), which is what you filter by and what the
-API documents; the Russian name is the tooltip.
+API documents; a human-readable name in the interface's current language is
+the tooltip.
 
 ## Architecture
 
