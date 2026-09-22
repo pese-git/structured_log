@@ -9,6 +9,10 @@ deploying or configuring the server itself, see the
 sending logs *into* the system from your own application, see the
 [Developer Guide](developer-guide.md).
 
+Every screenshot below is a real screen from a running server — a small
+demo workspace (a "Payments Platform" group with an `orders-api`
+project, an owner and a read-only user), not mockups.
+
 ## What you're looking at
 
 The admin client is a web app: one page, served by your organization at
@@ -17,6 +21,8 @@ some URL an administrator gave you (for example
 separate desktop app, no command line. The server address is shown in
 small print under the sign-in form, so you can confirm you're pointed at
 the right one before typing a password into it.
+
+![The sign-in screen](assets/user-guide/01-sign-in-form.png)
 
 ## Signing in
 
@@ -34,6 +40,13 @@ manager, however your organization shares secrets).
    (same gate, same reason).
 3. Pick a password 8–72 characters long. There's no other rule — no
    forced mix of symbols, numbers, or cases.
+
+![The forced password change screen, shown right after signing in with a temporary password](assets/user-guide/02-forced-password-change.png)
+
+Once you've changed it, the app confirms and lets you in — from here
+on, the temporary password no longer works.
+
+![Confirmation that the password was changed, with a button to continue into the app](assets/user-guide/03-password-changed.png)
 
 Once you're through, the app remembers you (a session that renews
 itself quietly in the background) until you sign out, until an
@@ -66,16 +79,30 @@ simply not shown, rather than shown and then refused. If a navigation
 item (Users, Audit, the "Create group" button, ...) isn't in your
 sidebar, it's because your role doesn't reach it — not a bug.
 
+A grant on a project doesn't automatically cover its parent group, and
+the reverse holds too, one level down: a grant on a *group* does cover
+every project inside it, but you won't see that group itself unless you
+were granted access to the group directly. Below is exactly what a
+`user` with one project-level grant (on `orders-api`) and one
+group-level grant (on `Internal Tools`) sees after signing in — only
+`Internal Tools` appears under Groups, and only the two nav sections a
+read-only role reaches (Administration is reduced to Groups; there's no
+Users or Audit):
+
+![The navigation a plain "user" role sees: Groups (with access to one group and, separately, one directly granted project) and Log search — no Users, Audit, or Dashboard](assets/user-guide/04-user-nav-groups.png)
+
 ## Finding your way around
 
 The left-hand navigation is grouped by what it's for:
 
-- **Overview** — **Dashboard**: a quick landing view of the groups and
-  projects you have access to, for jumping straight into one rather
-  than searching for it.
+- **Overview** — **Dashboard** *(`admin` only)*: a quick landing view of
+  every group on the server and a handful of its projects, for jumping
+  straight into one rather than searching for it.
 - **Administration** *(visible only if your role reaches it)* —
   **Groups**, **Users**, **Audit**.
 - **Logs** — **Search logs**, the log browser covered below.
+
+![The Dashboard, as an administrator sees it: every group on the server, and a handful of projects with their entry counts, each with a shortcut into its logs](assets/user-guide/20-dashboard.png)
 
 Your account menu is in the bottom-left corner (your username), with
 sign-out and account settings under it.
@@ -83,9 +110,13 @@ sign-out and account settings under it.
 ## Searching and reading logs
 
 Open **Search logs** and you'll first be asked to pick a **scope**: one
-project, or one group (which searches across every project in it).
+project, or one group (which searches across every project in it). The
+list only offers what you actually have access to — a project reached
+through a direct grant, or through a group grant that covers it.
 You can't search across an arbitrary mix of projects — pick the
 narrowest scope that covers what you're looking for.
+
+![Choosing a scope before searching: the projects and groups this account can read from](assets/user-guide/05-log-search-scope.png)
 
 Once a scope is chosen, you get a filter bar above a live, newest-first
 feed:
@@ -102,6 +133,13 @@ by both at once. Clearing a filter widens the results again
 immediately — there's no separate "Apply"/"Reset" round trip beyond the
 "Find" button that runs the search.
 
+![The log feed for a project: level badges, event names, and which part of the application logged each entry](assets/user-guide/06-log-browser-feed.png)
+
+Setting the level filter to "Error and above" narrows the same feed to
+only what needs attention:
+
+![The same feed narrowed to "Error and above" — only the entries that actually need attention](assets/user-guide/08-log-browser-filtered.png)
+
 ### Reading one entry
 
 Click any row in the feed to open its full detail on the right: the
@@ -111,6 +149,8 @@ that event — whatever an engineer chose to include (an order id, a
 user id, an error code, ...). Nothing is truncated or hidden; if a
 field was sent, it's here. A "Copy" action puts the whole entry on your
 clipboard as JSON, handy for pasting into a bug report or a chat thread.
+
+![An opened log entry: standard fields on top, the application's own fields (gateway, order_id, reason) below](assets/user-guide/07-log-entry-detail.png)
 
 ### Live tailing
 
@@ -127,20 +167,36 @@ refresh. Two independent things to know:
   cursor), while still collecting what arrives in the background — tap
   "Resume" to catch up.
 
+![Scrolled away from the live edge while two new entries arrived: a "2 new entries · jump to latest" badge appears instead of yanking the view down](assets/user-guide/09-log-browser-new-badge.png)
+
 Changing any filter or the scope closes the live connection and opens a
 fresh one under the new criteria — you're never watching a stale mix of
 old and new filters.
 
 ## If you're an `owner` or `admin`: managing groups and projects
 
-Under **Groups**, open one to see its projects, teams, and (for
-`admin`) who has access to it. From there:
+An `owner` sees only the groups they were granted; here's the same
+**Groups** screen for an account that owns exactly one:
+
+![The Groups list as an owner sees it — just the one group they were granted](assets/user-guide/11-groups-list-owner.png)
+
+Open one to see its projects, teams, and (for `admin`) who has access
+to it:
+
+![A group's detail screen: its teams, its projects with their quotas at a glance, and who has been granted access](assets/user-guide/12-group-detail.png)
+
+From there:
 
 - **Create a project** inside the group — it needs a name and a
   **retention period** (how many days its logs are kept before being
   automatically deleted; every project must have one). Optionally cap
   it by entry count and/or total storage size — leave either blank for
   no limit on that dimension.
+
+  ![The "New project" dialog: name, retention period, and optional entry/size caps](assets/user-guide/13-create-project-dialog.png)
+
+  ![A project's own screen after creation: retention and quota at the top, its secret keys below, empty until the first one is created](assets/user-guide/14-project-detail.png)
+
 - **Rotate secret keys** — a project's secret key is what an
   application uses to *send* logs to it (see the
   [Developer Guide](developer-guide.md#sending-logs-to-the-server)). A
@@ -148,12 +204,23 @@ Under **Groups**, open one to see its projects, teams, and (for
   immediately, there's no way to retrieve it again afterward. Revoking
   a key is immediate and irreversible; any application still using the
   revoked key starts getting rejected right away.
+
+  ![A newly created secret key, shown exactly once, with an explicit warning and a copy button](assets/user-guide/15-secret-key-reveal.png)
+
 - **Grant access** — pick a person (or a team, if your role reaches
   `admin`'s team-management surface) and a role, scoped to this group
-  or to one specific project inside it.
+  or to one specific project inside it. The recipient field searches as
+  you type.
+
+  ![The "Grant access" dialog, with a username autocomplete open below the recipient field](assets/user-guide/16-grant-access-dialog.png)
+
 - **Create a team** (within a group) to grant access to several people
   at once, instead of one grant per person — add or remove members and
   everyone's access updates together.
+
+  ![The "New team" dialog](assets/user-guide/17-create-team-dialog.png)
+
+  ![A team's members, with a search field to add another one](assets/user-guide/18-team-members-dialog.png)
 
 Editing a project's quota takes effect immediately; it doesn't touch
 data already stored, only what happens going forward.
@@ -162,15 +229,33 @@ data already stored, only what happens going forward.
 
 ### Users
 
-**Users** lists every account on the server. Open one to see their
-profile, current roles, and recent activity, and to:
+**Users** lists every account on the server. An account with a
+temporary, not-yet-changed password is flagged right in the list:
+
+![The Users list — one account still on a temporary password, and the built-in administrator marked as such](assets/user-guide/21-users-list.png)
+
+Open one to see their profile, current roles, and recent activity, and
+to:
 
 - **Create an account** — username and a temporary password (you set
   it, or leave it to be generated); the new user goes through the same
   forced password-change step you did on your own first sign-in.
+
+  ![The "New user" dialog, filled in](assets/user-guide/22-create-user-dialog.png)
+
+  Once open, a user's own screen shows their granted roles side by
+  side with their most recent audit events — no need to cross-reference
+  a separate screen to see what someone with access has actually been
+  doing:
+
+  ![A user's detail screen: profile, whether their password is still temporary, every role grant with a one-click revoke, and their most recent audit events](assets/user-guide/23-user-detail.png)
+
 - **Edit** display name or reset their password (also always forces a
   change on their next sign-in — there's no way to set a password an
   admin sets as "permanent" on someone else's behalf).
+
+  ![The "Edit account" screen — resetting a password here always forces the user to replace it at next sign-in](assets/user-guide/24-edit-user.png)
+
 - **Block / unblock** — reversible. A blocked account can't sign in or
   use an existing session at all, but nothing about the account is
   removed; unblocking restores it exactly as it was.
@@ -180,6 +265,9 @@ profile, current roles, and recent activity, and to:
   - You can't delete someone who is the **sole owner** of a group — the
     app tells you which group(s) block the deletion and offers to grant
     ownership to someone else first, right there.
+
+    ![Attempting to delete the sole owner of a group: the app names the blocking group and offers to grant its ownership to someone else first](assets/user-guide/26-sole-owner-conflict.png)
+
   - The account that was the **very first administrator** created on
     this server can never be deleted (though it can still be blocked).
     This is intentional — it guarantees the system can never lock
@@ -200,6 +288,8 @@ time range. Records eventually age out according to a retention period
 your server operator configured (shown at the top of the screen) — or
 are kept forever if none was set.
 
+![The Audit screen: retention periods at the top, filters, and a chronological log of administrative actions and sign-ins — every action above this screenshot's example data left its own trace here](assets/user-guide/25-audit-log.png)
+
 ## Account settings
 
 From your account menu: change your own password at any time (not just
@@ -207,6 +297,8 @@ when forced to), and switch the interface language between English and
 Russian — the choice is remembered in your browser for next time. Two
 language links also appear on the sign-in and forced-password-change
 screens themselves, for before you're signed in at all.
+
+![Account settings: profile, the language switcher, changing your own password, and account deletion](assets/user-guide/10-account-settings.png)
 
 ## Getting help
 
