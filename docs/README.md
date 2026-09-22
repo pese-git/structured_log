@@ -13,24 +13,24 @@ team — that system is what the rest of this directory documents the
 design of.
 
 **Two kinds of reading are collected here, for two different readers.**
-[guides/](guides/) is task-oriented product documentation — a *user*,
-*administrator*, and *developer* guide, written for someone using or
-integrating the running system. Everything else here —
-`architecture/`, `operations/`, `api/` — is reference documentation:
-how the system is built and why, for someone who wants to understand
-its design rather than just operate or integrate with it. Where the
-two overlap on a fact (an endpoint shape, a config flag), they should
-agree.
+[guides/](guides/) is task-oriented product documentation — one guide
+per audience, from embedding the packages standalone to running,
+extending, and contributing to the self-hosted system. Everything else
+here — `architecture/`, `operations/`, `api/` — is reference
+documentation: how the system is built and why, for someone who wants
+to understand its design rather than just operate or integrate with
+it. Where the two overlap on a fact (an endpoint shape, a config
+flag), they should agree.
 
 ## Contents
 
-- [guides/](guides/) — the [User Guide](guides/user-guide.md),
-  [Administrator / DevOps Guide](guides/admin-guide.md),
-  [Embedding Guide](guides/embedding-guide.md),
-  [Developer Guide](guides/developer-guide.md), and
-  [Contributor Guide](guides/contributor-guide.md) — how to use, deploy,
-  integrate with, and contribute to the running system, or embed one of
-  the `emb/` libraries in your own app with no server involved at all.
+- [guides/](guides/) — five guides, grouped by how you're using the
+  project: the [Embedding Guide](guides/embedding-guide.md) (standalone,
+  no server); the [User Guide](guides/user-guide.md),
+  [Administrator / DevOps Guide](guides/admin-guide.md), and
+  [Developer Guide](guides/developer-guide.md) (with the self-hosted
+  server); and the [Contributor Guide](guides/contributor-guide.md)
+  (contributing to this repository).
 - [architecture/README.md](architecture/README.md) — components, request
   flow, and the principles that recur across the whole design.
 - [architecture/data-model.md](architecture/data-model.md) — the
@@ -66,9 +66,13 @@ agree.
 
 **[guides/](guides/):**
 
-- Someone signed in to the admin client, deploying the server, writing
-  code against it, or writing code in this repository — see
-  [guides/README.md](guides/README.md) to pick the right one.
+- Whoever wants `structured_log` — and, optionally, an in-app viewer —
+  in their own app, with no server involved.
+- Someone signed in to the admin client, deploying the server, or
+  writing code against the self-hosted system.
+- Whoever writes code in this repository, in any package.
+
+See [guides/README.md](guides/README.md) to pick the right one.
 
 **`architecture/`, `operations/`, `api/`:**
 
