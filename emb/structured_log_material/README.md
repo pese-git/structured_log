@@ -124,6 +124,25 @@ Row(
 )
 ```
 
+## Screenshots
+
+`MaterialLogViewerPage` as the full screen — master-detail split at this
+width, list on the left and the selected entry's full context on the
+right:
+
+![MaterialLogViewerPage: a live list of log entries on the left, filter chips and level filters above it, and the selected entry's full context with a copy action on the right](doc/screenshots/full-screen.png)
+
+`MaterialLogViewer` embedded in a side panel next to other app content —
+the same widget, no page chrome of its own:
+
+![MaterialLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
+
+On a phone-width screen, the same page collapses to a list, and tapping
+an entry opens `LogEntryDetailSheet` as a modal bottom sheet instead of
+a side panel:
+
+![MaterialLogViewerPage on a narrow, phone-width screen: the log list with a bottom sheet open on top, dimming the list behind it, showing the tapped entry's full context and a copy action](doc/screenshots/mobile.png)
+
 ## API Reference
 
 | Widget | Description |

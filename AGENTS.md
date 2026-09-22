@@ -123,16 +123,21 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   конвенции, что `README.md`/`README.ru.md` и `emb/structured_log/doc/ARCHITECTURE.md`/`.ru.md`. См.
   [docs/README.md](docs/README.md) для оглавления.
 - [site/](site/) — сайт проекта на Astro + Starlight, билингвальный (English/Русский):
-  просматриваемая, с поиском версия [docs/](docs/). Самостоятельный npm-проект вне Melos
-  workspace, не перечислен в `melos.yaml`. Контент **генерируется** скриптом
-  ([site/scripts/migrate_docs.py](site/scripts/migrate_docs.py)) из `docs/**/*.md`/`*.ru.md`,
-  а не пишется вручную — правки вносятся в `docs/`, затем скрипт перегенерирует
-  `site/src/content/docs/`. Ссылки, ведущие за пределы `docs/` (на `openspec/`, исходники
-  пакетов, `AGENTS.md`), скрипт переписывает на `github.com/pese-git/structured_log` — на сайт
-  переносится только `docs/`. Главная страница (`index.mdx`/`ru/index.mdx`) и
-  `astro.config.mjs` — вручную, скриптом не трогаются. Mermaid-диаграммы архитектурных
-  страниц рендерятся на клиенте (`astro-mermaid`), без build-time Chromium. См.
-  [site/README.md](site/README.md).
+  просматриваемая, с поиском версия [docs/](docs/) плюс страница на каждый пакет
+  [emb/](emb/) (`/packages/<пакет>/` — установка/quick start/API из его README, раздел
+  добавлен, когда выяснилось, что у встраиваемых библиотек на сайте не было вообще никакой
+  документации по использованию). Самостоятельный npm-проект вне Melos workspace, не
+  перечислен в `melos.yaml`. Контент **генерируется** скриптом
+  ([site/scripts/migrate_docs.py](site/scripts/migrate_docs.py)) из `docs/**/*.md`/`*.ru.md`
+  и `emb/<пакет>/README(.ru).md`, а не пишется вручную — правки вносятся в источник, затем
+  скрипт перегенерирует `site/src/content/docs/`. Ссылки, ведущие за пределы переносимого
+  источника (на `openspec/`, исходники других пакетов, `AGENTS.md`, example-приложение),
+  скрипт переписывает на `github.com/pese-git/structured_log`. Главная страница
+  (`index.mdx`/`ru/index.mdx`), оглавление пакетов (`packages/index.md`/`ru/packages/index.md`)
+  и `astro.config.mjs` — вручную, скриптом не трогаются (`PROTECTED` в самом скрипте — и
+  `site/.gitignore`'s исключения для `src/content/docs/` держатся в синхроне с этим списком
+  вручную, не выводятся автоматически). Mermaid-диаграммы архитектурных страниц рендерятся на
+  клиенте (`astro-mermaid`), без build-time Chromium. См. [site/README.md](site/README.md).
 - [deploy/](deploy/) — самостоятельное развёртывание через docker-compose: сервер и admin-клиент за одним
   nginx (см. ниже).
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) — CI.

@@ -120,6 +120,25 @@ Row(
 )
 ```
 
+## Screenshots
+
+`CupertinoLogViewerPage` as the full screen, on a wide/iPad-size
+viewport — list and the non-modal detail panel side by side:
+
+![CupertinoLogViewerPage: a live list of log entries with colored level dots on the left, a search field and category/level filters above it, and the selected entry's full context with a copy action on the right](doc/screenshots/full-screen.png)
+
+`CupertinoLogViewer` embedded in a side panel next to other app content —
+the same widget, no page chrome of its own:
+
+![CupertinoLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
+
+On a phone-width screen — the mobile-style default — the list is on
+its own, and tapping an entry **pushes** `LogEntryDetailPanel` as its
+own screen via `CupertinoPageRoute`, the standard iOS "drill into
+detail" pattern:
+
+![CupertinoLogViewerPage on a narrow, phone-width screen: the tapped entry pushed as its own screen, with a back chevron, the entry's title in the navigation bar, its full context, and a copy action](doc/screenshots/mobile.png)
+
 ## API Reference
 
 | Widget | Description |
