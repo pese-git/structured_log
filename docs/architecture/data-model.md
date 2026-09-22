@@ -153,3 +153,59 @@ reader connections, each its own isolate (`--db-read-pool-size`) — see
 and for the read pool, and the "one process" principle in
 [README.md](README.md) for what a single writer still constrains
 elsewhere in the design.
+
+### Planned: PostgreSQL as an operator-chosen alternative backend
+
+**Not implemented yet** — this subsection records an architectural
+decision made ahead of the code, not a shipped capability. The full
+decision record (context, alternatives, risks) lives in
+[openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/)
+(`proposal.md`/`design.md`/`specs/`); this is a summary for readers of
+the architecture, not a replacement for it.
+
+Embedded SQLite fits this server's "one process, no external
+dependency" positioning (see [README.md](README.md#why-a-server-at-all)),
+but not every deployment wants that trade-off — an operator who already
+runs a managed PostgreSQL (backups, monitoring, HA already solved there)
+gains nothing from a second, separately-operated storage mechanism. The
+decision is to make the storage backend an **explicit, operator-chosen
+setting at deployment time** (`--db-backend=sqlite|postgres`, SQLite
+default, unchanged behavior) — never a runtime toggle, and never an
+automatic data migration between the two; an operator choosing Postgres
+starts from an empty database.
+
+What this does **not** change: the object schema (one set of `drift`
+tables, generated for both dialects via `drift_postgres`), and every
+behavior visible through the HTTP API — round-trip of arbitrary
+`context` fields, filtering by them, id ordering under concurrent
+ingestion. Those stay identical regardless of backend; only the
+mechanism underneath differs.
+
+What genuinely differs by backend, architecturally:
+
+- **No reader-isolate pool under Postgres.** `--db-read-pool-size`
+  exists specifically because one SQLite file has one writer
+  connection; PostgreSQL is a real client-server database with its own
+  connection pool (`package:postgres`'s `Pool`) and native concurrent
+  writers (MVCC) — there is no separate "reader pool" concept to port,
+  only a differently-shaped setting for the size of one shared pool.
+- **No `PRAGMA` tuning under Postgres.** `journal_mode=WAL`/
+  `busy_timeout`/`synchronous=NORMAL` exist to work around what a
+  single-writer SQLite file needs; PostgreSQL's durability and
+  concurrent-read/write behavior are its own defaults, not something
+  this server has to configure.
+- **A separate, Postgres-specific implementation of the batch-insert
+  hot path.** The SQLite path's `last_insert_rowid()` + id-range read
+  (the specific mechanism behind the read-pool/group-commit throughput
+  numbers in `technology-stack.md`) relies on one connection holding a
+  transaction that nothing else can insert into concurrently — sound
+  for SQLite, not a safe assumption for Postgres in general. The
+  Postgres path instead issues one multi-row `INSERT ... RETURNING *`,
+  which ties the returned rows to the inserted ones directly, without
+  relying on id adjacency.
+
+Everything else that reads as "SQLite-specific" in the codebase today
+— a DB-side `createdAt` default expression, a couple of raw-SQL boolean
+literals, one partial-index DDL statement — is a portability detail
+with its own resolution already decided in `design.md`, not an
+architectural fork; see that document for the complete list.
