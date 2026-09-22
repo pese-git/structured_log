@@ -2,15 +2,17 @@
 
 *Read in [English](developer-guide.md).*
 
-Для тех, кто пишет код против этой системы — отправляет логи
-приложения в неё, запрашивает или следит за ними программно, либо
-встраивает живой просмотр логов в собственное Flutter-приложение. Если
-вы разворачиваете сам сервер — см.
+Для тех, кто пишет код против `structured_log_server` снаружи него —
+отправляет логи приложения в него или запрашивает/следит за ними
+программно. Если сервер вам не нужен вообще (только `structured_log`
+и, по желанию, просмотрщик внутри собственного Flutter-приложения) —
+см. [Руководство по внедрению](embedding-guide.ru.md), самостоятельный
+аналог этого руководства. Если вы разворачиваете сам сервер — см.
 [Руководство администратора / DevOps](admin-guide.ru.md); если вы
 пользуетесь admin-клиентом изо дня в день — см.
 [Руководство пользователя](user-guide.ru.md).
 
-Три способа интеграции, примерно по возрастанию того, сколько нужно
+Два способа интеграции, примерно по возрастанию того, сколько нужно
 знать о системе:
 
 1. **Доставить логи на сервер** — Dart-приложение использует
@@ -22,9 +24,6 @@
    [запрос](#запрос-логов) и
    [живая лента](#живая-лента-программно) через тот же HTTP API,
    которым пользуется admin-клиент.
-3. **Показать логи вживую внутри собственного Flutter-приложения** —
-   [встраиваемые виджеты-просмотрщики](#встраивание-живого-просмотрщика-во-flutter-приложение),
-   полностью локально, без сервера вообще.
 
 ## Логирование с `structured_log`
 
@@ -378,45 +377,12 @@ curl -X POST https://logs.example.com/v1/role-assignments \
 
 ## Встраивание живого просмотрщика во Flutter-приложение
 
-Если ваше приложение само на Flutter и вам нужен живой просмотр логов
-внутри него — для локальной отладки, полностью отдельно от
-`structured_log_server`, без сети вообще, — три готовых скина стоят на
-общем headless-ядре:
-
-```dart
-import 'package:structured_log/structured_log.dart';
-import 'package:structured_log_flutter/structured_log_flutter.dart';
-import 'package:structured_log_material/structured_log_material.dart';   // или _fluent / _cupertino
-
-final buffer = LogBuffer();
-final controller = LogViewerController(buffer);
-
-StructlogConfiguration.configure(sinks: [
-  LogSink(name: 'viewer', output: buffer.capture),
-]);
-
-// На весь экран:
-Navigator.of(context).push(MaterialPageRoute(
-  builder: (_) => MaterialLogViewerPage(controller: controller),
-));
-
-// Или встроенным в существующую хрому (боковую панель, вкладку, ...):
-MaterialLogViewer(controller: controller)
-```
-
-Выберите скин, соответствующий дизайн-системе вашего приложения —
-[`structured_log_material`](../../emb/structured_log_material/) (Material 3),
-[`structured_log_fluent`](../../emb/structured_log_fluent/) (Fluent/WinUI,
-опубликован как dev-пререлиз), или
-[`structured_log_cupertino`](../../emb/structured_log_cupertino/) (в стиле iOS)
-— все три делят одно ядро `LogBuffer`/`LogViewerController` из
-[`structured_log_flutter`](../../emb/structured_log_flutter/), так что
-смена скина позже — вопрос того, какой виджет-просмотрщик вы
-используете, а не изменение слоя данных. У каждого есть рабочий
-web-пример в собственной директории `example/`. Это не связано с
-`structured_log_http` выше — можно использовать один, другой, оба
-вместе (дублировать те же записи в локальный просмотрщик приложения *и*
-отправлять их на сервер) или ни один.
+Не связано с `structured_log_http` выше и полностью локально, без
+сервера — три готовых скина см. в
+[Руководстве по внедрению](embedding-guide.ru.md#2-headless-ядро-просмотрщика-structured_log_flutter).
+Можно использовать один, другой, оба вместе (дублировать те же записи
+в локальный просмотрщик приложения *и* отправлять их на сервер) или ни
+один.
 
 ## Ограничения частоты и хороший тон
 
@@ -447,6 +413,8 @@ web-пример в собственной директории `example/`. Эт
 
 ## Куда дальше
 
+- [Руководство по внедрению](embedding-guide.ru.md) — `structured_log`
+  сам по себе и виджеты-просмотрщики внутри приложения, без сервера.
 - [api/http-api.md](../api/http-api.md) — каждый эндпоинт, исчерпывающе.
 - [api/models.md](../api/models.md) — каждая форма JSON-объекта.
 - [api/errors.md](../api/errors.md) — полный каталог ошибок.

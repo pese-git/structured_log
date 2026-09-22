@@ -2,18 +2,20 @@
 
 *Читать на [русском](README.ru.md).*
 
-Four product guides for the `structured_log` system — the self-hosted
-log server, its admin client, and the libraries that ship logs into it.
-Each is task-oriented: *how to use it*, for one of the four people who
-actually do, rather than *why it's built this way* (that's the rest of
-[docs/](../README.md) — the architecture/design record, aimed at
-someone reasoning about or reviewing the system's internals):
+Five product guides for the `structured_log` system — the self-hosted
+log server, its admin client, and the libraries that ship logs into it
+(some of which work entirely without the server). Each is task-oriented:
+*how to use it*, for one of the people who actually do, rather than
+*why it's built this way* (that's the rest of [docs/](../README.md) —
+the architecture/design record, aimed at someone reasoning about or
+reviewing the system's internals):
 
 | Guide | For | Answers |
 |---|---|---|
 | [User Guide](user-guide.md) | Anyone signed in to the admin client — reading, searching and live-tailing logs, and (for `owner`/`admin`) managing groups, projects and access | "How do I find the log I'm looking for? What can I do with my role?" |
 | [Administrator / DevOps Guide](admin-guide.md) | Whoever deploys, configures and operates the server | "How do I get this running, keep it running, and recover when something goes wrong?" |
-| [Developer Guide](developer-guide.md) | Whoever writes code *against* this system from outside it — sending logs from an application, calling the HTTP API directly, or embedding a live in-app viewer | "How do I get my application's logs into this system, and how do I read them out programmatically?" |
+| [Embedding Guide](embedding-guide.md) | Whoever wants structured logging — and, optionally, an in-app log viewer — in their own Dart/Flutter app, with no server involved | "How do I add `structured_log` (and maybe a live in-app log view) to my own app?" |
+| [Developer Guide](developer-guide.md) | Whoever writes code *against* the self-hosted server from outside it — sending logs from an application, calling the HTTP API directly, or querying/live-tailing logs back out | "How do I get my application's logs into `structured_log_server`, and how do I read them out programmatically?" |
 | [Contributor Guide](contributor-guide.md) | Whoever writes code *in* this repository — any package, not just the server | "How do I get a dev environment running, and land a change the way this codebase expects?" |
 
 Each guide is self-contained — start with the one matching your role,

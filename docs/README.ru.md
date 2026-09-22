@@ -20,10 +20,12 @@
 
 - [guides/](guides/) — [руководство пользователя](guides/user-guide.ru.md),
   [руководство администратора/DevOps](guides/admin-guide.ru.md),
+  [руководство по внедрению](guides/embedding-guide.ru.md),
   [руководство разработчика](guides/developer-guide.ru.md) и
   [руководство контрибьютора](guides/contributor-guide.ru.md) — как
   пользоваться, разворачивать, интегрироваться и вносить вклад в
-  работающую систему.
+  работающую систему, либо встроить одну из библиотек `emb/` в своё
+  приложение вовсе без сервера.
 - [architecture/README.md](architecture/README.ru.md) — компоненты, поток
   запроса и принципы, повторяющиеся во всём дизайне.
 - [architecture/data-model.md](architecture/data-model.ru.md) —
