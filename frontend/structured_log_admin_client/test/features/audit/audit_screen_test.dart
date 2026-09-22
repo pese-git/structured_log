@@ -385,6 +385,36 @@ void main() {
           ),
         );
 
+    testWidgets(
+      'the table stays inside a narrow window instead of overflowing it',
+      (tester) async {
+        // `AdminTable`'s fixed columns plus its own padding add up to more than
+        // this window minus the page's own margins — the width a rail-collapsed
+        // client narrower than `masterDetail` (`AdminBreakpoints`) leaves it.
+        tester.view.physicalSize = const Size(700, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final repository = _FakeRepository()
+          ..pages = [
+            AuditPageDto(items: [_entry()]),
+          ];
+        final cubit = AuditCubit(QueryAuditLog(repository));
+        addTearDown(cubit.close);
+
+        await tester.pumpWidget(host(cubit));
+        await cubit.load();
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the table must fit the window, not overflow it',
+        );
+      },
+    );
+
     testWidgets('a record shows its time, actor, action, target and details', (
       tester,
     ) async {

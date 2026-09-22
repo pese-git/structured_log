@@ -47,7 +47,7 @@ class AdminTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = AdminColors.of(FluentTheme.of(context).brightness);
 
-    return DecoratedBox(
+    final table = DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: colors.border),
         borderRadius: BorderRadius.circular(AdminRadius.card),
@@ -65,7 +65,43 @@ class AdminTable extends StatelessWidget {
         ),
       ),
     );
+
+    // The fixed columns, their gaps and the row's own padding are a floor —
+    // below it, shrinking the flexible column further would have to clip a
+    // fixed one instead, which `Row` refuses to do quietly: it overflows
+    // (`AuditLog.dc.html` has four fixed columns before its flexible one, and
+    // that floor is past what a rail-collapsed narrow client leaves the page).
+    // Under the floor the table scrolls sideways instead — the alignment it
+    // exists for stays intact, just off-screen until scrolled to, rather than
+    // reflowing into a layout nothing on the canvas draws.
+    final minWidth = _minTableWidth(columns);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.maxWidth.isFinite ||
+            constraints.maxWidth >= minWidth) {
+          return table;
+        }
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(width: minWidth, child: table),
+        );
+      },
+    );
   }
+}
+
+/// The width below which [AdminTable] cannot keep every fixed column at its
+/// asked-for width: the fixed columns, a gap ([AdminSpacing.x12]) between
+/// each pair of columns, a floor for the flexible column so it does not
+/// scroll to nothing, and the row's own horizontal padding
+/// ([AdminSpacing.x14] on each side).
+double _minTableWidth(List<AdminColumn> columns) {
+  final fixed = columns
+      .where((column) => !column.flexible)
+      .fold<double>(0, (sum, column) => sum + column.width!);
+  final gaps = (columns.length - 1) * AdminSpacing.x12;
+  final flexibleFloor = columns.any((column) => column.flexible) ? 160.0 : 0.0;
+  return fixed + gaps + flexibleFloor + AdminSpacing.x14 * 2;
 }
 
 /// One record. [cells] line up with the table's columns, and a shorter list
