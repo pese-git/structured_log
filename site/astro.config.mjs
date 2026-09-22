@@ -34,6 +34,11 @@ export default defineConfig({
 					items: [{ autogenerate: { directory: 'guides' } }],
 				},
 				{
+					label: 'Packages',
+					translations: { ru: 'Пакеты' },
+					items: [{ autogenerate: { directory: 'packages' } }],
+				},
+				{
 					label: 'Architecture',
 					translations: { ru: 'Архитектура' },
 					items: [{ autogenerate: { directory: 'architecture' } }],
