@@ -122,6 +122,17 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   приоритет у OpenSpec-артефактов). Билингвальные пары файлов (`*.md`/`*.ru.md`), по той же
   конвенции, что `README.md`/`README.ru.md` и `emb/structured_log/doc/ARCHITECTURE.md`/`.ru.md`. См.
   [docs/README.md](docs/README.md) для оглавления.
+- [site/](site/) — сайт проекта на Astro + Starlight, билингвальный (English/Русский):
+  просматриваемая, с поиском версия [docs/](docs/). Самостоятельный npm-проект вне Melos
+  workspace, не перечислен в `melos.yaml`. Контент **генерируется** скриптом
+  ([site/scripts/migrate_docs.py](site/scripts/migrate_docs.py)) из `docs/**/*.md`/`*.ru.md`,
+  а не пишется вручную — правки вносятся в `docs/`, затем скрипт перегенерирует
+  `site/src/content/docs/`. Ссылки, ведущие за пределы `docs/` (на `openspec/`, исходники
+  пакетов, `AGENTS.md`), скрипт переписывает на `github.com/pese-git/structured_log` — на сайт
+  переносится только `docs/`. Главная страница (`index.mdx`/`ru/index.mdx`) и
+  `astro.config.mjs` — вручную, скриптом не трогаются. Mermaid-диаграммы архитектурных
+  страниц рендерятся на клиенте (`astro-mermaid`), без build-time Chromium. См.
+  [site/README.md](site/README.md).
 - [deploy/](deploy/) — самостоятельное развёртывание через docker-compose: сервер и admin-клиент за одним
   nginx (см. ниже).
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) — CI.

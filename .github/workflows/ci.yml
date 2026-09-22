@@ -338,6 +338,36 @@ jobs:
           -d web-server
           --browser-name=chrome
 
+  site:
+    name: Build the project website
+    runs-on: ubuntu-latest
+    # Node, not Dart/Flutter: site/ is a standalone Astro project outside
+    # the Melos workspace (see AGENTS.md). Its content (src/content/docs/,
+    # minus the two hand-authored landing pages) is generated from docs/ by
+    # scripts/migrate_docs.py rather than committed — same convention as
+    # *.g.dart elsewhere in this repo — and `npm run build`'s `prebuild`
+    # hook runs it automatically. The check that matters here is "does
+    # docs/ still produce a site that builds", not "is checked-in output
+    # current": there is no checked-in output to go stale.
+    defaults:
+      run:
+        working-directory: site
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
   flutter:
     name: Analyze & test Flutter (${{ matrix.package }})
     runs-on: ubuntu-latest

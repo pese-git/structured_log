@@ -1,0 +1,42 @@
+/* structured_log accent palette — a teal/cyan pulled from the LogLevel.info
+   indicator color shared by every viewer skin, with a violet complement for
+   contrast. Generated with Starlight's theme algorithm. */
+:root {
+	--sl-color-accent-low: #1c3b3d;
+	--sl-color-accent: #1f9a92;
+	--sl-color-accent-high: #b0e6df;
+	--sl-color-white: #ffffff;
+	--sl-color-gray-1: #eef3f2;
+	--sl-color-gray-2: #c3cccb;
+	--sl-color-gray-3: #8b9998;
+	--sl-color-gray-4: #566564;
+	--sl-color-gray-5: #35403f;
+	--sl-color-gray-6: #202827;
+	--sl-color-black: #161d1c;
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #bfe9e3;
+	--sl-color-accent: #12756e;
+	--sl-color-accent-high: #14403c;
+	--sl-color-white: #161d1c;
+	--sl-color-gray-1: #202827;
+	--sl-color-gray-2: #35403f;
+	--sl-color-gray-3: #566564;
+	--sl-color-gray-4: #8b9998;
+	--sl-color-gray-5: #c3cccb;
+	--sl-color-gray-6: #eef3f2;
+	--sl-color-gray-7: #f6faf9;
+	--sl-color-black: #ffffff;
+}
+
+/* Give code blocks (the site's most common content) a touch more room to
+   breathe and a monospace stack that matches the logger's own output. */
+:root {
+	--__sl-font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+code,
+pre {
+	font-family: var(--__sl-font-mono);
+}
