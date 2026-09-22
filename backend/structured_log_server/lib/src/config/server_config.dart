@@ -8,6 +8,15 @@ import 'param_spec.dart';
 const commandServe = 'serve';
 const commandCreateAdmin = 'create-admin';
 
+/// `db-backend`'s default ('sqlite') applies the same whether the value is
+/// literally absent or literally `'sqlite'` — both `requiredWhen` predicates
+/// below treat the two identically, matching how every other parameter's own
+/// resolution already treats "not set" as "the default value".
+bool _sqliteBackend(Map<String, Object?> values) =>
+    (values['db-backend'] as String? ?? 'sqlite') == 'sqlite';
+bool _postgresBackend(Map<String, Object?> values) =>
+    values['db-backend'] == 'postgres';
+
 /// Every configuration parameter the implemented capabilities need, declared
 /// once — the single source [ConfigResolver] builds the CLI parser, env var
 /// names, and `--help`/`--print-config` output from. Fields for capabilities
@@ -15,11 +24,87 @@ const commandCreateAdmin = 'create-admin';
 /// base URLs, SMTP — `design.md` "Delivery Phases") are added here alongside
 /// those capabilities, not before.
 const serverConfigParams = <ParamSpec>[
+  // Declared before `db-path`/`db-postgres-*`: their `requiredWhen` reads
+  // this value, and `ConfigResolver` resolves specs in list order
+  // (`add-postgres-backend` design.md, decision 1a).
+  ParamSpec(
+    name: 'db-backend',
+    type: ParamType.string,
+    description:
+        'Storage backend: "sqlite" (default, a local file) or '
+        '"postgres" (an operator-managed PostgreSQL server).',
+    defaultValue: 'sqlite',
+    allowedValues: {'sqlite', 'postgres'},
+  ),
   ParamSpec(
     name: 'db-path',
     type: ParamType.string,
-    description: 'Path to the SQLite database file.',
+    description:
+        'Path to the SQLite database file. Only used, and only '
+        'required, when db-backend=sqlite (the default).',
     requiredForCommands: {commandServe, commandCreateAdmin},
+    requiredWhen: _sqliteBackend,
+  ),
+  ParamSpec(
+    name: 'db-postgres-host',
+    type: ParamType.string,
+    description: 'PostgreSQL host. Required when db-backend=postgres.',
+    requiredForCommands: {commandServe, commandCreateAdmin},
+    requiredWhen: _postgresBackend,
+  ),
+  ParamSpec(
+    name: 'db-postgres-port',
+    type: ParamType.int,
+    description: 'PostgreSQL port.',
+    defaultValue: 5432,
+  ),
+  ParamSpec(
+    name: 'db-postgres-database',
+    type: ParamType.string,
+    description:
+        'PostgreSQL database name. Required when '
+        'db-backend=postgres.',
+    requiredForCommands: {commandServe, commandCreateAdmin},
+    requiredWhen: _postgresBackend,
+  ),
+  ParamSpec(
+    name: 'db-postgres-username',
+    type: ParamType.string,
+    description: 'PostgreSQL username. Required when db-backend=postgres.',
+    requiredForCommands: {commandServe, commandCreateAdmin},
+    requiredWhen: _postgresBackend,
+  ),
+  ParamSpec(
+    name: 'db-postgres-password',
+    type: ParamType.string,
+    description:
+        'PostgreSQL password. Required when db-backend=postgres — '
+        'like every other secret, no command-line flag exists for it.',
+    isSecret: true,
+    requiredForCommands: {commandServe, commandCreateAdmin},
+    requiredWhen: _postgresBackend,
+  ),
+  ParamSpec(
+    name: 'db-postgres-pool-size',
+    type: ParamType.int,
+    description:
+        'PostgreSQL connection pool size — shared by reads and '
+        'writes alike (unlike --db-read-pool-size, which is SQLite-only and '
+        'has no effect here).',
+    defaultValue: 10,
+    minValue: 1,
+    maxValue: 64,
+  ),
+  ParamSpec(
+    name: 'db-postgres-ssl-mode',
+    type: ParamType.string,
+    description:
+        'TLS mode for the PostgreSQL connection: "require" '
+        '(default — encrypted, certificate errors ignored), "verify-full" '
+        '(encrypted and certificate-verified), or "disable" (no TLS — for '
+        'local development against a server with none configured).',
+    defaultValue: 'require',
+    allowedValues: {'disable', 'require', 'verify-full'},
   ),
   ParamSpec(
     name: 'http-host',
@@ -205,7 +290,28 @@ const serverConfigParams = <ParamSpec>[
 /// 47, a deliberate contrast with `StructlogConfiguration`), so tests
 /// construct one directly without touching process environment.
 class ServerConfig {
-  final String dbPath;
+  /// `sqlite` (default) or `postgres` — which of [dbPath] or the
+  /// `dbPostgres*` fields below is actually populated
+  /// (`add-postgres-backend` design.md, decision 1).
+  final String dbBackend;
+
+  /// Only set (and only meaningful) when [dbBackend] is `sqlite`.
+  final String? dbPath;
+
+  /// Only set (and only meaningful) when [dbBackend] is `postgres`.
+  final String? dbPostgresHost;
+  final int dbPostgresPort;
+  final String? dbPostgresDatabase;
+  final String? dbPostgresUsername;
+  final String? dbPostgresPassword;
+  final int dbPostgresPoolSize;
+
+  /// `disable`/`require`/`verify-full` — kept as the raw string here (the
+  /// same convention as `logLevel`/`logFormat`) rather than `package:postgres`'s
+  /// `SslMode`, so this config layer stays free of a storage-layer dependency;
+  /// `StructuredLogDatabase.openPostgres` maps it.
+  final String dbPostgresSslMode;
+
   final String httpHost;
   final int httpPort;
   final String? jwtSecret;
@@ -243,7 +349,15 @@ class ServerConfig {
   final int dbReadPoolSize;
 
   const ServerConfig({
-    required this.dbPath,
+    this.dbBackend = 'sqlite',
+    this.dbPath,
+    this.dbPostgresHost,
+    this.dbPostgresPort = 5432,
+    this.dbPostgresDatabase,
+    this.dbPostgresUsername,
+    this.dbPostgresPassword,
+    this.dbPostgresPoolSize = 10,
+    this.dbPostgresSslMode = 'require',
     required this.httpHost,
     required this.httpPort,
     required this.jwtSecret,
@@ -277,7 +391,15 @@ class ServerConfig {
   factory ServerConfig.fromResolved(Map<String, ResolvedValue> values) {
     T get<T>(String name) => values[name]!.value as T;
     return ServerConfig(
+      dbBackend: get('db-backend'),
       dbPath: get('db-path'),
+      dbPostgresHost: get('db-postgres-host'),
+      dbPostgresPort: get('db-postgres-port'),
+      dbPostgresDatabase: get('db-postgres-database'),
+      dbPostgresUsername: get('db-postgres-username'),
+      dbPostgresPassword: get('db-postgres-password'),
+      dbPostgresPoolSize: get('db-postgres-pool-size'),
+      dbPostgresSslMode: get('db-postgres-ssl-mode'),
       httpHost: get('http-host'),
       httpPort: get('http-port'),
       jwtSecret: get('jwt-secret'),

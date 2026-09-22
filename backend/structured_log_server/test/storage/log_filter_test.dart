@@ -217,6 +217,7 @@ void main() {
             projectIds: const [1],
             filter: const LogFilter(minLevel: 'bogus'),
           ),
+          dialect: SqlDialect.sqlite,
         ),
         throwsA(isA<ArgumentError>()),
       );

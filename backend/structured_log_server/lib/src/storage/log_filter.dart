@@ -75,10 +75,20 @@ class LogFilter {
 
   /// Appends this filter's SQL conditions to [conditions] and their bound
   /// values to [variables]. Kept in the same order as [matches]'s checks.
+  ///
+  /// [dialect] only matters for [contextEquals] — every other condition here
+  /// is dialect-portable `?`-placeholder SQL as written, numbered for
+  /// Postgres by the caller's final pass (`placeholdersForDialect`,
+  /// `add-postgres-backend` design.md decision 3a). `context.<key>` matching
+  /// is different: it needs an actually different expression per backend
+  /// (`json_extract` is SQLite's JSON1 function, not a Postgres one at all —
+  /// decision 3a's placeholder-only fix doesn't touch this), so this is the
+  /// one condition [dialect] branches on.
   void appendConditions(
     List<String> conditions,
-    List<Variable<Object>> variables,
-  ) {
+    List<Variable<Object>> variables, {
+    required SqlDialect dialect,
+  }) {
     final minLevel = this.minLevel;
     if (minLevel != null) {
       final floor = logLevelOrder.indexOf(minLevel);
@@ -145,9 +155,25 @@ class LogFilter {
     }
 
     for (final entry in contextEquals.entries) {
-      conditions.add('CAST(json_extract(context_json, ?) AS TEXT) = ?');
-      variables.add(Variable.withString('\$.${entry.key}'));
-      variables.add(Variable.withString(entry.value));
+      if (dialect == SqlDialect.postgres) {
+        // `#>>` extracts by a jsonb path array and returns text directly (no
+        // separate CAST needed, unlike json_extract). The key is split on
+        // `.` into path segments the same way the SQLite side's `$.a.b`
+        // path syntax already does — same dotted-key convention, same
+        // (pre-existing, unaddressed) ambiguity if a key itself contains a
+        // literal dot, on both backends alike. `?::text[]` — an explicit
+        // cast, because a bound parameter doesn't implicitly become an
+        // array the way a literal would.
+        conditions.add('(context_json::jsonb #>> ?::text[]) = ?');
+        variables.add(
+          Variable.withString('{${entry.key.split('.').join(',')}}'),
+        );
+        variables.add(Variable.withString(entry.value));
+      } else {
+        conditions.add('CAST(json_extract(context_json, ?) AS TEXT) = ?');
+        variables.add(Variable.withString('\$.${entry.key}'));
+        variables.add(Variable.withString(entry.value));
+      }
     }
   }
 
@@ -221,7 +247,14 @@ class LogFilter {
   /// as `1`/`0` — SQLite has no boolean type, so `json_extract` yields an
   /// integer and `context.flagged=true` matches nothing while
   /// `context.flagged=1` matches. Surprising, but the filter's job is to
-  /// agree with the stored query, not to improve on it.
+  /// agree with the stored query, not to improve on it. This method has no
+  /// [SqlDialect] to consult (the live stream doesn't know which backend
+  /// produced the row it's checking against), so it always renders the
+  /// SQLite way — under `--db-backend=postgres`, `#>>` (`appendConditions`)
+  /// instead renders a JSON boolean as the text `true`/`false`, the opposite
+  /// of this method's `1`/`0`. A second, narrower instance of the same
+  /// accepted gap (`add-postgres-backend` design.md) — not fixed here,
+  /// for the same reason the SQLite version of it already isn't.
   static String _asSqlText(Object value) {
     if (value is String) return value;
     if (value is bool) return value ? '1' : '0';

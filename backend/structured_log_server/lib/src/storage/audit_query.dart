@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../audit/audit_action.dart';
 import 'database.dart';
 import 'page.dart';
+import 'query.dart' show placeholdersForDialect;
 
 /// A filter and one page's worth of pagination over the audit log.
 ///
@@ -64,10 +65,13 @@ class AuditQueryPage {
 ///
 /// Raw SQL to match `buildLogQuerySql`, which is next to this file and does
 /// the same job for the other journal — two shapes for one kind of query
-/// would make the pair harder to read than either alone.
+/// would make the pair harder to read than either alone. [dialect] only
+/// affects placeholder syntax in the returned [sql] (`placeholdersForDialect`,
+/// `add-postgres-backend` design.md decision 3a).
 ({String sql, List<Variable<Object>> variables}) buildAuditQuerySql(
-  AuditQuery query,
-) {
+  AuditQuery query, {
+  required SqlDialect dialect,
+}) {
   final conditions = <String>['1 = 1'];
   final variables = <Variable<Object>>[];
 
@@ -116,7 +120,7 @@ class AuditQueryPage {
       'ORDER BY id DESC '
       'LIMIT ?';
 
-  return (sql: sql, variables: variables);
+  return (sql: placeholdersForDialect(sql, dialect), variables: variables);
 }
 
 /// Runs [query] and reports whether there is another page.
@@ -140,6 +144,7 @@ Future<AuditQueryPage> runAuditQuery(
       limit: query.limit + 1,
       cursor: query.cursor,
     ),
+    dialect: db.executor.dialect,
   );
 
   final rows = await db

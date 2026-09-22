@@ -123,7 +123,15 @@ Questions).
 |---|---|---|---|
 | HTTP host | `--http-host` | `0.0.0.0` | |
 | HTTP port | `--http-port` | `8080` | |
-| Database file | `--db-path` | — | Required for every command, `create-admin` included |
+| Storage backend | `--db-backend` | `sqlite` | `sqlite` or `postgres`, operator's choice at deploy time — never switched at runtime ([add-postgres-backend](../../openspec/changes/add-postgres-backend/design.md)) |
+| Database file | `--db-path` | — | Required for every command, `create-admin` included, only when `--db-backend=sqlite` (the default) |
+| PostgreSQL host | `--db-postgres-host` | — | Required for every command when `--db-backend=postgres` |
+| PostgreSQL port | `--db-postgres-port` | `5432` | |
+| PostgreSQL database | `--db-postgres-database` | — | Required when `--db-backend=postgres` |
+| PostgreSQL username | `--db-postgres-username` | — | Required when `--db-backend=postgres` |
+| PostgreSQL password | `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` / `…_FILE` | — | Secret: no flag. Required when `--db-backend=postgres` |
+| PostgreSQL connection pool size | `--db-postgres-pool-size` | `10` | `1`–`64`; shared by reads and writes alike — unlike `--db-read-pool-size`, which is SQLite-only and has no effect here |
+| PostgreSQL TLS mode | `--db-postgres-ssl-mode` | `require` | `disable` / `require` (encrypted, certificate errors ignored) / `verify-full` (encrypted and certificate-verified) |
 | JWT signing secret | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Required**, no flag, never generated |
 | Access token lifetime | `--access-token-ttl-seconds` | TBD | |
 | Refresh token lifetime | `--refresh-token-ttl-seconds` | TBD | |
@@ -147,7 +155,7 @@ Questions).
 | Audit retention | `--audit-retention-days` | unset | Unset = keep forever ([quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
 | Audit purge chunk | `--audit-purge-batch-size` | `500` | Deleting in chunks keeps ingestion unblocked |
-| Database read connections | `--db-read-pool-size` | `2` | Extra connections beside the single writer, `0`–`16`; `0` sends reads through the writer. Reads no longer queue behind ingestion |
+| Database read connections | `--db-read-pool-size` | `2` | Extra connections beside the single writer, `0`–`16`; `0` sends reads through the writer. Reads no longer queue behind ingestion. SQLite only — under `--db-backend=postgres` a non-default value only warns at startup, it has no effect (see "PostgreSQL" below) |
 | Live-stream heartbeat | `--stream-heartbeat-seconds` | TBD | Also re-validates authorization ([live-streaming.md](../architecture/live-streaming.md)) |
 | Own-log level | `--log-level` | `info` | The server's own diagnostics, not ingested entries ([README.md](../architecture/README.md#the-middleware-chain)) |
 | Own-log format | `--log-format` | `console` | `console` or `json` for machine collection |
@@ -159,11 +167,47 @@ Questions).
 
 ## The database file
 
-Fixed, not configurable — recorded here because they decide what a crash or a rollback costs:
+Fixed, not configurable — recorded here because they decide what a crash or a rollback costs. Applies only under the default `--db-backend=sqlite`; see "PostgreSQL" below for the other backend.
 
 - **WAL mode, `synchronous=NORMAL`.** A committed write is safe if the *process* dies; if the *machine* loses power, the last few commits can be lost. The database is never left corrupt either way. `FULL` (SQLite's default) would fsync on every ingest batch.
 - **`busy_timeout` of 5 seconds.** A second process on the same file — `create-admin` run while the server is up — waits out a write instead of failing at once.
 - **Schema version.** Starting a build against a database written by a *newer* schema refuses with a message naming both versions, rather than reading tables it does not understand. After a bad deploy, roll forward or restore a backup taken before the upgrade. Older databases are upgraded in place on start.
+
+## PostgreSQL
+
+`--db-backend=postgres` swaps the storage engine for an operator-managed
+PostgreSQL server — an opt-in alternative to the default SQLite file, not
+a replacement for it. Nothing observable through the HTTP API changes
+between the two; the choice is purely operational (design rationale:
+[add-postgres-backend](../../openspec/changes/add-postgres-backend/design.md)).
+
+- **Connection**, not a file path: `--db-postgres-host`/`-port`/`-database`/`-username`
+  plus the `STRUCTURED_LOG_DB_POSTGRES_PASSWORD`/`…_FILE` secret (same
+  mounted-file convention as the JWT secret). All four of host/database/username/password
+  are required when this backend is selected — validated at startup, same
+  as every other setting.
+- **One pool, not two.** SQLite's read/write split (`--db-read-pool-size`)
+  exists to work around a single file having one writer; PostgreSQL's
+  MVCC doesn't have that constraint, so reads and writes share one pool
+  sized by `--db-postgres-pool-size` (default `10`). `--db-read-pool-size`
+  is ignored under this backend — set to a non-default value, it only
+  warns at startup, the same way an unknown `STRUCTURED_LOG_*` variable
+  does.
+- **TLS is on by default.** `--db-postgres-ssl-mode` defaults to `require`
+  (encrypted, but the server certificate isn't verified — the common case
+  for a managed Postgres behind the provider's own network). Use
+  `verify-full` when certificate verification matters, or `disable` for a
+  local development instance with no TLS configured at all.
+- **The `PRAGMA`-level tuning above (WAL, `busy_timeout`) doesn't apply**
+  and has no PostgreSQL equivalent here — those exist to work around
+  SQLite's single-writer file, not something PostgreSQL needs.
+- **Startup fails fast, the same way a bad `--db-path` does.** An
+  unreachable host or bad credentials are caught by a connection check
+  before the port opens, exiting `78` — never a runtime crash on the
+  first request.
+- **Out of scope:** there is no built-in path to convert an existing
+  SQLite database into PostgreSQL, or the reverse. The backend is chosen
+  once, on an empty database, at first deploy.
 
 ## Examples
 
@@ -196,6 +240,16 @@ docker run \
 ```bash
 # One-off override: same environment, different port
 dart run bin/server.dart --http-port 9090
+```
+
+```bash
+# Against PostgreSQL instead of the default SQLite file
+STRUCTURED_LOG_JWT_SECRET=$(openssl rand -hex 32) \
+STRUCTURED_LOG_DB_POSTGRES_PASSWORD=... \
+  dart run bin/server.dart \
+  --db-backend postgres \
+  --db-postgres-host db.internal --db-postgres-database structured_log \
+  --db-postgres-username structured_log
 ```
 
 ```bash

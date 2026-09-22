@@ -36,6 +36,20 @@ class ParamSpec {
   /// зависит от выполняемой команды").
   final Set<String> requiredForCommands;
 
+  /// A second, narrower gate on top of [requiredForCommands]: even for a
+  /// command in that set, the value is only actually required when this
+  /// returns `true` against the *values* (not the [ResolvedValue] wrapper —
+  /// this file has no dependency on `config_resolver.dart`, which depends on
+  /// it) of the parameters already resolved earlier in [ConfigResolver.specs]'
+  /// declaration order (so the parameter this reads — typically `db-backend`
+  /// — must be declared before any [ParamSpec] that reads it here). `null`
+  /// means "no extra condition", the same as [requiredForCommands] alone.
+  /// Exists for settings whose requiredness depends on an operator *choice*
+  /// rather than on which command is running — `db-path` only when
+  /// `db-backend=sqlite`, the PostgreSQL connection settings only when
+  /// `db-backend=postgres` (`add-postgres-backend` design.md, decision 1a/9).
+  final bool Function(Map<String, Object?> resolvedValuesSoFar)? requiredWhen;
+
   /// For a string param with a closed set of valid values (e.g.
   /// `logLevel`, `logFormat`) — any other value is a config error.
   final Set<String>? allowedValues;
@@ -73,6 +87,7 @@ class ParamSpec {
     this.minValue,
     this.maxValue,
     this.validator,
+    this.requiredWhen,
   });
 
   String get envVarName =>

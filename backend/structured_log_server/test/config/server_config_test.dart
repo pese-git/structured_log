@@ -10,7 +10,15 @@ import 'package:test/test.dart';
 /// runtime (`log-server-config`: "каждое поле ServerConfig присутствует в
 /// декларации параметров").
 const _expectedParamNames = {
+  'db-backend',
   'db-path',
+  'db-postgres-host',
+  'db-postgres-port',
+  'db-postgres-database',
+  'db-postgres-username',
+  'db-postgres-password',
+  'db-postgres-pool-size',
+  'db-postgres-ssl-mode',
   'http-host',
   'http-port',
   'jwt-secret',
@@ -97,6 +105,155 @@ void main() {
     expect(result.outcome, ConfigParseOutcome.success);
     final config = ServerConfig.fromResolved(result.values!);
     expect(config.jwtSecret, isNull);
+  });
+
+  group('db-backend', () {
+    ConfigParseResult resolve(
+      List<String> args, {
+      String command = commandServe,
+      Map<String, String> extraEnv = const {},
+    }) => ConfigResolver(serverConfigParams).parse(args, {
+      'STRUCTURED_LOG_JWT_SECRET': 'secret',
+      ...extraEnv,
+    }, command: command);
+
+    test('defaults to sqlite, unchanged from before this setting existed', () {
+      final result = resolve(['--db-path=/tmp/x.db']);
+      expect(result.outcome, ConfigParseOutcome.success);
+      final config = ServerConfig.fromResolved(result.values!);
+      expect(config.dbBackend, 'sqlite');
+      expect(config.dbPath, '/tmp/x.db');
+    });
+
+    test('an unknown backend is a configuration error', () {
+      expect(
+        resolve(['--db-backend=mysql', '--db-path=/tmp/x.db']).outcome,
+        ConfigParseOutcome.errors,
+      );
+    });
+
+    test('sqlite: db-path is required, PostgreSQL settings are not', () {
+      expect(
+        resolve(['--db-backend=sqlite']).outcome,
+        ConfigParseOutcome.errors,
+        reason: 'db-path missing',
+      );
+      final result = resolve(['--db-backend=sqlite', '--db-path=/tmp/x.db']);
+      expect(result.outcome, ConfigParseOutcome.success);
+    });
+
+    test(
+      'postgres: host/database/username/password are required, db-path is not',
+      () {
+        final missingHost = resolve(
+          [
+            '--db-backend=postgres',
+            '--db-postgres-database=d',
+            '--db-postgres-username=u',
+          ],
+          extraEnv: {'STRUCTURED_LOG_DB_POSTGRES_PASSWORD': 'p'},
+        );
+        expect(missingHost.outcome, ConfigParseOutcome.errors);
+
+        final missingPassword = resolve([
+          '--db-backend=postgres',
+          '--db-postgres-host=h',
+          '--db-postgres-database=d',
+          '--db-postgres-username=u',
+        ]);
+        expect(missingPassword.outcome, ConfigParseOutcome.errors);
+
+        final complete = resolve(
+          [
+            '--db-backend=postgres',
+            '--db-postgres-host=h',
+            '--db-postgres-database=d',
+            '--db-postgres-username=u',
+          ],
+          extraEnv: {'STRUCTURED_LOG_DB_POSTGRES_PASSWORD': 'p'},
+        );
+        expect(complete.outcome, ConfigParseOutcome.success);
+        final config = ServerConfig.fromResolved(complete.values!);
+        expect(config.dbPath, isNull);
+        expect(config.dbPostgresHost, 'h');
+        expect(config.dbPostgresDatabase, 'd');
+        expect(config.dbPostgresUsername, 'u');
+        expect(config.dbPostgresPassword, 'p');
+        expect(config.dbPostgresPort, 5432, reason: 'default');
+        expect(config.dbPostgresPoolSize, 10, reason: 'default');
+        expect(config.dbPostgresSslMode, 'require', reason: 'default');
+      },
+    );
+
+    test('create-admin follows the same backend-dependent requirements', () {
+      final withoutDbPath = resolve(
+        [
+          '--db-backend=postgres',
+          '--db-postgres-host=h',
+          '--db-postgres-database=d',
+          '--db-postgres-username=u',
+        ],
+        command: commandCreateAdmin,
+        extraEnv: {'STRUCTURED_LOG_DB_POSTGRES_PASSWORD': 'p'},
+      );
+      expect(
+        withoutDbPath.outcome,
+        ConfigParseOutcome.success,
+        reason: 'create-admin does not need --db-path under postgres',
+      );
+    });
+
+    test('an invalid db-postgres-ssl-mode is a configuration error', () {
+      expect(
+        resolve(
+          [
+            '--db-backend=postgres',
+            '--db-postgres-host=h',
+            '--db-postgres-database=d',
+            '--db-postgres-username=u',
+            '--db-postgres-ssl-mode=bogus',
+          ],
+          extraEnv: {'STRUCTURED_LOG_DB_POSTGRES_PASSWORD': 'p'},
+        ).outcome,
+        ConfigParseOutcome.errors,
+      );
+    });
+
+    test('db-read-pool-size warns, but does not fail, under postgres', () {
+      final result = resolve(
+        [
+          '--db-backend=postgres',
+          '--db-postgres-host=h',
+          '--db-postgres-database=d',
+          '--db-postgres-username=u',
+          '--db-read-pool-size=4',
+        ],
+        extraEnv: {'STRUCTURED_LOG_DB_POSTGRES_PASSWORD': 'p'},
+      );
+      expect(result.outcome, ConfigParseOutcome.success);
+      expect(result.warnings, contains(contains('--db-read-pool-size')));
+    });
+
+    test(
+      'db-read-pool-size at its default draws no warning under postgres',
+      () {
+        final result = resolve(
+          [
+            '--db-backend=postgres',
+            '--db-postgres-host=h',
+            '--db-postgres-database=d',
+            '--db-postgres-username=u',
+          ],
+          extraEnv: {'STRUCTURED_LOG_DB_POSTGRES_PASSWORD': 'p'},
+        );
+        expect(result.warnings, isEmpty);
+      },
+    );
+
+    test('db-read-pool-size draws no warning under sqlite even when set', () {
+      final result = resolve(['--db-path=/tmp/x.db', '--db-read-pool-size=4']);
+      expect(result.warnings, isEmpty);
+    });
   });
 
   group('audit retention', () {

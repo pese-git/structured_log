@@ -62,7 +62,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 Плюс один пакет в `backend/`:
 
 - [backend/structured_log_server/](backend/structured_log_server/) — self-hosted сервер приёма/
-  хранения/поиска/живой трансляции логов (`shelf`+`shelf_router`, `drift`/SQLite). Реализованы
+  хранения/поиска/живой трансляции логов (`shelf`+`shelf_router`, `drift`/SQLite по умолчанию,
+  либо PostgreSQL как выбираемая оператором альтернатива — `--db-backend=postgres`,
+  [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/)). Реализованы
   приём и запрос логов, живой поток (SSE), группы/проекты/секретные ключи, аутентификация и RBAC,
   ограничение частоты, очистка по retention, собственное логирование и аудит (Этап 2), управление
   пользователями — создание/блокировка/удаление, без `email` — и урезанная (`admin`-only,
@@ -441,6 +443,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (`lib/testing/mock_server.dart`) отвечает по тому же правилу — тест, идущий через мок, видит настоящий отказ.
 - **База: `busy_timeout` 5 с и `synchronous=NORMAL` заданы жёстко, версия схемы проверяется при открытии.**
   Сборка отказывается стартовать на базе, записанной более новой схемой (drift без этого открывает её молча).
+  Всё это (как и пул читателей ниже) специфично для SQLite-пути (`--db-backend=sqlite`, по умолчанию) —
+  у PostgreSQL-пути (`--db-backend=postgres`) своя реализация, см. отдельный пункт ниже.
 - **Чтения идут через пул соединений, запись — через одно.** `StructuredLogDatabase.open(path, readPool: N)`
   (`--db-read-pool-size`, по умолчанию 2, `0` — как раньше) поднимает N изолятов только для `SELECT` вне
   транзакции; всё, что пишет или идёт внутри транзакции, остаётся на писателе (`MultiExecutor` drift, нужен WAL).
@@ -468,6 +472,19 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   Предел группы — `maxEntriesPerGroup` (2000), чтобы одна транзакция не держала писателя долго. Замер: одиночные
   записи 2,2 → 3,8 тыс. запросов/с; пачки по 100 при 16 продюсерах 21,9 → 29,2 тыс. записей/с; приём рядом с
   чтением 12,7 → 18,1 тыс. (чтение 1146 → 970 req/s).
+- **PostgreSQL — выбираемая оператором альтернатива SQLite, не второй параллельный код.** `--db-backend=postgres`
+  (`StructuredLogDatabase.openPostgres`, `drift_postgres`/`PgDatabase`) переиспользует одну схему `drift` для обоих
+  диалектов; отличается только то, что реально не может быть общим: пул соединений — один на чтение и запись
+  (`--db-postgres-pool-size`, `--db-read-pool-size` при этом backend'е только предупреждает и ни на что не влияет),
+  батч-вставка логов — отдельная Postgres-ветка (`RETURNING *` вместо `last_insert_rowid()` + диапазон id, диапазон
+  для Postgres в общем случае небезопасен), фильтр по `context.<key>` — `jsonb`'s `#>>` вместо `json_extract`
+  (с задокументированной асимметрией `true`/`false` против `1`/`0`), и плейсхолдеры сырого SQL — `?` под Postgres
+  не работает вовсе (`42601: syntax error`), каждый рукописный фрагмент прогоняется через `placeholdersForDialect`.
+  Найдено и исправлено на практике, не юнит-тестом: `PgDatabase.opened(pool)` не закрывает переданный пул при
+  `close()` — без фикса процесс не завершался по `SIGTERM` (`StructuredLogDatabase._ownedPool` + переопределённый
+  `close()`, мутацией подтверждено). Тесты — тег `postgres` (`dart_test.yaml`), обязательно с `--concurrency=1`:
+  файлы делят одну физическую базу без пер-файловой изоляции, в отличие от SQLite'шного `NativeDatabase.memory()`.
+  Полная запись решения — [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/).
 - **Живая подписка пишет в сокет раз за ход цикла событий, а не раз на запись, и кодирует запись один раз на всех.**
   `deliverLive` кладёт кадры в исходящую очередь подписки, `Timer.run` сливает её одним `body.add`; кадр записи
   (`_eventBytes`) кодируется один раз на объект `LogEntry` (`Expando`) — подписчики группы получают один и тот же
@@ -661,10 +678,18 @@ dart run example/main.dart
   не зависит от Flutter.
 - `server` — для `backend/structured_log_server/`: `dart pub get`, `build_runner`,
   `dart format --set-exit-if-changed`, `dart analyze`, `dart test
-  --exclude-tags integration`, затем отдельным шагом `dart test --tags
-  integration` (поднимает `bin/server.dart` процессом; тег объявлен в
-  `dart_test.yaml`, но не исключён — разделение нужно только чтобы в логе
-  было видно, какой из двух прогонов упал) — только
+  --exclude-tags integration --exclude-tags postgres`, затем отдельным шагом
+  `dart test --tags integration` (поднимает `bin/server.dart` процессом; тег
+  объявлен в `dart_test.yaml`, но не исключён — разделение нужно только чтобы
+  в логе было видно, какой из прогонов упал), затем `dart test --tags
+  postgres --concurrency=1` против сервис-контейнера `postgres:16-alpine`
+  (health check `pg_isready`, раннер сам не пускает шаги до готовности —
+  ручного wait-loop, в отличие от `chromedriver` ниже, не нужно; тег
+  диалект-чувствителен, `--concurrency=1` обязателен — Postgres-тегированные
+  файлы делят одну физическую базу без пер-файловой изоляции и портят друг
+  другу фикстуры на дефолтной параллельности, см.
+  [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/)) —
+  только
   `ubuntu-latest` (сервис самохостится на Linux, ОС-чувствительной ротации
   файлов у него нет). `dart-lang/setup-dart` (канал `stable`), без FVM.
   Кодогенерация **обязана** идти до `analyze`/`test` — без неё пакет не
