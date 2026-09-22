@@ -1,0 +1,40 @@
+# A minimal in-cluster PostgreSQL for evaluation/small deployments. If
+# you already run a managed or self-hosted PostgreSQL elsewhere, skip
+# this file and postgres-service.yaml — point server-deployment.yaml's
+# STRUCTURED_LOG_DB_POSTGRES_HOST at that instance instead, and set
+# STRUCTURED_LOG_DB_POSTGRES_SSL_MODE=require (or verify-full) rather
+# than disable, since traffic then crosses a real network hop.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: structured-log
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_USER, value: structured_log}
+            - {name: POSTGRES_DB, value: structured_log}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: postgres-secrets, key: postgres-password}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "structured_log", "-d", "structured_log"]
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: postgres-data}

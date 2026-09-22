@@ -1,0 +1,16 @@
+# Must be named exactly "server" — the web image's baked-in nginx.conf
+# (deploy/nginx.conf) hardcodes `proxy_pass http://server:8080`, the same
+# name docker-compose.yml uses for the same single-origin/no-CORS reason
+# (see deploy/k8s/README.md). Rename this only alongside rebuilding the
+# web image with a different nginx.conf.
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: structured-log
+spec:
+  selector:
+    app: structured-log-server
+  ports:
+    - port: 8080
+      targetPort: 8080

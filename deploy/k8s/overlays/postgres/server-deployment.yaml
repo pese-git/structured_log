@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: structured-log-server
+  namespace: structured-log
+spec:
+  # Always exactly one replica, same reason as the SQLite overlay — see
+  # the comment there. Moving to PostgreSQL does not change this: it's
+  # the in-process live-stream broadcast, not the storage backend, that
+  # constrains it.
+  replicas: 1
+  selector:
+    matchLabels: {app: structured-log-server}
+  template:
+    metadata:
+      labels: {app: structured-log-server}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: server
+          image: structured-log-server:local
+          ports: [{containerPort: 8080}]
+          env:
+            - name: STRUCTURED_LOG_JWT_SECRET_FILE
+              value: /etc/structured-log/secrets/jwt-secret
+            - {name: STRUCTURED_LOG_LOG_FORMAT, value: json}
+            - {name: STRUCTURED_LOG_TRUSTED_PROXY_HOPS, value: "1"}
+            - {name: STRUCTURED_LOG_DB_BACKEND, value: postgres}
+            # "postgres" — the Service in this overlay, resolves by short
+            # DNS name within the namespace. Point this at your own
+            # instance's host instead if you skipped postgres-statefulset.yaml.
+            - {name: STRUCTURED_LOG_DB_POSTGRES_HOST, value: postgres}
+            - {name: STRUCTURED_LOG_DB_POSTGRES_DATABASE, value: structured_log}
+            - {name: STRUCTURED_LOG_DB_POSTGRES_USERNAME, value: structured_log}
+            - name: STRUCTURED_LOG_DB_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: postgres-secrets, key: postgres-password}
+            # In-cluster traffic to the StatefulSet above; use require or
+            # verify-full for a managed instance over a real network hop.
+            - {name: STRUCTURED_LOG_DB_POSTGRES_SSL_MODE, value: disable}
+          volumeMounts:
+            - name: jwt-secret
+              mountPath: /etc/structured-log/secrets
+              readOnly: true
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+      volumes:
+        - name: jwt-secret
+          secret:
+            secretName: structured-log-secrets
+            items: [{key: jwt-secret, path: jwt-secret}]

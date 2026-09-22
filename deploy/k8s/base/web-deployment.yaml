@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: structured-log-web
+  namespace: structured-log
+spec:
+  # Stateless — scale freely. Unlike the server (base/../overlays/*
+  # server-deployment.yaml, always replicas: 1), nothing here depends on
+  # a single writer or an in-process broadcast.
+  replicas: 2
+  selector:
+    matchLabels: {app: structured-log-web}
+  template:
+    metadata:
+      labels: {app: structured-log-web}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: web
+          image: structured-log-web:local
+          ports: [{containerPort: 80}]
+          readinessProbe:
+            httpGet: {path: /, port: 80}
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {memory: 128Mi}

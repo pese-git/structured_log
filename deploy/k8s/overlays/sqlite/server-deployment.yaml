@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: structured-log-server
+  namespace: structured-log
+spec:
+  # Always exactly one replica — GET /v1/logs/stream delivery is an
+  # in-process broadcast with no external pub/sub behind it (see
+  # docs/architecture/live-streaming.md); a second replica would have its
+  # own, separate broadcast and silently drop entries for a subscriber
+  # connected to the other one. This is not a resource-sizing choice.
+  replicas: 1
+  # Never RollingUpdate: two pods briefly running together would be two
+  # SQLite writers pointed at the same file on the same ReadWriteOnce
+  # volume. Recreate tears the old pod down before the new one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: structured-log-server}
+  template:
+    metadata:
+      labels: {app: structured-log-server}
+    spec:
+      # Avoids Kubernetes injecting Docker-links-style STRUCTURED_LOG_SERVER_*
+      # env vars for the "server" Service (collides with this app's own
+      # STRUCTURED_LOG_ env var prefix — harmless, the resolver just warns,
+      # but there is no reason to invite it).
+      enableServiceLinks: false
+      containers:
+        - name: server
+          image: structured-log-server:local
+          ports: [{containerPort: 8080}]
+          env:
+            - name: STRUCTURED_LOG_JWT_SECRET_FILE
+              value: /etc/structured-log/secrets/jwt-secret
+            - {name: STRUCTURED_LOG_DB_PATH, value: /data/logs.db}
+            - {name: STRUCTURED_LOG_LOG_FORMAT, value: json}
+            # One hop: whatever Ingress controller sits in front.
+            - {name: STRUCTURED_LOG_TRUSTED_PROXY_HOPS, value: "1"}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - name: jwt-secret
+              mountPath: /etc/structured-log/secrets
+              readOnly: true
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: structured-log-data}
+        - name: jwt-secret
+          secret:
+            # Created by ../../create-secrets.sh — not part of this
+            # kustomization, deliberately: a Secret's lifecycle (rotate,
+            # never delete-and-recreate casually) shouldn't ride along
+            # with `kubectl apply -k` re-applying the rest of the stack.
+            secretName: structured-log-secrets
+            items: [{key: jwt-secret, path: jwt-secret}]

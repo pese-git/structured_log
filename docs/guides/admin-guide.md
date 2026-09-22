@@ -114,11 +114,14 @@ above if that host differs from the API's.
 
 ## Kubernetes
 
-There's no Helm chart or checked-in manifest set for this — the YAML
-below is a complete, working example, hand-verified against a local
-cluster (`minikube`, ingress-nginx) while writing this guide, not a
-packaged artifact this repo ships. Adapt names/namespace/registry to
-your cluster; the constraints called out below are not optional.
+[`deploy/k8s/`](../../deploy/k8s/) has the actual manifests — a
+Kustomize `base/` shared by both storage backends plus one overlay
+each (`overlays/sqlite/`, `overlays/postgres/`), and two scripts
+(`build-images.sh`, `create-secrets.sh`). This section is the reasoning
+behind their non-obvious parts, hand-verified against a local cluster
+(`minikube`, ingress-nginx) while writing it — for the actual
+`kubectl`/`kustomize` commands, see
+[deploy/k8s/README.md](../../deploy/k8s/README.md).
 
 **The server must run as exactly one replica, always — this is not a
 resource-sizing choice.** Live-stream delivery (`GET /v1/logs/stream`)
@@ -127,32 +130,31 @@ is an in-process broadcast with no external pub/sub behind it (see
 a second replica would have its own, separate broadcast, and a client
 connected to one replica would silently miss log entries that a
 load-balanced `POST /v1/logs` happened to land on the other. This holds
-under *both* storage backends; moving to PostgreSQL does not change it.
-Scale the **web** deployment (the admin client's static nginx) freely —
-it's stateless.
+under *both* storage backends; moving to PostgreSQL does not change it
+— both overlays' `server-deployment.yaml` fix `replicas: 1`. Scale the
+**web** deployment (the admin client's static nginx) freely — it's
+stateless, `base/web-deployment.yaml` runs it at 2 by default.
 
 **The admin client's image has the backend's Service name baked in.**
 `deploy/nginx.conf`, built into the `web` image, hardcodes
 `proxy_pass http://server:8080` — the same name `docker-compose.yml`
 uses, for the same single-origin/no-CORS reason (see
-["What you're running"](#what-youre-running) above). Name the
-server's Kubernetes `Service` exactly `server`, in the same namespace as
-`web`, and the image works unmodified; renaming it means rebuilding the
-image with a different `nginx.conf`.
+["What you're running"](#what-youre-running) above). This is why
+`base/server-service.yaml` names the server's `Service` exactly
+`server`, not something more descriptive — the image works unmodified
+only as long as that holds; renaming it means rebuilding the image with
+a different `nginx.conf`.
 
-**Mount secrets somewhere other than `/run/secrets`.** That path
-collides with Kubernetes' own default service-account token mount
+**Secrets mount at `/etc/structured-log/secrets`, deliberately not
+`/run/secrets`.** That path collides with Kubernetes' own default
+service-account token mount
 (`/var/run/secrets/kubernetes.io/serviceaccount` — `/run` and `/var/run`
 are the same directory in the image); mounting a `Secret` volume there
 made the container fail to start at all in testing
-(`unable to create mountpoint: read-only file system`). The example
-below mounts secrets at `/etc/structured-log/secrets` instead, and sets
-`automountServiceAccountToken: false`-equivalent hygiene via
-`enableServiceLinks: false` (below) — the app has no business talking to
-the Kubernetes API either way.
+(`unable to create mountpoint: read-only file system`).
 
-**`enableServiceLinks: false` on the pod spec avoids noise, not a
-correctness problem.** Kubernetes injects Docker-links-style
+**Every pod spec sets `enableServiceLinks: false`** — avoids noise, not
+a correctness problem. Kubernetes injects Docker-links-style
 environment variables named after every Service visible to the pod
 (`<SVC>_SERVICE_HOST`, `_PORT`, ...); a Service named `server` produces
 variables prefixed `STRUCTURED_LOG_SERVER_...`, which collide with this
@@ -161,254 +163,38 @@ tolerates this gracefully — an unrecognized `STRUCTURED_LOG_*` variable
 only warns, never fails startup (see ["Configuration surface"](#configuration-surface)
 above) — but there's no reason to invite the warning.
 
-### SQLite backend
+**SQLite overlay: `strategy: type: Recreate`, not the `RollingUpdate`
+default.** Two pods briefly running together during a rolling update
+would be two SQLite writers pointed at the same file on the same
+`ReadWriteOnce` volume; `Recreate` tears the old pod down before the
+new one starts. Confirmed by tearing the pod down directly
+(`kubectl delete pod -l app=structured-log-server`, not just a rolling
+`apply`) in testing: the replacement pod came up against the same PVC
+with no new "temporary password" line in its logs — the bootstrap
+admin and every project already created survive a reschedule, exactly
+as `ReadWriteOnce` is supposed to guarantee.
 
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: structured-log
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: structured-log-secrets
-  namespace: structured-log
-stringData:
-  jwt-secret: "REPLACE-ME-openssl-rand-base64-48"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: structured-log-data
-  namespace: structured-log
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests: {storage: 5Gi}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: structured-log-server
-  namespace: structured-log
-spec:
-  replicas: 1
-  # Never RollingUpdate here: two pods briefly running together would be
-  # two SQLite writers pointed at the same file on the same
-  # ReadWriteOnce volume. Recreate tears the old pod down first.
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels: {app: structured-log-server}
-  template:
-    metadata:
-      labels: {app: structured-log-server}
-    spec:
-      enableServiceLinks: false
-      containers:
-        - name: server
-          image: your-registry/structured-log-server:TAG
-          ports: [{containerPort: 8080}]
-          env:
-            - name: STRUCTURED_LOG_JWT_SECRET_FILE
-              value: /etc/structured-log/secrets/jwt-secret
-            - {name: STRUCTURED_LOG_DB_PATH, value: /data/logs.db}
-            - {name: STRUCTURED_LOG_LOG_FORMAT, value: json}
-            # One hop: whatever Ingress controller sits in front (below).
-            - {name: STRUCTURED_LOG_TRUSTED_PROXY_HOPS, value: "1"}
-          volumeMounts:
-            - {name: data, mountPath: /data}
-            - {name: jwt-secret, mountPath: /etc/structured-log/secrets, readOnly: true}
-          readinessProbe:
-            httpGet: {path: /healthz, port: 8080}
-            initialDelaySeconds: 2
-            periodSeconds: 5
-          livenessProbe:
-            httpGet: {path: /healthz, port: 8080}
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          resources:
-            requests: {cpu: 100m, memory: 128Mi}
-            limits: {memory: 512Mi}
-      volumes:
-        - {name: data, persistentVolumeClaim: {claimName: structured-log-data}}
-        - name: jwt-secret
-          secret:
-            secretName: structured-log-secrets
-            items: [{key: jwt-secret, path: jwt-secret}]
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: server   # exact name required — see the note above
-  namespace: structured-log
-spec:
-  selector: {app: structured-log-server}
-  ports: [{port: 8080, targetPort: 8080}]
-```
+**PostgreSQL overlay** connects to the in-cluster `postgres` Service
+(a minimal `StatefulSet`, `overlays/postgres/postgres-statefulset.yaml`)
+by its short DNS name — or point
+`STRUCTURED_LOG_DB_POSTGRES_HOST` at your own instance instead and skip
+that file entirely. Verified the same way as the SQLite path: the
+server resolved the Service and passed `/healthz` with no special
+networking configuration beyond an ordinary `ClusterIP` Service.
 
-Confirmed by tearing the pod down directly (`kubectl delete pod -l
-app=structured-log-server`, not just a rolling `apply`): the replacement
-pod comes up against the same PVC with no new "temporary password"
-line in its logs — the bootstrap admin and every project already
-created survive a reschedule, exactly as the `ReadWriteOnce` volume is
-supposed to guarantee.
-
-### PostgreSQL backend
-
-Point the same `Deployment` at a `postgres` Service instead of a PVC —
-either one you already run, or a minimal in-cluster instance:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-secrets
-  namespace: structured-log
-stringData:
-  postgres-password: "REPLACE-ME"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-data
-  namespace: structured-log
-spec:
-  accessModes: ["ReadWriteOnce"]
-  resources: {requests: {storage: 10Gi}}
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: structured-log
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector: {matchLabels: {app: postgres}}
-  template:
-    metadata: {labels: {app: postgres}}
-    spec:
-      enableServiceLinks: false
-      containers:
-        - name: postgres
-          image: postgres:16-alpine
-          ports: [{containerPort: 5432}]
-          env:
-            - {name: POSTGRES_USER, value: structured_log}
-            - {name: POSTGRES_DB, value: structured_log}
-            - name: POSTGRES_PASSWORD
-              valueFrom: {secretKeyRef: {name: postgres-secrets, key: postgres-password}}
-          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
-          readinessProbe:
-            exec: {command: ["pg_isready", "-U", "structured_log", "-d", "structured_log"]}
-      volumes: [{name: data, persistentVolumeClaim: {claimName: postgres-data}}]
----
-apiVersion: v1
-kind: Service
-metadata: {name: postgres, namespace: structured-log}
-spec:
-  selector: {app: postgres}
-  ports: [{port: 5432, targetPort: 5432}]
-```
-
-then, on `structured-log-server`'s container: drop the `data`
-volume/mount and `STRUCTURED_LOG_DB_PATH`, and add instead
-
-```yaml
-env:
-  - {name: STRUCTURED_LOG_DB_BACKEND, value: postgres}
-  - {name: STRUCTURED_LOG_DB_POSTGRES_HOST, value: postgres}   # the Service above — resolves by short name, same namespace
-  - {name: STRUCTURED_LOG_DB_POSTGRES_DATABASE, value: structured_log}
-  - {name: STRUCTURED_LOG_DB_POSTGRES_USERNAME, value: structured_log}
-  - name: STRUCTURED_LOG_DB_POSTGRES_PASSWORD
-    valueFrom: {secretKeyRef: {name: postgres-secrets, key: postgres-password}}
-  - {name: STRUCTURED_LOG_DB_POSTGRES_SSL_MODE, value: disable}   # in-cluster traffic; use require/verify-full for a managed instance over a real network hop
-```
-
-Verified the same way as the SQLite path: the server connected over the
-in-cluster `postgres` Service by its short DNS name and passed
-`/healthz` with no special networking configuration beyond an ordinary
-`ClusterIP` Service.
-
-### The admin client and Ingress
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: structured-log-web
-  namespace: structured-log
-spec:
-  replicas: 2   # stateless — scale freely
-  selector: {matchLabels: {app: structured-log-web}}
-  template:
-    metadata: {labels: {app: structured-log-web}}
-    spec:
-      enableServiceLinks: false
-      containers:
-        - name: web
-          image: your-registry/structured-log-web:TAG
-          ports: [{containerPort: 80}]
-          readinessProbe: {httpGet: {path: /, port: 80}}
-          resources:
-            requests: {cpu: 50m, memory: 32Mi}
-            limits: {memory: 128Mi}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: web
-  namespace: structured-log
-spec:
-  selector: {app: structured-log-web}
-  ports: [{port: 80, targetPort: 80}]
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: structured-log
-  namespace: structured-log
-  annotations:
-    # The live-stream endpoint is a long-lived response; don't buffer or
-    # time it out like an ordinary request (mirrors deploy/nginx.conf's
-    # own settings for the same endpoint).
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: logs.example.com
-      http:
-        paths:
-          # Everything goes to `web` — its own nginx already splits `/v1/`
-          # to the server internally (above). Duplicating that split at
-          # the Ingress level would be two places to keep in sync.
-          - path: /
-            pathType: Prefix
-            backend:
-              service: {name: web, port: {number: 80}}
-```
-
-One origin, no CORS configuration needed anywhere in this setup — same
-reasoning as the bundled Docker Compose deployment, just expressed as
-an `Ingress` instead of a standalone `nginx` container.
-
-### Operating it
-
-```bash
-kubectl -n structured-log logs deploy/structured-log-server | grep -i 'temporary password'
-kubectl -n structured-log rollout status deployment/structured-log-server
-kubectl -n structured-log delete pod -l app=structured-log-server   # safe: SIGTERM, graceful shutdown, PVC survives
-```
+**The `Ingress` routes everything to `web`**, not a path-split between
+`web` and `server` — `web`'s own nginx already does that split
+internally (above), so duplicating it at the `Ingress` level would be
+two places to keep in sync. One origin, no CORS configuration needed
+anywhere in this setup — same reasoning as the bundled Docker Compose
+deployment, just expressed as an `Ingress` instead of a standalone
+`nginx` container.
 
 Re-bootstrap an administrator on a non-empty database the same way the
 [Docker Compose path does](#bootstrapping-the-first-administrator), via
 a one-off `kubectl run`/`kubectl exec` invoking `create-admin` against
 the same PVC or Postgres connection — there is no separate Kubernetes
-`Job` manifest needed for this; it's the same CLI command as everywhere
-else.
+`Job` manifest for this; it's the same CLI command as everywhere else.
 
 ## Choosing a storage backend
 
