@@ -39,3 +39,4 @@ pnpm-debug.log*
 /src/content/docs/ru/packages/*
 !/src/content/docs/ru/packages/index.md
 /public/images/user-guide/
+/public/images/packages/

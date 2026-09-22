@@ -160,6 +160,10 @@ def resolve_emb_link(src_pkg, src_is_ru, href):
     parts = norm.split("/")
     target_pkg, rest = parts[0], parts[1:]
 
+    # Screenshot, inside the same package's own doc/screenshots/.
+    if target_pkg == src_pkg and rest[:2] == ["doc", "screenshots"] and len(rest) == 3:
+        return f"/images/packages/{src_pkg}/{rest[2]}"
+
     if target_pkg in emb_pkg_names:
         if not rest:
             # Bare package reference (e.g. "../structured_log") -> that
@@ -296,6 +300,15 @@ def main():
         for fn in os.listdir(src_assets):
             shutil.copy2(os.path.join(src_assets, fn), os.path.join(SITE_PUBLIC_IMAGES, fn))
         print(f"copied {len(os.listdir(src_assets))} images to public/images/user-guide/")
+
+    for pkg in emb_pkg_names:
+        src_shots = os.path.join(EMB_DIR, pkg, "doc", "screenshots")
+        if os.path.isdir(src_shots):
+            dst = os.path.join(SITE_DIR, "public", "images", "packages", pkg)
+            os.makedirs(dst, exist_ok=True)
+            for fn in os.listdir(src_shots):
+                shutil.copy2(os.path.join(src_shots, fn), os.path.join(dst, fn))
+            print(f"copied {len(os.listdir(src_shots))} images to public/images/packages/{pkg}/")
 
 
 if __name__ == "__main__":

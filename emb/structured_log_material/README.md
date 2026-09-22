@@ -124,6 +124,19 @@ Row(
 )
 ```
 
+## Screenshots
+
+`MaterialLogViewerPage` as the full screen — master-detail split at this
+width, list on the left and the selected entry's full context on the
+right:
+
+![MaterialLogViewerPage: a live list of log entries on the left, filter chips and level filters above it, and the selected entry's full context with a copy action on the right](doc/screenshots/full-screen.png)
+
+`MaterialLogViewer` embedded in a side panel next to other app content —
+the same widget, no page chrome of its own:
+
+![MaterialLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
+
 ## API Reference
 
 | Widget | Description |

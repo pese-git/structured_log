@@ -120,6 +120,18 @@ Row(
 )
 ```
 
+## Screenshots
+
+`CupertinoLogViewerPage` as the full screen, on a wide/iPad-size
+viewport — list and the non-modal detail panel side by side:
+
+![CupertinoLogViewerPage: a live list of log entries with colored level dots on the left, a search field and category/level filters above it, and the selected entry's full context with a copy action on the right](doc/screenshots/full-screen.png)
+
+`CupertinoLogViewer` embedded in a side panel next to other app content —
+the same widget, no page chrome of its own:
+
+![CupertinoLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
+
 ## API Reference
 
 | Widget | Description |

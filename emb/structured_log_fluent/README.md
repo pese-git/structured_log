@@ -113,6 +113,19 @@ Row(
 )
 ```
 
+## Screenshots
+
+`FluentLogViewerPage` as the full screen — master-detail split view,
+list on the left with a category/level filter toolbar above it, the
+selected entry's full context on the right:
+
+![FluentLogViewerPage: a live list of log entries with colored level badges on the left, a search field and category/level ComboBox filters above it, and the selected entry's full context with a copy action on the right](doc/screenshots/full-screen.png)
+
+`FluentLogViewer` embedded in a side panel next to other app content —
+the same widget, no page chrome of its own:
+
+![FluentLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
+
 ## API Reference
 
 | Widget | Description |
