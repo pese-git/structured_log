@@ -30,8 +30,9 @@ flowchart LR
     S2 -->|"matches LogFilter\n+ not blocked"| E2["SSE event"]
 ```
 
-The server already runs in one isolate with one `QueryExecutor`
-(decision 4) — every insert is visible to that same process, so a
+The server already runs request handlers in one isolate, and every
+insert still goes through the one writer connection even though reads
+now have a pool of their own (`technology-stack.md`) — so a
 `StreamController<LogEntry>.broadcast()` is enough; no external pub/sub
 (Redis or similar) is introduced. Each open SSE connection is a
 subscriber that independently applies:
@@ -47,10 +48,13 @@ subscriber that independently applies:
    work as an in-memory check (decision 29) — one filter model, two
    consumers, instead of two implementations that could drift apart.
 
-This means cross-isolate scaling (already an explicit non-goal for the
-whole server) would require replacing this broadcast with something
-external — it isn't a gap specific to streaming, just where the
-single-isolate assumption becomes visible.
+This means cross-isolate scaling of *request handling* (already an
+explicit non-goal for the whole server) would require replacing this
+broadcast with something external — it isn't a gap specific to
+streaming, just where that assumption becomes visible. The reader pool
+doesn't touch it: those isolates only ever serve `SELECT`s, never a
+write, so an insert is always the one writer's, and always in the one
+process the broadcast lives in.
 
 ## Bridging the gap: `since_id` catch-up
 

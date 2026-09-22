@@ -150,8 +150,10 @@ erDiagram
 
 ## Движок хранения
 
-`drift` поверх embedded SQLite (`NativeDatabase`,
-`journal_mode=WAL`), один `QueryExecutor` в одном isolate — почему
-именно `drift`, см. [technology-stack.md](technology-stack.ru.md), а что
-это ограничивает в остальном дизайне — принцип «один isolate» в
+`drift` поверх embedded SQLite (`NativeDatabase`, `journal_mode=WAL`):
+одно соединение-писатель и — раз чтения больше не делят его — пул
+соединений-читателей, каждое на своём isolate (`--db-read-pool-size`) —
+почему именно `drift` и про пул читателей см.
+[technology-stack.md](technology-stack.ru.md), а что ограничивает
+единственный писатель в остальном дизайне — принцип «один процесс» в
 [README.md](README.ru.md).
