@@ -15,92 +15,92 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
 Базовая библиотека, экосистема in-app просмотра логов и self-hosted
-сервер, чтобы отправлять логи с устройства и читать их обратно. Три
-строки, чтобы начать логировать:
+сервер, чтобы отправлять логи с устройства и читать их обратно.
 
-<Code
-	lang="dart"
-	code={`import 'package:structured_log/structured_log.dart';
+## Быстрый старт
 
-void main() {
-  final log = getLogger();
-  log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
-}`}
-/>
+<Steps>
+
+1. **Запустите сервер.** Поднимает `structured_log_server` и
+   admin-клиент за одним nginx — больше ничего устанавливать не нужно.
+
+   ```bash
+   cd deploy && cp .env.example .env && ./deploy.sh
+   ```
+
+   Откройте `http://localhost:8080` и войдите с временным паролем,
+   напечатанным в стартовом логе сервера (подробности:
+   [Руководство администратора](/ru/guides/admin-guide/)).
+
+2. **Создайте проект и секретный ключ.** В admin-клиенте: группа,
+   проект внутри неё, затем секретный ключ для этого проекта — он
+   показывается один раз, при создании (пошагово со скриншотами:
+   [Руководство пользователя](/ru/guides/user-guide/)).
+
+3. **Отправьте логи из своего приложения.**
+
+   ```dart
+   import 'package:structured_log/structured_log.dart';
+   import 'package:structured_log_http/structured_log_http.dart';
+
+   void main() {
+     StructlogConfiguration.configure(sinks: [
+       LogSink(name: 'server', output: HttpLogOutput(
+         serverUrl: 'https://logs.example.com',
+         projectSecretKey: 'slk_...', // из шага 2
+       )),
+     ]);
+
+     getLogger().info('user_login', context: {'user_id': 42});
+   }
+   ```
+
+   Записи появляются в живой ленте admin-клиента сразу же — без
+   перезапуска, без опроса (подробности:
+   [Руководство разработчика](/ru/guides/developer-guide/)).
+
+</Steps>
 
 ## Девять пакетов, одна система
 
-Девять пакетов, сгруппированных по роли: библиотеки, встраиваемые в
-приложение, self-hosted сервер и самостоятельный admin-клиент, который им
-управляет.
-
 <CardGrid stagger>
 	<Card title="structured_log" icon="seti:dart">
-		Структурированное JSON-логирование для Dart, чтобы каждая запись
-		несла контекст, по которому можно фильтровать и коррелировать, —
-		привязка контекста, типизированные correlation-поля, процессоры и
-		маршрутизация по нескольким выходам. Без сторонних
-		runtime-зависимостей, кроме `meta`. [Опубликован на
-		pub.dev](https://pub.dev/packages/structured_log).
+		Структурированное JSON-логирование для Dart — привязка контекста,
+		correlation-поля, процессоры, маршрутизация по нескольким выходам.
+		Без сторонних зависимостей, кроме `meta`.
+		[pub.dev](https://pub.dev/packages/structured_log).
 	</Card>
 	<Card title="structured_log_flutter" icon="seti:flow">
-		Постройте собственный in-app просмотрщик логов для Flutter, не
-		привязываясь к одной дизайн-системе, — headless-ядро с ограниченным
-		`LogBuffer`-sink, подключаемым к `structured_log`, и фильтрующим
-		`LogViewerController`. [Опубликован на
-		pub.dev](https://pub.dev/packages/structured_log_flutter).
+		Headless-ядро просмотра логов для Flutter — `LogBuffer`-sink и
+		фильтрующий `LogViewerController`, без привязки к дизайн-системе.
+		[pub.dev](https://pub.dev/packages/structured_log_flutter).
 	</Card>
 	<Card title="structured_log_material, structured_log_fluent, structured_log_cupertino" icon="puzzle">
-		Встройте готовый просмотрщик логов вместо того, чтобы писать свой, —
-		три готовых к использованию просмотрщика поверх
-		`structured_log_flutter`: Material 3, Fluent UI (в стиле WinUI) и
-		Cupertino (в стиле iOS) — каждый с поиском, фильтрацией по
-		уровню/категории и рабочим примером. Опубликованы на pub.dev.
+		Три готовых к использованию просмотрщика логов поверх него —
+		Material 3, Fluent UI и Cupertino — у каждого поиск и фильтрация
+		из коробки. pub.dev.
 	</Card>
 	<Card title="structured_log_http" icon="rocket">
-		Надёжно отправляйте логи с устройства на сервер — sink `HttpLogOutput`,
-		доставляющий записи на экземпляр `structured_log_server` по HTTP:
-		батчинг, retry с backoff, ограниченный буфер и `flushed` для ожидания
-		доставки перед выходом. Пока не опубликован.
+		Отправляет записи на `structured_log_server` по HTTP — батчинг,
+		retry с backoff, ограниченный буфер. Использован в быстром старте
+		выше. Пока не опубликован.
 	</Card>
 	<Card title="structured_log_server" icon="setting">
-		Self-hosted, multi-tenant сервер, который принимает и хранит логи
-		ваших приложений и позволяет искать их и следить за ними в реальном
-		времени (SQLite или PostgreSQL) — группы, проекты, команды, секретные
-		ключи, RBAC, квоты, retention и аудит-лог.
+		Self-hosted, multi-tenant сервер — принимает и хранит логи ваших
+		приложений, позволяет искать их и следить за ними в реальном
+		времени. SQLite или PostgreSQL.
 	</Card>
 	<Card title="structured_log_admin_client" icon="laptop">
-		Веб-приложение, в котором операторы и их команды ведут повседневную
-		работу: вход, ролевой дашборд, управление ресурсами, поиск логов с
-		живой лентой, управление пользователями и аудит-лог. Локализовано на
-		английский и русский.
+		Веб-приложение для повседневной работы операторов — дашборд,
+		управление ресурсами, живой поиск логов, управление
+		пользователями, аудит-лог.
 	</Card>
 </CardGrid>
 
-## С чего начать
-
-<CardGrid>
-	<Card title="Работа с admin-клиентом" icon="open-book">
-		[Руководство пользователя](/ru/guides/user-guide/) проводит по каждому
-		экрану с реальными скриншотами — вход, поиск и живая лента логов,
-		управление группами, проектами и доступом.
-	</Card>
-	<Card title="Запуск сервера" icon="rocket">
-		[Руководство администратора / DevOps](/ru/guides/admin-guide/)
-		охватывает развёртывание, конфигурацию, резервное копирование и
-		повседневную эксплуатацию.
-	</Card>
-	<Card title="Отправка логов в систему" icon="seti:dart">
-		[Руководство разработчика](/ru/guides/developer-guide/) показывает,
-		как подключить `structured_log` и `HttpLogOutput` в собственном
-		приложении.
-	</Card>
-	<Card title="Как это устроено" icon="document">
-		Раздел [Архитектура](/ru/architecture/) объясняет дизайн и
-		обоснования решений — аутентификация, RBAC, хранение, живая
-		трансляция, квоты.
-	</Card>
-</CardGrid>
+Подробнее: [Руководство пользователя](/ru/guides/user-guide/) ·
+[Руководство администратора](/ru/guides/admin-guide/) ·
+[Руководство разработчика](/ru/guides/developer-guide/) ·
+[Архитектура](/ru/architecture/)

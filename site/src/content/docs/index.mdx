@@ -15,86 +15,89 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid, Code } from '@astrojs/starlight/components';
+import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
 A core library, an in-app log-viewer ecosystem, and a self-hosted
-server to ship logs off the device and read them back. Three lines to
-start logging:
+server to ship logs off the device and read them back.
 
-<Code
-	lang="dart"
-	code={`import 'package:structured_log/structured_log.dart';
+## Quick start
 
-void main() {
-  final log = getLogger();
-  log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
-}`}
-/>
+<Steps>
+
+1. **Run the server.** Starts `structured_log_server` and the admin
+   client behind one nginx — nothing else to install.
+
+   ```bash
+   cd deploy && cp .env.example .env && ./deploy.sh
+   ```
+
+   Open `http://localhost:8080` and sign in with the temporary password
+   printed to the server's startup log (details:
+   [Administrator Guide](/guides/admin-guide/)).
+
+2. **Create a project and a secret key.** In the admin client: a group,
+   a project inside it, then a secret key for that project — shown once,
+   on creation (walkthrough with screenshots:
+   [User Guide](/guides/user-guide/)).
+
+3. **Ship logs from your app.**
+
+   ```dart
+   import 'package:structured_log/structured_log.dart';
+   import 'package:structured_log_http/structured_log_http.dart';
+
+   void main() {
+     StructlogConfiguration.configure(sinks: [
+       LogSink(name: 'server', output: HttpLogOutput(
+         serverUrl: 'https://logs.example.com',
+         projectSecretKey: 'slk_...', // from step 2
+       )),
+     ]);
+
+     getLogger().info('user_login', context: {'user_id': 42});
+   }
+   ```
+
+   Entries show up live in the admin client's log browser as they're
+   sent — no restart, no polling (details:
+   [Developer Guide](/guides/developer-guide/)).
+
+</Steps>
 
 ## Nine packages, one system
 
-Nine packages, grouped by role: libraries you embed in your own app, a
-self-hosted server, and the standalone admin client that operates it.
-
 <CardGrid stagger>
 	<Card title="structured_log" icon="seti:dart">
-		Structured JSON logging for Dart, so every log line carries context
-		you can query and correlate — context binding, typed correlation
-		fields, processors, and multi-sink output routing. Zero runtime
-		dependencies beyond `meta`. [Published on
-		pub.dev](https://pub.dev/packages/structured_log).
+		Structured JSON logging for Dart — context binding, correlation
+		fields, processors, multi-sink routing. Zero dependencies beyond
+		`meta`. [pub.dev](https://pub.dev/packages/structured_log).
 	</Card>
 	<Card title="structured_log_flutter" icon="seti:flow">
-		Build your own in-app log viewer for Flutter without locking into one
-		design system — a headless core with a bounded `LogBuffer` sink that
-		plugs into `structured_log`, and a filterable `LogViewerController`.
-		[Published on pub.dev](https://pub.dev/packages/structured_log_flutter).
+		A headless in-app log-viewer core for Flutter — a `LogBuffer` sink
+		and a filterable `LogViewerController`, no design-system lock-in.
+		[pub.dev](https://pub.dev/packages/structured_log_flutter).
 	</Card>
 	<Card title="structured_log_material, structured_log_fluent, structured_log_cupertino" icon="puzzle">
-		Drop a log viewer into your app instead of building one — three
-		ready-to-use in-app log viewers built on `structured_log_flutter`:
-		Material 3, Fluent UI (WinUI-style), and Cupertino (iOS-style) — each
-		with search, level/category filtering, and a runnable example app.
-		Published on pub.dev.
+		Three ready-to-use in-app log viewers on top of it — Material 3,
+		Fluent UI, and Cupertino — each with search and filtering built in.
+		pub.dev.
 	</Card>
 	<Card title="structured_log_http" icon="rocket">
-		Get logs off the device reliably — an `HttpLogOutput` sink that ships
-		entries to a `structured_log_server` instance over HTTP: batching,
-		retry with backoff, a bounded buffer, and `flushed` to await delivery
-		before exit. Not yet published.
+		Ships log entries to `structured_log_server` over HTTP — batching,
+		retry with backoff, a bounded buffer. Used in the quick start above.
+		Not yet published.
 	</Card>
 	<Card title="structured_log_server" icon="setting">
-		A self-hosted, multi-tenant server that ingests and stores your apps'
-		logs and lets you search and tail them live (SQLite or PostgreSQL) —
-		groups, projects, teams, secret keys, RBAC, quotas, retention, and an
-		audit log.
+		The self-hosted, multi-tenant server — ingests and stores your apps'
+		logs, lets you search and tail them live. SQLite or PostgreSQL.
 	</Card>
 	<Card title="structured_log_admin_client" icon="laptop">
-		Where operators and their teams get day-to-day work done: sign-in, a
-		role-scoped dashboard, resource management, log search with live
-		tailing, user management, and the audit log. Localized
-		English/Russian.
+		The web app operators use day to day — dashboard, resource
+		management, live log search, user management, audit log.
 	</Card>
 </CardGrid>
 
-## Where to start
-
-<CardGrid>
-	<Card title="Using the admin client" icon="open-book">
-		The [User Guide](/guides/user-guide/) walks through every screen, with
-		real screenshots — signing in, searching and live-tailing logs, and
-		managing groups, projects and access.
-	</Card>
-	<Card title="Running the server" icon="rocket">
-		The [Administrator / DevOps Guide](/guides/admin-guide/) covers
-		deployment, configuration, backup, and day-to-day operation.
-	</Card>
-	<Card title="Sending logs into the system" icon="seti:dart">
-		The [Developer Guide](/guides/developer-guide/) shows how to wire
-		`structured_log` and `HttpLogOutput` into your own application.
-	</Card>
-	<Card title="How it's built" icon="document">
-		The [Architecture](/architecture/) section explains the design and the
-		reasoning behind it — auth, RBAC, storage, live streaming, quotas.
-	</Card>
-</CardGrid>
+Details: [User Guide](/guides/user-guide/) ·
+[Administrator Guide](/guides/admin-guide/) ·
+[Developer Guide](/guides/developer-guide/) ·
+[Architecture](/architecture/)
