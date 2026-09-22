@@ -91,6 +91,111 @@ flowchart TB
   doesn't get pinned down speculatively ahead of writing real code (see
   `design.md`'s Open Questions).
 
+## Dependency injection graph
+
+Both new packages declare their object graph with `cherrypick` modules
+instead of assembling it by hand (decision 35) — but the two shapes are
+opposite, because the two packages have opposite sharing patterns
+between their features.
+
+### Server: one scope per *layer*, because routes share services
+
+Every route of every feature depends on the same handful of services
+(`Authorizer`, `AuditWriter`, `LogStore`, ...), so a scope per feature
+would just rebind them once per feature for no benefit. The server graph
+is instead layered by dependency — each scope resolves only *up*, never
+sideways — nested from what the server is given to what only a running
+process has:
+
+```mermaid
+flowchart TB
+    subgraph server["server — AppModule (handwritten)\nTokenSettings · HttpSettings · AuditRetention\nLogBroadcast · ServerLogging (process only, provider)"]
+      subgraph infra["infra — InfraModule\nStructuredLogDatabase · HashWorkerPool"]
+        subgraph services["services — RbacModule + AuditModule + AuthModule + StorageModule\nAuthorizer · AuditWriter · TokenService · IdentityProvider · LogStore"]
+          subgraph app["app — RoutesModule\n11 route classes (AuditLogRoutes … RoleAssignmentRoutes)"]
+            subgraph host["host — HostModule (handwritten, process only)\nPurgeScheduler · ServerHost"]
+            end
+          end
+        end
+      end
+    end
+```
+
+`openServerScope` (`http/server.dart`) opens `server` → `infra` →
+`services` → `app` in one call; `openServerHost` opens `host` on top once
+a `Handler` exists to give it. `bin/server.dart` is the only caller that
+passes `into:`/`process:` — it opens `server` through
+`CherryPick.openScope(scopeName: serverScopeName)` (so the global
+observer and cycle detector reach it) and hands over a
+`ProcessResources`, which is what makes this scope *own* the database,
+the hash-worker pool and the logging: `openServerScope` explicitly
+`resolve()`s all three right after installing `InfraModule`/`AppModule`,
+because a scope only closes what its own bindings *created*, and a
+`toInstance` binding (what tests pass in) was never created by anything.
+Tests build many handlers against their own database, sharing one
+hash-worker pool for the whole test isolate, and never pass
+`process:` — their graph leaves the database and pool alone when it
+closes.
+
+Shutdown is a single call, `CherryPick.closeScope(scopeName:
+serverScopeName)`, from `bin/server.dart`'s signal handler. Closing a
+scope closes its nested scopes first, so the layers unwind
+innermost-out — `host → app → services → infra → server` — the listening
+socket and the purge job stop before the database and hash workers they
+still use, and `ServerLogging` (which everything above might still be
+writing to) is flushed last of all (`AGENTS.md`).
+
+### Client: one scope per *feature*, because features barely share
+
+The client's five features (`auth`, `log_browser`, `resources`, `users`,
+`audit`) each own a largely independent slice of the domain, so here a
+scope per feature is the natural cut — every feature scope is a direct
+child of the root, not nested inside each other:
+
+```mermaid
+flowchart TB
+    root["root scope — AppModule\nAppConfig · BoundLogger · TokenStorage · ApiClient\n(ApiClient implements Disposable — closes its 4 Dio instances)"]
+    root --> auth["auth — AuthModule\nAuthRepository · SignIn/SignOut/ChangePassword ·\nCurrentUsername · IsGlobalAdmin · DeleteAccount"]
+    root --> logBrowser["log_browser — LogBrowserModule\nLogStreamClient · LogBrowserRepository ·\nLoadScopes/QueryLogs/WatchLogs · LogFeedBloc"]
+    root --> resources["resources — ResourcesModule\nResourcesRepository · RoleAssignmentsRepository ·\nManageGroups/Projects/Teams/SecretKeys/RoleAssignments"]
+    root --> users["users — UsersModule\nUsersRepository · AuditRepository ·\nManageUsers/RoleAssignments · UsersCubit"]
+    root --> audit["audit — AuditModule\nAuditRepository · QueryAuditLog · AuditCubit"]
+```
+
+`openAppScope` installs `AppModule` into `CherryPick.openRootScope()`
+before anything else runs, so the global observer and cycle detectors
+(both local and cross-scope) are already set when the first feature
+scope opens. `HomeShell.dispose()` closes its four feature scopes
+(`log_browser`/`resources`/`users`/`audit`); `AuthGate.dispose()` closes
+`auth` — a scope `HomeShell` also joins by name rather than reopening,
+since `AuthGate` outlives it across a sign-in. `openAuthScope` is the one
+opener that *joins* instead of reinstalling: two call sites (`AuthGate`
+and the `HomeShell` it hosts) ask for the same scope by name, and
+reinstalling `$AuthModule()` a second time would just stack duplicate
+bindings, so it installs the module only when nothing in the scope
+resolves `AuthRepository` yet.
+
+### Two `cherrypick` behaviors worth knowing before touching either graph
+
+- **A missing binding isn't a build-time error.** The generator doesn't
+  check the graph — a type nothing provides passes `analyze` and
+  compiles, then throws `StateError` on the first `resolve()`. Both
+  graphs are pinned against this by a test that resolves everything a
+  scope promises right after building it
+  (`test/di/server_scope_test.dart` on the server,
+  `test/shared/di/scopes_test.dart` on the client) — confirmed by
+  mutation: removing a provider method turns the matching test red.
+- **`@instance()` binds eagerly, `@provide()` binds lazily.** A
+  `@provide()`/`toProvide` binding resolves its dependencies from
+  sibling bindings when something first asks for it; `@instance()`/
+  `toInstance` evaluates immediately inside `builder()`, before the rest
+  of the module's own bindings necessarily exist yet — using it for a
+  value with a same-module dependency throws `Can't resolve dependency`
+  at `installModules` time, not a wiring mistake in the dependency
+  itself. Neither graph uses `@instance()` for this reason; values with
+  no dependencies of their own (`TokenSettings`, `AppConfig`, ...) are
+  bound with `toInstance` directly in the handwritten modules instead.
+
 ## What's deliberately *not* copied from Keycloak
 
 The auth contract (see [auth.md](auth.md)) matches Keycloak's token

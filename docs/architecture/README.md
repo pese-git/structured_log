@@ -108,7 +108,15 @@ sequenceDiagram
 
 Three kinds of request reach the server, and each passes through a
 different chain. What rejects a request, and in what order, is a
-deliberate design decision rather than an accident of wiring:
+deliberate design decision rather than an accident of wiring. One stage
+wraps all three and isn't part of any of them: when
+`--cors-allowed-origins` names the request's `Origin`, a matching
+`OPTIONS` preflight is answered immediately, ahead of every chain below
+— ingestion included — and every other response, success or error, gets
+`Access-Control-Allow-Origin`/`Vary` added on the way out
+([http-api.md](../api/http-api.md#cross-origin-requests-cors-log-server-api)).
+Off by default, and a no-op for any `Origin` not on the list, which is
+why the three chains below can be read as if it didn't exist:
 
 ```mermaid
 flowchart TB
@@ -152,6 +160,11 @@ Three things about this order are load-bearing:
   the limiter — request frequency there is normal application traffic,
   not credential guessing
   ([quotas-and-audit.md](quotas-and-audit.md)).
+- **CORS is checked first, ahead even of the ingestion chain's own
+  secret-key check.** A preflight carries no credential of any kind —
+  answering it before authentication or rate limiting is not a special
+  case for ingestion, it's the same rule the other two chains follow too
+  ([http-api.md](../api/http-api.md#cross-origin-requests-cors-log-server-api)).
 
 Every step above is configurable only at startup, never at runtime — see
 [configuration.md](../operations/configuration.md).
