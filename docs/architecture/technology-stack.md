@@ -14,7 +14,7 @@ row traces to a `design.md` decision — read there for the full argument.
 | `drift` over embedded SQLite (`NativeDatabase`) | raw `package:sqlite3` | The first deliberate codegen exception in the workspace, by direct user instruction — type-safe, compile-checked queries and built-in schema migration outweigh `build_runner`'s cost for a 7+ table multi-tenant schema. Scoped to this one package; `*.g.dart` is not committed. (decision 2, extended by decision 34 below) |
 | `LIKE '%term%'` full-text search (via `customSelect`) | FTS5 | Avoids a schema/migration-path complication for functionality outside the agreed MVP scope. Upgrade path noted, not built. (decision 3) |
 | One writer `QueryExecutor`, WAL, and a pool of reader isolates (`--db-read-pool-size`) | Isolate-per-request / sharding | `shelf` already serves requests in one isolate by default — a single writer needs no extra synchronization, and remains the explicit non-goal for scaling past. Reads used to share that one connection too, so a read queued behind whatever batch ingestion was writing; WAL lets a pool of extra connections, each its own isolate, serve `SELECT`s outside a transaction while the one writer keeps everything that mutates (`AGENTS.md`). Ingestion itself: concurrent `POST /v1/logs` requests are no longer each their own transaction either — one that arrives while a commit is running joins the next one, which is what took a single-entry request from ~0.65 ms of fixed transaction overhead to a share of a batch's (`AGENTS.md`, `IngestCoordinator`). Neither change touches why the [live-stream broadcast](live-streaming.md) can stay an in-process `StreamController`: every accepted insert still passes through the one writer, in the one process, reader pool or not. This one-writer/reader-pool setup is SQLite-specific end to end — see the next row for the operator-chosen alternative. (decision 4) |
-| `drift_postgres` (`PgDatabase`) as an operator-selectable alternative backend (`--db-backend=postgres`) | Requiring PostgreSQL always, or a second storage layer built from scratch | SQLite stays the default — zero-config, no separate service to run. PostgreSQL is opt-in for operators who already run one and want its concurrent writers (MVCC) instead of SQLite's single-writer-plus-WAL workaround, or need log storage on their existing backup/HA tooling. Reuses the one `drift` schema across both dialects (generated for both via `sql: dialects:` in `build.yaml`) rather than duplicating models — every genuine difference (raw-SQL placeholder syntax, JSON path extraction, a partial index's boolean literal, batch-insert's `RETURNING` vs `last_insert_rowid()`) is a small branch on `executor.dialect`, not a parallel implementation. Never a runtime toggle and never an automatic SQLite→Postgres migration — chosen once, at deploy time, on an empty database. See [data-model.md](data-model.md#postgresql-an-operator-chosen-alternative-backend) and [openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/) for the full decision record, including two bugs found only by running a real server against real Postgres (a shutdown hang from an unclosed connection pool, and Postgres-tagged test files needing `--concurrency=1`). (add-postgres-backend decisions 1–10) |
+| `drift_postgres` (`PgDatabase`) as an operator-selectable alternative backend (`--db-backend=postgres`) | Requiring PostgreSQL always, or a second storage layer built from scratch | SQLite stays the default; PostgreSQL is opt-in for operators who want MVCC or existing backup/HA tooling — see [data-model.md](data-model.md#postgresql-an-operator-chosen-alternative-backend) for the full backend comparison. (add-postgres-backend decisions 1–10) |
 | `dart_jsonwebtoken` (JWT, HS256) | — | Standard JWT library for access-token signing; see [auth.md](auth.md) for the claim shape. |
 | `bcrypt` for passwords / SHA-256 for high-entropy secrets | One hash for everything | Two different threat models (offline dictionary attack resistance vs. no need for it) get two different algorithms — see [auth.md](auth.md#password-vs-secret-key-hashing-two-algorithms-for-two-threats). (decision 11) |
 | `package:mailer` behind an `EmailSender` interface | Hard-coded SMTP calls | The interface lets an operator swap in a transactional email API without touching the password-reset flow. (decision 24) |
@@ -22,6 +22,26 @@ row traces to a `design.md` decision — read there for the full argument.
 | `cherrypick` for dependency injection | Manual wiring in `buildHandler` | Adopted for the server after `structured_log_admin_client` already used it (decision 35) — the object graph is declared by modules instead of assembled by hand, so a type nothing binds fails when the handler is built (at startup for the real process, in every test that builds one) rather than on the first request that needed it. The graph is layered by dependency (given values → database/hash-workers → services → routes → the process's own purge job and listening socket), so stopping the process is one `closeScope` call, innermost first, instead of a hand-kept shutdown order (`AGENTS.md`). |
 | `fpdart` (`Either`/`Option`) for expected failures | Exceptions everywhere (the rest of the workspace's style) | Validation errors, RBAC denials, quota limits are part of the contract a caller must handle explicitly, not exceptional control flow; genuine bugs still throw. (decision 33) |
 | `freezed` + `json_serializable` for immutable models/unions | Hand-written value classes | Same `build_runner` run already needed for `drift`; avoids hand-maintained `==`/`copyWith` drifting out of sync as the model count grows. (decision 34) |
+
+`drift_postgres` reuses the one `drift` schema across both dialects
+(generated for both via `sql: dialects:` in `build.yaml`) rather than
+duplicating models — every genuine difference is a small branch on
+`executor.dialect`, not a parallel implementation:
+
+- **Raw-SQL placeholder syntax** differs outright (SQLite's `?` vs.
+  Postgres's own positional parameters).
+- **JSON path extraction** differs by dialect.
+- **A partial index's boolean literal** differs by dialect.
+- **Batch insert** uses `RETURNING` on Postgres vs.
+  `last_insert_rowid()` on SQLite.
+
+The choice is never a runtime toggle and never an automatic
+SQLite→Postgres migration — it's made once, at deploy time, on an empty
+database. The full decision record — including two bugs found only by
+running a real server against real Postgres (a shutdown hang from an
+unclosed connection pool, and Postgres-tagged test files needing
+`--concurrency=1`) — lives in
+[openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/).
 
 ## `structured_log_http`
 

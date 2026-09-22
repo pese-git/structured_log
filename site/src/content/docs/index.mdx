@@ -3,7 +3,7 @@ title: structured_log
 tableOfContents: false
 template: splash
 hero:
-  tagline: Structured logging for Dart and Flutter, inspired by Python's structlog — a core library, an in-app log-viewer ecosystem, and a self-hosted server to ship logs off the device and read them back.
+  tagline: Structured logging for Dart and Flutter, inspired by Python's structlog.
   actions:
     - text: Read the docs
       link: /overview/
@@ -17,6 +17,10 @@ hero:
 
 import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 
+A core library, an in-app log-viewer ecosystem, and a self-hosted
+server to ship logs off the device and read them back. Three lines to
+start logging:
+
 <Code
 	lang="dart"
 	code={`import 'package:structured_log/structured_log.dart';
@@ -27,44 +31,49 @@ void main() {
 }`}
 />
 
-## A Melos + FVM monorepo
+## Nine packages, one system
 
 Nine packages, grouped by role: libraries you embed in your own app, a
 self-hosted server, and the standalone admin client that operates it.
 
 <CardGrid stagger>
 	<Card title="structured_log" icon="seti:dart">
-		The core library — structured JSON logging with context binding, typed
-		correlation fields, processors, and multi-sink output routing. Zero
-		runtime dependencies beyond `meta`. [Published on
+		Structured JSON logging for Dart, so every log line carries context
+		you can query and correlate — context binding, typed correlation
+		fields, processors, and multi-sink output routing. Zero runtime
+		dependencies beyond `meta`. [Published on
 		pub.dev](https://pub.dev/packages/structured_log).
 	</Card>
 	<Card title="structured_log_flutter" icon="seti:flow">
-		A headless log-viewer core for Flutter: a bounded `LogBuffer` that plugs
-		into `structured_log` as a sink, and a filterable `LogViewerController`.
-		No design-system dependency. [Published on
-		pub.dev](https://pub.dev/packages/structured_log_flutter).
+		Build your own in-app log viewer for Flutter without locking into one
+		design system — a headless core with a bounded `LogBuffer` sink that
+		plugs into `structured_log`, and a filterable `LogViewerController`.
+		[Published on pub.dev](https://pub.dev/packages/structured_log_flutter).
 	</Card>
-	<Card title="structured_log_material / _fluent / _cupertino" icon="puzzle">
-		Three ready-to-use in-app log viewers built on `structured_log_flutter`
-		— Material 3, Fluent UI (WinUI-style), and Cupertino (iOS-style) — each
+	<Card title="structured_log_material, structured_log_fluent, structured_log_cupertino" icon="puzzle">
+		Drop a log viewer into your app instead of building one — three
+		ready-to-use in-app log viewers built on `structured_log_flutter`:
+		Material 3, Fluent UI (WinUI-style), and Cupertino (iOS-style) — each
 		with search, level/category filtering, and a runnable example app.
 		Published on pub.dev.
 	</Card>
 	<Card title="structured_log_http" icon="rocket">
-		An `HttpLogOutput` sink that ships entries to a `structured_log_server`
-		instance over HTTP: batching, retry with backoff, a bounded buffer, and
-		`flushed` to await delivery before exit. Not yet published.
+		Get logs off the device reliably — an `HttpLogOutput` sink that ships
+		entries to a `structured_log_server` instance over HTTP: batching,
+		retry with backoff, a bounded buffer, and `flushed` to await delivery
+		before exit. Not yet published.
 	</Card>
 	<Card title="structured_log_server" icon="setting">
-		A self-hosted, multi-tenant server for ingestion, storage, query and
-		live streaming (SQLite or PostgreSQL) — groups, projects, teams, secret
-		keys, RBAC, quotas, retention, and an audit log.
+		A self-hosted, multi-tenant server that ingests and stores your apps'
+		logs and lets you search and tail them live (SQLite or PostgreSQL) —
+		groups, projects, teams, secret keys, RBAC, quotas, retention, and an
+		audit log.
 	</Card>
 	<Card title="structured_log_admin_client" icon="laptop">
-		The web app operators and their teams use: sign-in, a role-scoped
-		dashboard, resource management, log search with live tailing, user
-		management, and the audit log. Localized English/Russian.
+		Where operators and their teams get day-to-day work done: sign-in, a
+		role-scoped dashboard, resource management, log search with live
+		tailing, user management, and the audit log. Localized
+		English/Russian.
 	</Card>
 </CardGrid>
 

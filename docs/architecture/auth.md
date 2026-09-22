@@ -10,9 +10,13 @@ and
 
 ## Two separate authentication paths
 
-The server has two unrelated things to authenticate, with different
+The server has two unrelated things to authenticate: log ingestion
+(from applications) and everything else (people using the admin
+client). They're authenticated differently because they have different
 threat models, and deliberately different mechanisms (decision 9 vs.
-10):
+10). "RBAC" — role-based access control, detailed in
+[rbac-and-lifecycle.md](rbac-and-lifecycle.md) — governs what an
+authenticated person can then do.
 
 | | Log ingestion | Everything else (management/query/live-stream) |
 |---|---|---|
@@ -104,7 +108,7 @@ sequenceDiagram
     alt tv mismatch
         Srv-->>Client: 401
         Client->>Srv: POST /v1/auth/token\ngrant_type=refresh_token&refresh_token=...
-        Note over Srv: also checks is_active;\nrotates: revokes old, issues new pair,\nre-resolves roles/tv fresh
+        Note over Srv: also checks is_active,\nrotates: revokes old, issues new pair,\nre-resolves roles/tv fresh
         Srv-->>Client: 200 new {access_token, refresh_token, ...}
         Client->>Srv: retry original request
     else tv matches
@@ -151,14 +155,18 @@ flowchart TD
     F --> G["New token has current rights\n— next request succeeds"]
 ```
 
-The point-lookup (`SELECT token_version FROM users WHERE id = sub`,
-indexed PK) is cheap enough to do on *every* authenticated request,
-which is what makes this cheaper than the alternative it replaced (join
-`role_assignments`↔`team_members`↔`teams` on every request) while still
-giving the same "next request sees current rights" guarantee. Events
-that bump it: role grant/revoke on the user directly or on a team they
-belong to (bulk `UPDATE` for the whole team in the latter case),
-deactivation (block/delete), and password change.
+- **What triggers a bump:** role grant/revoke on the user directly or
+  on a team they belong to (bulk `UPDATE` for the whole team in the
+  latter case), deactivation (block/delete), and password change.
+- **Why a point-lookup, not a join:** `SELECT token_version FROM users
+  WHERE id = sub` (indexed PK) is cheap enough to do on *every*
+  authenticated request — cheaper than the alternative it replaced
+  (joining `role_assignments`↔`team_members`↔`teams` on every request)
+  while still giving the same "next request sees current rights"
+  guarantee.
+- **What happens on mismatch:** the client is forced through
+  `grant_type=refresh_token`, which re-resolves roles fresh rather than
+  copying them from the old token.
 
 This same mechanism is why the live-streaming endpoint needs its own
 periodic re-check — see

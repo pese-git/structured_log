@@ -14,17 +14,17 @@
 [guides/](guides/) — продуктовая документация по задачам: руководства
 для *пользователя*, *администратора* и *разработчика*, написанные для
 того, кто использует систему или интегрируется с ней, — материал,
-предназначенный в том числе для будущего сайта проекта. Всё остальное в
-этом каталоге (`architecture/`, `operations/`, `api/`) — вспомогательное
-чтение поверх артефактов OpenSpec, написанное для контрибьютора,
-ревьюера или AI-агента, которому нужно обоснование решения перед тем,
-как трогать код, — оно существует, чтобы не читать каждый `proposal.md`/
-`design.md`/`specs/*.md`/`tasks.md` (в сумме несколько тысяч строк по
-разным change) от начала до конца ради общей картины. Там, где эти два
-чтения пересекаются в конкретном факте (форма эндпоинта, флаг
-конфигурации), они должны совпадать; если когда-либо разойдутся —
-документы `architecture`/`operations`/`api` ниже опираются на
-`design.md`/`specs/*.md` и имеют приоритет.
+предназначенный в том числе для будущего сайта проекта. Всё остальное
+здесь — `architecture/`, `operations/`, `api/` — вспомогательное чтение
+поверх артефактов OpenSpec. Оно написано для контрибьютора, ревьюера
+или AI-агента, которому нужно обоснование решения перед тем, как
+трогать код. Оно существует, чтобы никому не пришлось читать каждый
+`proposal.md`/`design.md`/`specs/*.md`/`tasks.md` (в сумме несколько
+тысяч строк по разным change) от начала до конца только ради общей
+картины. Там, где эти два чтения пересекаются в конкретном факте (форма
+эндпоинта, флаг конфигурации), они должны совпадать; если когда-либо
+разойдутся — документы `architecture`/`operations`/`api` ниже опираются
+на `design.md`/`specs/*.md` и имеют приоритет.
 
 ## Как это соотносится с AGENTS.md и OpenSpec
 
@@ -64,36 +64,36 @@ decision из `design.md` или требование из `specs/`, назва�
   [руководство контрибьютора](guides/contributor-guide.ru.md) — как
   пользоваться, разворачивать, интегрироваться и вносить вклад в
   работающую систему.
-- [architecture/README.md](architecture/README.md) — компоненты, поток
+- [architecture/README.md](architecture/README.ru.md) — компоненты, поток
   запроса и принципы, повторяющиеся во всём дизайне.
-- [architecture/data-model.md](architecture/data-model.md) —
+- [architecture/data-model.md](architecture/data-model.ru.md) —
   мультитенантная модель сущностей (`User`/`Group`/`Team`/`Project`/...)
   и её схема хранения.
-- [architecture/auth.md](architecture/auth.md) — OAuth2/OIDC-подобный
+- [architecture/auth.md](architecture/auth.ru.md) — OAuth2/OIDC-подобный
   контракт токенов, `IdentityProvider`, отзыв прав через `token_version`
   и ограничитель частоты auth-эндпоинтов (throttling, без блокировки
   учётной записи).
-- [architecture/rbac-and-lifecycle.md](architecture/rbac-and-lifecycle.md)
+- [architecture/rbac-and-lifecycle.md](architecture/rbac-and-lifecycle.ru.md)
   — роли и области видимости, блокировка и удаление аккаунтов (включая
   защиту основного администратора).
-- [architecture/live-streaming.md](architecture/live-streaming.md) —
+- [architecture/live-streaming.md](architecture/live-streaming.ru.md) —
   дизайн живой доставки логов по SSE (`GET /v1/logs/stream`).
-- [architecture/quotas-and-audit.md](architecture/quotas-and-audit.md) —
+- [architecture/quotas-and-audit.md](architecture/quotas-and-audit.ru.md) —
   квоты на хранение на проект, административный аудит-лог, записываемые
   рядом с ним события аутентификации и сроки хранения тех и других.
-- [architecture/admin-client.md](architecture/admin-client.md) —
+- [architecture/admin-client.md](architecture/admin-client.ru.md) —
   собственная архитектура Flutter-приложения
   `structured_log_admin_client`.
-- [architecture/technology-stack.md](architecture/technology-stack.md) —
+- [architecture/technology-stack.md](architecture/technology-stack.ru.md) —
   каждый значимый выбор зависимости и альтернатива, которую он обошёл.
-- [operations/configuration.md](operations/configuration.md) — все
+- [operations/configuration.md](operations/configuration.ru.md) — все
   настройки при запуске: флаги, переменные окружения, приоритет
   источников, обращение с секретами и что останавливает запуск.
-- [api/http-api.md](api/http-api.md) — каждый HTTP-эндпоинт: параметры,
+- [api/http-api.md](api/http-api.ru.md) — каждый HTTP-эндпоинт: параметры,
   тела запроса/ответа, специфичные для него ошибки и пример `curl`.
-- [api/models.md](api/models.md) — формы JSON-объектов, на которые
+- [api/models.md](api/models.ru.md) — формы JSON-объектов, на которые
   ссылается `http-api.md` (`User`, `Project`, `LogEntry`, ответ токена, ...).
-- [api/errors.md](api/errors.md) — полный каталог ошибок: каждая пара
+- [api/errors.md](api/errors.ru.md) — полный каталог ошибок: каждая пара
   HTTP-статус/код, которую может вернуть сервер, и где именно.
 
 ## Для кого это

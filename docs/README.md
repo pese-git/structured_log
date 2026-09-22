@@ -14,14 +14,14 @@ and what remains, capability by capability).
 [guides/](guides/) is task-oriented product documentation — a *user*,
 *administrator*, and *developer* guide, written for someone using or
 integrating the running system, and the material intended for a future
-project website. Everything else in this directory (`architecture/`,
-`operations/`, `api/`) is a narrative reading aid over the OpenSpec
-artifacts, written for a contributor, reviewer, or AI coding agent who
-wants the reasoning behind a decision before touching the code — it
-exists so a reader doesn't have to read every `proposal.md`/`design.md`/
-`specs/*.md`/`tasks.md` (several thousand lines across multiple changes)
-end to end to get oriented. Where the two overlap on a fact (an endpoint
-shape, a config flag), they should agree; if they ever don't, the
+project website. Everything else here — `architecture/`, `operations/`,
+`api/` — is a narrative reading aid over the OpenSpec artifacts. It's
+written for a contributor, reviewer, or AI coding agent who wants the
+reasoning behind a decision before touching code. It exists so nobody
+has to read every `proposal.md`/`design.md`/`specs/*.md`/`tasks.md`
+(several thousand lines across multiple changes) end to end just to get
+oriented. Where the two overlap on a fact (an endpoint shape, a config
+flag), they should agree; if they ever don't, the
 `architecture`/`operations`/`api` documents below trace to `design.md`/
 `specs/*.md` and win.
 

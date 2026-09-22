@@ -172,20 +172,21 @@ the *operating* side, if that's what brought you here instead.
 ## Making a change: OpenSpec-first for behavior, plain commits for the rest
 
 This repository tracks non-trivial design decisions as **OpenSpec
-changes** under [openspec/changes/](../../openspec/changes/) — a
-`proposal.md` (what and why), a `design.md` (every alternative
-considered and why it lost), `specs/*.md` (normative requirements), and
-a `tasks.md` (the implementation checklist), written **in Russian**
-(identifiers, flags, and code stay as-is). Whether your change needs
-this artifact set or not is the first thing to work out, not an
-afterthought:
+changes** under [openspec/changes/](../../openspec/changes/) — four
+documents: a `proposal.md` (what and why), a `design.md` (every
+alternative considered and why it lost), `specs/*.md` (normative
+requirements), and a `tasks.md` (the implementation checklist). All
+four are written **in Russian** (identifiers, flags, and code stay
+as-is). Whether your change needs this artifact set or not is the
+first thing to work out, not an afterthought:
 
 - **New capability, or a change to an existing contract** (a new
   endpoint, a new config setting, a storage-backend choice, an RBAC
-  rule) — start an OpenSpec change first. The `openspec-new-change`
-  skill scaffolds it; `openspec-apply-change` walks `tasks.md` section
-  by section as you implement; `openspec-archive-change` closes it out
-  once merged. [add-postgres-backend](../../openspec/changes/add-postgres-backend/)
+  (role-based access control) rule) — start an OpenSpec change first.
+  The `openspec-new-change` skill scaffolds it; `openspec-apply-change`
+  walks `tasks.md` section by section as you implement;
+  `openspec-archive-change` closes it out once merged.
+  [add-postgres-backend](../../openspec/changes/add-postgres-backend/)
   is a complete, recent example worth reading end to end — proposal
   through a fully checked-off `tasks.md`, including places the original
   plan turned out to be wrong and was revised against real evidence.

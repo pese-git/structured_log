@@ -2,8 +2,10 @@
 
 *Read in [English](quotas-and-audit.md).*
 
-Две независимые capability, связанные общей темой — держать систему
-ограниченной и проверяемой. Нормативные требования:
+Эта страница охватывает две независимые capability, связанные общей
+темой — держать систему ограниченной (квоты ограничивают, сколько может
+хранить проект) и проверяемой (аудит-лог фиксирует, кто что изменил).
+Нормативные требования:
 [specs/log-server-quotas/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-quotas/spec.md),
 [specs/log-server-audit/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-audit/spec.md).
 

@@ -3,15 +3,15 @@
 *Читать на [русском](models.ru.md).*
 
 The JSON object shapes referenced by [http-api.md](http-api.md). These
-are not literal quotes from `specs/*.md` — the OpenSpec requirements
-deliberately describe *behavior* ("a JSON object identifying the error")
-without always pinning down exact field names, so this document commits
-to one concrete, consistent shape for all of them, matching the field
-names and semantics already fixed in
+aren't literal quotes from `specs/*.md` — the OpenSpec requirements
+describe *behavior* (e.g. "a JSON object identifying the error")
+without always pinning down field names. This document commits to one
+concrete, consistent shape for all of them, matching
 [design.md](../../openspec/changes/add-structured-log-server/design.md)
-and [data-model.md](../architecture/data-model.md) wherever those exist.
-If a future revision of `specs/*.md` pins a conflicting shape, that
-takes precedence and this document should be updated to match.
+and [data-model.md](../architecture/data-model.md) wherever those
+already fix the names. If a future revision of `specs/*.md` pins a
+conflicting shape, that takes precedence and this document should be
+updated to match.
 
 ## Conventions
 

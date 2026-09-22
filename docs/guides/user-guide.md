@@ -71,8 +71,8 @@ yourself:
 | Role | What it means for you |
 |---|---|
 | **`user`** | Read-only. You can search and live-tail logs in the groups/projects you've been granted access to. You cannot create, edit, or delete anything, and you cannot see the audit log. |
-| **`owner`** (of a group) | Everything `user` can do, plus: create and manage projects and teams inside that group, edit their storage quotas, create/revoke their secret keys, and grant `owner`/`user` roles to others within that same group. You still can't grant `admin`, block/unblock accounts, or read the audit log — those stay administrator-only. |
-| **`admin`** | Full access everywhere — every group, every project, user management, role grants of any kind (including `admin` itself), and the audit log. |
+| **`owner`** (of a group) | Everything `user` can do, plus:<br>- Create and manage projects and teams inside that group<br>- Edit their storage quotas<br>- Create/revoke their secret keys<br>- Grant `owner`/`user` roles to others within that same group<br><br>Still can't grant `admin`, block/unblock accounts, or read the audit log — those stay administrator-only. |
+| **`admin`** | Full access everywhere:<br>- Every group, every project<br>- User management<br>- Role grants of any kind (including `admin` itself)<br>- The audit log |
 
 The app itself reflects this: an action you're not allowed to take is
 simply not shown, rather than shown and then refused. If a navigation
@@ -86,8 +86,9 @@ were granted access to the group directly. Below is exactly what a
 `user` with one project-level grant (on `orders-api`) and one
 group-level grant (on `Internal Tools`) sees after signing in — only
 `Internal Tools` appears under Groups, and only the two nav sections a
-read-only role reaches (Administration is reduced to Groups; there's no
-Users or Audit):
+read-only role reaches (**Administration** — see
+[Finding your way around](#finding-your-way-around) below — is reduced
+to Groups; there's no Users or Audit):
 
 ![The navigation a plain "user" role sees: Groups (with access to one group and, separately, one directly granted project) and Log search — no Users, Audit, or Dashboard](assets/user-guide/04-user-nav-groups.png)
 

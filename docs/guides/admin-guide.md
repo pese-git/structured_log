@@ -44,7 +44,8 @@ cp .env.example .env    # edit if you want a non-default port/username
 
 This builds the admin client's web bundle (with the Flutter SDK the
 repository pins — nothing to install separately), builds both Docker
-images, generates a random JWT signing secret into
+images, generates a random JWT (JSON Web Token) signing secret — the
+key the server uses to sign every session token it issues — into
 `deploy/secrets/jwt_secret` (once, on first run — git-ignored,
 mounted read-only, never in an environment variable or a compose file
 that could be committed), and starts two containers behind one nginx:
@@ -123,11 +124,13 @@ behind their non-obvious parts, hand-verified against a local cluster
 `kubectl`/`kustomize` commands, see
 [deploy/k8s/README.md](../../deploy/k8s/README.md).
 
-**The server must run as exactly one replica, always — this is not a
-resource-sizing choice.** Live-stream delivery (`GET /v1/logs/stream`)
+### Exactly one replica
+
+The server must run as exactly one replica, always — this is not a
+resource-sizing choice. Live-stream delivery (`GET /v1/logs/stream`)
 is an in-process broadcast with no external pub/sub behind it (see
-[architecture/live-streaming.md](../architecture/live-streaming.md)) —
-a second replica would have its own, separate broadcast, and a client
+[architecture/live-streaming.md](../architecture/live-streaming.md)).
+A second replica would have its own, separate broadcast, and a client
 connected to one replica would silently miss log entries that a
 load-balanced `POST /v1/logs` happened to land on the other. This holds
 under *both* storage backends; moving to PostgreSQL does not change it
@@ -135,44 +138,52 @@ under *both* storage backends; moving to PostgreSQL does not change it
 **web** deployment (the admin client's static nginx) freely — it's
 stateless, `base/web-deployment.yaml` runs it at 2 by default.
 
-**The admin client's image has the backend's Service name baked in.**
+### Service naming
+
+The admin client's image has the backend's Service name baked in.
 `deploy/nginx.conf`, built into the `web` image, hardcodes
-`proxy_pass http://server:8080` — the same name `docker-compose.yml`
-uses, for the same single-origin/no-CORS reason (see
-["What you're running"](#what-youre-running) above). This is why
+`proxy_pass http://server:8080`. This is the same name
+`docker-compose.yml` uses, for the same single-origin/no-CORS reason
+(see ["What you're running"](#what-youre-running) above). This is why
 `base/server-service.yaml` names the server's `Service` exactly
 `server`, not something more descriptive — the image works unmodified
 only as long as that holds; renaming it means rebuilding the image with
 a different `nginx.conf`.
 
-**Secrets mount at `/etc/structured-log/secrets`, deliberately not
-`/run/secrets`.** That path collides with Kubernetes' own default
+### Secrets path
+
+Secrets mount at `/etc/structured-log/secrets`, deliberately not
+`/run/secrets`. That path collides with Kubernetes' own default
 service-account token mount
 (`/var/run/secrets/kubernetes.io/serviceaccount` — `/run` and `/var/run`
-are the same directory in the image); mounting a `Secret` volume there
+are the same directory in the image). Mounting a `Secret` volume there
 made the container fail to start at all in testing
 (`unable to create mountpoint: read-only file system`).
 
-**Every pod spec sets `enableServiceLinks: false`** — avoids noise, not
-a correctness problem. Kubernetes injects Docker-links-style
+### enableServiceLinks: false
+
+Every pod spec sets `enableServiceLinks: false` — this avoids noise,
+not a correctness problem. Kubernetes injects Docker-links-style
 environment variables named after every Service visible to the pod
-(`<SVC>_SERVICE_HOST`, `_PORT`, ...); a Service named `server` produces
+(`<SVC>_SERVICE_HOST`, `_PORT`, ...). A Service named `server` produces
 variables prefixed `STRUCTURED_LOG_SERVER_...`, which collide with this
 project's own `STRUCTURED_LOG_` prefix convention. The resolver already
 tolerates this gracefully — an unrecognized `STRUCTURED_LOG_*` variable
 only warns, never fails startup (see ["Configuration surface"](#configuration-surface)
 above) — but there's no reason to invite the warning.
 
-**SQLite overlay: `strategy: type: Recreate`, not the `RollingUpdate`
-default.** Two pods briefly running together during a rolling update
-would be two SQLite writers pointed at the same file on the same
-`ReadWriteOnce` volume; `Recreate` tears the old pod down before the
-new one starts. Confirmed by tearing the pod down directly
-(`kubectl delete pod -l app=structured-log-server`, not just a rolling
-`apply`) in testing: the replacement pod came up against the same PVC
-with no new "temporary password" line in its logs — the bootstrap
-admin and every project already created survive a reschedule, exactly
-as `ReadWriteOnce` is supposed to guarantee.
+### SQLite overlay: Recreate strategy
+
+The SQLite overlay sets `strategy: type: Recreate`, not the
+`RollingUpdate` default. `Recreate` tears the old pod down before the
+new one starts. Two pods briefly running together during a rolling
+update would otherwise be two SQLite writers pointed at the same file
+on the same `ReadWriteOnce` volume. Confirmed by tearing the pod down
+directly (`kubectl delete pod -l app=structured-log-server`, not just a
+rolling `apply`) in testing: the replacement pod came up against the
+same PVC with no new "temporary password" line in its logs — the
+bootstrap admin and every project already created survive a
+reschedule, exactly as `ReadWriteOnce` is supposed to guarantee.
 
 **PostgreSQL overlay** connects to the in-cluster `postgres` Service
 (a minimal `StatefulSet`, `overlays/postgres/postgres-statefulset.yaml`)
@@ -182,9 +193,11 @@ that file entirely. Verified the same way as the SQLite path: the
 server resolved the Service and passed `/healthz` with no special
 networking configuration beyond an ordinary `ClusterIP` Service.
 
-**The `Ingress` routes everything to `web`**, not a path-split between
-`web` and `server` — `web`'s own nginx already does that split
-internally (above), so duplicating it at the `Ingress` level would be
+### Ingress routing
+
+The `Ingress` routes everything to `web`, not a path-split between
+`web` and `server`. `web`'s own nginx already does that split
+internally (above). Duplicating it at the `Ingress` level would mean
 two places to keep in sync. One origin, no CORS configuration needed
 anywhere in this setup — same reasoning as the bundled Docker Compose
 deployment, just expressed as an `Ingress` instead of a standalone
@@ -211,8 +224,10 @@ dart run bin/server.dart serve --db-backend=sqlite --db-path=/data/logs.db
 # or simply: --db-path=/data/logs.db  (sqlite is the default backend)
 ```
 
-One file, no separate service to run or monitor. WAL mode and a 5-second
-busy timeout are fixed, not configurable — they exist specifically so a
+One file, no separate service to run or monitor. WAL mode (SQLite's
+write-ahead logging, which lets readers and a writer touch the database
+concurrently) and a 5-second busy timeout are fixed, not configurable —
+they exist specifically so a
 second short-lived process (`create-admin`, below) can touch the same
 file while the server is up without failing outright. Reads get their
 own pool of extra connections beside the single writer
@@ -406,11 +421,12 @@ either.
 Set `--trusted-proxy-hops` to the number of proxies genuinely in front
 of the server (the bundled Compose setup, one nginx, uses `1`). The
 server counts that many hops from the *right* of `X-Forwarded-For` to
-find the real caller address, which the rate limiter buckets by. Get
-this wrong in either direction and you get a real problem: too low and
-every client behind the proxy shares one bucket (one busy user throttles
-everyone); too high and a client can spoof their own address in a
-header the server now trusts, bypassing the limiter entirely.
+find the real caller address, which the rate limiter buckets by. Get this wrong in either direction and you get a real problem:
+
+- **Too low:** every client behind the proxy shares one rate-limit
+  bucket — one busy user throttles everyone.
+- **Too high:** a client can spoof its own address in a header the
+  server now trusts, bypassing the limiter entirely.
 
 ## Cross-origin access (CORS)
 

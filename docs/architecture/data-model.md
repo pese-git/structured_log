@@ -9,6 +9,22 @@ fields; for the exhaustive field list and every scenario, see
 
 ## Entity relationships
 
+Entities at a glance:
+
+- **`Group`** — your organization's top-level container; owns projects
+  and teams.
+- **`Project`** — where log entries actually live; belongs to one
+  `Group`.
+- **`Team`** — a named set of users inside a `Group`, grantable a role
+  as a unit.
+- **`User`** — an account; gets roles via direct grants or team
+  membership.
+- **`RoleAssignment`** — a grant of one role to one subject (a user or
+  a team) over one scope (global, a group, or a project).
+- **`LogEntry`** — one structured log record.
+- **`ProjectUsage`** — running totals used to enforce a project's
+  quota.
+
 ```mermaid
 erDiagram
     USER ||--o{ ROLE_ASSIGNMENT : "subject (user)"
@@ -151,8 +167,8 @@ writer connection, and — since reads no longer share it — a pool of
 reader connections, each its own isolate (`--db-read-pool-size`) — see
 [technology-stack.md](technology-stack.md) for why `drift` specifically
 and for the read pool, and the "one process" principle in
-[README.md](README.md) for what a single writer still constrains
-elsewhere in the design.
+[README.md](README.md) (why the server doesn't shard across processes)
+for what a single writer still constrains elsewhere in the design.
 
 ### PostgreSQL: an operator-chosen alternative backend
 

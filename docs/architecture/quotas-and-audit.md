@@ -2,8 +2,10 @@
 
 *Читать на [русском](quotas-and-audit.ru.md).*
 
-Two independent capabilities that happen to share a theme — keeping the
-system bounded and inspectable. Normative requirements:
+This page covers two independent capabilities that happen to share a
+theme — keeping the system bounded (quotas cap how much a project can
+store) and inspectable (the audit log records who changed what).
+Normative requirements:
 [specs/log-server-quotas/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-quotas/spec.md),
 [specs/log-server-audit/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-audit/spec.md).
 

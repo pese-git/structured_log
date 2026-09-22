@@ -3,7 +3,7 @@ title: structured_log
 tableOfContents: false
 template: splash
 hero:
-  tagline: Структурированное логирование для Dart и Flutter, вдохновлённое Python structlog — базовая библиотека, экосистема in-app просмотра логов и self-hosted сервер, чтобы отправлять логи с устройства и читать их обратно.
+  tagline: Структурированное логирование для Dart и Flutter, вдохновлённое Python structlog.
   actions:
     - text: Читать документацию
       link: /ru/overview/
@@ -17,6 +17,10 @@ hero:
 
 import { Card, CardGrid, Code } from '@astrojs/starlight/components';
 
+Базовая библиотека, экосистема in-app просмотра логов и self-hosted
+сервер, чтобы отправлять логи с устройства и читать их обратно. Три
+строки, чтобы начать логировать:
+
 <Code
 	lang="dart"
 	code={`import 'package:structured_log/structured_log.dart';
@@ -27,7 +31,7 @@ void main() {
 }`}
 />
 
-## Monorepo на Melos + FVM
+## Девять пакетов, одна система
 
 Девять пакетов, сгруппированных по роли: библиотеки, встраиваемые в
 приложение, self-hosted сервер и самостоятельный admin-клиент, который им
@@ -35,40 +39,44 @@ void main() {
 
 <CardGrid stagger>
 	<Card title="structured_log" icon="seti:dart">
-		Базовая библиотека — структурированный JSON-лог с привязкой контекста,
-		типизированными correlation-полями, процессорами и маршрутизацией по
-		нескольким выходам. Без сторонних runtime-зависимостей, кроме `meta`.
-		[Опубликован на pub.dev](https://pub.dev/packages/structured_log).
+		Структурированное JSON-логирование для Dart, чтобы каждая запись
+		несла контекст, по которому можно фильтровать и коррелировать, —
+		привязка контекста, типизированные correlation-поля, процессоры и
+		маршрутизация по нескольким выходам. Без сторонних
+		runtime-зависимостей, кроме `meta`. [Опубликован на
+		pub.dev](https://pub.dev/packages/structured_log).
 	</Card>
 	<Card title="structured_log_flutter" icon="seti:flow">
-		Headless-ядро просмотра логов для Flutter: ограниченный `LogBuffer`,
-		подключаемый к `structured_log` как sink, и фильтрующий
-		`LogViewerController`. Не зависит ни от одной дизайн-системы.
-		[Опубликован на
+		Постройте собственный in-app просмотрщик логов для Flutter, не
+		привязываясь к одной дизайн-системе, — headless-ядро с ограниченным
+		`LogBuffer`-sink, подключаемым к `structured_log`, и фильтрующим
+		`LogViewerController`. [Опубликован на
 		pub.dev](https://pub.dev/packages/structured_log_flutter).
 	</Card>
-	<Card title="structured_log_material / _fluent / _cupertino" icon="puzzle">
-		Три готовых к использованию просмотрщика логов поверх
-		`structured_log_flutter` — Material 3, Fluent UI (в стиле WinUI) и
+	<Card title="structured_log_material, structured_log_fluent, structured_log_cupertino" icon="puzzle">
+		Встройте готовый просмотрщик логов вместо того, чтобы писать свой, —
+		три готовых к использованию просмотрщика поверх
+		`structured_log_flutter`: Material 3, Fluent UI (в стиле WinUI) и
 		Cupertino (в стиле iOS) — каждый с поиском, фильтрацией по
 		уровню/категории и рабочим примером. Опубликованы на pub.dev.
 	</Card>
 	<Card title="structured_log_http" icon="rocket">
-		Sink `HttpLogOutput`, отправляющий записи на экземпляр
-		`structured_log_server` по HTTP: батчинг, retry с backoff,
-		ограниченный буфер и `flushed` для ожидания доставки перед выходом.
-		Пока не опубликован.
+		Надёжно отправляйте логи с устройства на сервер — sink `HttpLogOutput`,
+		доставляющий записи на экземпляр `structured_log_server` по HTTP:
+		батчинг, retry с backoff, ограниченный буфер и `flushed` для ожидания
+		доставки перед выходом. Пока не опубликован.
 	</Card>
 	<Card title="structured_log_server" icon="setting">
-		Self-hosted, multi-tenant сервер приёма, хранения, поиска и живой
-		трансляции логов (SQLite или PostgreSQL) — группы, проекты, команды,
-		секретные ключи, RBAC, квоты, retention и аудит-лог.
+		Self-hosted, multi-tenant сервер, который принимает и хранит логи
+		ваших приложений и позволяет искать их и следить за ними в реальном
+		времени (SQLite или PostgreSQL) — группы, проекты, команды, секретные
+		ключи, RBAC, квоты, retention и аудит-лог.
 	</Card>
 	<Card title="structured_log_admin_client" icon="laptop">
-		Веб-приложение, которым пользуются операторы и их команды: вход,
-		ролевой дашборд, управление ресурсами, поиск логов с живой лентой,
-		управление пользователями и аудит-лог. Локализовано на английский и
-		русский.
+		Веб-приложение, в котором операторы и их команды ведут повседневную
+		работу: вход, ролевой дашборд, управление ресурсами, поиск логов с
+		живой лентой, управление пользователями и аудит-лог. Локализовано на
+		английский и русский.
 	</Card>
 </CardGrid>
 
