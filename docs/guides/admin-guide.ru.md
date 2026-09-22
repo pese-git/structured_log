@@ -114,6 +114,305 @@ flutter build web --release --dart-define=STRUCTURED_LOG_BASE_URL=https://your-a
 обслуживайте `build/web/` любым статическим файловым сервером, и см.
 замечание про CORS выше, если этот хост отличается от хоста API.
 
+## Kubernetes
+
+Готового Helm-чарта или закоммиченного набора манифестов для этого нет
+— YAML ниже полный, рабочий пример, вручную проверенный на локальном
+кластере (`minikube`, ingress-nginx) при написании этого руководства, а
+не упакованный артефакт, который поставляет репозиторий. Адаптируйте
+имена/namespace/registry под свой кластер; ограничения ниже — не
+опциональны.
+
+**Сервер обязан работать ровно в одной реплике, всегда — это не вопрос
+подбора ресурсов.** Доставка живого потока (`GET /v1/logs/stream`) —
+in-process broadcast без внешнего pub/sub за ним (см.
+[architecture/live-streaming.md](../architecture/live-streaming.ru.md))
+— вторая реплика имела бы собственный, отдельный broadcast, и клиент,
+подключённый к одной реплике, тихо пропустил бы записи логов, которые
+балансировщик направил в `POST /v1/logs` на другую. Это верно для
+**обоих** backend'ов хранения; переход на PostgreSQL этого не меняет.
+Масштабируйте **web** deployment (статический nginx admin-клиента)
+свободно — он не хранит состояния.
+
+**У образа admin-клиента имя Service backend'а зашито внутрь.**
+`deploy/nginx.conf`, встроенный в образ `web`, хардкодит
+`proxy_pass http://server:8080` — то же имя, что использует
+`docker-compose.yml`, по той же причине единого origin без CORS (см.
+[«Что вы разворачиваете»](#что-вы-разворачиваете) выше). Назовите
+`Service` сервера ровно `server`, в том же namespace, что `web`, — и
+образ работает без изменений; переименование означает пересборку
+образа с другим `nginx.conf`.
+
+**Монтируйте секреты не в `/run/secrets`.** Этот путь конфликтует со
+штатным монтированием токена service account у Kubernetes
+(`/var/run/secrets/kubernetes.io/serviceaccount` — `/run` и `/var/run` в
+образе это один и тот же каталог); монтирование туда тома `Secret` на
+практике привело к тому, что контейнер вовсе не стартовал
+(`unable to create mountpoint: read-only file system`). Пример ниже
+монтирует секреты в `/etc/structured-log/secrets` вместо этого, а
+`enableServiceLinks: false` (ниже) — гигиена в том же духе, что и
+эквивалент `automountServiceAccountToken: false`: приложению всё равно
+незачем говорить с Kubernetes API.
+
+**`enableServiceLinks: false` в спеке пода убирает шум, а не чинит
+проблему корректности.** Kubernetes инжектит переменные окружения в
+стиле Docker-links, названные по каждому видимому поду Service'у
+(`<SVC>_SERVICE_HOST`, `_PORT`, ...); Service с именем `server`
+порождает переменные с префиксом `STRUCTURED_LOG_SERVER_...`, которые
+совпадают с собственной конвенцией префикса `STRUCTURED_LOG_` этого
+проекта. Резолвер это и так переносит спокойно — нераспознанная
+переменная `STRUCTURED_LOG_*` только предупреждает, никогда не роняет
+старт (см. [«Поверхность конфигурации»](#поверхность-конфигурации)
+выше) — но незачем приглашать это предупреждение специально.
+
+### Backend SQLite
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: structured-log
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: structured-log-secrets
+  namespace: structured-log
+stringData:
+  jwt-secret: "ЗАМЕНИТЕ-openssl-rand-base64-48"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: structured-log-data
+  namespace: structured-log
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests: {storage: 5Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: structured-log-server
+  namespace: structured-log
+spec:
+  replicas: 1
+  # Никогда не RollingUpdate здесь: два пода, работающих одновременно
+  # хоть коротко, — это два писателя SQLite в один файл на одном
+  # ReadWriteOnce-томе. Recreate сносит старый под первым.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: structured-log-server}
+  template:
+    metadata:
+      labels: {app: structured-log-server}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: server
+          image: your-registry/structured-log-server:TAG
+          ports: [{containerPort: 8080}]
+          env:
+            - name: STRUCTURED_LOG_JWT_SECRET_FILE
+              value: /etc/structured-log/secrets/jwt-secret
+            - {name: STRUCTURED_LOG_DB_PATH, value: /data/logs.db}
+            - {name: STRUCTURED_LOG_LOG_FORMAT, value: json}
+            # Один хоп: тот Ingress-контроллер, что стоит впереди (ниже).
+            - {name: STRUCTURED_LOG_TRUSTED_PROXY_HOPS, value: "1"}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: jwt-secret, mountPath: /etc/structured-log/secrets, readOnly: true}
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+      volumes:
+        - {name: data, persistentVolumeClaim: {claimName: structured-log-data}}
+        - name: jwt-secret
+          secret:
+            secretName: structured-log-secrets
+            items: [{key: jwt-secret, path: jwt-secret}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server   # имя обязано быть точным — см. замечание выше
+  namespace: structured-log
+spec:
+  selector: {app: structured-log-server}
+  ports: [{port: 8080, targetPort: 8080}]
+```
+
+Подтверждено сносом пода напрямую (`kubectl delete pod -l
+app=structured-log-server`, не просто повторный `apply`): под-замена
+поднимается против того же PVC без новой строки «temporary password» в
+логе — bootstrap-администратор и все уже созданные проекты переживают
+пересоздание, ровно так, как и должен гарантировать том
+`ReadWriteOnce`.
+
+### Backend PostgreSQL
+
+Направьте тот же `Deployment` на Service `postgres` вместо PVC — либо
+уже имеющийся у вас, либо минимальный инстанс внутри кластера:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secrets
+  namespace: structured-log
+stringData:
+  postgres-password: "ЗАМЕНИТЕ"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: structured-log
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources: {requests: {storage: 10Gi}}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: structured-log
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_USER, value: structured_log}
+            - {name: POSTGRES_DB, value: structured_log}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secrets, key: postgres-password}}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "structured_log", "-d", "structured_log"]}
+      volumes: [{name: data, persistentVolumeClaim: {claimName: postgres-data}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres, namespace: structured-log}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432, targetPort: 5432}]
+```
+
+затем в контейнере `structured-log-server`: уберите том/mount `data` и
+`STRUCTURED_LOG_DB_PATH`, добавив вместо них
+
+```yaml
+env:
+  - {name: STRUCTURED_LOG_DB_BACKEND, value: postgres}
+  - {name: STRUCTURED_LOG_DB_POSTGRES_HOST, value: postgres}   # Service выше — резолвится по короткому имени, тот же namespace
+  - {name: STRUCTURED_LOG_DB_POSTGRES_DATABASE, value: structured_log}
+  - {name: STRUCTURED_LOG_DB_POSTGRES_USERNAME, value: structured_log}
+  - name: STRUCTURED_LOG_DB_POSTGRES_PASSWORD
+    valueFrom: {secretKeyRef: {name: postgres-secrets, key: postgres-password}}
+  - {name: STRUCTURED_LOG_DB_POSTGRES_SSL_MODE, value: disable}   # трафик внутри кластера; для управляемого инстанса за настоящим сетевым хопом — require/verify-full
+```
+
+Проверено тем же способом, что путь с SQLite: сервер подключился к
+Service `postgres` внутри кластера по короткому DNS-имени и прошёл
+`/healthz` без какой-либо специальной сетевой настройки сверх обычного
+`ClusterIP`-сервиса.
+
+### Admin-клиент и Ingress
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: structured-log-web
+  namespace: structured-log
+spec:
+  replicas: 2   # без состояния — масштабируйте свободно
+  selector: {matchLabels: {app: structured-log-web}}
+  template:
+    metadata: {labels: {app: structured-log-web}}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: web
+          image: your-registry/structured-log-web:TAG
+          ports: [{containerPort: 80}]
+          readinessProbe: {httpGet: {path: /, port: 80}}
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: structured-log
+spec:
+  selector: {app: structured-log-web}
+  ports: [{port: 80, targetPort: 80}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: structured-log
+  namespace: structured-log
+  annotations:
+    # Эндпоинт живого потока — долгоживущий ответ; не буферизовать и не
+    # обрывать по таймауту как обычный запрос (зеркалит собственные
+    # настройки deploy/nginx.conf для того же эндпоинта).
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: logs.example.com
+      http:
+        paths:
+          # Всё идёт на `web` — его собственный nginx уже разделяет
+          # `/v1/` на сервер внутри (выше). Дублировать это разделение
+          # на уровне Ingress значило бы держать в синхроне два места.
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: web, port: {number: 80}}
+```
+
+Один origin, настройка CORS нигде в этой схеме не нужна — то же
+рассуждение, что у поставляемого развёртывания Docker Compose, просто
+выраженное через `Ingress` вместо отдельного контейнера `nginx`.
+
+### Эксплуатация
+
+```bash
+kubectl -n structured-log logs deploy/structured-log-server | grep -i 'temporary password'
+kubectl -n structured-log rollout status deployment/structured-log-server
+kubectl -n structured-log delete pod -l app=structured-log-server   # безопасно: SIGTERM, штатное завершение, PVC переживает
+```
+
+Пересоздать администратора на непустой базе — так же, как
+[в пути Docker Compose](#автосоздание-первого-администратора), разовым
+вызовом `kubectl run`/`kubectl exec`, запускающим `create-admin` против
+того же PVC или подключения к Postgres — отдельного манифеста
+Kubernetes `Job` под это не нужно, это та же CLI-команда, что и везде.
+
 ## Выбор backend'а хранения
 
 `--db-backend` выбирает между двумя вариантами, решение принимается
