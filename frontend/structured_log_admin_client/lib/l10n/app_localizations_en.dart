@@ -930,6 +930,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'A group owns projects. Create the first one to add a project to it and start receiving logs.';
 
   @override
+  String get resNoGroupsHintReader =>
+      'You do not have access to any group yet. An administrator can give you a role in one.';
+
+  @override
   String resCreatedOn(String date) {
     return 'Created $date';
   }
