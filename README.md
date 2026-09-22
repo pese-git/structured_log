@@ -73,9 +73,9 @@ you're contributing.
 
 **New to the server system?** Start with
 [docs/guides/](docs/guides/README.md) — a User Guide, an
-Administrator/DevOps Guide, and a Developer Guide, each answering "how
-do I actually do this" for its audience. [docs/](docs/) also holds the
-cross-package *design* documentation for the server system — HTTP API
+Administrator/DevOps Guide, a Developer Guide, and a Contributor Guide,
+each answering "how do I actually do this" for its audience. [docs/](docs/)
+also holds the cross-package *design* documentation for the server system — HTTP API
 and JSON models, authentication and RBAC, storage, live streaming,
 quotas, and operational configuration — in bilingual pairs; see
 [docs/README.md](docs/README.md) for the full table of contents.
