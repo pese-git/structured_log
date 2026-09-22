@@ -27,3 +27,10 @@ emb/structured_log_cupertino/example/build/
 emb/structured_log_http/build/
 frontend/structured_log_admin_ui/build/
 frontend/structured_log_admin_ui/example/build/
+
+# site/ (Astro): installed fresh inside its image, not copied in — and
+# dist/ is exactly what that image builds, so it can't be pre-seeded
+# without lying to that build step.
+site/node_modules/
+site/dist/
+site/.astro/
