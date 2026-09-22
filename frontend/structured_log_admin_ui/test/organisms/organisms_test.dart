@@ -680,5 +680,111 @@ void main() {
       expect(backgroundOf('обычная'), isNull);
       expect(backgroundOf('системная'), const Color(0xFFFFF4CE));
     });
+
+    group('narrower than the fixed columns', () {
+      // AuditLog.dc.html's own shape: four fixed columns ahead of the
+      // flexible one, 128 + 150 + 196 + 210 = 684 wide before gaps and
+      // padding — comfortably past what a rail-collapsed narrow client
+      // leaves the page (`fix/client-audit-table-narrow`).
+      const wideColumns = [
+        AdminColumn('Время', width: 128),
+        AdminColumn('Инициатор', width: 150),
+        AdminColumn('Действие', width: 196),
+        AdminColumn('Цель', width: 210),
+        AdminColumn.flexible('Детали'),
+      ];
+
+      testWidgets('scrolls sideways instead of overflowing', (tester) async {
+        await tester.pumpWidget(
+          _host(
+            const SizedBox(
+              width: 700,
+              child: AdminTable(
+                columns: wideColumns,
+                rows: [
+                  AdminTableRow(
+                    cells: [
+                      Text('время'),
+                      Text('актор'),
+                      Text('действие'),
+                      Text('цель'),
+                      Text('детали'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the table must fit the window, not overflow it',
+        );
+        expect(find.byType(SingleChildScrollView), findsOneWidget);
+      });
+
+      testWidgets('a fixed column still holds its own width once scrolled',
+          (tester) async {
+        await tester.pumpWidget(
+          _host(
+            const SizedBox(
+              width: 700,
+              child: AdminTable(
+                columns: wideColumns,
+                rows: [
+                  AdminTableRow(
+                    cells: [
+                      Text('время'),
+                      Text('актор'),
+                      Text('действие'),
+                      Text('цель'),
+                      Text('детали'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        expect(
+          tester.getSize(find.text('время')).width,
+          lessThanOrEqualTo(128),
+          reason: 'the floor exists precisely so a fixed column is never the '
+              'one that gives up its width',
+        );
+        expect(
+          tester.getTopLeft(find.text('действие')).dx,
+          tester.getTopLeft(find.text('Действие')).dx,
+          reason: 'alignment survives the scroll — that is the point of it',
+        );
+      });
+
+      testWidgets(
+          'a window wide enough for the fixed columns does not '
+          'scroll', (tester) async {
+        // The test surface defaults to 800, narrower than the floor itself —
+        // widened here the same way `AdminAppShell`'s own width-dependent
+        // tests are, so a `SizedBox` asking for more room than the device is
+        // not clamped back down to it.
+        tester.view.physicalSize = const Size(1300, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          _host(
+            const SizedBox(
+              width: 1200,
+              child: AdminTable(columns: wideColumns, rows: []),
+            ),
+          ),
+        );
+
+        expect(find.byType(SingleChildScrollView), findsNothing);
+      });
+    });
   });
 }
