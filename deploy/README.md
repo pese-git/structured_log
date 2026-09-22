@@ -102,6 +102,11 @@ repository pins, and copied into the nginx image. There is no official Flutter
 Docker image, and a community one is not something to add to a deployment path
 without examining it; the SDK is already here.
 
+## Running this on Kubernetes instead
+
+[`k8s/`](k8s/) has Kustomize manifests for the same two images — see
+[k8s/README.md](k8s/README.md).
+
 ---
 
 Russian version: [README.ru.md](README.ru.md)
