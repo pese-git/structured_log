@@ -126,6 +126,12 @@ the same widget, no page chrome of its own:
 
 ![FluentLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
 
+On a phone-width screen, the toolbar wraps to a second row and the
+master-detail split collapses to a list; tapping an entry replaces it
+with `LogEntryDetailPane`, with its own back link:
+
+![FluentLogViewerPage on a narrow, phone-width screen: the toolbar wrapped onto two rows above, and the list replaced by the tapped entry's full context with a back link and a copy action](doc/screenshots/mobile.png)
+
 ## API Reference
 
 | Widget | Description |

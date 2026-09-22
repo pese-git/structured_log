@@ -137,6 +137,12 @@ the same widget, no page chrome of its own:
 
 ![MaterialLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
 
+On a phone-width screen, the same page collapses to a list, and tapping
+an entry opens `LogEntryDetailSheet` as a modal bottom sheet instead of
+a side panel:
+
+![MaterialLogViewerPage on a narrow, phone-width screen: the log list with a bottom sheet open on top, dimming the list behind it, showing the tapped entry's full context and a copy action](doc/screenshots/mobile.png)
+
 ## API Reference
 
 | Widget | Description |

@@ -132,6 +132,13 @@ the same widget, no page chrome of its own:
 
 ![CupertinoLogViewer docked as a 2:1-flex side panel next to placeholder app content, showing the same log list and detail view](doc/screenshots/embedded.png)
 
+On a phone-width screen — the mobile-style default — the list is on
+its own, and tapping an entry **pushes** `LogEntryDetailPanel` as its
+own screen via `CupertinoPageRoute`, the standard iOS "drill into
+detail" pattern:
+
+![CupertinoLogViewerPage on a narrow, phone-width screen: the tapped entry pushed as its own screen, with a back chevron, the entry's title in the navigation bar, its full context, and a copy action](doc/screenshots/mobile.png)
+
 ## API Reference
 
 | Widget | Description |
