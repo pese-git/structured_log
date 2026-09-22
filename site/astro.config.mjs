@@ -14,7 +14,7 @@ export default defineConfig({
 		starlight({
 			title: 'structured_log',
 			description:
-				'Self-hosted, multi-tenant structured logging: a Dart logging core, Flutter in-app viewers, an HTTP sender, and a log-collection server with an admin client.',
+				'Structured logging for Dart and Flutter — standalone, or with a self-hosted, multi-tenant log-collection server and admin client.',
 			social: [
 				{
 					icon: 'github',

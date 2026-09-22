@@ -2,10 +2,15 @@
 
 *Читать на [русском](README.ru.md).*
 
-This directory documents the design of `structured_log_server`,
-`structured_log_http`, and `structured_log_admin_client` — the
-self-hosted, multi-tenant log-collection service and its client
-packages.
+**Two ways to use this project.** `structured_log` — and, optionally,
+an in-app log viewer — works entirely on its own, inside your app, with
+no server involved at all: see the [Embedding
+Guide](guides/embedding-guide.md). Add the self-hosted, multi-tenant
+`structured_log_server` (plus `structured_log_http`, its client-side
+sender, and `structured_log_admin_client`, its web UI) only once you
+want those logs collected centrally, searchable, and shared across a
+team — that system is what the rest of this directory documents the
+design of.
 
 **Two kinds of reading are collected here, for two different readers.**
 [guides/](guides/) is task-oriented product documentation — a *user*,
