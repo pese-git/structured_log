@@ -146,8 +146,10 @@ state machine and who can trigger which transition.
 
 ## Storage engine
 
-`drift` over embedded SQLite (`NativeDatabase`, `journal_mode=WAL`), one
-`QueryExecutor` in one isolate — see
-[technology-stack.md](technology-stack.md) for why `drift` specifically,
-and the "Single isolate" principle in
-[README.md](README.md) for what that constrains elsewhere in the design.
+`drift` over embedded SQLite (`NativeDatabase`, `journal_mode=WAL`): one
+writer connection, and — since reads no longer share it — a pool of
+reader connections, each its own isolate (`--db-read-pool-size`) — see
+[technology-stack.md](technology-stack.md) for why `drift` specifically
+and for the read pool, and the "one process" principle in
+[README.md](README.md) for what a single writer still constrains
+elsewhere in the design.

@@ -176,11 +176,18 @@ These aren't specific to one capability — they show up repeatedly in
   and `structured_log_http` remain codegen-free — none of this is a
   precedent for them. See [technology-stack.md](technology-stack.md) for
   the full stack.
-- **Single isolate, no premature scaling.** One `NativeDatabase`
-  `QueryExecutor` in one isolate (decision 4) underpins everything: it's
-  why the live-stream broadcast can be an in-process `StreamController`
-  instead of an external pub/sub (decision 29), and why cross-isolate
-  scaling is an explicit non-goal rather than a half-built feature.
+- **One process, no premature scaling — but not one connection anymore.**
+  Everything still runs in a single process, and cross-isolate *request
+  handling* is still an explicit non-goal rather than a half-built
+  feature. What did change: reads used to share the one write connection
+  and queued behind whatever batch ingestion was committing; a pool of
+  extra reader isolates (`--db-read-pool-size`) now serves them beside
+  the single writer, which WAL allows without extra synchronization
+  ([technology-stack.md](technology-stack.md)). This is orthogonal to
+  why the live-stream broadcast can stay an in-process `StreamController`
+  instead of an external pub/sub (decision 29): every accepted insert
+  still passes through the one writer, in the one process, whatever
+  reads beside it.
 - **Explicit scope, never implicit aggregation.** Every query
   (`GET /v1/logs`, `GET /v1/logs/stream`, management endpoints) requires
   an explicit `project_id` or `group_id` (decision 8) — the server never
