@@ -35,6 +35,43 @@ to any group — letting a group `owner` hand it out would let group-scoped
 authority escape its own boundary, defeating the isolation the whole
 model exists for (decision 7).
 
+### Access matrix by scope level
+
+A `role_assignment` is a `(role, scope_type, scope_id)` triple, and the
+two parts answer different questions: `scope_type`/`scope_id` say *how
+far* the grant reaches (via `_covers` in `access_check.dart`), `role`
+says *what* it lets its holder do there. Reach first:
+
+| Grant's `scope_type` | Reaches |
+|---|---|
+| `global` | Every group and every project — only `admin` can create a `global`-scoped grant at all (`canCreateOrRevokeRoleAssignment` never lets an `owner` target `global`), and the admin-only UI only ever offers `role: admin` there, but neither the schema nor the handler forces that pairing |
+| `group:G` | `G` itself, and every project inside `G` |
+| `project:P` | `P` only |
+
+What each `role` lets its holder do, once a grant reaches the target
+(`access_check.dart`'s exported predicates, each backed by
+`test/rbac/*_test.dart`):
+
+| Action | `admin` | `owner` | `user` |
+|---|---|---|---|
+| Read logs / list a reached group or project (`canRead`) | Yes, everywhere | Yes, where reached | Yes, where reached |
+| Create/edit a Team/Project, edit quotas, rotate secret keys, block a project (`canWrite`) | Yes, everywhere | Yes, where reached | No |
+| Grant or revoke `admin`, any scope | Yes | No — rejected outright, regardless of scope | No |
+| Grant or revoke `owner`/`user` at a scope the caller reaches | Yes | Yes, but only from a **`group`-scoped** `owner` grant of their own (see note) | No |
+| List `role_assignments` for one specific scope (`canReadRoleAssignmentsForScope`) | Yes | Yes, same scope rule as `canWrite` | No |
+| List `role_assignments` unfiltered, or by `subject_id` alone — "grants held by this user" (`canManageRoleAssignments`) | Yes | No | No |
+| Search users, `GET /v1/users` (`canSearchUsers`) | Yes | Yes — any `owner` grant qualifies, not only one on the group being searched into | No |
+
+**Note on granting/revoking:** the check that lets an `owner` grant or
+revoke a role (`canCreateOrRevokeRoleAssignment`) requires the *granting*
+role's own `scope_type` to be `group`, not just that it reaches the
+target — an `owner` grant scoped directly to a `project` (legal in the
+schema, just unusual) can still write to that project (`canWrite` has no
+such restriction) but cannot grant or revoke roles on it. The asymmetry
+exists because delegation is a group-owner privilege specifically
+(`design.md`, Этап 4, 4.3), not a general consequence of "can write
+here."
+
 ## Blocking vs. deletion: same mechanics, different operations
 
 Both are ways to cut off an account's access, and both reuse the exact

@@ -48,6 +48,46 @@
 /v1/auth/token`) и `$PROJECT_SECRET_KEY` (из `POST
 /v1/projects/:id/secret-keys`, с префиксом `slk_`) — подставьте свои.
 
+## Межоригинные запросы (CORS) (`log-server-api`)
+
+По умолчанию выключено — каждый ответ ниже выглядит именно так и без
+заголовка `Origin` вообще, и с тем `Origin`, который оператор не назвал
+(`--cors-allowed-origins`, по умолчанию не задан; см.
+[configuration.md](../operations/configuration.ru.md)). Это то, что
+видит развёртывание с единым origin ([deploy/](../../deploy/)), и то,
+что видит любой не-браузерный клиент независимо ни от чего.
+
+Когда запрос несёт заголовок `Origin`, точно совпадающий с одним из
+настроенных origin (с учётом регистра, без wildcard — тройка
+схема/хост/порт, дословно), меняются две вещи:
+
+- **Preflight отвечается раньше всего остального.** `OPTIONS` с
+  заголовком `Access-Control-Request-Method` получает `204` сразу —
+  раньше ограничения частоты и аутентификации, на **любом** эндпоинте,
+  включая приём логов, — с:
+
+  ```text
+  Access-Control-Allow-Origin: <совпавший origin>
+  Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Authorization, Content-Type
+  Vary: Origin
+  ```
+
+  Эти три значения — фиксированные константы (то, чем API реально
+  пользуется), а не эхо того, что браузер спросил в
+  `Access-Control-Request-Method`/`-Headers`.
+
+- **К любому другому ответу, успешному или с ошибкой, добавляются два
+  заголовка** поверх того, что он уже несёт — `Access-Control-Allow-Origin:
+  <совпавший origin>` и `Vary: Origin` — так что браузер может прочитать
+  и тело `401`, `403`, `429` или `5xx`, а не только `200`.
+
+`Origin`, не совпавший ни с одним настроенным значением, трактуется
+ровно как отсутствие `Origin` — без заголовков CORS и без отдельного
+ответа-отказа. Где это стоит относительно ограничения частоты и
+аутентификации — см.
+[README.md](../architecture/README.ru.md#цепочка-middleware).
+
 ## Приём, запрос и живой поток логов (`log-server-api`, `log-server-live-stream`)
 
 Спека:
@@ -725,3 +765,5 @@ curl -G http://localhost:8080/v1/audit-log \
 - [errors.md](errors.ru.md) — полный каталог ошибок, включая различие
   между кодами на уровне записи батча и верхнеуровневыми HTTP-ошибками,
   и почему `403` иногда используется вместо `404`.
+- [configuration.md](../operations/configuration.ru.md#справочник) —
+  `--cors-allowed-origins` и все остальные настройки.

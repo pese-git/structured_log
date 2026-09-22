@@ -90,6 +90,112 @@ flowchart TB
   чтобы не закреплять это спекулятивно до написания реального кода (см.
   Open Questions `design.md`).
 
+## Граф внедрения зависимостей
+
+Оба новых пакета объявляют граф объектов модулями `cherrypick`, а не
+собирают его вручную (decision 35) — но формы графов противоположны,
+потому что у пакетов противоположный паттерн разделения между фичами.
+
+### Сервер: один скоуп на *слой*, потому что маршруты делят сервисы
+
+Каждый маршрут каждой фичи зависит от одного и того же небольшого
+набора сервисов (`Authorizer`, `AuditWriter`, `LogStore`, ...), так что
+скоуп на фичу просто пересвязывал бы их по разу на фичу без всякой
+пользы. Вместо этого граф сервера разложен по слоям по зависимостям —
+каждый скоуп резолвит только *вверх*, никогда вбок — вложенными от
+того, что серверу *дают*, до того, что есть только у запущенного
+процесса:
+
+```mermaid
+flowchart TB
+    subgraph server["server — AppModule (рукописный)\nTokenSettings · HttpSettings · AuditRetention\nLogBroadcast · ServerLogging (только у процесса, provider)"]
+      subgraph infra["infra — InfraModule\nStructuredLogDatabase · HashWorkerPool"]
+        subgraph services["services — RbacModule + AuditModule + AuthModule + StorageModule\nAuthorizer · AuditWriter · TokenService · IdentityProvider · LogStore"]
+          subgraph app["app — RoutesModule\n11 классов маршрутов (AuditLogRoutes … RoleAssignmentRoutes)"]
+            subgraph host["host — HostModule (рукописный, только у процесса)\nPurgeScheduler · ServerHost"]
+            end
+          end
+        end
+      end
+    end
+```
+
+`openServerScope` (`http/server.dart`) открывает `server` → `infra` →
+`services` → `app` одним вызовом; `openServerHost` открывает `host`
+поверх, как только появился `Handler`, который ему отдать.
+`bin/server.dart` — единственный вызывающий, передающий `into:`/
+`process:` — открывает `server` через `CherryPick.openScope(scopeName:
+serverScopeName)` (так глобальный наблюдатель и детектор циклов его
+достают) и передаёт `ProcessResources`, что и делает этот скоуп
+*владельцем* БД, пула хэш-воркеров и логирования: `openServerScope`
+явно `resolve()`-ит все три сразу после установки `InfraModule`/
+`AppModule`, потому что скоуп закрывает только то, что *создали* его
+собственные биндинги, а биндинг `toInstance` (то, что передают тесты)
+никем не создавался. Тесты строят много обработчиков на своей базе,
+деля один пул хэш-воркеров на весь тестовый изолят, и никогда не
+передают `process:` — их граф не трогает ни базу, ни пул при закрытии.
+
+Остановка — один вызов, `CherryPick.closeScope(scopeName:
+serverScopeName)`, из обработчика сигнала в `bin/server.dart`. Закрытие
+скоупа сначала закрывает вложенные, так что слои разворачиваются
+изнутри наружу — `host → app → services → infra → server` — слушающий
+сокет и purge-задача останавливаются раньше базы и хэш-воркеров,
+которыми всё ещё пользуются, а `ServerLogging` (куда всё выше могло
+ещё писать) сбрасывается последним из всех (`AGENTS.md`).
+
+### Клиент: один скоуп на *фичу*, потому что фичи почти не делятся
+
+Пять фич клиента (`auth`, `log_browser`, `resources`, `users`, `audit`)
+каждая владеет в основном независимым куском домена, так что здесь
+естественный разрез — скоуп на фичу; каждый скоуп фичи — прямой
+потомок корня, не вложен друг в друга:
+
+```mermaid
+flowchart TB
+    root["корневой скоуп — AppModule\nAppConfig · BoundLogger · TokenStorage · ApiClient\n(ApiClient implements Disposable — закрывает свои 4 Dio)"]
+    root --> auth["auth — AuthModule\nAuthRepository · SignIn/SignOut/ChangePassword ·\nCurrentUsername · IsGlobalAdmin · DeleteAccount"]
+    root --> logBrowser["log_browser — LogBrowserModule\nLogStreamClient · LogBrowserRepository ·\nLoadScopes/QueryLogs/WatchLogs · LogFeedBloc"]
+    root --> resources["resources — ResourcesModule\nResourcesRepository · RoleAssignmentsRepository ·\nManageGroups/Projects/Teams/SecretKeys/RoleAssignments"]
+    root --> users["users — UsersModule\nUsersRepository · AuditRepository ·\nManageUsers/RoleAssignments · UsersCubit"]
+    root --> audit["audit — AuditModule\nAuditRepository · QueryAuditLog · AuditCubit"]
+```
+
+`openAppScope` устанавливает `AppModule` в `CherryPick.openRootScope()`
+раньше, чем что-либо ещё выполняется, так что глобальный наблюдатель и
+детекторы циклов (и локальный, и межскоуповый) уже включены к моменту
+открытия первого скоупа фичи. `HomeShell.dispose()` закрывает свои
+четыре скоупа фич (`log_browser`/`resources`/`users`/`audit`);
+`AuthGate.dispose()` закрывает `auth` — скоуп, к которому `HomeShell`
+тоже присоединяется по имени, а не переоткрывает, поскольку `AuthGate`
+переживает его через смену входа. `openAuthScope` — единственный
+opener, который *присоединяется*, а не переустанавливает: два места
+вызова (`AuthGate` и хостящий его `HomeShell`) просят один и тот же
+скоуп по имени, а повторная установка `$AuthModule()` просто наложила
+бы дублирующие биндинги друг на друга, поэтому модуль ставится, только
+если в скоупе ещё ничего не резолвит `AuthRepository`.
+
+### Два поведения `cherrypick`, важные перед правкой любого из графов
+
+- **Отсутствующий биндинг — не ошибка на этапе сборки.** Генератор не
+  проверяет граф — тип, который никто не предоставляет, проходит
+  `analyze` и компилируется, а бросает `StateError` только на первом
+  `resolve()`. Оба графа закреплены против этого тестом, резолвящим
+  всё, что скоуп обещает, сразу после его постройки
+  (`test/di/server_scope_test.dart` на сервере,
+  `test/shared/di/scopes_test.dart` на клиенте) — подтверждено
+  мутацией: удаление метода-провайдера красит соответствующий тест.
+- **`@instance()` связывает нетерпеливо, `@provide()` — лениво.**
+  Биндинг `@provide()`/`toProvide` резолвит свои зависимости из
+  соседних биндингов, когда их кто-то впервые запрашивает; `@instance()`/
+  `toInstance` вычисляется сразу внутри `builder()`, раньше, чем
+  остальные биндинги того же модуля обязательно уже существуют —
+  использование его для значения с зависимостью внутри того же модуля
+  бросает `Can't resolve dependency` в момент `installModules`, а не
+  ошибку проводки в самой зависимости. Ни один из графов не использует
+  `@instance()` по этой причине; значения без собственных зависимостей
+  (`TokenSettings`, `AppConfig`, ...) связаны через `toInstance` прямо
+  в рукописных модулях.
+
 ## Что осознанно *не* скопировано из Keycloak
 
 Контракт аутентификации (см. [auth.md](auth.ru.md)) достаточно близко

@@ -47,6 +47,45 @@ and shell variables `$ACCESS_TOKEN` (a JWT from `POST /v1/auth/token`)
 and `$PROJECT_SECRET_KEY` (from `POST /v1/projects/:id/secret-keys`,
 prefixed `slk_`) — substitute your own.
 
+## Cross-origin requests (CORS) (`log-server-api`)
+
+Off by default — every response below is written as it looks with no
+`Origin` header at all, or with one the operator hasn't named
+(`--cors-allowed-origins`, unset by default; see
+[configuration.md](../operations/configuration.md)). This is what a
+same-origin deployment ([deploy/](../../deploy/)) sees, and what every
+non-browser client sees regardless.
+
+When the request carries an `Origin` header that exactly matches one of
+the configured origins (case-sensitive, no wildcard — a scheme/host/port
+triple, verbatim), two things change:
+
+- **A preflight is answered before anything else.** `OPTIONS` with an
+  `Access-Control-Request-Method` header gets `204` immediately —
+  ahead of rate limiting and authentication, on *every* endpoint,
+  ingestion included — with:
+
+  ```text
+  Access-Control-Allow-Origin: <the matched origin>
+  Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Authorization, Content-Type
+  Vary: Origin
+  ```
+
+  These three values are fixed constants (what this API actually uses),
+  not an echo of what the browser asked for in
+  `Access-Control-Request-Method`/`-Headers`.
+
+- **Every other response, success or error, gets two headers added** on
+  top of whatever it already carries — `Access-Control-Allow-Origin: <the
+  matched origin>` and `Vary: Origin` — so a browser can read a `401`,
+  `403`, `429`, or `5xx` body too, not only a `200`.
+
+An `Origin` that doesn't match any configured value is treated exactly
+like no `Origin` at all — no CORS headers, and no separate rejection
+response. See [README.md](../architecture/README.md#the-middleware-chain)
+for where this sits relative to rate limiting and authentication.
+
 ## Log ingestion, query, and live stream (`log-server-api`, `log-server-live-stream`)
 
 Spec:
@@ -718,3 +757,5 @@ curl -G http://localhost:8080/v1/audit-log \
 - [errors.md](errors.md) — the complete error catalog, including the
   distinction between per-entry batch codes and top-level HTTP errors,
   and why `403` sometimes stands in for `404`.
+- [configuration.md](../operations/configuration.md#reference) —
+  `--cors-allowed-origins` and every other setting.
