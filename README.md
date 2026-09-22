@@ -71,10 +71,14 @@ fit the three categories above (currently empty). See [AGENTS.md](AGENTS.md)
 for the full toolchain reference (commands, conventions, versioning, CI) if
 you're contributing.
 
-[docs/](docs/) holds the cross-package design documentation for the server
-system — HTTP API and JSON models, authentication and RBAC, storage, live
-streaming, quotas, and operational configuration — in bilingual pairs; see
-[docs/README.md](docs/README.md) for the table of contents.
+**New to the server system?** Start with
+[docs/guides/](docs/guides/README.md) — a User Guide, an
+Administrator/DevOps Guide, and a Developer Guide, each answering "how
+do I actually do this" for its audience. [docs/](docs/) also holds the
+cross-package *design* documentation for the server system — HTTP API
+and JSON models, authentication and RBAC, storage, live streaming,
+quotas, and operational configuration — in bilingual pairs; see
+[docs/README.md](docs/README.md) for the full table of contents.
 
 Design and planning history for the Flutter log-viewer packages lives in
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),

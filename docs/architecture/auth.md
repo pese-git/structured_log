@@ -209,6 +209,12 @@ being left to whoever writes the adapter to guess.
 
 ## Self-service password recovery
 
+> **Planned, not implemented** — no `POST /v1/auth/password-reset`(`/confirm`)
+> route exists in the running server; this section documents the design
+> as originally specified. An admin resets a forgotten password directly
+> via `PATCH /v1/users/:id` instead — see the
+> [Administrator Guide](../guides/admin-guide.md#managing-users).
+
 A separate pre-auth flow, not an extension of `/v1/auth/token` (decision
 24) — `email` is not a login identifier (that stays `username`), only a
 recovery contact, mandatory on self-registration and optional when an
@@ -245,6 +251,13 @@ an operator might swap `SmtpEmailSender` for a transactional email API
 without touching the reset flow itself.
 
 ## Email verification: mandatory before login, not optional
+
+> **Planned, not implemented** — no `POST /v1/auth/verify-email`(`/resend`)
+> route exists in the running server, and `grant_type=password` does not
+> gate on `email_verified_at`; this section documents the design as
+> originally specified. Self-registration (`POST /v1/auth/register`,
+> referenced throughout this section) is likewise not implemented — see
+> the [Developer Guide](../guides/developer-guide.md#what-isnt-implemented).
 
 By direct, explicit user requirement (decision 40): any account with an
 `email` set — whether through self-registration (where it's mandatory)
