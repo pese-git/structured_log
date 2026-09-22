@@ -40,12 +40,17 @@ depend on.
 - **Rate limiting** — token buckets on the auth endpoints, by address and by subject
 - **Audit log** — `GET /v1/audit-log`, administrators only: who changed what,
   and who tried to sign in
-- **SQLite storage** — one file, no external services
+- **Storage** — SQLite by default (one file, no external services), or
+  PostgreSQL as an operator-chosen alternative (`--db-backend=postgres`)
 
 ## Requirements
 
-Dart SDK 3.0 or newer. Nothing else: the database is an embedded SQLite file
-and there is no message broker, cache or migration tool to run.
+Dart SDK 3.0 or newer. Nothing else by default: the database is an embedded
+SQLite file and there is no message broker, cache or migration tool to run.
+Choosing `--db-backend=postgres` instead needs a PostgreSQL server the
+operator already runs — see
+[Running against PostgreSQL instead](#running-against-postgresql-instead)
+below.
 
 ## Running it
 
@@ -82,6 +87,28 @@ auto-creation and use `dart run bin/server.dart create-admin` instead.
 Either way the account starts with `must_change_password`, and every
 endpoint except the change-password one answers `403 must_change_password`
 until it is cleared.
+
+### Running against PostgreSQL instead
+
+Everything above works identically against PostgreSQL — swap `--db-path`
+for `--db-backend=postgres` plus connection settings, nothing else in this
+README changes:
+
+```bash
+export STRUCTURED_LOG_JWT_SECRET='a-long-random-string'
+export STRUCTURED_LOG_DB_POSTGRES_PASSWORD='...'
+dart run bin/server.dart serve \
+  --db-backend=postgres \
+  --db-postgres-host=localhost --db-postgres-database=structured_log \
+  --db-postgres-username=structured_log
+```
+
+The backend is chosen once, on an empty database, at deploy time — never a
+runtime toggle and never an automatic SQLite→PostgreSQL migration. See
+[docs/operations/configuration.md](../../docs/operations/configuration.md#postgresql)
+for every Postgres-specific setting (pool size, TLS mode) and
+[docs/architecture/data-model.md](../../docs/architecture/data-model.md#postgresql-an-operator-chosen-alternative-backend)
+for what genuinely differs between the two backends.
 
 ## Getting to your first log entry
 
@@ -193,7 +220,9 @@ order of priority. Secrets are environment-only.
 
 | Setting | Default |
 |---|---|
-| `--db-path` | required for `serve` |
+| `--db-backend` | `sqlite` — or `postgres`, see above |
+| `--db-path` | required for `serve` when `--db-backend=sqlite` (the default) |
+| `--db-postgres-host` / `-database` / `-username`, `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` | required for `serve` when `--db-backend=postgres` |
 | `STRUCTURED_LOG_JWT_SECRET` | required for `serve` |
 | `--http-host` / `--http-port` | `0.0.0.0` / `8080` |
 | `--max-ingest-body-bytes` | `10485760` |
@@ -235,8 +264,9 @@ headers regardless.
 ```bash
 dart run build_runner build --delete-conflicting-outputs
 dart analyze
-dart test                          # unit and integration
-dart test --tags integration       # just the ones that spawn a real process
+dart test --exclude-tags integration --exclude-tags postgres   # the default suite
+dart test --tags integration                # spawns a real process
+dart test --tags postgres --concurrency=1   # needs a real PostgreSQL instance
 ```
 
 Code generation is not optional — `drift`, `freezed`, `json_serializable`

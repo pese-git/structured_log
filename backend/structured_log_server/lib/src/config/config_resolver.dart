@@ -139,7 +139,10 @@ class ConfigResolver {
       }
     }
 
-    final warnings = _unknownEnvWarnings(env);
+    final warnings = [
+      ..._unknownEnvWarnings(env),
+      ..._backendMismatchWarnings(values),
+    ];
 
     if (errors.isNotEmpty) {
       return ConfigParseResult.errors(errors, warnings: warnings);
@@ -163,7 +166,7 @@ class ConfigResolver {
       return;
     }
     if (resolution.isUnset) {
-      if (spec.requiredForCommands.contains(command)) {
+      if (_isRequired(spec, command, values)) {
         errors.add(
           '${spec.envVarName} is required for "$command" but was not set.',
         );
@@ -206,8 +209,7 @@ class ConfigResolver {
     }
 
     if (raw == null) {
-      if (spec.defaultValue == null &&
-          spec.requiredForCommands.contains(command)) {
+      if (spec.defaultValue == null && _isRequired(spec, command, values)) {
         errors.add(
           '--${spec.name} (${spec.envVarName}) is required for "$command" '
           'but was not set.',
@@ -226,6 +228,45 @@ class ConfigResolver {
       return;
     }
     values[spec.name] = ResolvedValue(coerced.value, source);
+  }
+
+  /// Whether [spec] is required for [command] given what's resolved so far —
+  /// [ParamSpec.requiredForCommands] gates by command as always;
+  /// [ParamSpec.requiredWhen], when present, narrows that further by the
+  /// value of an earlier-declared parameter (`db-backend`, typically).
+  bool _isRequired(
+    ParamSpec spec,
+    String command,
+    Map<String, ResolvedValue> values,
+  ) {
+    if (!spec.requiredForCommands.contains(command)) return false;
+    final requiredWhen = spec.requiredWhen;
+    if (requiredWhen == null) return true;
+    return requiredWhen({
+      for (final entry in values.entries) entry.key: entry.value.value,
+    });
+  }
+
+  /// `--db-read-pool-size` is meaningless once `db-backend=postgres`
+  /// (`add-postgres-backend` design.md, decision 8) — PostgreSQL has its own
+  /// connection pool (`db-postgres-pool-size`), not a SQLite-style extra
+  /// reader-isolate pool beside a single writer. Warned, not rejected, the
+  /// same posture as an unrecognized environment variable: it costs the
+  /// operator nothing to leave a stale flag from a previous SQLite
+  /// deployment in place, but silently ignoring it is exactly the kind of
+  /// thing that costs an hour of "why is this setting doing nothing".
+  List<String> _backendMismatchWarnings(Map<String, ResolvedValue> values) {
+    final backend = values['db-backend']?.value;
+    final readPool = values['db-read-pool-size'];
+    if (backend != 'postgres' ||
+        readPool == null ||
+        readPool.source == ConfigSource.defaultValue) {
+      return const [];
+    }
+    return [
+      '--db-read-pool-size (${readPool.value}) has no effect with '
+          '--db-backend=postgres — use --db-postgres-pool-size instead.',
+    ];
   }
 
   List<String> _unknownEnvWarnings(Map<String, String> env) {

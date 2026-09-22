@@ -7,3 +7,10 @@ targets:
           # fractional seconds) instead of drift's default lossy unix-seconds
           # storage.
           store_date_time_values_as_text: true
+          # Generate schema/queries for both backends the operator can choose
+          # (`--db-backend`, `add-postgres-backend`) from one Dart DSL — see
+          # docs/architecture/data-model.md's "Planned" section.
+          sql:
+            dialects:
+              - sqlite
+              - postgres

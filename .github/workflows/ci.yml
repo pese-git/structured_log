@@ -65,6 +65,27 @@ jobs:
     defaults:
       run:
         working-directory: backend/structured_log_server
+    # For the `postgres`-tagged suite (add-postgres-backend). A GitHub
+    # Actions service container, not a manual `docker run` + wait loop like
+    # chromedriver below: unlike chromedriver, Postgres has first-class
+    # `services:` support with a built-in health check, and the runner
+    # blocks every step until it reports healthy — nothing to wait for by
+    # hand. Credentials match the test suite's defaults
+    # (`STRUCTURED_LOG_TEST_POSTGRES_*`, see dart_test.yaml).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -110,11 +131,15 @@ jobs:
       - name: Analyze
         run: dart analyze
 
-      # Split from the integration run below only so the log says which of
-      # the two failed: `integration` is declared in dart_test.yaml but not
-      # excluded, so a plain `dart test` would run both anyway.
+      # Split from the integration/Postgres runs below only so the log says
+      # which of the three failed: none of these tags are excluded by
+      # dart_test.yaml itself, so a plain `dart test` would run all three
+      # here. `postgres`-tagged files throw a clear `StateError` in
+      # `setUpAll` without `STRUCTURED_LOG_TEST_POSTGRES_PASSWORD` set (see
+      # dart_test.yaml) — excluding the tag here, not setting the var, is
+      # what keeps this step SQLite-only.
       - name: Run tests
-        run: dart test --exclude-tags integration
+        run: dart test --exclude-tags integration --exclude-tags postgres
 
       # These spawn bin/server.dart as a real OS process. They are the only
       # tests that exercise anything the in-process handler can't show —
@@ -122,6 +147,21 @@ jobs:
       # reaching a socket, and shutdown behaviour on a signal.
       - name: Run integration tests
         run: dart test --tags integration
+
+      # Dialect-sensitive code the SQLite-backed suite above can't exercise
+      # (add-postgres-backend design.md, decision 10). --concurrency=1 is
+      # required, not a style choice: these files share one physical
+      # database with no per-file isolation the way SQLite's
+      # NativeDatabase.memory() gives each test, and run at default
+      # concurrency they corrupt each other's fixtures (see dart_test.yaml).
+      - name: Run Postgres-backed tests
+        env:
+          STRUCTURED_LOG_TEST_POSTGRES_HOST: localhost
+          STRUCTURED_LOG_TEST_POSTGRES_PORT: '5432'
+          STRUCTURED_LOG_TEST_POSTGRES_DATABASE: postgres
+          STRUCTURED_LOG_TEST_POSTGRES_USERNAME: postgres
+          STRUCTURED_LOG_TEST_POSTGRES_PASSWORD: postgres
+        run: dart test --tags postgres --concurrency=1
 
   e2e:
     name: End-to-end (packages/e2e)

@@ -59,6 +59,15 @@ class DriftLogStore implements LogStore {
         : _db.transaction(() => _insert(entries));
   }
 
+  /// SQLite: one statement batch, then one read of what it wrote by id range
+  /// (`_insertSqlite`). Postgres: one multi-row `INSERT ... RETURNING *`
+  /// (`_insertPostgres`) — see each method's own doc for why they're not the
+  /// same code (`add-postgres-backend` design.md, decision 5).
+  Future<List<LogEntry>> _insert(List<LogEntriesCompanion> entries) =>
+      _db.executor.dialect == SqlDialect.postgres
+      ? _insertPostgres(entries)
+      : _insertSqlite(entries);
+
   /// One statement batch, then one read of what it wrote.
   ///
   /// This replaced an `insertReturning` per entry, each an awaited round trip
@@ -70,8 +79,12 @@ class DriftLogStore implements LogStore {
   /// that holds it — nothing else can insert between the batch and the read —
   /// so the ids of the [entries] are exactly the `entries.length` ending at
   /// `last_insert_rowid()`. Anything else is a bug worth failing loudly for,
-  /// not a row set to broadcast.
-  Future<List<LogEntry>> _insert(List<LogEntriesCompanion> entries) async {
+  /// not a row set to broadcast. `last_insert_rowid()` is SQLite-only —
+  /// `add-postgres-backend` design.md decision 5 — which is why this isn't
+  /// the shared implementation.
+  Future<List<LogEntry>> _insertSqlite(
+    List<LogEntriesCompanion> entries,
+  ) async {
     await _db.batch((b) => b.insertAll(_db.logEntries, entries));
 
     final last =
@@ -92,6 +105,96 @@ class DriftLogStore implements LogStore {
     return rows;
   }
 
+  /// One multi-row `INSERT ... VALUES (...), (...), ... RETURNING *` — still
+  /// one round trip, like the SQLite path, but correctness doesn't rest on an
+  /// id-range assumption: the returned rows *are* the inserted ones, directly,
+  /// with nothing to reason about regarding neighbors (`add-postgres-backend`
+  /// design.md decision 5 — `last_insert_rowid()` + range read isn't a safe
+  /// substitute here, and isn't SQLite's own function anyway).
+  ///
+  /// Column list is the table's, `id` excluded (assigned by Postgres); a
+  /// `null` field is written as a literal `NULL` rather than a bound
+  /// `Variable`, since [Variable] itself has no null form
+  /// (`T extends Object`) — every other value is bound normally, and gets
+  /// its placeholder numbered for Postgres the same way every other raw
+  /// fragment does (`placeholdersForDialect`, decision 3a).
+  Future<List<LogEntry>> _insertPostgres(
+    List<LogEntriesCompanion> entries,
+  ) async {
+    const columns = [
+      'project_id',
+      'received_at',
+      'timestamp',
+      'level',
+      'event',
+      'category',
+      'logger',
+      'session_id',
+      'request_id',
+      'connection_generation',
+      'tool_call_id',
+      'message_id',
+      'operation_id',
+      'size_bytes',
+      'context_json',
+    ];
+
+    final variables = <Variable<Object>>[];
+    final rowPlaceholders = <String>[];
+    for (final entry in entries) {
+      final values = <Object?>[
+        entry.projectId.value,
+        entry.receivedAt.value,
+        entry.timestamp.value,
+        entry.level.value,
+        entry.event.value,
+        entry.category.value,
+        entry.logger.value,
+        entry.sessionId.value,
+        entry.requestId.value,
+        entry.connectionGeneration.value,
+        entry.toolCallId.value,
+        entry.messageId.value,
+        entry.operationId.value,
+        entry.sizeBytes.value,
+        entry.contextJson.value,
+      ];
+      final placeholders = <String>[];
+      for (final value in values) {
+        if (value == null) {
+          placeholders.add('NULL');
+        } else {
+          placeholders.add('?');
+          variables.add(_boundValue(value));
+        }
+      }
+      rowPlaceholders.add('(${placeholders.join(', ')})');
+    }
+
+    final sql = placeholdersForDialect(
+      'INSERT INTO log_entries (${columns.join(', ')}) '
+      'VALUES ${rowPlaceholders.join(', ')} '
+      'RETURNING *',
+      SqlDialect.postgres,
+    );
+    final rows = await _db.customWriteReturning(
+      sql,
+      variables: variables,
+      updates: {_db.logEntries},
+    );
+    return rows.map((row) => _db.logEntries.map(row.data)).toList();
+  }
+
+  static Variable<Object> _boundValue(Object value) => switch (value) {
+    int v => Variable.withInt(v),
+    String v => Variable.withString(v),
+    DateTime v => Variable.withDateTime(v),
+    bool v => Variable.withBool(v),
+    _ => throw ArgumentError(
+      'log_entries: no bound-variable mapping for ${value.runtimeType}',
+    ),
+  };
+
   @override
   Future<LogQueryPage> query(LogQuery query) async {
     // One row past the limit, only to learn whether another page exists
@@ -108,6 +211,7 @@ class DriftLogStore implements LogStore {
         cursor: query.cursor,
         afterId: query.afterId,
       ),
+      dialect: _db.executor.dialect,
     );
     final rows = await _db
         .customSelect(

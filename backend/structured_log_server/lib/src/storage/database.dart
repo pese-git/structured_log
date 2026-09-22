@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:cherrypick/cherrypick.dart' show Disposable;
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:drift_postgres/drift_postgres.dart';
+import 'package:postgres/postgres.dart' as pg;
 import 'package:sqlite3/sqlite3.dart' show Database;
 
 part 'database.g.dart';
@@ -195,7 +197,32 @@ class LogEntries extends Table {
 )
 class StructuredLogDatabase extends _$StructuredLogDatabase
     implements Disposable {
-  StructuredLogDatabase(super.executor);
+  /// Only set by [openPostgres] — the `Pool` it constructs and hands to
+  /// `PgDatabase.opened(pool)`. [ownedPool] exists only so [dispose] can
+  /// close it: `PgDatabase.opened(session)` deliberately does **not** close
+  /// the `Session`/`Pool` it's given when drift's own `close()` runs (it
+  /// only does that for its other constructor, given a bare `Endpoint`) —
+  /// the caller owns whatever it passed in. Missing this closed the process
+  /// out of `drift`'s `close()` without ever closing the pool's actual
+  /// sockets, and the Dart process then never exited (`SIGTERM` handled,
+  /// "Shutting down..." logged, no further progress — the open connections
+  /// kept the event loop alive), found by running the real server against a
+  /// real Postgres instance and sending it `SIGTERM` (`add-postgres-backend`
+  /// design.md).
+  final pg.Pool<Object?>? _ownedPool;
+
+  StructuredLogDatabase(super.executor, {pg.Pool<Object?>? ownedPool})
+    : _ownedPool = ownedPool;
+
+  /// Closes the connection/pool this database uses. Overridden (not just
+  /// [dispose]) so every caller is covered — the DI-owned server path
+  /// (`dispose`, below) and `create-admin`'s direct `db.close()`
+  /// (`bin/server.dart`) alike.
+  @override
+  Future<void> close() async {
+    await super.close();
+    await _ownedPool?.close();
+  }
 
   /// What a scope that owns this database calls when it goes down: the
   /// connections close (`server` layers, `http/server.dart`).
@@ -231,6 +258,50 @@ class StructuredLogDatabase extends _$StructuredLogDatabase
     );
   }
 
+  /// Opens a connection to an operator-managed PostgreSQL server
+  /// (`--db-backend=postgres`, `add-postgres-backend` design.md decision 1) —
+  /// the alternative to [open]'s embedded SQLite file. Unlike SQLite there is
+  /// no separate reader-isolate pool to configure (decision 6/8): PostgreSQL
+  /// handles concurrent readers and writers natively, so [poolSize] governs
+  /// one shared connection pool (`package:postgres`'s [pg.Pool]), and there is
+  /// no `setup:`/`PRAGMA` step — nothing here needs working around.
+  ///
+  /// [sslMode] is the raw config string (`disable`/`require`/`verify-full`,
+  /// `ServerConfig.dbPostgresSslMode`) rather than `package:postgres`'s
+  /// [pg.SslMode], so the configuration layer stays free of a dependency on
+  /// this storage-layer package (the same reason it stays a `String` there).
+  factory StructuredLogDatabase.openPostgres({
+    required String host,
+    required int port,
+    required String database,
+    required String username,
+    required String password,
+    required String sslMode,
+    int poolSize = 10,
+  }) {
+    final endpoint = pg.Endpoint(
+      host: host,
+      port: port,
+      database: database,
+      username: username,
+      password: password,
+    );
+    final pool = pg.Pool.withEndpoints(
+      [endpoint],
+      settings: pg.PoolSettings(
+        maxConnectionCount: poolSize,
+        sslMode: _sslModeFor(sslMode),
+      ),
+    );
+    return StructuredLogDatabase(PgDatabase.opened(pool), ownedPool: pool);
+  }
+
+  static pg.SslMode _sslModeFor(String raw) => switch (raw) {
+    'disable' => pg.SslMode.disable,
+    'verify-full' => pg.SslMode.verifyFull,
+    _ => pg.SslMode.require,
+  };
+
   /// Whether the caller is already inside a [transaction] of this database.
   ///
   /// Only for code that must not open a transaction of its own when it does not
@@ -249,7 +320,7 @@ class StructuredLogDatabase extends _$StructuredLogDatabase
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
-      for (final statement in _additionalIndexStatements) {
+      for (final statement in _additionalIndexStatements(executor.dialect)) {
         await customStatement(statement);
       }
       for (final statement in _v2IndexStatements) {
@@ -295,31 +366,43 @@ class StructuredLogDatabase extends _$StructuredLogDatabase
 
   /// Indexes beyond what a single-column/table-level constraint expresses:
   /// composite, and partial (`WHERE`-qualified) indexes — `log-server-storage`.
-  static const _additionalIndexStatements = <String>[
-    'CREATE INDEX idx_log_entries_project_id ON log_entries (project_id);',
-    'CREATE INDEX idx_log_entries_timestamp ON log_entries (timestamp);',
-    'CREATE INDEX idx_log_entries_level ON log_entries (level);',
-    'CREATE INDEX idx_log_entries_category ON log_entries (category);',
-    'CREATE INDEX idx_log_entries_session_id ON log_entries (session_id);',
-    'CREATE INDEX idx_log_entries_request_id ON log_entries (request_id);',
-    'CREATE INDEX idx_log_entries_project_level_timestamp '
-        'ON log_entries (project_id, level, timestamp);',
-    'CREATE UNIQUE INDEX idx_users_username ON users (username);',
-    'CREATE UNIQUE INDEX idx_users_email ON users (email) '
-        'WHERE email IS NOT NULL;',
-    'CREATE UNIQUE INDEX idx_users_is_primary_admin ON users (is_primary_admin) '
-        'WHERE is_primary_admin = 1;',
-    'CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens (user_id);',
-    'CREATE INDEX idx_password_reset_tokens_user_id '
-        'ON password_reset_tokens (user_id);',
-    'CREATE INDEX idx_email_verification_tokens_user_id '
-        'ON email_verification_tokens (user_id);',
-    'CREATE INDEX idx_audit_log_entries_actor_user_id '
-        'ON audit_log_entries (actor_user_id);',
-    'CREATE INDEX idx_audit_log_entries_action ON audit_log_entries (action);',
-    'CREATE INDEX idx_audit_log_entries_target '
-        'ON audit_log_entries (target_type, target_id);',
-    'CREATE INDEX idx_audit_log_entries_created_at '
-        'ON audit_log_entries (created_at);',
-  ];
+  ///
+  /// One statement — the partial unique index on `is_primary_admin` — is the
+  /// one DDL literal that can't be parameterized (`Variable` only binds query
+  /// arguments, not schema text), so it's the one place this list branches by
+  /// [dialect] (`add-postgres-backend` design.md, decision 4): SQLite has no
+  /// real boolean type and stores it as `0`/`1`, Postgres does and rejects
+  /// `= 1` against a boolean column outright (`operator does not exist:
+  /// boolean = integer`). Every other statement here is dialect-portable as
+  /// written.
+  static List<String> _additionalIndexStatements(SqlDialect dialect) {
+    final isPrimaryAdminTrue = dialect == SqlDialect.postgres ? 'true' : '1';
+    return [
+      'CREATE INDEX idx_log_entries_project_id ON log_entries (project_id);',
+      'CREATE INDEX idx_log_entries_timestamp ON log_entries (timestamp);',
+      'CREATE INDEX idx_log_entries_level ON log_entries (level);',
+      'CREATE INDEX idx_log_entries_category ON log_entries (category);',
+      'CREATE INDEX idx_log_entries_session_id ON log_entries (session_id);',
+      'CREATE INDEX idx_log_entries_request_id ON log_entries (request_id);',
+      'CREATE INDEX idx_log_entries_project_level_timestamp '
+          'ON log_entries (project_id, level, timestamp);',
+      'CREATE UNIQUE INDEX idx_users_username ON users (username);',
+      'CREATE UNIQUE INDEX idx_users_email ON users (email) '
+          'WHERE email IS NOT NULL;',
+      'CREATE UNIQUE INDEX idx_users_is_primary_admin ON users (is_primary_admin) '
+          'WHERE is_primary_admin = $isPrimaryAdminTrue;',
+      'CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens (user_id);',
+      'CREATE INDEX idx_password_reset_tokens_user_id '
+          'ON password_reset_tokens (user_id);',
+      'CREATE INDEX idx_email_verification_tokens_user_id '
+          'ON email_verification_tokens (user_id);',
+      'CREATE INDEX idx_audit_log_entries_actor_user_id '
+          'ON audit_log_entries (actor_user_id);',
+      'CREATE INDEX idx_audit_log_entries_action ON audit_log_entries (action);',
+      'CREATE INDEX idx_audit_log_entries_target '
+          'ON audit_log_entries (target_type, target_id);',
+      'CREATE INDEX idx_audit_log_entries_created_at '
+          'ON audit_log_entries (created_at);',
+    ];
+  }
 }

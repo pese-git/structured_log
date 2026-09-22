@@ -39,12 +39,16 @@ Self-hosted сервер логов для
 - **Ограничение частоты** — token bucket на auth-эндпоинтах, по адресу и по субъекту
 - **Аудит** — `GET /v1/audit-log`, только администратору: кто что изменил и кто
   пытался войти
-- **Хранилище SQLite** — один файл, без внешних сервисов
+- **Хранилище** — SQLite по умолчанию (один файл, без внешних сервисов), либо
+  PostgreSQL как выбираемая оператором альтернатива (`--db-backend=postgres`)
 
 ## Требования
 
-Dart SDK 3.0 или новее. Больше ничего: база — встроенный файл SQLite,
-никаких брокеров, кэшей и отдельных инструментов миграции запускать не надо.
+Dart SDK 3.0 или новее. По умолчанию больше ничего: база — встроенный файл
+SQLite, никаких брокеров, кэшей и отдельных инструментов миграции запускать
+не надо. Для `--db-backend=postgres` нужен уже работающий у оператора сервер
+PostgreSQL — см.
+[Запуск против PostgreSQL](#запуск-против-postgresql) ниже.
 
 ## Запуск
 
@@ -82,6 +86,29 @@ Generated a temporary password for bootstrap administrator "admin": <...>
 В любом случае учётная запись создаётся с `must_change_password`, и все
 эндпоинты, кроме смены пароля, отвечают `403 must_change_password`, пока
 флаг не снят.
+
+### Запуск против PostgreSQL
+
+Всё выше работает идентично и против PostgreSQL — вместо `--db-path`
+задайте `--db-backend=postgres` и настройки подключения, остальной текст
+этого README не меняется:
+
+```bash
+export STRUCTURED_LOG_JWT_SECRET='длинная-случайная-строка'
+export STRUCTURED_LOG_DB_POSTGRES_PASSWORD='...'
+dart run bin/server.dart serve \
+  --db-backend=postgres \
+  --db-postgres-host=localhost --db-postgres-database=structured_log \
+  --db-postgres-username=structured_log
+```
+
+Backend выбирается один раз, на пустой базе, при развёртывании — никогда
+не переключение на лету и никогда не автоматическая миграция
+SQLite→PostgreSQL. Полный список Postgres-специфичных настроек (размер
+пула, режим TLS) —
+[docs/operations/configuration.ru.md](../../docs/operations/configuration.ru.md#postgresql),
+а что именно различается между двумя backend'ами —
+[docs/architecture/data-model.ru.md](../../docs/architecture/data-model.ru.md#postgresql-выбираемый-оператором-альтернативный-backend).
 
 ## Путь до первой записи
 
@@ -194,7 +221,9 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 
 | Настройка | По умолчанию |
 |---|---|
-| `--db-path` | обязательна для `serve` |
+| `--db-backend` | `sqlite` — либо `postgres`, см. выше |
+| `--db-path` | обязательна для `serve` при `--db-backend=sqlite` (по умолчанию) |
+| `--db-postgres-host` / `-database` / `-username`, `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` | обязательны для `serve` при `--db-backend=postgres` |
 | `STRUCTURED_LOG_JWT_SECRET` | обязательна для `serve` |
 | `--http-host` / `--http-port` | `0.0.0.0` / `8080` |
 | `--max-ingest-body-bytes` | `10485760` |
@@ -236,8 +265,9 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 ```bash
 dart run build_runner build --delete-conflicting-outputs
 dart analyze
-dart test                          # юнит- и интеграционные
-dart test --tags integration       # только те, что поднимают реальный процесс
+dart test --exclude-tags integration --exclude-tags postgres   # основной набор
+dart test --tags integration                # поднимают реальный процесс
+dart test --tags postgres --concurrency=1   # нужен настоящий PostgreSQL
 ```
 
 Кодогенерация не опциональна: `drift`, `freezed`, `json_serializable` и

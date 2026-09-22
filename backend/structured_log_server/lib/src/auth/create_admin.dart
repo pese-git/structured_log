@@ -91,7 +91,7 @@ Future<bool> _activeAdminExists(StructuredLogDatabase db) async {
         'JOIN users u ON u.id = ra.subject_id '
         "WHERE ra.subject_type = 'user' AND ra.role = 'admin' "
         "AND ra.scope_type = 'global' "
-        'AND u.is_active = 1 AND u.deleted_at IS NULL',
+        'AND u.is_active = ${_true(db)} AND u.deleted_at IS NULL',
       )
       .getSingle();
   return row.read<int>('c') > 0;
@@ -100,8 +100,18 @@ Future<bool> _activeAdminExists(StructuredLogDatabase db) async {
 Future<bool> _anyPrimaryAdminEverExisted(StructuredLogDatabase db) async {
   final row = await db
       .customSelect(
-        'SELECT COUNT(*) AS c FROM users WHERE is_primary_admin = 1',
+        'SELECT COUNT(*) AS c FROM users WHERE is_primary_admin = ${_true(db)}',
       )
       .getSingle();
   return row.read<int>('c') > 0;
 }
+
+/// SQLite has no real boolean type and stores it as `0`/`1`; Postgres does
+/// and rejects `= 1` against a boolean column outright (`operator does not
+/// exist: boolean = integer`) — a bound `Variable` wouldn't help here either
+/// (`add-postgres-backend` design.md, decision 3: the raw `?` placeholder
+/// itself isn't translated for Postgres, so the value has to be a literal
+/// either way), and both values here are compile-time constants, not user
+/// input, so a plain dialect-aware literal is simplest.
+String _true(StructuredLogDatabase db) =>
+    db.executor.dialect == SqlDialect.postgres ? 'true' : '1';

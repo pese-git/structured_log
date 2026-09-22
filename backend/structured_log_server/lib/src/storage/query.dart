@@ -60,14 +60,35 @@ class LogQueryPage {
   const LogQueryPage({required this.entries, required this.nextCursor});
 }
 
+/// Rewrites `?`-placeholder [sql] for [dialect] — SQLite keeps `?` exactly as
+/// written; PostgreSQL needs `$1`, `$2`, ... numbered by position instead
+/// (`add-postgres-backend` design.md, decision 3a: `?` sent to Postgres
+/// as-is is a syntax error — drift's own placeholder translation,
+/// `DatabaseConnectionUser.$expandVar`, only runs for generated code, never
+/// for a hand-assembled raw fragment like [buildLogQuerySql]/
+/// [buildAuditQuerySql]). A single left-to-right pass is exact for every
+/// fragment these two builders produce because every `?` in them is a bind
+/// parameter — none of their literal SQL text (`ESCAPE '\\'`, table/column
+/// names, the `1 = 1` seed) contains a literal `?` of its own.
+String placeholdersForDialect(String sql, SqlDialect dialect) {
+  if (dialect != SqlDialect.postgres) return sql;
+  var index = 0;
+  return sql.replaceAllMapped('?', (_) => '\$${++index}');
+}
+
 /// Renders [LogQuery] into a `SELECT * FROM log_entries ...` statement and
 /// its bound variables. `LIKE`/`json_extract` conditions aren't expressible
 /// through drift's typed query builder (`design.md` decision 3), so the
 /// whole query is assembled as one raw statement instead of mixing builder
 /// and `customSelect` fragments.
+///
+/// [dialect] only affects placeholder syntax in the returned [sql]
+/// (`placeholdersForDialect`) — the conditions themselves, and [variables],
+/// are identical for every backend.
 ({String sql, List<Variable<Object>> variables}) buildLogQuerySql(
-  LogQuery query,
-) {
+  LogQuery query, {
+  required SqlDialect dialect,
+}) {
   final conditions = <String>[];
   final variables = <Variable<Object>>[];
 
@@ -76,7 +97,7 @@ class LogQueryPage {
   );
   variables.addAll(query.projectIds.map(Variable.withInt));
 
-  query.filter.appendConditions(conditions, variables);
+  query.filter.appendConditions(conditions, variables, dialect: dialect);
 
   if (query.from != null) {
     conditions.add('timestamp >= ?');
@@ -109,5 +130,5 @@ class LogQueryPage {
       'ORDER BY id $order '
       'LIMIT ?';
 
-  return (sql: sql, variables: variables);
+  return (sql: placeholdersForDialect(sql, dialect), variables: variables);
 }

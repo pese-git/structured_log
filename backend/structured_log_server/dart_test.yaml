@@ -4,3 +4,16 @@ tags:
       Spawns bin/server.dart as a real OS process — slower than the rest
       of the suite (dart run's compile step), but the only way to prove
       config resolution reads a genuinely separate process's environment.
+  postgres:
+    description: >-
+      Needs a real PostgreSQL instance (STRUCTURED_LOG_TEST_POSTGRES_*
+      env vars) — dialect-sensitive code the SQLite-backed suite can't
+      exercise (add-postgres-backend design.md). Excluded by default,
+      same as `integration`. Every file in this tag TRUNCATEs the same
+      shared tables in its own setUp, with no per-file isolation the way
+      SQLite's NativeDatabase.memory() gives each test — running more
+      than one such file at dart test's default concurrency corrupts
+      each other's fixtures (found the hard way: run individually, every
+      file passes; run together, several fail on leftover/missing rows
+      from a different file's setUp racing in the same window). Always
+      run this tag with `--concurrency=1`.

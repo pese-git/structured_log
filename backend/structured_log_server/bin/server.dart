@@ -97,8 +97,53 @@ Future<void> main(List<String> arguments) async {
   }
 }
 
+/// Opens the backend [ServerConfig.dbBackend] selects
+/// (`add-postgres-backend` design.md, decision 1). Non-null fields for the
+/// chosen backend are asserted non-null (`!`) — `ConfigResolver`/
+/// `ParamSpec.requiredWhen` already refused to reach this point otherwise.
+///
+/// For PostgreSQL, also validates the connection actually works before
+/// returning: an unreachable server is a configuration error (exit `78`,
+/// same posture as every other startup check — `log-server-config`'s
+/// "nothing starts until everything checks out"), not a crash on the first
+/// request that happens to touch the database (design.md decision 9's
+/// risk). SQLite has no equivalent pre-flight check today — unaffected by
+/// this change, and out of scope for it.
+Future<StructuredLogDatabase?> _openConfiguredDatabase(
+  ServerConfig config, {
+  bool withReadPool = false,
+}) async {
+  if (config.dbBackend == 'postgres') {
+    final db = StructuredLogDatabase.openPostgres(
+      host: config.dbPostgresHost!,
+      port: config.dbPostgresPort,
+      database: config.dbPostgresDatabase!,
+      username: config.dbPostgresUsername!,
+      password: config.dbPostgresPassword!,
+      sslMode: config.dbPostgresSslMode,
+      poolSize: config.dbPostgresPoolSize,
+    );
+    try {
+      await db.customStatement('SELECT 1');
+    } catch (e) {
+      stderr.writeln('error: could not connect to PostgreSQL: $e');
+      await db.close();
+      exitCode = exitCodeConfigError;
+      return null;
+    }
+    return db;
+  }
+  return withReadPool
+      ? StructuredLogDatabase.open(
+          config.dbPath!,
+          readPool: config.dbReadPoolSize,
+        )
+      : StructuredLogDatabase.open(config.dbPath!);
+}
+
 Future<void> _runCreateAdmin(ServerConfig config) async {
-  final db = StructuredLogDatabase.open(config.dbPath);
+  final db = await _openConfiguredDatabase(config);
+  if (db == null) return;
   final outcome = await createAdmin(
     db,
     username: config.bootstrapAdminUsername,
@@ -138,10 +183,8 @@ Future<void> _runServe(
     context: maskedConfigContext(serverConfigParams, resolved),
   );
 
-  final db = StructuredLogDatabase.open(
-    config.dbPath,
-    readPool: config.dbReadPoolSize,
-  );
+  final db = await _openConfiguredDatabase(config, withReadPool: true);
+  if (db == null) return;
 
   // Bootstrap runs before the port opens (design.md decision 49).
   await bootstrapAdmin(
