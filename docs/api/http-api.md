@@ -199,6 +199,17 @@ Spec:
 [specs/log-server-email-verification/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-email-verification/spec.md).
 See [auth.md](../architecture/auth.md).
 
+> **Planned, not implemented:** `POST /v1/auth/register`,
+> `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`,
+> `POST /v1/auth/password-reset`, and
+> `POST /v1/auth/password-reset/confirm` — five of the nine endpoints
+> below — are part of the originally specified design (linked above) but
+> have no route in the running server; each is marked individually
+> below. Every account is created by an administrator or a group owner
+> instead (`POST /v1/users`), and a forgotten password is reset the same
+> way (`PATCH /v1/users/:id`) — see the
+> [Developer Guide](../guides/developer-guide.md#what-isnt-implemented).
+
 **Every endpoint in this section is rate-limited**
 (`log-server-rate-limit`), along with `POST /v1/auth/change-password`
 and `DELETE /v1/users/me`: a rejected request answers `429
@@ -211,6 +222,8 @@ issued, no email sent, and no account was locked
 The error lists below don't repeat `429` per endpoint.
 
 ### `POST /v1/auth/register`
+
+**Planned, not implemented** — see the note at the top of this section.
 
 Auth: none. JSON body, **not** form-encoded — unlike the token endpoint
 below, this path isn't part of the RFC 6749 token contract, so it
@@ -237,6 +250,8 @@ curl -X POST http://localhost:8080/v1/auth/register \
 
 ### `POST /v1/auth/verify-email`
 
+**Planned, not implemented** — see the note at the top of this section.
+
 Auth: none (the verification token is the credential). JSON body.
 
 **Request body:** `{"token": "..."}`
@@ -252,6 +267,8 @@ curl -X POST http://localhost:8080/v1/auth/verify-email \
 ```
 
 ### `POST /v1/auth/verify-email/resend`
+
+**Planned, not implemented** — see the note at the top of this section.
 
 Auth: none. JSON body.
 
@@ -312,6 +329,8 @@ curl -X DELETE http://localhost:8080/v1/auth/token \
 
 ### `POST /v1/auth/password-reset`
 
+**Planned, not implemented** — see the note at the top of this section.
+
 Auth: none. JSON body.
 
 **Request body:** `{"email": "..."}`
@@ -327,6 +346,8 @@ curl -X POST http://localhost:8080/v1/auth/password-reset \
 ```
 
 ### `POST /v1/auth/password-reset/confirm`
+
+**Planned, not implemented** — see the note at the top of this section.
 
 Auth: none (the reset token is the credential). JSON body.
 

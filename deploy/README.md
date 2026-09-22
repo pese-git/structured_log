@@ -1,7 +1,10 @@
 # Deployment
 
 Self-hosted `structured_log`: the API and the admin client behind one nginx,
-on one origin.
+on one origin. For the fuller operational picture (choosing a storage
+backend, configuration, backups, security, troubleshooting), see
+[docs/guides/admin-guide.md](../docs/guides/admin-guide.md) — this file
+stays focused on what's specific to running the bundled Compose setup.
 
 ```bash
 cd deploy

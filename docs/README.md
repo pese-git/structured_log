@@ -5,20 +5,25 @@
 This directory documents the design of `structured_log_server`,
 `structured_log_http`, and `structured_log_admin_client` — the
 self-hosted, multi-tenant log-collection service and its client packages
-proposed by
-[openspec/changes/add-structured-log-server/](../openspec/changes/add-structured-log-server/).
+originally proposed by
+[openspec/changes/add-structured-log-server/](../openspec/changes/add-structured-log-server/)
+and now implemented (see [AGENTS.md](../AGENTS.md) for what's shipped
+and what remains, capability by capability).
 
-As of this writing, none of the three packages have been implemented yet
-— this documentation describes the *agreed design*, not shipped code.
-It exists to give a reader (human or AI agent) a coherent narrative
-account of the system without reading all four OpenSpec artifacts
-(`proposal.md`, `design.md`, `specs/*.md`, `tasks.md`, together several
-thousand lines) end to end. Once the packages exist, the per-package
-`doc/ARCHITECTURE.md` convention already used by
-[structured_log/doc/ARCHITECTURE.md](../structured_log/doc/ARCHITECTURE.md)
-takes over for describing the *implemented* code; this directory keeps
-documenting the cross-cutting system design that spans all three
-packages.
+**Two kinds of reading are collected here, for two different readers.**
+[guides/](guides/) is task-oriented product documentation — a *user*,
+*administrator*, and *developer* guide, written for someone using or
+integrating the running system, and the material intended for a future
+project website. Everything else in this directory (`architecture/`,
+`operations/`, `api/`) is a narrative reading aid over the OpenSpec
+artifacts, written for a contributor, reviewer, or AI coding agent who
+wants the reasoning behind a decision before touching the code — it
+exists so a reader doesn't have to read every `proposal.md`/`design.md`/
+`specs/*.md`/`tasks.md` (several thousand lines across multiple changes)
+end to end to get oriented. Where the two overlap on a fact (an endpoint
+shape, a config flag), they should agree; if they ever don't, the
+`architecture`/`operations`/`api` documents below trace to `design.md`/
+`specs/*.md` and win.
 
 ## How this relates to AGENTS.md and OpenSpec
 
@@ -51,6 +56,10 @@ corrected to match.
 
 ## Contents
 
+- [guides/](guides/) — the [User Guide](guides/user-guide.md),
+  [Administrator / DevOps Guide](guides/admin-guide.md), and
+  [Developer Guide](guides/developer-guide.md) — how to use, deploy, and
+  integrate with the running system.
 - [architecture/README.md](architecture/README.md) — components, request
   flow, and the principles that recur across the whole design.
 - [architecture/data-model.md](architecture/data-model.md) — the
@@ -84,9 +93,17 @@ corrected to match.
 
 ## Who this is for
 
+**[guides/](guides/):**
+
+- Someone signed in to the admin client, deploying the server, or
+  writing code against it — see [guides/README.md](guides/README.md) to
+  pick the right one.
+
+**`architecture/`, `operations/`, `api/`:**
+
 - Contributors picking up `tasks.md` items, who want the reasoning behind
   a task before writing code against it.
 - Reviewers checking whether an implementation matches the agreed design.
 - AI coding agents, who benefit from a narrative summary instead of
-  re-deriving the design from 31 decisions and a dozen spec files on
+  re-deriving the design from dozens of decisions and spec files on
   every session.

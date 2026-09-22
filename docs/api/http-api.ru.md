@@ -204,6 +204,17 @@ curl http://localhost:8080/healthz
 [specs/log-server-email-verification/spec.md](../../openspec/changes/add-structured-log-server/specs/log-server-email-verification/spec.md).
 См. [auth.md](../architecture/auth.ru.md).
 
+> **Запланировано, не реализовано:** `POST /v1/auth/register`,
+> `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`,
+> `POST /v1/auth/password-reset` и
+> `POST /v1/auth/password-reset/confirm` — пять из девяти эндпоинтов
+> ниже — часть изначально специфицированного дизайна (ссылки выше), но
+> маршрута в работающем сервере у них нет; каждый отмечен отдельно
+> ниже. Каждую учётную запись вместо этого создаёт администратор или
+> owner группы (`POST /v1/users`), а забытый пароль сбрасывается тем же
+> способом (`PATCH /v1/users/:id`) — см.
+> [Руководство разработчика](../guides/developer-guide.ru.md#что-не-реализовано).
+
 **Каждый эндпоинт этого раздела ограничен по частоте**
 (`log-server-rate-limit`), вместе с `POST /v1/auth/change-password` и
 `DELETE /v1/users/me`: отклонённый запрос получает `429
@@ -216,6 +227,8 @@ RFC 6749 ([errors.md](errors.ru.md#429--единственный-ответ-toke
 Списки ошибок ниже не повторяют `429` у каждого эндпоинта.
 
 ### `POST /v1/auth/register`
+
+**Запланировано, не реализовано** — см. пометку в начале раздела.
 
 Auth: нет. JSON-тело, **не** form-encoded — в отличие от token-эндпоинта
 ниже, этот путь не часть контракта токенов RFC 6749, так что следует
@@ -242,6 +255,8 @@ curl -X POST http://localhost:8080/v1/auth/register \
 
 ### `POST /v1/auth/verify-email`
 
+**Запланировано, не реализовано** — см. пометку в начале раздела.
+
 Auth: нет (токен подтверждения — сам credential). JSON-тело.
 
 **Тело запроса:** `{"token": "..."}`
@@ -257,6 +272,8 @@ curl -X POST http://localhost:8080/v1/auth/verify-email \
 ```
 
 ### `POST /v1/auth/verify-email/resend`
+
+**Запланировано, не реализовано** — см. пометку в начале раздела.
 
 Auth: нет. JSON-тело.
 
@@ -317,6 +334,8 @@ curl -X DELETE http://localhost:8080/v1/auth/token \
 
 ### `POST /v1/auth/password-reset`
 
+**Запланировано, не реализовано** — см. пометку в начале раздела.
+
 Auth: нет. JSON-тело.
 
 **Тело запроса:** `{"email": "..."}`
@@ -332,6 +351,8 @@ curl -X POST http://localhost:8080/v1/auth/password-reset \
 ```
 
 ### `POST /v1/auth/password-reset/confirm`
+
+**Запланировано, не реализовано** — см. пометку в начале раздела.
 
 Auth: нет (токен восстановления — сам credential). JSON-тело.
 

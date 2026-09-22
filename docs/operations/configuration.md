@@ -41,7 +41,9 @@ STRUCTURED_LOG_JWT_SECRET=...            # direct
 STRUCTURED_LOG_JWT_SECRET_FILE=/run/secrets/jwt   # from a mounted file
 ```
 
-The same applies to `STRUCTURED_LOG_SMTP_PASSWORD` and to
+The same convention would apply to an SMTP password if email-sending
+were implemented (it isn't yet — see the Reference table below); it
+already applies to `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` and to
 `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` — the first admin's password on
 an empty database.
 
@@ -109,15 +111,21 @@ Bootstrap settings are read only by a normal server start, never by
 `create-admin`, and none of them is required: an unset password means
 "generate one", not "fail". Requirements are evaluated per command. `create-admin`
 ([auth.md](../architecture/auth.md)) needs only the database path —
-demanding a JWT secret and SMTP settings from a command that writes one
-row would block first-time setup on mail configuration that isn't
+demanding a JWT secret from a command that writes one
+row would block first-time setup on configuration that isn't
 relevant yet.
 
 ## Reference
 
 Defaults marked *TBD* are deliberately not fixed by the design — they
 are settled with the first implementation (see design.md's Open
-Questions).
+Questions). This table also carries a few rows for capabilities that
+are part of the original design (self-registration, password reset,
+email verification — see [auth.md](../architecture/auth.md)) but have
+**no corresponding flag in the running server at all**; each is marked
+"planned, not implemented" in its Notes column, so a value listed there
+is what the flag *would* be named if the capability existed, not a flag
+you can pass today.
 
 | Setting | Flag / variable | Default | Notes |
 |---|---|---|---|
@@ -133,34 +141,34 @@ Questions).
 | PostgreSQL connection pool size | `--db-postgres-pool-size` | `10` | `1`–`64`; shared by reads and writes alike — unlike `--db-read-pool-size`, which is SQLite-only and has no effect here |
 | PostgreSQL TLS mode | `--db-postgres-ssl-mode` | `require` | `disable` / `require` (encrypted, certificate errors ignored) / `verify-full` (encrypted and certificate-verified) |
 | JWT signing secret | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Required**, no flag, never generated |
-| Access token lifetime | `--access-token-ttl-seconds` | TBD | |
-| Refresh token lifetime | `--refresh-token-ttl-seconds` | TBD | |
-| Self-registration | `--registration-enabled` / `--no-registration-enabled` | `false` | Closed corporate deployments leave it off ([auth.md](../architecture/auth.md)) |
-| SMTP host / port | `--smtp-host`, `--smtp-port` | — | Required only if email features are used |
-| SMTP username | `--smtp-username` | — | |
-| SMTP password | `STRUCTURED_LOG_SMTP_PASSWORD` / `…_FILE` | — | Secret: no flag |
-| Sender address | `--smtp-from` | — | |
-| Password-reset link base | `--password-reset-base-url` | — | Web build only; the token is always enterable by hand |
-| Password-reset token lifetime | `--password-reset-ttl-seconds` | TBD | |
-| Email-verification link base | `--email-verification-base-url` | — | |
-| Email-verification token lifetime | `--email-verification-ttl-seconds` | TBD | Can be far longer than a reset token |
-| Ingestion body limit | `--max-batch-bytes` | TBD | Exceeding it is `413`, whole batch ([errors.md](../api/errors.md)) |
-| Retention sweep interval | `--purge-interval-seconds` | TBD | One timer for log retention and audit retention both |
+| JWT issuer | `--jwt-issuer` | `structured_log_server` | The `iss` claim embedded in access tokens |
+| Access token lifetime | *(no flag)* | `900` (15 min) | **Planned, not implemented as a setting** — currently a fixed constant in code, not configurable |
+| Refresh token lifetime | *(no flag)* | `2592000` (30 days) | **Planned, not implemented as a setting** — currently a fixed constant in code, not configurable |
+| Self-registration | *(no flag)* | — | **Planned, not implemented** — no `POST /v1/auth/register` route exists ([auth.md](../architecture/auth.md)) |
+| SMTP host / port | *(no flag)* | — | **Planned, not implemented** — no email-sending capability exists in the running server |
+| SMTP username | *(no flag)* | — | **Planned, not implemented** |
+| SMTP password | *(no flag)* | — | **Planned, not implemented** |
+| Sender address | *(no flag)* | — | **Planned, not implemented** |
+| Password-reset link base | *(no flag)* | — | **Planned, not implemented** — no `POST /v1/auth/password-reset` route exists; an admin resets a password via `PATCH /v1/users/:id` instead |
+| Password-reset token lifetime | *(no flag)* | — | **Planned, not implemented** |
+| Email-verification link base | *(no flag)* | — | **Planned, not implemented** — no `POST /v1/auth/verify-email` route exists |
+| Email-verification token lifetime | *(no flag)* | — | **Planned, not implemented** |
+| Ingestion body limit | `--max-ingest-body-bytes` | `10485760` (10 MiB) | Exceeding it is `413`, whole batch ([errors.md](../api/errors.md)) |
+| Retention sweep interval | `--retention-purge-interval-seconds` | `3600` | One timer for log retention and audit retention both |
 | Rate limiting | `--rate-limit-enabled` / `--no-rate-limit-enabled` | `true` | Turn off behind your own gateway ([auth.md](../architecture/auth.md#rate-limiting-throttling-without-lockout)) |
-| IP bucket capacity / refill | `--rate-limit-ip-capacity`, `--rate-limit-ip-refill-per-minute` | TBD | Spent on every request to a limited path |
-| Subject bucket capacity / refill | `--rate-limit-subject-capacity`, `--rate-limit-subject-refill-per-minute` | TBD | Spent on failures only; a success refills it |
-| Limiter key ceiling | `--rate-limit-max-keys` | TBD | LRU eviction above it |
+| Bucket capacity / refill | `--rate-limit-bucket-capacity`, `--rate-limit-refill-per-minute` | `10` / `10` | One capacity, shared by the IP bucket (spent on every request) and the subject bucket (spent on failures only, refilled on success) — there is no separate per-kind setting |
+| Limiter key ceiling | `--rate-limit-max-keys` | `10000` | LRU eviction above it |
 | Trusted proxy hops | `--trusted-proxy-hops` | `0` | `0` = ignore `X-Forwarded-For` entirely |
 | CORS allowed origins | `--cors-allowed-origins` | unset | Comma-separated exact origins; unset/empty = no CORS headers at all ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
 | Audit retention | `--audit-retention-days` | unset | Unset = keep forever ([quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
 | Audit purge chunk | `--audit-purge-batch-size` | `500` | Deleting in chunks keeps ingestion unblocked |
 | Database read connections | `--db-read-pool-size` | `2` | Extra connections beside the single writer, `0`–`16`; `0` sends reads through the writer. Reads no longer queue behind ingestion. SQLite only — under `--db-backend=postgres` a non-default value only warns at startup, it has no effect (see "PostgreSQL" below) |
-| Live-stream heartbeat | `--stream-heartbeat-seconds` | TBD | Also re-validates authorization ([live-streaming.md](../architecture/live-streaming.md)) |
+| Live-stream heartbeat | `--sse-heartbeat-interval-seconds` | `25` | Also re-validates authorization ([live-streaming.md](../architecture/live-streaming.md)) |
 | Own-log level | `--log-level` | `info` | The server's own diagnostics, not ingested entries ([README.md](../architecture/README.md#the-middleware-chain)) |
 | Own-log format | `--log-format` | `console` | `console` or `json` for machine collection |
 | Own-log file | `--log-file` | unset | Unset = console. When set, writing is asynchronous with rotation so it never blocks the single isolate |
-| Own-log rotation | `--log-file-max-bytes`, `--log-file-max-files` | TBD | Only meaningful together with `--log-file` |
+| Own-log rotation | `--log-max-file-bytes`, `--log-max-files` | `10485760` (10 MiB) / `5` | Only meaningful together with `--log-file` |
 | Auto-bootstrap admin | `--bootstrap-admin-enabled` / `--no-bootstrap-admin-enabled` | `true` | Creates the first admin when the `users` table is empty ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md#bootstrap-two-paths-to-the-first-admin)) |
 | Bootstrap admin username | `--bootstrap-admin-username` | `admin` | Only used when the table is empty |
 | Bootstrap admin password | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | generated | Secret: no flag. Unset = a random one is generated and printed once, marked temporary. A value must be 8 characters to 72 bytes, like any password set through the API; anything else stops startup with a configuration error that names the variable, never the value |
@@ -222,7 +230,7 @@ STRUCTURED_LOG_JWT_SECRET=$(openssl rand -hex 32) \
 ```bash
 # Development: everything from flags, secret from the environment
 STRUCTURED_LOG_JWT_SECRET=dev-only-secret \
-  dart run bin/server.dart --db-path ./dev.db --http-port 8080 --registration-enabled
+  dart run bin/server.dart --db-path ./dev.db --http-port 8080
 ```
 
 ```bash
@@ -254,15 +262,16 @@ STRUCTURED_LOG_DB_POSTGRES_PASSWORD=... \
 
 ```bash
 # Re-bootstrap on a non-empty database (auto-creation never fires there);
-# no JWT secret or SMTP needed for this command
+# no JWT secret needed for this command
 dart run bin/server.dart create-admin --db-path /data/logs.db \
   --username admin --password "$(read -rsp 'password: ' p; echo "$p")"
 ```
 
 ## See also
 
-- [auth.md](../architecture/auth.md) — what the JWT secret, registration
-  switch and rate limiter actually govern.
+- [auth.md](../architecture/auth.md) — what the JWT secret and rate
+  limiter actually govern (also covers the still-unimplemented
+  registration/password-reset/email-verification design).
 - [quotas-and-audit.md](../architecture/quotas-and-audit.md) — the two
   retention settings and what they delete.
 - [http-api.md](../api/http-api.md) — the endpoints these settings shape.
