@@ -22,10 +22,14 @@ logged: entries are queued and shipped in batches on a background future.
 
 ## Installation
 
+Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it as a path or
+git dependency for now:
+
 ```yaml
 dependencies:
   structured_log: ^0.2.0
-  structured_log_http: ^0.1.0
+  structured_log_http:
+    path: ../structured_log_http # within this monorepo
 ```
 
 ## Quick Start

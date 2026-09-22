@@ -15,10 +15,10 @@ bottom sheet), поле поиска, выпадающие списки филь
 существующую хрому страницы: `Flyout`, боковую панель, вкладку и т.п.
 
 > **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_fluent)
-> как dev-пререлиз. `fluent_ui` требует Flutter `3.44.0+` (см.
-> [pubspec.yaml](pubspec.yaml)) — собственный `environment.flutter`-констрейнт
-> `fluent_ui` этого пока не проверяет; на более старом Flutter SDK `pub get`
-> отработает без ошибок, а сборка упадёт уже глубоко внутри `fluent_ui`.
+> (`0.1.0`). `fluent_ui` требует Flutter `3.44.0+` — это проверяет
+> собственный `environment.flutter`-констрейнт пакета (см.
+> [pubspec.yaml](pubspec.yaml)), так что на более старом Flutter SDK `pub
+> get` упадёт сразу, а не сборка где-то глубоко внутри `fluent_ui`.
 > Дизайн-референс: canvas
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
 > (раздел Fluent).
@@ -58,7 +58,13 @@ bottom sheet), поле поиска, выпадающие списки филь
 
 ## Установка
 
-Внутри этого monorepo:
+```yaml
+dependencies:
+  structured_log_fluent: ^0.1.0
+```
+
+Внутри этого monorepo `melos bootstrap` подставляет вместо двух
+внутренних зависимостей path-зависимости:
 
 ```yaml
 dependencies:

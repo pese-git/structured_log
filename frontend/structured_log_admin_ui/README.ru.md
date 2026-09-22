@@ -20,9 +20,9 @@
 
 | Уровень | Состав |
 |---|---|
-| `tokens` | `AdminColors`, `AdminTypography`, `AdminSpacing`/`AdminRadius`/`AdminSizes`, `AdminLogLevel` + `AdminLogLevelColors`, `AdminTheme` |
+| `tokens` | `AdminColors`, `AdminTypography`, `AdminSpacing`/`AdminRadius`/`AdminSizes`, `AdminBreakpoints`, `AdminLogLevel` + `AdminLogLevelColors`, `AdminTheme` |
 | `atoms` | `AdminLogLevelBadge`, `AdminButton`, `AdminTag`, `AdminLoadingIndicator`, `AdminEmptyState` |
-| `molecules` | `AdminSearchField`, `AdminFilterChip`, `AdminKeyValueRow`, `AdminQuotaBar`, `AdminStatusTag`, `AdminLabeledToggle`, `AdminTextField`, `AdminBanner`, `AdminLivePill`, `AdminDateRangeField`, `AdminTimeRangeField` |
+| `molecules` | `AdminSearchField`, `AdminFilterChip`, `AdminKeyValueRow`, `AdminQuotaBar`, `AdminStatusTag`, `AdminLabeledToggle`, `AdminTextField`, `AdminBanner`, `AdminLivePill`, `AdminDateRangeField`, `AdminTimeRangeField`, `AdminAccountMenu`, `AdminSearchPicker`/`AdminSearchPickerItem` |
 | `organisms` | `AdminAppShell`, `AdminResourceRow`, `AdminFilterBar`, `AdminConfirmDialog`, `AdminLogEntryRow`, `AdminFeedStatusStrip`, `AdminTable` |
 
 Уровней `templates` и `pages` нет. Они по определению собирают целый экран

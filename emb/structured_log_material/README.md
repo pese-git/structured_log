@@ -12,14 +12,12 @@ current filter". Available both as a full screen (`MaterialLogViewerPage`)
 and as a plain embeddable widget (`MaterialLogViewer`) for dropping into
 existing page chrome — a tab, a side panel, a dialog, ...
 
-> **Status:** not yet published to pub.dev (`0.1.0-dev.1`, `publish_to:
-> none` — depends on the also-unpublished `structured_log_flutter` as a
-> path dependency). Design reference: the
+> **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_material)
+> (`0.1.0`). Design reference: the
 > [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
 > canvas (Material section — [`structured_log_fluent`](../structured_log_fluent)
 > and [`structured_log_cupertino`](../structured_log_cupertino) are
-> implemented too now, from the Fluent/Cupertino sections of the same
-> canvas).
+> implemented too, from the Fluent/Cupertino sections of the same canvas).
 
 ## Features
 
@@ -57,7 +55,13 @@ existing page chrome — a tab, a side panel, a dialog, ...
 
 ## Installation
 
-Within this monorepo:
+```yaml
+dependencies:
+  structured_log_material: ^0.1.0
+```
+
+Within this monorepo, `melos bootstrap` resolves both to path dependencies
+instead:
 
 ```yaml
 dependencies:

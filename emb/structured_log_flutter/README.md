@@ -10,8 +10,11 @@ on top of it — [`structured_log_material`](../structured_log_material),
 [`structured_log_fluent`](../structured_log_fluent), and
 [`structured_log_cupertino`](../structured_log_cupertino) all build on it.
 
-> **Status:** not yet published to pub.dev (`0.1.0-dev.1`). Depend on it as a
-> path dependency within this monorepo for now.
+> **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_flutter)
+> (`0.1.0`). `structured_log_material`, `structured_log_fluent`, and
+> `structured_log_cupertino` all depend on it as a regular hosted
+> dependency; within this monorepo, `melos bootstrap` resolves it to a
+> path dependency instead.
 
 ## Features
 
@@ -29,7 +32,13 @@ on top of it — [`structured_log_material`](../structured_log_material),
 
 ## Installation
 
-Within this monorepo:
+```yaml
+dependencies:
+  structured_log_flutter: ^0.1.0
+```
+
+Within this monorepo, `melos bootstrap` resolves it to a path dependency
+instead:
 
 ```yaml
 dependencies:

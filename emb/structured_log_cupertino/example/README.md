@@ -1,17 +1,23 @@
-# structured_log_cupertino_example
+# structured_log_cupertino example
 
-A new Flutter project.
+A runnable demo of [`structured_log_cupertino`](../): wires `structured_log`
+into `structured_log_flutter`'s `LogBuffer`/`LogViewerController`, and
+demonstrates both `CupertinoLogViewerPage` (full screen) and the embedded
+`CupertinoLogViewer` docked in a side panel.
 
-## Getting Started
+## Running (web)
 
-This project is a starting point for a Flutter application.
+From this directory:
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter run -d chrome
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Tap "Log an info event" / "Log an error event" / "Log a protocol event" a
+few times, then either "Open log viewer (full screen)" or "Open embedded
+log viewer demo" to see them live in the Cupertino (iOS-style) log
+viewer — try the search field, the category filter bar, the level
+segmented control, tapping a row for its full context (pushed as its own
+screen on narrow widths, shown side by side on wide/iPad-size ones), and
+the pause/clear actions in the toolbar.

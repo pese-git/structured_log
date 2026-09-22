@@ -67,10 +67,10 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/)). Реализованы
   приём и запрос логов, живой поток (SSE), группы/проекты/секретные ключи, аутентификация и RBAC,
   ограничение частоты, очистка по retention, собственное логирование и аудит (Этап 2), управление
-  пользователями — создание/блокировка/удаление, без `email` — и урезанная (`admin`-only,
-  `subject_type: user`) выдача ролей (Этап 3 — разделы 3.10/3.10a/3.10b/4.3a/4.5/4.7/5.1/5.4a/
-  5.6a/26.2/26.3); не реализованы команды, полная выдача ролей (owner группы, `subject_type: team`),
-  самостоятельная регистрация, восстановление пароля и подтверждение email — `tasks.md` в
+  пользователями — создание/блокировка/удаление, без `email` — команды (группа/участники) и полная
+  выдача ролей (`admin` без ограничений; `owner` группы — `owner`/`user` на неё саму и её проекты;
+  `subject_type: user`/`team`) (Этап 4, разделы 4.3/5.3/5.6); не реализованы самостоятельная
+  регистрация, восстановление пароля и подтверждение email — `tasks.md` в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
   Отдельно от этих этапов — опциональный, по умолчанию выключенный CORS
   (`--cors-allowed-origins`, [openspec/changes/add-server-cors/](openspec/changes/add-server-cors/)).
@@ -83,14 +83,13 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 экран пользователей, блокировка проекта, урезанный UI выдачи роли. Остался 30.3, и он ждёт раздела 18).
 В `packages/` — `structured_log_e2e` (сквозные тесты, см. ниже).
 
-`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino` фактически ещё не
-опубликованы (нет `CHANGELOG.md` — публикация требует прогнать `melos version` первым, см.
-«Коммиты и версионирование» ниже), но больше не заблокированы технически: зависимость на
-`structured_log_flutter` в их `pubspec.yaml` — обычный hosted-констрейнт (`^0.1.0-dev.2`),
-путь к нему при локальной разработке подставляет `melos bootstrap` через
-`pubspec_overrides.yaml` (генерируется, не коммитится — см. `.gitignore`). Их `example/`
-остаются `publish_to: none` — демо-приложения не публикуются. История и обоснование
-решений — в
+`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`
+опубликованы на pub.dev (`0.1.0`, стабильный релиз после серии `-dev.N`, `melos version`
+прогнан и теги `<package>-v0.1.0` проставлены). Зависимость на `structured_log_flutter` в
+`pubspec.yaml` трёх скинов — обычный hosted-констрейнт (`^0.1.0`), путь к нему при локальной
+разработке подставляет `melos bootstrap` через `pubspec_overrides.yaml` (генерируется, не
+коммитится — см. `.gitignore`). Их `example/` остаются `publish_to: none` — демо-приложения
+не публикуются. История и обоснование решений — в
 [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
 [openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/) и
 [openspec/changes/add-structured-log-cupertino/](openspec/changes/add-structured-log-cupertino/)
@@ -356,7 +355,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   **виджет-тест это не ловит** — под фейковыми часами эмиты не переслаиваются, и `flutter test`
   проходил с дефектом. Сторож — браузерный `integration_test/user_flow_test.dart`.
 - **`test/integration/` — сквозные тесты клиента поверх мока сетевого слоя**
-  ([test/integration/mock_server.dart](frontend/structured_log_admin_client/test/integration/mock_server.dart)):
+  ([lib/testing/mock_server.dart](frontend/structured_log_admin_client/lib/testing/mock_server.dart)):
   `MockServer implements HttpClientAdapter`, то есть шов проходит ниже всего клиентского стека —
   настоящие `dio`, перехватчик с обновлением токена, сгенерированные `retrofit`-клиенты, рукописный
   парсер SSE, маппер ошибок и DTO работают против байтов. Мок **с состоянием** и отвечает картами, а
