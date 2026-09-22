@@ -59,9 +59,11 @@ decision из `design.md` или требование из `specs/`, назва�
 ## Содержание
 
 - [guides/](guides/) — [руководство пользователя](guides/user-guide.ru.md),
-  [руководство администратора/DevOps](guides/admin-guide.ru.md) и
-  [руководство разработчика](guides/developer-guide.ru.md) — как
-  пользоваться, разворачивать и интегрироваться с работающей системой.
+  [руководство администратора/DevOps](guides/admin-guide.ru.md),
+  [руководство разработчика](guides/developer-guide.ru.md) и
+  [руководство контрибьютора](guides/contributor-guide.ru.md) — как
+  пользоваться, разворачивать, интегрироваться и вносить вклад в
+  работающую систему.
 - [architecture/README.md](architecture/README.md) — компоненты, поток
   запроса и принципы, повторяющиеся во всём дизайне.
 - [architecture/data-model.md](architecture/data-model.md) —
@@ -98,9 +100,10 @@ decision из `design.md` или требование из `specs/`, назва�
 
 **[guides/](guides/):**
 
-- Тот, кто вошёл в admin-клиент, разворачивает сервер или пишет код
-  против него — см. [guides/README.ru.md](guides/README.ru.md), чтобы
-  выбрать нужное руководство.
+- Тот, кто вошёл в admin-клиент, разворачивает сервер, пишет код
+  против него или пишет код в этом репозитории — см.
+  [guides/README.ru.md](guides/README.ru.md), чтобы выбрать нужное
+  руководство.
 
 **`architecture/`, `operations/`, `api/`:**
 

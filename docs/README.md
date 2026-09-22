@@ -57,9 +57,10 @@ corrected to match.
 ## Contents
 
 - [guides/](guides/) — the [User Guide](guides/user-guide.md),
-  [Administrator / DevOps Guide](guides/admin-guide.md), and
-  [Developer Guide](guides/developer-guide.md) — how to use, deploy, and
-  integrate with the running system.
+  [Administrator / DevOps Guide](guides/admin-guide.md),
+  [Developer Guide](guides/developer-guide.md), and
+  [Contributor Guide](guides/contributor-guide.md) — how to use, deploy,
+  integrate with, and contribute to the running system.
 - [architecture/README.md](architecture/README.md) — components, request
   flow, and the principles that recur across the whole design.
 - [architecture/data-model.md](architecture/data-model.md) — the
@@ -95,9 +96,9 @@ corrected to match.
 
 **[guides/](guides/):**
 
-- Someone signed in to the admin client, deploying the server, or
-  writing code against it — see [guides/README.md](guides/README.md) to
-  pick the right one.
+- Someone signed in to the admin client, deploying the server, writing
+  code against it, or writing code in this repository — see
+  [guides/README.md](guides/README.md) to pick the right one.
 
 **`architecture/`, `operations/`, `api/`:**
 
