@@ -2,14 +2,17 @@
 
 *Читать на [русском](developer-guide.ru.md).*
 
-For whoever writes code against this system — sending an application's
-logs into it, querying or live-tailing them back out programmatically,
-or embedding a live log view inside your own Flutter app. If you're
-deploying the server itself, see the
+For whoever writes code against `structured_log_server` from outside it
+— sending an application's logs into it, or querying/live-tailing them
+back out programmatically. If you don't need the server at all (just
+`structured_log` and, optionally, an in-app viewer for your own
+Flutter app), see the [Embedding Guide](embedding-guide.md) instead —
+it's this guide's standalone counterpart. If you're deploying the
+server itself, see the
 [Administrator / DevOps Guide](admin-guide.md); if you're using the
 admin client day to day, see the [User Guide](user-guide.md).
 
-Three ways to integrate, roughly in order of how much of the system you
+Two ways to integrate, roughly in order of how much of the system you
 need to know:
 
 1. **Ship logs to the server** — a Dart app uses
@@ -20,9 +23,6 @@ need to know:
 2. **Read logs back out programmatically** — [query](#querying-logs)
    and [live-tail](#live-tailing-programmatically) over the same HTTP
    API the admin client uses.
-3. **Show logs live inside your own Flutter app** — the
-   [embeddable viewer widgets](#embedding-a-live-viewer-in-a-flutter-app),
-   entirely local, no server involved at all.
 
 ## Logging with `structured_log`
 
@@ -371,44 +371,11 @@ Full catalog, every status/code pair and where each can occur:
 
 ## Embedding a live viewer in a Flutter app
 
-If your application is itself a Flutter app and you want a live,
-in-app log view for local debugging — entirely separate from
-`structured_log_server`, no network involved — three ready-made skins
-sit on top of a shared headless core:
-
-```dart
-import 'package:structured_log/structured_log.dart';
-import 'package:structured_log_flutter/structured_log_flutter.dart';
-import 'package:structured_log_material/structured_log_material.dart';   // or _fluent / _cupertino
-
-final buffer = LogBuffer();
-final controller = LogViewerController(buffer);
-
-StructlogConfiguration.configure(sinks: [
-  LogSink(name: 'viewer', output: buffer.capture),
-]);
-
-// Full screen:
-Navigator.of(context).push(MaterialPageRoute(
-  builder: (_) => MaterialLogViewerPage(controller: controller),
-));
-
-// Or embedded in existing chrome (a side panel, a tab, ...):
-MaterialLogViewer(controller: controller)
-```
-
-Pick the skin matching your app's design system —
-[`structured_log_material`](../../emb/structured_log_material/) (Material 3),
-[`structured_log_fluent`](../../emb/structured_log_fluent/) (Fluent/WinUI,
-published as a dev prerelease), or
-[`structured_log_cupertino`](../../emb/structured_log_cupertino/) (iOS-style)
-— all three share the same `LogBuffer`/`LogViewerController` core from
-[`structured_log_flutter`](../../emb/structured_log_flutter/), so
-switching skins later is a matter of which viewer widget you use, not a
-data-layer change. Each has a runnable web example under its own
-`example/` directory. This is unrelated to `structured_log_http` above
-— you can use one, the other, both together (mirror the same entries to
-a local in-app viewer *and* ship them to the server), or neither.
+Unrelated to `structured_log_http` above and entirely local, no server
+involved — see the [Embedding Guide](embedding-guide.md#2-a-headless-viewer-core-structured_log_flutter)
+for the three ready-made viewer skins. You can use one, the other, both
+together (mirror the same entries to a local in-app viewer *and* ship
+them to the server), or neither.
 
 ## Rate limits and good citizenship
 
@@ -438,6 +405,8 @@ themselves.
 
 ## Where to go next
 
+- [Embedding Guide](embedding-guide.md) — `structured_log` on its own,
+  and the in-app viewer widgets, with no server involved.
 - [api/http-api.md](../api/http-api.md) — every endpoint, exhaustively.
 - [api/models.md](../api/models.md) — every JSON object shape.
 - [api/errors.md](../api/errors.md) — the complete error catalog.

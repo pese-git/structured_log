@@ -121,7 +121,15 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   читаемое по темам изложение поверх `design.md`/`specs/*.md`, а не замена им (при расхождении
   приоритет у OpenSpec-артефактов). Билингвальные пары файлов (`*.md`/`*.ru.md`), по той же
   конвенции, что `README.md`/`README.ru.md` и `emb/structured_log/doc/ARCHITECTURE.md`/`.ru.md`. См.
-  [docs/README.md](docs/README.md) для оглавления.
+  [docs/README.md](docs/README.md) для оглавления. Внутри `guides/` — единственное исключение из
+  «про систему сервера»: [guides/embedding-guide.md](docs/guides/embedding-guide.md) — как
+  добавить `structured_log` и, по желанию, in-app просмотрщик (`structured_log_flutter` + один из
+  трёх скинов) в собственное приложение вообще без сервера; `structured_log_http` там тоже
+  упомянут, но кратко, с отсылкой на `developer-guide.md` за деталями серверной стороны. Добавлен,
+  когда выяснилось, что у `emb/`-пакетов не было отдельной инструкции по внедрению внутри `docs/` —
+  `developer-guide.md` касался их только в контексте интеграции с сервером
+  (decision, 22.09.2026); соответствующие разделы `developer-guide.md`/`.ru.md` теперь ссылаются
+  сюда, а не дублируют установку/quick start каждого пакета.
 - [site/](site/) — сайт проекта на Astro + Starlight, билингвальный (English/Русский):
   просматриваемая, с поиском версия [docs/](docs/) плюс страница на каждый пакет
   [emb/](emb/) (`/packages/<пакет>/` — установка/quick start/API из его README, раздел

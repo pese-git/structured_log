@@ -21,9 +21,11 @@ agree.
 
 - [guides/](guides/) — the [User Guide](guides/user-guide.md),
   [Administrator / DevOps Guide](guides/admin-guide.md),
+  [Embedding Guide](guides/embedding-guide.md),
   [Developer Guide](guides/developer-guide.md), and
   [Contributor Guide](guides/contributor-guide.md) — how to use, deploy,
-  integrate with, and contribute to the running system.
+  integrate with, and contribute to the running system, or embed one of
+  the `emb/` libraries in your own app with no server involved at all.
 - [architecture/README.md](architecture/README.md) — components, request
   flow, and the principles that recur across the whole design.
 - [architecture/data-model.md](architecture/data-model.md) — the
