@@ -3,6 +3,64 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-09-23
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.2.1-dev.0`](#structured_log---v021-dev0)
+ - [`structured_log_cupertino` - `v0.1.1-dev.0`](#structured_log_cupertino---v011-dev0)
+ - [`structured_log_fluent` - `v0.1.1-dev.0`](#structured_log_fluent---v011-dev0)
+ - [`structured_log_flutter` - `v0.1.1-dev.0`](#structured_log_flutter---v011-dev0)
+ - [`structured_log_http` - `v0.1.0-dev.1`](#structured_log_http---v010-dev1)
+ - [`structured_log_material` - `v0.1.1-dev.0`](#structured_log_material---v011-dev0)
+
+---
+
+#### `structured_log` - `v0.2.1-dev.0`
+
+ - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.
+ - **DOCS**(ru): smooth over literal-translation calques across all Russian docs (#52).
+
+#### `structured_log_cupertino` - `v0.1.1-dev.0`
+
+ - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.
+ - **DOCS**(site): add a Packages section covering the emb/ libraries (#44).
+ - **DOCS**: bring all README.md/AGENTS.md files up to date (#41).
+
+#### `structured_log_fluent` - `v0.1.1-dev.0`
+
+ - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.
+ - **DOCS**(site): add a Packages section covering the emb/ libraries (#44).
+ - **DOCS**: bring all README.md/AGENTS.md files up to date (#41).
+
+#### `structured_log_flutter` - `v0.1.1-dev.0`
+
+ - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.
+ - **DOCS**: bring all README.md/AGENTS.md files up to date (#41).
+
+#### `structured_log_http` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_http): implement HttpLogOutput.
+ - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.
+ - **DOCS**(ru): smooth over literal-translation calques across all Russian docs (#52).
+ - **DOCS**: bring all README.md/AGENTS.md files up to date (#41).
+ - **DOCS**: add READMEs for structured_log_server and structured_log_http.
+
+#### `structured_log_material` - `v0.1.1-dev.0`
+
+ - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.
+ - **DOCS**(site): add a Packages section covering the emb/ libraries (#44).
+ - **DOCS**: bring all README.md/AGENTS.md files up to date (#41).
+
+
 ## 2026-09-16
 
 ### Changes

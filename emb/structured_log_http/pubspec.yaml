@@ -2,14 +2,14 @@ name: structured_log_http
 description: >-
   HttpLogOutput — a batching, retrying structured_log sink that ships log
   entries to a structured_log_server instance over HTTP.
-version: 0.1.0-dev.0
+version: 0.1.0-dev.1
 repository: https://github.com/pese-git/structured_log.git
 
 environment:
   sdk: ^3.0.0
 
 dependencies:
-  structured_log: ^0.2.0-dev.0+1
+  structured_log: ^0.2.1-dev.0
 
 dev_dependencies:
   lints: ^3.0.0

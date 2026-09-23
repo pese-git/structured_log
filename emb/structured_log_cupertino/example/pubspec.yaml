@@ -11,8 +11,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
-  structured_log: ^0.2.0+1
-  structured_log_flutter: ^0.1.0
+  structured_log: ^0.2.1-dev.0
+  structured_log_flutter: ^0.1.1-dev.0
   structured_log_cupertino:
     path: ../
 

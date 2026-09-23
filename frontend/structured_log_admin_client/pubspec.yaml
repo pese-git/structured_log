@@ -57,7 +57,7 @@ dependencies:
   # (decision 48). No dependency on structured_log_server or
   # structured_log_http: this client talks to the server over HTTP like any
   # other consumer (decision 19).
-  structured_log: ^0.2.0-dev.0+1
+  structured_log: ^0.2.1-dev.0
 
 dev_dependencies:
   flutter_test:
