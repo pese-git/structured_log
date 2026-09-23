@@ -10,7 +10,12 @@
 
 FROM nginx:1.27-alpine
 
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+# A .template (envsubst'd by the base image's own entrypoint), not a plain
+# nginx.conf: it resolves its "server" upstream lazily, at request time, via
+# whatever DNS the container actually has — see deploy/nginx.conf.template.
+COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY frontend/structured_log_admin_client/build/web/ /usr/share/nginx/html/
+
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 EXPOSE 80
