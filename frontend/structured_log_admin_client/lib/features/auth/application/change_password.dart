@@ -6,8 +6,9 @@ import '../domain/auth_repository.dart';
 /// Replaces the signed-in account's own password.
 ///
 /// One use case for both ways in — the screen the server forces after a
-/// temporary password, and the voluntary one in settings. They differ in what
-/// happens afterwards, not in what is asked of the server
+/// temporary password, and the voluntary one in settings. What they ask of
+/// the server differs in one bit only: settings offers the reader a way to
+/// leave their other devices signed in, and the forced screen does not
 /// (`specs/admin-client-auth`).
 class ChangePassword {
   final AuthRepository _repository;
@@ -17,10 +18,12 @@ class ChangePassword {
   Future<Either<AuthFailure, Unit>> call({
     required String currentPassword,
     required String newPassword,
+    required bool keepOtherSessions,
   }) {
     return _repository.changePassword(
       currentPassword: currentPassword,
       newPassword: newPassword,
+      keepOtherSessions: keepOtherSessions,
     );
   }
 }

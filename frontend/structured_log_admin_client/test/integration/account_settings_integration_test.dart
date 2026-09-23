@@ -167,4 +167,83 @@ void main() {
     );
     await closeApp(tester);
   });
+
+  group('other devices', () {
+    /// Opens the password form on the settings page and submits a valid
+    /// change, optionally ticking the opt-out first.
+    Future<void> changePassword(
+      WidgetTester tester, {
+      bool keepOtherDevices = false,
+    }) async {
+      await tester.tap(find.text('Сменить пароль').last);
+      await tester.pumpAndSettle();
+
+      final fields = find.byType(TextBox);
+      await tester.enterText(fields.at(0), server.password);
+      await tester.enterText(fields.at(1), 'a-new-password-1');
+      await tester.enterText(fields.at(2), 'a-new-password-1');
+      if (keepOtherDevices) {
+        await tester.tap(find.text('Оставить другие устройства в системе'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Сменить пароль').last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('changing the password signs the other devices out and '
+        'leaves this one signed in', (tester) async {
+      final otherDevice = server.issueSession();
+      final harness = await pumpApp(tester, server, signedIn: true);
+      await openAccountSettings(tester);
+
+      await changePassword(tester);
+
+      expect(
+        server.refreshTokenIsLive(otherDevice.refreshToken),
+        isFalse,
+        reason:
+            'the whole point: whoever learned the old password is no longer '
+            'in',
+      );
+      final held = await harness.storage.read();
+      expect(
+        server.refreshTokenIsLive(held!.refreshToken),
+        isTrue,
+        reason: 'the reader is not signed out of the device they are using',
+      );
+      expect(find.text('Вход в систему'), findsNothing);
+      await closeApp(tester);
+    });
+
+    testWidgets('the opt-out leaves the other devices alone', (tester) async {
+      final otherDevice = server.issueSession();
+      await pumpApp(tester, server, signedIn: true);
+      await openAccountSettings(tester);
+
+      await changePassword(tester, keepOtherDevices: true);
+
+      expect(server.refreshTokenIsLive(otherDevice.refreshToken), isTrue);
+      await closeApp(tester);
+    });
+
+    testWidgets('the form says what will happen before it happens', (
+      tester,
+    ) async {
+      await pumpApp(tester, server, signedIn: true);
+      await openAccountSettings(tester);
+
+      await tester.tap(find.text('Сменить пароль').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Оставить другие устройства в системе'), findsOneWidget);
+      expect(
+        find.textContaining('не завершает вашу сессию'),
+        findsNothing,
+        reason:
+            'it now ends every other one, and a hint that says otherwise is '
+            'worse than none',
+      );
+      await closeApp(tester);
+    });
+  });
 }

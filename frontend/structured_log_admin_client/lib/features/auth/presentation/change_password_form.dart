@@ -23,10 +23,19 @@ class ChangePasswordForm extends StatefulWidget {
   /// same words would send them looking for someone who never gave it.
   final bool currentIsTemporary;
 
+  /// Whether to offer leaving the account's other devices signed in.
+  ///
+  /// Off on the forced screen, and that is not a detail of layout: the
+  /// password being replaced there is one an administrator chose and handed
+  /// over, so ending every session it could have opened is the only sensible
+  /// reading — there is nothing to offer to keep.
+  final bool offerKeepOtherSessions;
+
   const ChangePasswordForm({
     super.key,
     required this.submitLabel,
     this.currentIsTemporary = true,
+    this.offerKeepOtherSessions = false,
   });
 
   @override
@@ -37,6 +46,10 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
   final _current = TextEditingController();
   final _next = TextEditingController();
   final _repeat = TextEditingController();
+
+  /// Unticked: the reader has to ask for their other devices to stay in,
+  /// rather than notice a tick that would have signed them out.
+  var _keepOtherSessions = false;
 
   @override
   void dispose() {
@@ -51,6 +64,9 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
       currentPassword: _current.text,
       newPassword: _next.text,
       repeatedPassword: _repeat.text,
+      // Never true where the box is not offered: a screen that does not ask
+      // must not answer on the reader's behalf.
+      keepOtherSessions: widget.offerKeepOtherSessions && _keepOtherSessions,
     );
   }
 
@@ -100,6 +116,20 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
                   ? context.l10n.authPasswordsMismatch
                   : null,
             ),
+            if (widget.offerKeepOtherSessions) ...[
+              const SizedBox(height: AdminSpacing.x14),
+              Checkbox(
+                checked: _keepOtherSessions,
+                onChanged: state.submitting
+                    ? null
+                    : (value) =>
+                          setState(() => _keepOtherSessions = value ?? false),
+                content: Text(
+                  context.l10n.authKeepOtherSessions,
+                  style: AdminTypography.bodySmall,
+                ),
+              ),
+            ],
             const SizedBox(height: AdminSpacing.x18),
             AdminButton(
               label: widget.submitLabel,

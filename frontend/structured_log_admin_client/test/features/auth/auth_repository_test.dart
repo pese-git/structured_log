@@ -205,6 +205,87 @@ void main() {
       expect(adapter.requests, isEmpty);
     },
   );
+  group('changePassword and the other sessions', () {
+    /// The body as it went on the wire — retrofit hands dio the DTO's
+    /// `toJson()`, so this is the JSON the server would parse.
+    Future<Map<String, Object?>> bodyOf(
+      Future<void> Function(AuthRepositoryImpl repository) call, {
+      TokenPair? held,
+    }) async {
+      late Map<String, Object?> sent;
+      final (repository, storage, _) = _repository((options) {
+        sent = Map<String, Object?>.from(options.data as Map);
+        return const FakeReply(200, body: {});
+      });
+      if (held != null) await storage.write(held);
+      await call(repository);
+      return sent;
+    }
+
+    test('asks for the other sessions to end, naming its own token', () async {
+      final sent = await bodyOf(
+        held: const TokenPair(accessToken: 'a-1', refreshToken: 'r-1'),
+        (repository) => repository.changePassword(
+          currentPassword: 'old-password',
+          newPassword: 'new-password-1',
+          keepOtherSessions: false,
+        ),
+      );
+
+      expect(sent['keep_other_sessions'], isFalse);
+      expect(
+        sent['current_refresh_token'],
+        'r-1',
+        reason:
+            'the server cannot otherwise tell which session is asking, and '
+            'would sign this one out along with the rest',
+      );
+    });
+
+    test('passes the opt-out through when the reader ticked it', () async {
+      final sent = await bodyOf(
+        held: const TokenPair(accessToken: 'a-1', refreshToken: 'r-1'),
+        (repository) => repository.changePassword(
+          currentPassword: 'old-password',
+          newPassword: 'new-password-1',
+          keepOtherSessions: true,
+        ),
+      );
+
+      expect(sent['keep_other_sessions'], isTrue);
+    });
+
+    test(
+      'omits the token rather than sending null when none is held',
+      () async {
+        final sent = await bodyOf(
+          (repository) => repository.changePassword(
+            currentPassword: 'old-password',
+            newPassword: 'new-password-1',
+            keepOtherSessions: false,
+          ),
+        );
+
+        expect(sent.containsKey('current_refresh_token'), isFalse);
+      },
+    );
+
+    test('never sends either password under the new field names', () async {
+      final sent = await bodyOf(
+        held: const TokenPair(accessToken: 'a-1', refreshToken: 'r-1'),
+        (repository) => repository.changePassword(
+          currentPassword: 'old-password',
+          newPassword: 'new-password-1',
+          keepOtherSessions: false,
+        ),
+      );
+
+      expect(sent['current_password'], 'old-password');
+      expect(sent['new_password'], 'new-password-1');
+      expect(sent['current_refresh_token'], isNot('old-password'));
+    });
+  });
+
   group('changePassword refusals', () {
     FakeReply envelope(String error, {Map<String, Object?>? details}) =>
         FakeReply(
@@ -231,6 +312,7 @@ void main() {
       final result = await repository.changePassword(
         currentPassword: 'old-password',
         newPassword: 'short',
+        keepOtherSessions: false,
       );
 
       final failure = result.getLeft().toNullable();
@@ -248,6 +330,7 @@ void main() {
       final result = await repository.changePassword(
         currentPassword: 'old-password',
         newPassword: 'x' * 80,
+        keepOtherSessions: false,
       );
       expect(result.getLeft().toNullable(), isA<PasswordRejectedAuthFailure>());
     });
@@ -262,6 +345,7 @@ void main() {
       final result = await repository.changePassword(
         currentPassword: '',
         newPassword: 'long-enough-1',
+        keepOtherSessions: false,
       );
       expect(result.getLeft().toNullable(), isA<UnexpectedAuthFailure>());
     });

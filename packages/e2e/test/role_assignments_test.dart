@@ -101,6 +101,10 @@ void main() {
       ChangePasswordRequestDto(
         currentPassword: server.bootstrapPassword,
         newPassword: adminNewPassword,
+        keepOtherSessions: false,
+        // Named, so this session survives its own password change — the
+        // sweep it triggers is for the account's other devices.
+        currentRefreshToken: (await adminStorage.read())!.refreshToken,
       ),
     );
 
@@ -185,6 +189,8 @@ void main() {
       ChangePasswordRequestDto(
         currentPassword: ownerTemporaryPassword,
         newPassword: ownerChosenPassword,
+        keepOtherSessions: false,
+        currentRefreshToken: (await ownerStorage.read())!.refreshToken,
       ),
     );
   });
