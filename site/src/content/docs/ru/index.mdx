@@ -15,12 +15,46 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-Базовая библиотека, экосистема in-app просмотра логов и self-hosted
-сервер, чтобы отправлять логи с устройства и читать их обратно.
+Базовая библиотека, экосистема просмотра логов внутри приложения и —
+по желанию — self-hosted сервер. Всё это работает само по себе, без
+сервера; `structured_log_server` подключайте, когда нужно собирать
+логи централизованно, искать по ним и делиться ими с командой.
 
 ## Быстрый старт
+
+<Tabs>
+<TabItem label="Самостоятельно, без сервера">
+
+<Steps>
+
+1. **Добавьте `structured_log`.**
+
+   ```yaml
+   dependencies:
+     structured_log: ^0.2.0
+   ```
+
+2. **Логируйте.**
+
+   ```dart
+   import 'package:structured_log/structured_log.dart';
+
+   void main() {
+     getLogger().info('user_login', context: {'user_id': 42});
+   }
+   ```
+
+3. **По желанию подключите живой просмотр логов внутри своего
+   Flutter-приложения** — headless-ядро и готовый скин Material,
+   Fluent или Cupertino, полностью локально, без сети (подробнее:
+   [Руководство по внедрению](/ru/guides/embedding-guide/)).
+
+</Steps>
+
+</TabItem>
+<TabItem label="Вместе с self-hosted сервером">
 
 <Steps>
 
@@ -64,7 +98,12 @@ import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 
 </Steps>
 
-## Девять пакетов, одна система
+</TabItem>
+</Tabs>
+
+## Два способа пользоваться проектом
+
+### Самостоятельно — совсем без сети
 
 <CardGrid stagger>
 	<Card title="structured_log" icon="seti:dart">
@@ -87,6 +126,11 @@ import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 		[Cupertino](/ru/packages/structured_log_cupertino/) — у каждого
 		поиск и фильтрация из коробки. Опубликованы на pub.dev.
 	</Card>
+</CardGrid>
+
+### Self-hosted сервис — подключайте, когда понадобится
+
+<CardGrid stagger>
 	<Card title="structured_log_http" icon="rocket">
 		Отправляет записи на `structured_log_server` по HTTP — батчинг,
 		retry с backoff, ограниченный буфер. Использован в быстром старте
@@ -105,7 +149,8 @@ import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
 	</Card>
 </CardGrid>
 
-Подробнее: [Руководство пользователя](/ru/guides/user-guide/) ·
+Подробнее: [Руководство по внедрению](/ru/guides/embedding-guide/) ·
+[Руководство пользователя](/ru/guides/user-guide/) ·
 [Руководство администратора](/ru/guides/admin-guide/) ·
 [Руководство разработчика](/ru/guides/developer-guide/) ·
 [Пакеты](/ru/packages/) ·

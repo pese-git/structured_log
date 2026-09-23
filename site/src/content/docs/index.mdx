@@ -15,12 +15,47 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid, Steps } from '@astrojs/starlight/components';
+import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-A core library, an in-app log-viewer ecosystem, and a self-hosted
-server to ship logs off the device and read them back.
+A core library, an in-app log-viewer ecosystem, and — optionally — a
+self-hosted server. Everything below works entirely on its own, with
+no server involved at all; add `structured_log_server` only once you
+want those logs collected centrally, searchable, and shared across a
+team.
 
 ## Quick start
+
+<Tabs>
+<TabItem label="Standalone, no server">
+
+<Steps>
+
+1. **Add `structured_log`.**
+
+   ```yaml
+   dependencies:
+     structured_log: ^0.2.0
+   ```
+
+2. **Log.**
+
+   ```dart
+   import 'package:structured_log/structured_log.dart';
+
+   void main() {
+     getLogger().info('user_login', context: {'user_id': 42});
+   }
+   ```
+
+3. **Optionally, watch it live inside your own Flutter app** — a
+   headless core plus a ready-made Material/Fluent/Cupertino skin,
+   entirely local, no network involved (full walkthrough:
+   [Embedding Guide](/guides/embedding-guide/)).
+
+</Steps>
+
+</TabItem>
+<TabItem label="With the self-hosted server">
 
 <Steps>
 
@@ -64,7 +99,12 @@ server to ship logs off the device and read them back.
 
 </Steps>
 
-## Nine packages, one system
+</TabItem>
+</Tabs>
+
+## Two ways to use it
+
+### Standalone — these never touch a network
 
 <CardGrid stagger>
 	<Card title="structured_log" icon="seti:dart">
@@ -86,6 +126,11 @@ server to ship logs off the device and read them back.
 		[Cupertino](/packages/structured_log_cupertino/) — each with search
 		and filtering built in. Published on pub.dev.
 	</Card>
+</CardGrid>
+
+### The self-hosted service — opt in when you need it
+
+<CardGrid stagger>
 	<Card title="structured_log_http" icon="rocket">
 		Ships log entries to `structured_log_server` over HTTP — batching,
 		retry with backoff, a bounded buffer. Used in the quick start above.
@@ -101,7 +146,8 @@ server to ship logs off the device and read them back.
 	</Card>
 </CardGrid>
 
-Details: [User Guide](/guides/user-guide/) ·
+Details: [Embedding Guide](/guides/embedding-guide/) ·
+[User Guide](/guides/user-guide/) ·
 [Administrator Guide](/guides/admin-guide/) ·
 [Developer Guide](/guides/developer-guide/) ·
 [Packages](/packages/) ·
