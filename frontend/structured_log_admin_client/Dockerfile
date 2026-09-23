@@ -1,5 +1,10 @@
-# Serves the admin client's web build, and proxies the API to the server so
-# both answer on one origin.
+# Serves the admin client's web build — nothing else. This image has no
+# idea the API even exists: no hostname, no port, no proxy rule. Whoever
+# puts it behind a single origin (a dedicated reverse proxy for Docker
+# Compose, an Ingress for Kubernetes — see deploy/) owns that; baking that
+# knowledge in here instead is what crash-looped this exact container the
+# last time the topology around it changed (a static-file server has no
+# business needing its sibling's Service name just to start).
 #
 # Expects `build/web` to exist already — `deploy/deploy.sh` produces it. There
 # is no official Flutter image to build it from inside the Dockerfile, and a
@@ -10,12 +15,7 @@
 
 FROM nginx:1.27-alpine
 
-# A .template (envsubst'd by the base image's own entrypoint), not a plain
-# nginx.conf: it resolves its "server" upstream lazily, at request time, via
-# whatever DNS the container actually has — see deploy/nginx.conf.template.
-COPY deploy/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY frontend/structured_log_admin_client/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/structured_log_admin_client/build/web/ /usr/share/nginx/html/
-
-ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 EXPOSE 80

@@ -7,8 +7,8 @@ overlay per backend (`overlays/sqlite/`, `overlays/postgres/`). No Helm,
 no separate templating language — `kubectl` speaks Kustomize natively.
 
 For the reasoning behind the non-obvious parts of this setup (why the
-server can only ever run one replica, why the `server` Service's name
-is load-bearing, three real gotchas found while building this), see
+server can only ever run one replica, two real gotchas found while
+building this), see
 [docs/guides/admin-guide.md#kubernetes](../../docs/guides/admin-guide.md#kubernetes).
 This file is the short, practical companion — hand-verified against a
 local cluster (`minikube`, ingress-nginx) while writing it, not just
@@ -98,10 +98,13 @@ in-cluster instance.
 ## The Ingress
 
 `base/ingress.yaml` ships with a placeholder host
-(`logs.example.com`) and routes everything to the `web` Service — its
-own nginx already splits `/v1/` off to the API internally, so the
-`Ingress` itself stays simple. Edit the `host:` field for your domain,
-or override it per-overlay with a small Kustomize patch if you need
+(`logs.example.com`) and two path rules — `/v1` straight to the
+`server` Service, everything else to `web`. The `web` image doesn't
+proxy anything itself (unlike the Docker Compose path, which needs its
+own `proxy` container for exactly this split — see
+[`deploy/proxy/`](../proxy/)); an Ingress already does it, so there's
+nothing extra to run. Edit the `host:` field for your domain, or
+override it per-overlay with a small Kustomize patch if you need
 different hosts for `sqlite`/`postgres` environments. Requires an
 ingress controller already installed in the cluster (`ingressClassName:
 nginx` — swap it for whatever's actually there); this repository

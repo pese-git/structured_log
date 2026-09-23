@@ -25,8 +25,9 @@ It has to be changed at first sign-in — the server answers
 
 | Service | Image | What it does |
 |---|---|---|
-| `server` | built from `backend/structured_log_server/Dockerfile` | The API. Not published to the host — reachable only through the proxy. |
-| `web` | built from `frontend/structured_log_admin_client/Dockerfile` | nginx: the client's static files, and `/v1/` proxied to `server`. |
+| `server` | built from `backend/structured_log_server/Dockerfile` | The API. Not published to the host — reachable only through `proxy`. |
+| `web` | built from `frontend/structured_log_admin_client/Dockerfile` | nginx: just the client's static files. Doesn't know `server` exists — not published to the host either. |
+| `proxy` | `nginx:1.27-alpine`, off the shelf, configured by [`proxy/nginx.conf.template`](proxy/nginx.conf.template) | Puts `web` and `server` behind the one origin the client is published on — `/v1/` to `server`, everything else to `web`. |
 
 SQLite lives on the named `data` volume. Nothing else is persistent.
 
@@ -37,9 +38,11 @@ there is no CORS anywhere in the server, its specs or its design. A browser
 client served from a different host therefore cannot call the API at all: the
 preflight goes unanswered and every request fails before it is sent.
 
-So the client is served *beside* the API rather than pointed at it. Its bundle
-is built with an empty base URL, every request goes out relative to the page,
-and the same image serves any domain without rebuilding.
+So the client is served *beside* the API rather than pointed at it — `proxy`
+puts both behind one origin, `web` and `server` neither know nor care that
+the other exists. The client's bundle is built with an empty base URL, every
+request goes out relative to the page, and the same image serves any domain
+without rebuilding.
 
 If the API ever needs to be reachable from elsewhere, that is a server change
 (a CORS middleware and a decision about allowed origins), not a proxy setting.

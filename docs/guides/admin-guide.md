@@ -48,12 +48,13 @@ images, generates a random JWT (JSON Web Token) signing secret — the
 key the server uses to sign every session token it issues — into
 `deploy/secrets/jwt_secret` (once, on first run — git-ignored,
 mounted read-only, never in an environment variable or a compose file
-that could be committed), and starts two containers behind one nginx:
+that could be committed), and starts three containers behind one nginx:
 
 | Service | What it is |
 |---|---|
-| `server` | The API — not published to the host, reachable only through the proxy |
-| `web` | nginx: the admin client's static files, plus `/v1/` proxied to `server` |
+| `server` | The API — not published to the host, reachable only through `proxy` |
+| `web` | nginx: just the admin client's static files. Doesn't know `server` exists — not published to the host either |
+| `proxy` | An off-the-shelf nginx that puts `web` and `server` behind the one origin the client is published on |
 
 ```bash
 open http://localhost:8080    # or your STRUCTURED_LOG_PUBLIC_PORT
@@ -138,32 +139,6 @@ under *both* storage backends; moving to PostgreSQL does not change it
 **web** deployment (the admin client's static nginx) freely — it's
 stateless, `base/web-deployment.yaml` runs it at 2 by default.
 
-### Service naming
-
-The admin client's image defaults to the backend's Service being named
-`server` — the same name `docker-compose.yml` uses, for the same
-single-origin/no-CORS reason (see
-["What you're running"](#what-youre-running) above). This is why
-`base/server-service.yaml` names the server's `Service` exactly
-`server`, not something more descriptive: renaming it without also
-rebuilding the image means `location /v1/` inside the `web` container
-answers `502` instead of proxying through.
-
-That's a `502`, not a crash, deliberately: `deploy/nginx.conf.template`
-resolves `server` through a variable (`set $upstream_server
-http://server:8080; proxy_pass $upstream_server;`) plus a `resolver`
-directive, rather than nginx's usual bare `proxy_pass http://server:8080;`.
-A bare literal resolves once, at startup, and nginx refuses to start at
-all if the name doesn't exist yet — which used to make the `web` image
-unusable in a topology where something else routes `/v1/` straight to
-the backend and this container's own proxy is simply never exercised
-(found building exactly that: a three-way split with `site`, `web`, and
-the backend each getting their own path off one Ingress, `/v1/` going
-directly to the backend). Resolving lazily, per request, means the
-container starts regardless, and only a request that actually hits
-`location /v1/` can fail — `502`, the ordinary answer for "upstream
-unreachable," not a boot-time crash loop over a route nothing uses.
-
 ### Secrets path
 
 Secrets mount at `/etc/structured-log/secrets`, deliberately not
@@ -209,13 +184,26 @@ networking configuration beyond an ordinary `ClusterIP` Service.
 
 ### Ingress routing
 
-The `Ingress` routes everything to `web`, not a path-split between
-`web` and `server`. `web`'s own nginx already does that split
-internally (above). Duplicating it at the `Ingress` level would mean
-two places to keep in sync. One origin, no CORS configuration needed
-anywhere in this setup — same reasoning as the bundled Docker Compose
-deployment, just expressed as an `Ingress` instead of a standalone
-`nginx` container.
+The `Ingress` splits by path itself — `/v1` straight to the `server`
+Service, everything else to `web`. Neither image knows the other
+exists: `web` is a plain static-file server with no backend awareness
+at all, and `server` has no idea anything proxies to it. That's
+deliberate, not an oversight — the `web` image used to have `server`'s
+address baked into its own nginx config, which meant it needed
+`server` to be resolvable just to *start*, whether or not this
+deployment's traffic ever actually reached it through that path
+(found building exactly that: a three-way split with `site`, `web`,
+and `server` each getting their own path off one Ingress, with `/v1`
+already going straight to `server` — `web`'s internal proxy was dead
+code that could still crash-loop the whole container). An `Ingress` is
+already the layer whose job is knowing where every path goes; making
+`web` duplicate that job was the bug, not a feature to preserve.
+
+One origin, no CORS configuration needed anywhere in this setup —
+same reasoning as the bundled Docker Compose deployment, which does
+the identical split with a dedicated `proxy` container instead of an
+`Ingress` (see [`deploy/proxy/`](../../deploy/proxy/)) since Compose
+has no path-routing layer of its own.
 
 Re-bootstrap an administrator on a non-empty database the same way the
 [Docker Compose path does](#bootstrapping-the-first-administrator), via
