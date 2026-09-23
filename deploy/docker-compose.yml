@@ -59,11 +59,32 @@ services:
       context: ..
       dockerfile: frontend/structured_log_admin_client/Dockerfile
     restart: unless-stopped
+    # Not published to the host, same reason as `server` above — and
+    # nothing to `depends_on` here either: this image doesn't know `server`
+    # exists, so it has nothing to wait on.
+    expose:
+      - "80"
+
+  proxy:
+    # Off-the-shelf, not built: the one job this container does — put `web`
+    # and `server` behind one origin — needs nothing beyond the template
+    # this repository already ships (see proxy/nginx.conf.template).
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./proxy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      # Reads nameservers from its own /etc/resolv.conf into
+      # ${NGINX_LOCAL_RESOLVERS} for the template's `resolver` directive —
+      # see proxy/nginx.conf.template for why that matters here.
+      NGINX_ENTRYPOINT_LOCAL_RESOLVERS: 1
     depends_on:
       server:
         # Waits for /healthz, not merely for the process: nginx that starts
         # first answers 502 to whoever is already reloading the page.
         condition: service_healthy
+      web:
+        condition: service_started
     ports:
       - "${STRUCTURED_LOG_PUBLIC_PORT:-8080}:80"
 

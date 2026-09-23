@@ -1,10 +1,7 @@
-# Named "server" — the web image's baked-in nginx.conf.template
-# (deploy/nginx.conf.template) defaults `location /v1/` to
-# `proxy_pass http://server:8080`, the same name docker-compose.yml uses
-# for the same single-origin/no-CORS reason (see deploy/k8s/README.md).
-# Resolution is lazy (a `resolver` directive, not a bare literal), so
-# renaming this without also rebuilding the image no longer crashes the
-# web container — it just answers `502` on `/v1/` instead of proxying.
+# Referenced by name from ingress.yaml's `/v1` backend — the `web` image
+# has no idea this Service exists at all (unlike docker-compose.yml's
+# `proxy` container, which does, by the same name, for the same reason).
+# Rename this and update ingress.yaml to match; nothing else cares.
 apiVersion: v1
 kind: Service
 metadata:

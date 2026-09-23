@@ -610,9 +610,18 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 
 Внутри [deploy/](deploy/):
 
-- `docker-compose.yml` — два сервиса: `server` (образ из
-  [backend/structured_log_server/Dockerfile](backend/structured_log_server/Dockerfile)) и `web`
-  (nginx со статикой клиента и проксированием `/v1/`). Порт сервера наружу **не** публикуется.
+- `docker-compose.yml` — три сервиса: `server` (образ из
+  [backend/structured_log_server/Dockerfile](backend/structured_log_server/Dockerfile)), `web`
+  (образ из [frontend/structured_log_admin_client/Dockerfile](frontend/structured_log_admin_client/Dockerfile) —
+  только статика клиента, о `server` не знает вовсе) и `proxy` (готовый `nginx:1.27-alpine`,
+  настроенный [deploy/proxy/nginx.conf.template](deploy/proxy/nginx.conf.template) — ставит `web`
+  и `server` за один origin: `/v1/` на `server`, остальное на `web`). Разделение на отдельный
+  `proxy` вместо проксирования внутри `web`, как было раньше, — решение по итогам инцидента:
+  зашитый в nginx-конфиг `web` адрес `server` требовал, чтобы `server` резолвился просто для
+  *запуска* контейнера `web`, даже в топологии, где до этого внутреннего proxy трафик вообще не
+  доходил (найдено при развёртывании в Kubernetes с раздельными путями Ingress — см.
+  `docs/guides/admin-guide.md#ingress-routing`). Порты `server` и `web` наружу **не** публикуются,
+  наружу смотрит только `proxy`.
 - **Один origin остаётся образцовым способом развёртывания, а не единственно возможным.**
   По умолчанию CORS в сервере нет: браузерный клиент с другого хоста не сможет обратиться к API,
   поэтому клиент отдаётся рядом с API, а его бандл собирается с пустым base URL. С 2026-09
