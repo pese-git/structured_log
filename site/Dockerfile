@@ -1,6 +1,7 @@
 # Build context is the repository root, not this directory:
-# scripts/migrate_docs.py generates site content from ../docs/ relative to
-# itself, i.e. <repo root>/docs — see site/README.md.
+# scripts/migrate_docs.py generates site content from ../docs/ and
+# ../emb/<package>/README(.ru).md, both relative to itself — see
+# site/README.md.
 #
 #   docker build -f site/Dockerfile .
 
@@ -13,6 +14,7 @@ RUN apk add --no-cache python3
 WORKDIR /workspace
 
 COPY docs/ docs/
+COPY emb/ emb/
 
 # Dependencies first, so a docs/ or source change doesn't invalidate the
 # npm install layer.
