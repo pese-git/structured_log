@@ -1,3 +1,7 @@
+## 0.2.1
+
+ - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.
+
 ## 0.2.1-dev.0
 
  - **FEAT**: restructure monorepo into emb/backend/frontend/packages, scaffold structured_log_server and structured_log_http.

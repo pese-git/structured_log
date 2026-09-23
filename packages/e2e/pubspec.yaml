@@ -21,8 +21,8 @@ dependencies:
   # The three sides of the system under test. The server is not among them: it
   # is started as a real OS process, not imported, which is the only way to
   # prove it resolves its own configuration and serves over a real socket.
-  structured_log: ^0.2.1-dev.0
-  structured_log_http: ^0.1.0-dev.1
+  structured_log: ^0.2.1
+  structured_log_http: ^0.1.0
   structured_log_admin_client:
     path: ../../frontend/structured_log_admin_client
 

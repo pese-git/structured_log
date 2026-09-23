@@ -2,7 +2,7 @@ name: structured_log_cupertino
 description: >-
   A Cupertino (iOS-style) in-app log viewer for structured_log, built on
   structured_log_flutter.
-version: 0.1.1-dev.0
+version: 0.1.1
 repository: https://github.com/pese-git/structured_log.git
 
 environment:
@@ -13,8 +13,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
-  structured_log: ^0.2.1-dev.0
-  structured_log_flutter: ^0.1.1-dev.0
+  structured_log: ^0.2.1
+  structured_log_flutter: ^0.1.1
 
 dev_dependencies:
   flutter_test:

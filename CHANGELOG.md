@@ -11,6 +11,48 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
+ - [`structured_log` - `v0.2.1`](#structured_log---v021)
+ - [`structured_log_cupertino` - `v0.1.1`](#structured_log_cupertino---v011)
+ - [`structured_log_fluent` - `v0.1.1`](#structured_log_fluent---v011)
+ - [`structured_log_flutter` - `v0.1.1`](#structured_log_flutter---v011)
+ - [`structured_log_material` - `v0.1.1`](#structured_log_material---v011)
+
+Packages with other changes:
+
+ - [`structured_log_http` - `v0.1.0`](#structured_log_http---v010)
+
+Packages graduated to a stable release (see pre-releases prior to the stable version for changelog entries):
+
+ - `structured_log` - `v0.2.1`
+ - `structured_log_cupertino` - `v0.1.1`
+ - `structured_log_fluent` - `v0.1.1`
+ - `structured_log_flutter` - `v0.1.1`
+ - `structured_log_http` - `v0.1.0`
+ - `structured_log_material` - `v0.1.1`
+
+---
+
+#### `structured_log` - `v0.2.1`
+
+#### `structured_log_cupertino` - `v0.1.1`
+
+#### `structured_log_fluent` - `v0.1.1`
+
+#### `structured_log_flutter` - `v0.1.1`
+
+#### `structured_log_material` - `v0.1.1`
+
+#### `structured_log_http` - `v0.1.0`
+
+
+## 2026-09-23
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
  - There are no breaking changes in this release.
 
 Packages with other changes:
