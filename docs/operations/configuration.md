@@ -140,7 +140,7 @@ pass today.
 | PostgreSQL password | `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` / `…_FILE` | — | Secret: no flag. Required when `--db-backend=postgres` |
 | PostgreSQL connection pool size | `--db-postgres-pool-size` | `10` | `1`–`64`; shared by reads and writes alike — unlike `--db-read-pool-size`, which is SQLite-only and has no effect here |
 | PostgreSQL TLS mode | `--db-postgres-ssl-mode` | `require` | `disable` / `require` (encrypted, certificate errors ignored) / `verify-full` (encrypted and certificate-verified) |
-| JWT signing secret | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Required**, no flag, never generated |
+| JWT signing secret | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Required**, no flag, never generated; at least 32 bytes or the server refuses to start |
 | JWT issuer | `--jwt-issuer` | `structured_log_server` | The `iss` claim embedded in access tokens |
 | Access token lifetime | *(no flag)* | `900` (15 min) | **Planned, not implemented as a setting** — currently a fixed constant in code, not configurable |
 | Refresh token lifetime | *(no flag)* | `2592000` (30 days) | **Planned, not implemented as a setting** — currently a fixed constant in code, not configurable |
@@ -229,7 +229,7 @@ STRUCTURED_LOG_JWT_SECRET=$(openssl rand -hex 32) \
 
 ```bash
 # Development: everything from flags, secret from the environment
-STRUCTURED_LOG_JWT_SECRET=dev-only-secret \
+STRUCTURED_LOG_JWT_SECRET=dev-only-secret-long-enough-to-start \
   dart run bin/server.dart --db-path ./dev.db --http-port 8080
 ```
 

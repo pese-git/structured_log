@@ -1,4 +1,5 @@
 import 'package:structured_log_server/src/config/config_resolver.dart';
+import 'package:structured_log_server/src/auth/token_settings.dart';
 import 'package:structured_log_server/src/config/server_config.dart';
 import 'package:test/test.dart';
 
@@ -84,19 +85,92 @@ void main() {
     () {
       final result = ConfigResolver(serverConfigParams).parse([], {
         'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-        'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
       }, command: commandServe);
       expect(result.outcome, ConfigParseOutcome.success);
 
       final config = ServerConfig.fromResolved(result.values!);
       expect(config.dbPath, '/tmp/db.sqlite');
-      expect(config.jwtSecret, 'test-secret');
+      expect(config.jwtSecret, 'test-secret-long-enough-for-the-policy');
       expect(config.httpPort, 8080);
       expect(config.bootstrapAdminEnabled, isTrue);
       expect(config.rateLimitEnabled, isTrue);
       expect(config.logLevel, 'info');
     },
   );
+
+  group('jwt-secret has to be long enough to key HMAC-SHA256', () {
+    ConfigParseResult parseWith(String secret) =>
+        ConfigResolver(serverConfigParams).parse([], {
+          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+          'STRUCTURED_LOG_JWT_SECRET': secret,
+        }, command: commandServe);
+
+    test('a short one stops startup instead of being accepted', () {
+      final result = parseWith('hunter2');
+
+      expect(result.outcome, ConfigParseOutcome.errors);
+      expect(result.errors.single, contains('STRUCTURED_LOG_JWT_SECRET'));
+      expect(result.errors.single, contains('$minJwtSecretBytes'));
+    });
+
+    test('the complaint does not carry the secret it is about', () {
+      const secret = 'hunter2';
+      final result = parseWith(secret);
+
+      expect(
+        result.errors.single,
+        isNot(contains(secret)),
+        reason:
+            'configuration errors are printed to the console and end up in '
+            'deployment logs; the value must not travel with the complaint '
+            '(`log-server-config`)',
+      );
+    });
+
+    test('one long enough is accepted', () {
+      final result = parseWith('x' * minJwtSecretBytes);
+
+      expect(result.outcome, ConfigParseOutcome.success);
+      expect(
+        ServerConfig.fromResolved(result.values!).jwtSecret,
+        'x' * minJwtSecretBytes,
+      );
+    });
+
+    test('create-admin is held to it too, when one is set', () {
+      final result = ConfigResolver(serverConfigParams).parse([], {
+        'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+        'STRUCTURED_LOG_JWT_SECRET': 'hunter2',
+      }, command: commandCreateAdmin);
+
+      expect(
+        result.outcome,
+        ConfigParseOutcome.errors,
+        reason:
+            'the command does not sign anything, so this is strictness for '
+            'its own sake — but it is the same deployment\'s secret, `serve` '
+            'would refuse it moments later, and saying so at the first '
+            'command that reads the environment is the earlier, clearer '
+            'failure. It also matches bootstrap-admin-password, whose '
+            'validator applies to both commands alike',
+      );
+    });
+
+    test('create-admin without a secret at all is still fine', () {
+      final result = ConfigResolver(serverConfigParams).parse([], {
+        'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+      }, command: commandCreateAdmin);
+
+      expect(
+        result.outcome,
+        ConfigParseOutcome.success,
+        reason:
+            'the rule is about a secret that was set, never a reason to '
+            'demand one the command does not need',
+      );
+    });
+  });
 
   test('create-admin only requires db-path, not jwt-secret', () {
     final result = ConfigResolver(serverConfigParams).parse([], {
@@ -113,7 +187,7 @@ void main() {
       String command = commandServe,
       Map<String, String> extraEnv = const {},
     }) => ConfigResolver(serverConfigParams).parse(args, {
-      'STRUCTURED_LOG_JWT_SECRET': 'secret',
+      'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
       ...extraEnv,
     }, command: command);
 
@@ -262,7 +336,7 @@ void main() {
     ) {
       final result = ConfigResolver(serverConfigParams).parse(args, {
         'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-        'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
       }, command: commandServe);
       return (
         outcome: result.outcome,
@@ -324,7 +398,7 @@ void main() {
   group('db-read-pool-size', () {
     ConfigParseResult resolve(List<String> args) =>
         ConfigResolver(serverConfigParams).parse(args, {
-          'STRUCTURED_LOG_JWT_SECRET': 'secret',
+          'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
         }, command: commandServe);
 
     test('defaults to two readers', () {
@@ -355,7 +429,7 @@ void main() {
     ServerConfig resolve(List<String> args) {
       final result = ConfigResolver(serverConfigParams).parse(args, {
         'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
-        'STRUCTURED_LOG_JWT_SECRET': 'test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
       }, command: commandServe);
       return ServerConfig.fromResolved(result.values!);
     }

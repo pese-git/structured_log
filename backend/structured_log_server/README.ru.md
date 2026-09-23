@@ -57,7 +57,7 @@ cd backend/structured_log_server
 dart pub get
 dart run build_runner build --delete-conflicting-outputs   # drift/freezed/router
 
-export STRUCTURED_LOG_JWT_SECRET='длинная-случайная-строка'
+export STRUCTURED_LOG_JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
 dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 
@@ -94,7 +94,7 @@ Generated a temporary password for bootstrap administrator "admin": <...>
 этого README не меняется:
 
 ```bash
-export STRUCTURED_LOG_JWT_SECRET='длинная-случайная-строка'
+export STRUCTURED_LOG_JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
 export STRUCTURED_LOG_DB_POSTGRES_PASSWORD='...'
 dart run bin/server.dart serve \
   --db-backend=postgres \
@@ -224,7 +224,7 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 | `--db-backend` | `sqlite` — либо `postgres`, см. выше |
 | `--db-path` | обязательна для `serve` при `--db-backend=sqlite` (по умолчанию) |
 | `--db-postgres-host` / `-database` / `-username`, `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` | обязательны для `serve` при `--db-backend=postgres` |
-| `STRUCTURED_LOG_JWT_SECRET` | обязательна для `serve` |
+| `STRUCTURED_LOG_JWT_SECRET` | обязательна для `serve`; не короче 32 байт |
 | `--http-host` / `--http-port` | `0.0.0.0` / `8080` |
 | `--max-ingest-body-bytes` | `10485760` |
 | `--retention-purge-interval-seconds` | `3600` |

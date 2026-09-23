@@ -39,7 +39,8 @@ void main() {
           '--http-port=$port', // overrides STRUCTURED_LOG_HTTP_PORT below
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_HTTP_PORT':
               '0', // would bind an ephemeral port if honored
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
@@ -106,7 +107,8 @@ void main() {
         '--sse-heartbeat-interval-seconds=300',
       ],
       environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET':
+            'integration-test-secret-long-enough-for-the-policy',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -233,7 +235,8 @@ void main() {
           '--sse-heartbeat-interval-seconds=1',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -475,7 +478,8 @@ void main() {
           '--http-port=$port',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -790,7 +794,8 @@ void main() {
           '--http-port=$port',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
         },
       );
@@ -855,7 +860,8 @@ void main() {
         '--rate-limit-refill-per-minute=1',
       ],
       environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET':
+            'integration-test-secret-long-enough-for-the-policy',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       },
     );
@@ -931,7 +937,8 @@ void main() {
           '--log-format=json',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
         },
       );
@@ -990,7 +997,7 @@ void main() {
       );
       expect(
         lines.join('\n'),
-        isNot(contains('integration-test-secret')),
+        isNot(contains('integration-test-secret-long-enough-for-the-policy')),
         reason: 'and the secret itself never appears',
       );
 
@@ -1026,7 +1033,8 @@ void main() {
         '--retention-purge-interval-seconds=1',
       ],
       environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET':
+            'integration-test-secret-long-enough-for-the-policy',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       },
     );
@@ -1088,7 +1096,8 @@ void main() {
         '--log-level=debug',
       ],
       environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET':
+            'integration-test-secret-long-enough-for-the-policy',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
       },
     );
@@ -1155,7 +1164,7 @@ void main() {
     );
     expect(
       lines.join('\n'),
-      isNot(contains('integration-test-secret')),
+      isNot(contains('integration-test-secret-long-enough-for-the-policy')),
       reason: 'the container must never print what it holds',
     );
   }, timeout: const Timeout(Duration(seconds: 60)));
@@ -1238,7 +1247,8 @@ void main() {
           '--http-port=$port',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           // Off, so the account under test is the one create-admin wrote and
           // not one auto-bootstrap produced on the way up.
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'false',
@@ -1328,7 +1338,8 @@ void main() {
         '--rate-limit-refill-per-minute=1',
       ],
       environment: {
-        'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET':
+            'integration-test-secret-long-enough-for-the-policy',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
         'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -1551,7 +1562,8 @@ void main() {
           '--http-port=$port',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_ENABLED': 'true',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_USERNAME': 'root',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'bootstrap-pw',
@@ -2105,7 +2117,8 @@ void main() {
           '--http-port=0',
         ],
         environment: {
-          'STRUCTURED_LOG_JWT_SECRET': 'integration-test-secret',
+          'STRUCTURED_LOG_JWT_SECRET':
+              'integration-test-secret-long-enough-for-the-policy',
           'STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD': 'hunter2',
         },
       );
@@ -2126,6 +2139,45 @@ void main() {
       // It is a secret: the message names the variable, never the value.
       expect(output.toString(), isNot(contains('hunter2')));
       // Nothing started: no database was created.
+      expect(File('${dir.path}/test.sqlite').existsSync(), isFalse);
+    },
+    timeout: const Timeout(Duration(seconds: 90)),
+  );
+
+  test(
+    'a signing secret below the floor stops startup with a config error',
+    () async {
+      final dir = Directory.systemTemp.createTempSync('server_weak_secret');
+      addTearDown(() => dir.deleteSync(recursive: true));
+
+      final process = await Process.start(
+        'dart',
+        [
+          'run',
+          'bin/server.dart',
+          'serve',
+          '--db-path=${dir.path}/test.sqlite',
+          '--http-port=0',
+        ],
+        environment: {'STRUCTURED_LOG_JWT_SECRET': 'hunter2'},
+      );
+      final output = StringBuffer();
+      final drained = Future.wait([
+        process.stdout.transform(utf8.decoder).forEach(output.write),
+        process.stderr.transform(utf8.decoder).forEach(output.write),
+      ]);
+
+      final exitCode = await process.exitCode.timeout(
+        const Duration(seconds: 60),
+      );
+      await drained;
+
+      expect(exitCode, isNot(0));
+      expect(output.toString(), contains('JWT_SECRET'));
+      expect(output.toString(), contains('at least 32 bytes'));
+      // It is a secret: the message names the variable, never the value.
+      expect(output.toString(), isNot(contains('hunter2')));
+      // Nothing started: a port was never opened and no database was made.
       expect(File('${dir.path}/test.sqlite').existsSync(), isFalse);
     },
     timeout: const Timeout(Duration(seconds: 90)),

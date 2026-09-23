@@ -47,7 +47,7 @@ class ServerProcess {
       environment: {
         // Never a flag: an argument is visible in the process list to anyone
         // on the host (design.md decision 47).
-        'STRUCTURED_LOG_JWT_SECRET': 'end-to-end-test-secret',
+        'STRUCTURED_LOG_JWT_SECRET': 'end-to-end-test-secret-long-enough-for-the-policy',
         // JSON, so the bootstrap password can be read out of a field rather
         // than scraped out of a sentence.
         'STRUCTURED_LOG_LOG_FORMAT': 'json',
