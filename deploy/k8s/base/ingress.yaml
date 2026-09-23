@@ -6,8 +6,8 @@ metadata:
   annotations:
     # The live-stream endpoint (GET /v1/logs/stream) is a long-lived
     # response; don't buffer or time it out like an ordinary request
-    # (mirrors deploy/nginx.conf.template's own settings for the same
-    # endpoint).
+    # (mirrors deploy/proxy/nginx.conf.template's own settings for the
+    # same endpoint, for the docker-compose path).
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
 spec:
@@ -16,11 +16,18 @@ spec:
     - host: logs.example.com
       http:
         paths:
-          # Everything goes to `web` — its own nginx
-          # (deploy/nginx.conf.template) already splits `/v1/` off to the
-          # `server` Service internally.
-          # Duplicating that split at the Ingress level would be two
-          # places to keep in sync.
+          # `/v1` straight to `server`, everything else to `web` — the
+          # split docker-compose.yml needs its own `proxy` container for
+          # (see deploy/proxy/) is exactly what an Ingress already does,
+          # no extra container needed. `web` doesn't proxy anything itself;
+          # ingress-nginx sorts by path specificity, so `/v1` always wins
+          # over `/` regardless of list order.
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: server
+                port: {number: 8080}
           - path: /
             pathType: Prefix
             backend:

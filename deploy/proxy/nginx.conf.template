@@ -1,0 +1,62 @@
+# A .template, processed by the base image's own entrypoint (envsubst,
+# /etc/nginx/templates/*.template -> /etc/nginx/conf.d/*). This is the one
+# place in the Compose stack that's supposed to know both `web` and
+# `server` exist — see ../docker-compose.yml for why neither of them has
+# to.
+#
+# ${NGINX_LOCAL_RESOLVERS} comes from the same image's
+# 15-local-resolvers.envsh (enabled by NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+# in docker-compose.yml), which reads nameserver lines out of this
+# container's own /etc/resolv.conf — Docker's embedded DNS here.
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+
+server {
+  listen 80;
+  server_name _;
+
+  # `proxy_pass` to a *variable*, not a bare literal, throughout: a literal
+  # resolves once at nginx startup and refuses to start at all if the name
+  # isn't up yet. Routed through a variable plus the `resolver` above,
+  # resolution happens per request instead — a plain 502 if `web` or
+  # `server` is briefly unreachable, never a crash loop over container
+  # start order.
+
+  # Same origin for everything. This is what makes the deployment work
+  # without CORS: the server sends no `Access-Control-Allow-Origin`, so a
+  # client served from a different host could not call the API from a
+  # browser at all.
+  location / {
+    set $upstream_web http://web:80;
+    proxy_pass $upstream_web;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /v1/ {
+    set $upstream_server http://server:8080;
+    proxy_pass $upstream_server;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    # The server reads the client address for rate limiting and counts
+    # `trusted-proxy-hops` entries back from the right of this header. With
+    # this proxy in front, that setting is 1 — see ../.env.example.
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # GET /v1/logs/stream is Server-Sent Events: a long-lived response that
+    # must not be buffered or timed out like an ordinary request.
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 1h;
+    chunked_transfer_encoding off;
+  }
+
+  location = /healthz {
+    set $upstream_healthz http://server:8080;
+    proxy_pass $upstream_healthz/healthz;
+    access_log off;
+  }
+}
