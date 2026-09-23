@@ -140,15 +140,29 @@ stateless, `base/web-deployment.yaml` runs it at 2 by default.
 
 ### Service naming
 
-The admin client's image has the backend's Service name baked in.
-`deploy/nginx.conf`, built into the `web` image, hardcodes
-`proxy_pass http://server:8080`. This is the same name
-`docker-compose.yml` uses, for the same single-origin/no-CORS reason
-(see ["What you're running"](#what-youre-running) above). This is why
+The admin client's image defaults to the backend's Service being named
+`server` — the same name `docker-compose.yml` uses, for the same
+single-origin/no-CORS reason (see
+["What you're running"](#what-youre-running) above). This is why
 `base/server-service.yaml` names the server's `Service` exactly
-`server`, not something more descriptive — the image works unmodified
-only as long as that holds; renaming it means rebuilding the image with
-a different `nginx.conf`.
+`server`, not something more descriptive: renaming it without also
+rebuilding the image means `location /v1/` inside the `web` container
+answers `502` instead of proxying through.
+
+That's a `502`, not a crash, deliberately: `deploy/nginx.conf.template`
+resolves `server` through a variable (`set $upstream_server
+http://server:8080; proxy_pass $upstream_server;`) plus a `resolver`
+directive, rather than nginx's usual bare `proxy_pass http://server:8080;`.
+A bare literal resolves once, at startup, and nginx refuses to start at
+all if the name doesn't exist yet — which used to make the `web` image
+unusable in a topology where something else routes `/v1/` straight to
+the backend and this container's own proxy is simply never exercised
+(found building exactly that: a three-way split with `site`, `web`, and
+the backend each getting their own path off one Ingress, `/v1/` going
+directly to the backend). Resolving lazily, per request, means the
+container starts regardless, and only a request that actually hits
+`location /v1/` can fail — `502`, the ordinary answer for "upstream
+unreachable," not a boot-time crash loop over a route nothing uses.
 
 ### Secrets path
 
