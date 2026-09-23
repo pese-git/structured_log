@@ -157,7 +157,7 @@ curl -G http://localhost:8080/v1/logs \
 Auth: `Authorization: Bearer <access-token>`.
 
 **Query-параметры:** те же, что у `GET /v1/logs` выше, плюс `since_id`
-(integer, опционален — точка «догона», см.
+(integer, опционален — точка catch-up, см.
 [live-streaming.md](../architecture/live-streaming.ru.md#закрытие-зазора-catch-up-по-since_id)).
 Без `limit`/`cursor` — это поток, не страница.
 
@@ -252,7 +252,7 @@ curl -X POST http://localhost:8080/v1/auth/register \
 
 **Запланировано, не реализовано** — см. пометку в начале раздела.
 
-Auth: нет (токен подтверждения — сам credential). JSON-тело.
+Auth: нет (токен подтверждения — сам креденшел). JSON-тело.
 
 **Тело запроса:** `{"token": "..."}`
 
@@ -314,7 +314,7 @@ curl -X POST http://localhost:8080/v1/auth/token \
 
 ### `DELETE /v1/auth/token`
 
-Auth: нет (отзываемый refresh-токен — сам credential). Form-encoded, RFC 7009.
+Auth: нет (отзываемый refresh-токен — сам креденшел). Form-encoded, RFC 7009.
 
 **Тело запроса:** `refresh_token=...`
 
@@ -349,7 +349,7 @@ curl -X POST http://localhost:8080/v1/auth/password-reset \
 
 **Запланировано, не реализовано** — см. пометку в начале раздела.
 
-Auth: нет (токен восстановления — сам credential). JSON-тело.
+Auth: нет (токен восстановления — сам креденшел). JSON-тело.
 
 **Тело запроса:** `{"token": "...", "new_password": "..."}`
 
@@ -558,7 +558,7 @@ curl http://localhost:8080/v1/teams/5/members -H "Authorization: Bearer $ACCESS_
 ### `POST /v1/teams/:teamId/members`
 
 Роль: `owner` группы этой команды, или `admin`. Инкрементирует
-`token_version` только добавленного пользователя, не остальных участников
+`token_version` только у добавленного пользователя, не у остальных участников
 команды — их собственный доступ не меняется от того, что в команду вошёл
 кто-то ещё
 ([auth.md](../architecture/auth.ru.md#token_version-как-снапшот-в-jwt-остаётся-отзываемым)).
@@ -578,7 +578,7 @@ curl -X POST http://localhost:8080/v1/teams/5/members \
 ### `DELETE /v1/teams/:teamId/members/:userId`
 
 Роль: `owner` группы этой команды, или `admin`. Инкрементирует
-`token_version` только удалённого пользователя — тот же одиночный эффект,
+`token_version` только у удалённого пользователя — тот же одиночный эффект,
 что выше, применённый к тому, кто только что потерял доступ.
 
 **Ответ `204`:** пустое тело.
