@@ -54,7 +54,7 @@ Monorepo на Melos + FVM для структурированного логир
   `HttpLogOutput`, отправляющий записи лога на сервер `structured_log_server`
   по HTTP: батчинг по размеру или таймауту, retry с backoff, ограниченный
   буфер и `flushed`, чтобы дождаться доставки перед выходом. Никогда не
-  блокирует того, кто логировал. Единственная зависимость —
+  блокирует вызывающий код. Единственная зависимость —
   `structured_log`. *Пока не опубликован.*
 
 - **[`structured_log_server`](backend/structured_log_server/)** —
@@ -116,7 +116,7 @@ RBAC, хранилище, живая трансляция, квоты и экс�
 [docs/README.md](docs/README.md).
 
 **[`site/`](site/)** публикует то же самое содержимое [docs/](docs/) как
-просматриваемый и с поиском сайт (английский/русский) — проект на
+удобный для просмотра и поиска сайт (английский/русский) — проект на
 [Astro](https://astro.build)+[Starlight](https://starlight.astro.build),
 вне Dart/Flutter Melos workspace. Он сгенерирован из `docs/` скриптом, а
 не написан вручную; см. [site/README.md](site/README.md). Запуск локально:
