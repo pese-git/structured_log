@@ -42,6 +42,16 @@ class ServerProcess {
         'serve',
         '--db-path=${directory.path}/e2e.sqlite',
         '--http-port=$port',
+        // The auth endpoints share one bucket per client address, and every
+        // test here comes from the same one: sign-ins, token renewals and
+        // password changes all spend from it. At the default of 10 the suite
+        // was already three deep before its second test, and a file that adds
+        // a couple of sign-ins starts failing tests that have nothing to do
+        // with throttling. Raised rather than worked around, because what this
+        // suite is for is the seams between the packages — the limiter itself
+        // has its own tests, against a server configured for it
+        // (`test/http/rate_limit_middleware_test.dart`).
+        '--rate-limit-bucket-capacity=200',
       ],
       workingDirectory: serverDirectory,
       environment: {

@@ -82,6 +82,7 @@ void main() {
         const ChangePasswordRequestDto(
           currentPassword: 'wrong',
           newPassword: 'chosen',
+          keepOtherSessions: false,
         ),
       ),
       throwsA(isA<Object>()),

@@ -378,6 +378,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get authRepeatPasswordLabel => 'Повторите новый пароль';
 
   @override
+  String get authKeepOtherSessions => 'Оставить другие устройства в системе';
+
+  @override
   String get authPasswordsMismatch => 'Пароли не совпадают';
 
   @override
@@ -1209,18 +1212,18 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shellPasswordChanged =>
-      'Пароль изменён. Сессия не прервана — можно продолжать работу.';
+      'Пароль изменён. Это устройство осталось в системе, остальные вышли.';
 
   @override
   String get shellPasswordHintForm =>
-      'Потребуется текущий пароль. Смена не завершает вашу сессию — вы останетесь в приложении.';
+      'Потребуется текущий пароль. Остальные устройства выйдут из системы, это — останется.';
 
   @override
   String get shellChangePassword => 'Сменить пароль';
 
   @override
   String get shellPasswordHintRow =>
-      'Потребуется текущий пароль. Смена не завершает вашу сессию.';
+      'Потребуется текущий пароль. Остальные устройства выйдут из системы.';
 
   @override
   String get shellSectionDanger => 'Опасная зона';

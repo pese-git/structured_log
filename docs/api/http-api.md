@@ -382,16 +382,33 @@ any authenticated role, over their own account only — not just while
 `must_change_password` is set (`log-server-forced-password-change`,
 [auth.md](../architecture/auth.md#patch-v1usersid-and-the-mandatory-temporary-password)).
 
-**Request body:** `{"current_password": "...", "new_password": "..."}`
+**Request body:** `{"current_password": "...", "new_password": "...", "keep_other_sessions": false, "current_refresh_token": "..."}` — the last two optional.
 
 **Response `200`:** `{}`. Clears `must_change_password` if it was set.
 
-**Errors:** `401 invalid_grant` (wrong current password); `400 invalid_request` if `new_password` is shorter than 8 characters (`details.reason: "too_short"`, `min_length`) or longer than 72 bytes in UTF-8 (`"too_long"`, `max_bytes`) — the same rule applies wherever a password is set (`POST /v1/users`, `PATCH /v1/users/:id`). It is checked when a password is *chosen*, never at login.
+A successful change also ends the account's **other** sessions: every
+refresh token it holds is revoked except the one named in
+`current_refresh_token`. Bumping `token_version` alone would not do
+this — that retires access tokens, and a refresh token outlives it and
+mints a new one, so a password changed because somebody else learned it
+would not have removed them.
+
+The safe behaviour is the default, so a client that sends neither field
+gets the sweep. Which means a caller that cannot name its own token —
+including one that simply doesn't send it — is signed out along with
+everyone else: the server has no other way to recognise the session
+asking, since this endpoint authenticates with an *access* token and
+stored refresh tokens are hashes that say nothing about whose device
+they are. Send `current_refresh_token` to stay signed in;
+`keep_other_sessions: true` to leave every session alone.
+
+**Errors:** `401 invalid_grant` (wrong current password); `400 invalid_request` if `new_password` is shorter than 8 characters (`details.reason: "too_short"`, `min_length`) or longer than 72 bytes in UTF-8 (`"too_long"`, `max_bytes`) — the same rule applies wherever a password is set (`POST /v1/users`, `PATCH /v1/users/:id`). It is checked when a password is *chosen*, never at login. `400 invalid_request` with `details.field` naming the field if `keep_other_sessions` is not a boolean or `current_refresh_token` is not a string.
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/change-password \
   -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
-  -d '{"current_password": "temp-password-123", "new_password": "a-much-better-passphrase"}'
+  -d '{"current_password": "temp-password-123", "new_password": "a-much-better-passphrase",
+       "current_refresh_token": "'"$REFRESH_TOKEN"'"}'
 ```
 
 ## Users, groups, teams, roles (`log-server-rbac`)

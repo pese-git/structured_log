@@ -310,6 +310,15 @@ account provisioning, plan for this step rather than treating a fresh
 account as immediately usable for anything but changing its own
 password.
 
+One thing to get right while automating that step: a successful
+`POST /v1/auth/change-password` revokes the account's refresh tokens.
+Pass the refresh token you are holding as `current_refresh_token` and
+the session you are using survives; omit it and your own script is
+signed out along with everything else, because the server has no other
+way to tell which session is asking. `keep_other_sessions: true` skips
+the revocation entirely — reasonable for a provisioning script setting
+up an account nobody is signed in to yet.
+
 Full contract, including the `token_version` revocation mechanism and
 error shapes: [architecture/auth.md](../architecture/auth.md),
 [api/errors.md](../api/errors.md).

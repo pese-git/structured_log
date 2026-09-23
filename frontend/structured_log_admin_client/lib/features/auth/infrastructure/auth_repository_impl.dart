@@ -84,12 +84,19 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<AuthFailure, Unit>> changePassword({
     required String currentPassword,
     required String newPassword,
+    required bool keepOtherSessions,
   }) async {
     try {
+      // Read here rather than passed down from the screen: the refresh token
+      // is a credential, and the only layer with any business holding one is
+      // the one that already stores it. The cubit and the form never see it.
+      final held = await _storage.read();
       await _api.changePassword(
         ChangePasswordRequestDto(
           currentPassword: currentPassword,
           newPassword: newPassword,
+          keepOtherSessions: keepOtherSessions,
+          currentRefreshToken: held?.refreshToken,
         ),
       );
       // Neither password is logged, here or anywhere (decision 48).

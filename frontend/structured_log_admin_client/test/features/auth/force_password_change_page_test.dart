@@ -18,6 +18,7 @@ class _FakeRepository implements AuthRepository {
   Future<Either<AuthFailure, Unit>> changePassword({
     required String currentPassword,
     required String newPassword,
+    required bool keepOtherSessions,
   }) async => answer;
 
   @override
@@ -220,5 +221,20 @@ void main() {
     expect(find.text('Sign out'), findsOneWidget);
     expect(find.text('Смените пароль'), findsNothing);
     expect(find.text('Выйти'), findsNothing);
+  });
+
+  testWidgets('offers no way to keep the other devices signed in', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    expect(
+      find.byType(Checkbox),
+      findsNothing,
+      reason:
+          'the password being replaced is one an administrator chose and '
+          'handed over — there is no other session here worth keeping, and '
+          'offering to keep them would be offering the wrong thing',
+    );
   });
 }

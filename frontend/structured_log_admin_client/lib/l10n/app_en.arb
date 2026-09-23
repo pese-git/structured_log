@@ -489,6 +489,10 @@
   "@authRepeatPasswordLabel": {
     "description": "Change form repeat label"
   },
+  "authKeepOtherSessions": "Keep other devices signed in",
+  "@authKeepOtherSessions": {
+    "description": "Change form opt-out: leaves other sessions alive instead of ending them"
+  },
   "authPasswordsMismatch": "Passwords do not match",
   "@authPasswordsMismatch": {
     "description": "Mismatch field error"
@@ -1510,10 +1514,10 @@
   "shellEmail": "Email",
   "shellDisplayName": "Display name",
   "shellSectionSecurity": "Security",
-  "shellPasswordChanged": "Password changed. Your session is intact — you can keep working.",
-  "shellPasswordHintForm": "The current password is required. Changing it does not end your session — you stay in the app.",
+  "shellPasswordChanged": "Password changed. This device stays signed in; your other devices have been signed out.",
+  "shellPasswordHintForm": "The current password is required. Every other device is signed out, and this one stays in.",
   "shellChangePassword": "Change password",
-  "shellPasswordHintRow": "The current password is required. Changing it does not end your session.",
+  "shellPasswordHintRow": "The current password is required. Your other devices are signed out.",
   "shellSectionDanger": "Danger zone",
   "shellDeleteAccountTitle": "Delete account",
   "shellDeleteAccountText": "Permanently deletes your account. All your sessions end immediately. This cannot be undone.",

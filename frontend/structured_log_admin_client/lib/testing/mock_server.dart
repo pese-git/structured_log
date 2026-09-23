@@ -176,6 +176,11 @@ class MockServer implements HttpClientAdapter {
   /// `400 invalid_grant`, the way a spent or revoked token is refused.
   void revokeRefreshTokens() => _liveRefresh.clear();
 
+  /// Whether [refreshToken] would still be accepted by the refresh grant —
+  /// how a test asks "is that device still signed in?".
+  bool refreshTokenIsLive(String refreshToken) =>
+      _liveRefresh.contains(refreshToken);
+
   Map<String, String> _issuePair() {
     final access = _issueAccess();
     final refresh = 'refresh-${++_sequence}';
@@ -450,12 +455,41 @@ class MockServer implements HttpClientAdapter {
         },
       );
     }
+    final keepOtherSessions = body['keep_other_sessions'];
+    if (keepOtherSessions != null && keepOtherSessions is! bool) {
+      return const MockReply(
+        400,
+        body: {
+          'error': 'invalid_request',
+          'message': 'keep_other_sessions must be a boolean.',
+          'details': {'field': 'keep_other_sessions', 'reason': 'invalid'},
+        },
+      );
+    }
+    final presentedRefresh = body['current_refresh_token'];
+    if (presentedRefresh != null && presentedRefresh is! String) {
+      return const MockReply(
+        400,
+        body: {
+          'error': 'invalid_request',
+          'message': 'current_refresh_token must be a string.',
+          'details': {'field': 'current_refresh_token', 'reason': 'invalid'},
+        },
+      );
+    }
+
     password = body['new_password'] as String;
     mustChangePassword = false;
-    // The server retires the access token in hand but leaves the refresh token
-    // alone, which is why changing a password does not end the session: the
-    // next request renews through the interceptor.
+    // The server retires every access token in hand (`token_version`), which
+    // is why the client survives this only through its refresh token.
     _liveAccess.clear();
+    // And the refresh tokens go too, all but the one the caller named — the
+    // same rule `change_password_route.dart` applies, spelled out here rather
+    // than assumed, because a mock that agrees with the client instead of the
+    // server proves nothing (`log-server-forced-password-change`).
+    if (keepOtherSessions != true) {
+      _liveRefresh.removeWhere((token) => token != presentedRefresh);
+    }
     return const MockReply(204);
   }
 

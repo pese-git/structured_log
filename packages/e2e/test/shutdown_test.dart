@@ -52,6 +52,8 @@ void main() {
       ChangePasswordRequestDto(
         currentPassword: server.bootstrapPassword,
         newPassword: 'chosen-by-the-operator',
+        keepOtherSessions: false,
+        currentRefreshToken: (await storage.read())!.refreshToken,
       ),
     );
 

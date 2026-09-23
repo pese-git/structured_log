@@ -388,16 +388,33 @@ Auth: `Authorization: Bearer <access-token>`. JSON-тело. Доступен л
 (`log-server-forced-password-change`,
 [auth.md](../architecture/auth.ru.md#patch-v1usersid-и-обязательный-временный-пароль)).
 
-**Тело запроса:** `{"current_password": "...", "new_password": "..."}`
+**Тело запроса:** `{"current_password": "...", "new_password": "...", "keep_other_sessions": false, "current_refresh_token": "..."}` — последние два необязательны.
 
 **Ответ `200`:** `{}`. Снимает `must_change_password`, если он был установлен.
 
-**Ошибки:** `401 invalid_grant` (неверный текущий пароль); `400 invalid_request`, если `new_password` короче 8 символов (`details.reason: "too_short"`, `min_length`) или длиннее 72 байт в UTF-8 (`"too_long"`, `max_bytes`) — то же правило действует везде, где пароль задаётся (`POST /v1/users`, `PATCH /v1/users/:id`). Проверяется при *выборе* пароля, но никогда при входе.
+Успешная смена, кроме того, завершает **остальные** сессии учётной
+записи: отзываются все её refresh-токены, кроме названного в
+`current_refresh_token`. Одного инкремента `token_version` для этого не
+хватает — он прекращает действие access-токенов, а refresh-токен
+переживает его и выдаёт новый, так что пароль, сменённый из-за того,
+что его кто-то узнал, этого человека не выгонит.
+
+Безопасное поведение — поведение по умолчанию, поэтому клиент, не
+приславший ни одного из двух полей, получает отзыв. Значит, и
+вызывающий, не назвавший своего токена, выходит вместе со всеми: другого
+способа опознать спрашивающую сессию у сервера нет — эндпоинт
+аутентифицируется *access*-токеном, а хранимые refresh-токены
+представлены хэшами и ничего не говорят о том, чьё это устройство.
+Чтобы остаться в системе, присылайте `current_refresh_token`; чтобы не
+трогать ни одну сессию — `keep_other_sessions: true`.
+
+**Ошибки:** `401 invalid_grant` (неверный текущий пароль); `400 invalid_request`, если `new_password` короче 8 символов (`details.reason: "too_short"`, `min_length`) или длиннее 72 байт в UTF-8 (`"too_long"`, `max_bytes`) — то же правило действует везде, где пароль задаётся (`POST /v1/users`, `PATCH /v1/users/:id`). Проверяется при *выборе* пароля, но никогда при входе. `400 invalid_request` с `details.field`, называющим поле, если `keep_other_sessions` не boolean или `current_refresh_token` не строка.
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/change-password \
   -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
-  -d '{"current_password": "temp-password-123", "new_password": "a-much-better-passphrase"}'
+  -d '{"current_password": "temp-password-123", "new_password": "a-much-better-passphrase",
+       "current_refresh_token": "'"$REFRESH_TOKEN"'"}'
 ```
 
 ## Пользователи, группы, команды, роли (`log-server-rbac`)

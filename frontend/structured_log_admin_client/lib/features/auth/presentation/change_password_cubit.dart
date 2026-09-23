@@ -34,8 +34,9 @@ abstract class ChangePasswordState with _$ChangePasswordState {
 
 /// Drives both ways into `POST /v1/auth/change-password`: the screen the
 /// server forces after a temporary password, and the voluntary one in
-/// settings. The difference is what the caller does with [ChangePasswordState.changed],
-/// not what happens here.
+/// settings. The difference is what the caller does with
+/// [ChangePasswordState.changed], and whether it offers `keepOtherSessions`
+/// at all — the forced screen does not, and passes `false`.
 class ChangePasswordCubit extends Cubit<ChangePasswordState> {
   final ChangePassword _changePassword;
   final CurrentUsername _currentUsername;
@@ -57,6 +58,7 @@ class ChangePasswordCubit extends Cubit<ChangePasswordState> {
     required String currentPassword,
     required String newPassword,
     required String repeatedPassword,
+    required bool keepOtherSessions,
   }) async {
     if (!state.canSubmit) return;
 
@@ -72,6 +74,7 @@ class ChangePasswordCubit extends Cubit<ChangePasswordState> {
     final result = await _changePassword(
       currentPassword: currentPassword,
       newPassword: newPassword,
+      keepOtherSessions: keepOtherSessions,
     );
     if (isClosed) return;
 

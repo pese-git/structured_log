@@ -34,13 +34,22 @@ abstract interface class AuthRepository {
   /// temporary password behind, and the voluntary one in settings
   /// (`specs/admin-client-auth`).
   ///
-  /// The session survives it. The server bumps `token_version`, which retires
-  /// the access token in hand, but the refresh token stays good — so the next
-  /// request renews itself through the interceptor and the user is not sent
-  /// back to sign in.
+  /// This session survives it, and by default no other one does. The server
+  /// bumps `token_version`, which retires the access token in hand, and
+  /// revokes every refresh token but the one this client presents — so the
+  /// next request renews itself through the interceptor while every other
+  /// device is sent back to sign in. That is the point: a password changed
+  /// because somebody else learned it has to remove them, and `token_version`
+  /// alone does not (a refresh token outlives it and mints a fresh access
+  /// token).
+  ///
+  /// [keepOtherSessions] is the reader's opt-out, offered in account settings
+  /// and nowhere else — the forced screen replaces a password an
+  /// administrator chose, and there is nothing there worth keeping signed in.
   Future<Either<AuthFailure, Unit>> changePassword({
     required String currentPassword,
     required String newPassword,
+    required bool keepOtherSessions,
   });
 
   /// The signed-in account's username, read out of the access token.

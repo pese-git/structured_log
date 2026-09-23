@@ -390,8 +390,8 @@ sequenceDiagram
     User->>Srv: any other request, e.g. GET /v1/logs
     Srv-->>User: 403 must_change_password
 
-    User->>Srv: POST /v1/auth/change-password {current_password, new_password}
-    Note over Srv: verify current_password,\nupdate hash, token_version += 1,\nmust_change_password = false
+    User->>Srv: POST /v1/auth/change-password {current_password, new_password,\ncurrent_refresh_token}
+    Note over Srv: verify current_password,\nupdate hash, token_version += 1,\nmust_change_password = false,\nrevoke every refresh token but\nthe one presented
     Srv-->>User: 200
 
     User->>Srv: GET /v1/logs (retried)
@@ -422,6 +422,21 @@ A few choices worth calling out:
   same call already used for blocking, decision 25) forces a fresh
   `grant_type=password` login with the *new* password — which only
   succeeds if they actually received it.
+- **Changing your own password revokes sessions too, and by default
+  every one but the one asking.** The bullet above is about a password
+  an administrator resets; the same reasoning applies with more force
+  when the account changes its own, because the usual reason to do that
+  is suspecting somebody else knows it. The caller names its own refresh
+  token in `current_refresh_token` and keeps working; everything else
+  the account holds is revoked. `keep_other_sessions: true` opts out.
+  The asymmetry to watch is that the *absence* of either field means
+  "revoke": the server cannot tell which session is asking — this
+  endpoint authenticates with an access token, and stored refresh tokens
+  are hashes carrying nothing about a device — so a caller that does not
+  identify itself is swept along with the rest rather than quietly
+  skipped. Naming the field for the exception (`keep_other_sessions`)
+  rather than the request (`revoke_other_sessions`) is what makes that
+  the default for an old client and for `curl` alike.
 - **`POST /v1/auth/change-password` is a general capability, not a
   forced-flow-only one.** It works identically whether
   `must_change_password` is set or not — this happens to close a

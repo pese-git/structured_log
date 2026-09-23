@@ -740,6 +740,12 @@ abstract class AppLocalizations {
   /// **'Repeat new password'**
   String get authRepeatPasswordLabel;
 
+  /// Change form opt-out: leaves other sessions alive instead of ending them
+  ///
+  /// In en, this message translates to:
+  /// **'Keep other devices signed in'**
+  String get authKeepOtherSessions;
+
   /// Mismatch field error
   ///
   /// In en, this message translates to:
@@ -2117,13 +2123,13 @@ abstract class AppLocalizations {
   /// No description provided for @shellPasswordChanged.
   ///
   /// In en, this message translates to:
-  /// **'Password changed. Your session is intact — you can keep working.'**
+  /// **'Password changed. This device stays signed in; your other devices have been signed out.'**
   String get shellPasswordChanged;
 
   /// No description provided for @shellPasswordHintForm.
   ///
   /// In en, this message translates to:
-  /// **'The current password is required. Changing it does not end your session — you stay in the app.'**
+  /// **'The current password is required. Every other device is signed out, and this one stays in.'**
   String get shellPasswordHintForm;
 
   /// No description provided for @shellChangePassword.
@@ -2135,7 +2141,7 @@ abstract class AppLocalizations {
   /// No description provided for @shellPasswordHintRow.
   ///
   /// In en, this message translates to:
-  /// **'The current password is required. Changing it does not end your session.'**
+  /// **'The current password is required. Your other devices are signed out.'**
   String get shellPasswordHintRow;
 
   /// No description provided for @shellSectionDanger.

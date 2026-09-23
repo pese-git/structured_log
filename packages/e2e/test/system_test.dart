@@ -113,10 +113,18 @@ void main() {
             'from the call site',
       );
 
+      // Naming the refresh token in hand is what keeps this session alive:
+      // the change revokes every other one by default, and a caller that
+      // cannot identify itself is swept along with them
+      // (`log-server-forced-password-change`). This is what the admin client
+      // sends, and sending it here is how this suite would notice if it
+      // stopped.
       await api.auth.changePassword(
         ChangePasswordRequestDto(
           currentPassword: server.bootstrapPassword,
           newPassword: newPassword,
+          keepOtherSessions: false,
+          currentRefreshToken: (await storage.read())!.refreshToken,
         ),
       );
 
@@ -127,10 +135,65 @@ void main() {
         isTrue,
         reason:
             'the same request, once the password is no longer temporary — '
-            'and through the same session, which the change does not end',
+            'and through the same session, which naming its own token kept',
       );
     },
   );
+
+  test('changing the password ends the account\'s other sessions', () async {
+    // A second sign-in, standing in for another device — a real refresh
+    // token issued by the real server, not a fixture.
+    final otherDevice = await api.auth.signIn('password', 'admin', newPassword);
+
+    // And a third, which is the one doing the changing. Signing in again
+    // rather than reusing what `storage` holds, so the session under test is
+    // unambiguous.
+    await signIn(newPassword);
+    final mine = (await storage.read())!.refreshToken;
+
+    const nextPassword = 'chosen-again-by-the-operator';
+    await api.auth.changePassword(
+      ChangePasswordRequestDto(
+        currentPassword: newPassword,
+        newPassword: nextPassword,
+        keepOtherSessions: false,
+        currentRefreshToken: mine,
+      ),
+    );
+
+    // This one first, and the order is not incidental: presenting a revoked
+    // refresh token is a reuse signal, and the server answers it by revoking
+    // the whole chain (`TokenService.refreshTokenGrant`). Asking about the
+    // other device first would therefore kill this session before the
+    // question below could be asked, and the test would blame the change for
+    // it.
+    final renewed = await api.auth.refresh('refresh_token', mine);
+    expect(
+      renewed.accessToken,
+      isNotEmpty,
+      reason: 'the device that asked for the change is still signed in',
+    );
+
+    await expectLater(
+      api.auth.refresh('refresh_token', otherDevice.refreshToken),
+      throwsA(anything),
+      reason:
+          'the other device is out — which is the whole reason somebody '
+          'changes a password they think was learned',
+    );
+
+    // That last question spent the chain, this session included. Sign in
+    // again and leave the deployment on the password the later tests expect.
+    await signIn(nextPassword);
+    await api.auth.changePassword(
+      ChangePasswordRequestDto(
+        currentPassword: nextPassword,
+        newPassword: newPassword,
+        keepOtherSessions: false,
+        currentRefreshToken: (await storage.read())!.refreshToken,
+      ),
+    );
+  });
 
   late int projectId;
   late String secretKey;

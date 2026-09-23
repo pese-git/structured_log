@@ -29,6 +29,7 @@ class _FakeRepository implements AuthRepository {
   Future<Either<AuthFailure, Unit>> changePassword({
     required String currentPassword,
     required String newPassword,
+    required bool keepOtherSessions,
   }) async => right(unit);
 
   @override

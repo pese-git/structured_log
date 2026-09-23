@@ -378,6 +378,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authRepeatPasswordLabel => 'Repeat new password';
 
   @override
+  String get authKeepOtherSessions => 'Keep other devices signed in';
+
+  @override
   String get authPasswordsMismatch => 'Passwords do not match';
 
   @override
@@ -1205,18 +1208,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shellPasswordChanged =>
-      'Password changed. Your session is intact — you can keep working.';
+      'Password changed. This device stays signed in; your other devices have been signed out.';
 
   @override
   String get shellPasswordHintForm =>
-      'The current password is required. Changing it does not end your session — you stay in the app.';
+      'The current password is required. Every other device is signed out, and this one stays in.';
 
   @override
   String get shellChangePassword => 'Change password';
 
   @override
   String get shellPasswordHintRow =>
-      'The current password is required. Changing it does not end your session.';
+      'The current password is required. Your other devices are signed out.';
 
   @override
   String get shellSectionDanger => 'Danger zone';

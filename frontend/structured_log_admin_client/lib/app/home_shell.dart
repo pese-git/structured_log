@@ -632,6 +632,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                             const SizedBox(height: AdminSpacing.x14),
                             ChangePasswordForm(
                               currentIsTemporary: false,
+                              offerKeepOtherSessions: true,
                               submitLabel: l10n.shellChangePassword,
                             ),
                           ],
