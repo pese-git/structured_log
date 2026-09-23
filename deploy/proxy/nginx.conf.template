@@ -53,16 +53,22 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 
-    # The API's own responses never pass through the `web` image, so the
-    # headers it sets do not reach them — these are set here instead. Only the
-    # two that mean anything for a JSON body: there is no document to frame
-    # and no subresource to police, so `Content-Security-Policy` and
-    # `X-Frame-Options` would be noise. `Referer` matters because these URLs
-    # carry group, project and user ids.
+    # The API's own responses never pass through the `web` image, so its
+    # headers do not reach them. Only one is added here, and the reason the
+    # list is that short is worth writing down: `package:shelf` already sends
+    # `x-content-type-options: nosniff`, `x-frame-options` and
+    # `x-xss-protection` on every response it produces (checked against a
+    # running server, not assumed). `add_header` appends rather than replaces,
+    # so repeating `nosniff` here would put it on the wire twice.
     #
-    # `add_header` does not accumulate across levels, so adding a header to
-    # this location later means repeating both of these, not appending one.
-    add_header X-Content-Type-Options "nosniff" always;
+    # `Referrer-Policy` is the one shelf does not send, and it matters: these
+    # URLs carry group, project and user ids.
+    #
+    # `Content-Security-Policy` and `X-Frame-Options` are deliberately absent
+    # — a JSON body has no document to frame and no subresources to police.
+    #
+    # `add_header` does not accumulate across levels, so adding a second
+    # header to this location later means repeating this one too.
     add_header Referrer-Policy "no-referrer" always;
 
     # GET /v1/logs/stream is Server-Sent Events: a long-lived response that
