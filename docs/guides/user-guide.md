@@ -299,6 +299,8 @@ Russian — the choice is remembered in your browser for next time. Two
 language links also appear on the sign-in and forced-password-change
 screens themselves, for before you're signed in at all.
 
+![Account settings: profile, the language switcher, changing your own password, and account deletion](assets/user-guide/10-account-settings.png)
+
 **Changing your password signs your other devices out.** The device you
 are changing it on stays signed in; every other browser or machine
 where this account is signed in has to sign in again with the new
@@ -308,7 +310,7 @@ If you are only replacing a password you are tired of and would rather
 not sign yourself out everywhere, tick **Keep other devices signed in**
 before saving.
 
-![Account settings: profile, the language switcher, changing your own password, and account deletion](assets/user-guide/10-account-settings.png)
+![The password form, with the box that leaves your other devices signed in](assets/user-guide/10a-change-password-form.png)
 
 ## Getting help
 
