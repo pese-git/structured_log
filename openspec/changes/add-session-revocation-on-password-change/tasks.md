@@ -47,4 +47,4 @@
 - [x] 8.1 `dart analyze` clean for `structured_log_server`; `flutter analyze` clean for `structured_log_admin_client` and `structured_log_e2e`.
 - [x] 8.2 `dart test --exclude-tags postgres` green for the server; `flutter test` green for the client; `flutter test` green for `packages/e2e`.
 - [x] 8.3 `dart format --set-exit-if-changed .` clean in every touched package.
-- [ ] 8.4 CI green on every job.
+- [x] 8.4 CI green on every job (PR #54, 18/18 — including the `postgres` tag, which needs a server instance and so is not run locally).
