@@ -538,6 +538,28 @@ by design, not by redaction after the fact.
   backend on a real network hop, keep `--db-postgres-ssl-mode` at its
   `require` default or above — `disable` is for same-host/local
   development only.
+- **Browser security headers ship with the images, except HSTS.** The
+  `web` image sets `Content-Security-Policy`, `X-Frame-Options`,
+  `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`
+  on everything it serves, and the proxy adds the two that make sense
+  for JSON onto the API's responses. `Strict-Transport-Security` is
+  **not** among them: neither container terminates TLS, and HSTS
+  commits a whole hostname to HTTPS for months — that is a decision for
+  whoever holds the certificate. Add it at your terminator, alongside
+  the redirect from HTTP.
+- **The client's policy assumes one origin.** Its `connect-src 'self'`
+  matches the deployment this repository ships, where the API answers
+  under `/v1/` on the same host. If you instead serve the API from
+  another origin and open it with `--cors-allowed-origins`, name that
+  origin in the client image's `nginx.conf` too — otherwise the browser
+  refuses the call before CORS is ever consulted, and the panel looks
+  broken with nothing in the server's log to explain it.
+- **The admin panel talks to nobody but your server.** The web bundle
+  is built with `--no-web-resources-cdn`, so the rendering engine and
+  fonts come out of the image rather than from Google's CDNs. This
+  matters twice: the panel works on a host with no route to the public
+  internet, and no operator's browser announces your deployment to a
+  third party on every load.
 - **Rate limiting covers the auth endpoints specifically** — login
   attempts, password changes — not general API traffic, and there's no
   account lockout behind it (a design choice: usernames aren't secret

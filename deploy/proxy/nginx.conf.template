@@ -25,6 +25,13 @@ server {
   # without CORS: the server sends no `Access-Control-Allow-Origin`, so a
   # client served from a different host could not call the API from a
   # browser at all.
+  #
+  # Nothing is added to the responses passing through here: the `web` image
+  # sets the document's security headers itself (see its `nginx.conf`), and
+  # they are proxied through untouched. Setting them again here would send
+  # each one twice — two `Content-Security-Policy` headers are enforced as
+  # the intersection of both, which is a rule nobody wrote down and one that
+  # drifts the moment the two files disagree.
   location / {
     set $upstream_web http://web:80;
     proxy_pass $upstream_web;
@@ -45,6 +52,18 @@ server {
     # this proxy in front, that setting is 1 — see ../.env.example.
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+
+    # The API's own responses never pass through the `web` image, so the
+    # headers it sets do not reach them — these are set here instead. Only the
+    # two that mean anything for a JSON body: there is no document to frame
+    # and no subresource to police, so `Content-Security-Policy` and
+    # `X-Frame-Options` would be noise. `Referer` matters because these URLs
+    # carry group, project and user ids.
+    #
+    # `add_header` does not accumulate across levels, so adding a header to
+    # this location later means repeating both of these, not appending one.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
 
     # GET /v1/logs/stream is Server-Sent Events: a long-lived response that
     # must not be buffered or timed out like an ordinary request.

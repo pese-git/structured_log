@@ -71,7 +71,14 @@ fi
 echo "==> building the admin client (web)"
 (
   cd "$CLIENT"
-  "$FLUTTER" build web --release --dart-define=STRUCTURED_LOG_BASE_URL=
+  # `--no-web-resources-cdn` keeps the rendering engine local. Without it the
+  # bundle boots CanvasKit from `www.gstatic.com` and fetches Roboto from
+  # `fonts.gstatic.com` at runtime — so the panel calls Google on every load,
+  # fails outright on a host that cannot reach it, and cannot be served under
+  # a `script-src 'self'` policy. The engine is already in the bundle
+  # (`build/web/canvaskit/`); this is what makes it the one that is used.
+  "$FLUTTER" build web --release --no-web-resources-cdn \
+    --dart-define=STRUCTURED_LOG_BASE_URL=
 )
 
 echo "==> building $server_image"
