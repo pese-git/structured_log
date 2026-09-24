@@ -25,6 +25,13 @@ server {
   # without CORS: the server sends no `Access-Control-Allow-Origin`, so a
   # client served from a different host could not call the API from a
   # browser at all.
+  #
+  # Nothing is added to the responses passing through here: the `web` image
+  # sets the document's security headers itself (see its `nginx.conf`), and
+  # they are proxied through untouched. Setting them again here would send
+  # each one twice — two `Content-Security-Policy` headers are enforced as
+  # the intersection of both, which is a rule nobody wrote down and one that
+  # drifts the moment the two files disagree.
   location / {
     set $upstream_web http://web:80;
     proxy_pass $upstream_web;
@@ -45,6 +52,24 @@ server {
     # this proxy in front, that setting is 1 — see ../.env.example.
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+
+    # The API's own responses never pass through the `web` image, so its
+    # headers do not reach them. Only one is added here, and the reason the
+    # list is that short is worth writing down: `package:shelf` already sends
+    # `x-content-type-options: nosniff`, `x-frame-options` and
+    # `x-xss-protection` on every response it produces (checked against a
+    # running server, not assumed). `add_header` appends rather than replaces,
+    # so repeating `nosniff` here would put it on the wire twice.
+    #
+    # `Referrer-Policy` is the one shelf does not send, and it matters: these
+    # URLs carry group, project and user ids.
+    #
+    # `Content-Security-Policy` and `X-Frame-Options` are deliberately absent
+    # — a JSON body has no document to frame and no subresources to police.
+    #
+    # `add_header` does not accumulate across levels, so adding a second
+    # header to this location later means repeating this one too.
+    add_header Referrer-Policy "no-referrer" always;
 
     # GET /v1/logs/stream is Server-Sent Events: a long-lived response that
     # must not be buffered or timed out like an ordinary request.
