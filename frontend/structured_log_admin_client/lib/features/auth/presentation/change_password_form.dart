@@ -89,7 +89,12 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
               ),
               const SizedBox(height: AdminSpacing.x18),
             ],
+            // Keyed for the same reason as the sign-in form's fields: three
+            // `AdminTextField`s are indistinguishable to a driver otherwise,
+            // and this is the screen where `keep_other_sessions` has to be
+            // exercised against a real server rather than a mock.
             AdminTextField(
+              key: const ValueKey('change-password-current'),
               label: widget.currentIsTemporary
                   ? context.l10n.authCurrentPasswordLabel
                   : context.l10n.authCurrentPasswordLabelOwn,
@@ -100,6 +105,7 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
+              key: const ValueKey('change-password-new'),
               label: context.l10n.authNewPasswordLabel,
               controller: _next,
               obscure: true,
@@ -107,6 +113,7 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
             ),
             const SizedBox(height: AdminSpacing.x14),
             AdminTextField(
+              key: const ValueKey('change-password-repeat'),
               label: context.l10n.authRepeatPasswordLabel,
               controller: _repeat,
               obscure: true,
@@ -119,6 +126,7 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
             if (widget.offerKeepOtherSessions) ...[
               const SizedBox(height: AdminSpacing.x14),
               Checkbox(
+                key: const ValueKey('change-password-keep-other-sessions'),
                 checked: _keepOtherSessions,
                 onChanged: state.submitting
                     ? null
@@ -132,6 +140,7 @@ class _ChangePasswordFormState extends State<ChangePasswordForm> {
             ],
             const SizedBox(height: AdminSpacing.x18),
             AdminButton(
+              key: const ValueKey('change-password-submit'),
               label: widget.submitLabel,
               variant: AdminButtonVariant.accent,
               size: AdminButtonSize.dialog,

@@ -663,6 +663,7 @@ class _AccountSettingsPageState extends State<_AccountSettingsPage> {
                             ),
                             const SizedBox(width: AdminSpacing.x14),
                             AdminButton(
+                              key: const ValueKey('open-change-password'),
                               label: l10n.shellChangePassword,
                               onPressed: () =>
                                   setState(() => _changingPassword = true),

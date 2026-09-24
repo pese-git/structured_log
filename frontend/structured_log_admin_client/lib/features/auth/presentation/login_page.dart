@@ -144,7 +144,14 @@ class _LoginPageState extends State<LoginPage> {
               AdminBanner(message: context.l10n.authSessionExpiredBanner),
             ],
             const SizedBox(height: AdminSpacing.x18),
+            // Keyed for the driver, not for Flutter's element matching: a
+            // `flutter_driver` harness has no other way in. `AdminTextField`
+            // carries no semantics label, two of them make `ByType`
+            // ambiguous, and the text-input action that would move focus is
+            // wired to submit — so without keys this screen cannot be driven
+            // from outside at all (found driving the live stand, 24.09.2026).
             AdminTextField(
+              key: const ValueKey('login-username'),
               label: context.l10n.authUsernameLabel,
               controller: _username,
               autofocus: true,
@@ -154,6 +161,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminTextField(
+              key: const ValueKey('login-password'),
               label: context.l10n.authPasswordLabel,
               controller: _password,
               obscure: true,
@@ -163,6 +171,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminButton(
+              key: const ValueKey('login-submit'),
               label: _submitLabel(context.l10n, state),
               variant: AdminButtonVariant.accent,
               // A null callback is how the button renders disabled — while a
