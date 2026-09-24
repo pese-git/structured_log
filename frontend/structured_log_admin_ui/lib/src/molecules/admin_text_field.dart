@@ -19,6 +19,19 @@ class AdminTextField extends StatelessWidget {
   final bool enabled;
 
   final bool autofocus;
+
+  /// Goes on the inner `TextBox` rather than on this widget.
+  ///
+  /// A driver taps the centre of whatever the finder matched. This widget is
+  /// a label, a six-pixel gap and the input stacked in a column, so its
+  /// centre sits only a few pixels below the input's top edge — close enough
+  /// that a taller label (a different font fallback, a longer translation, a
+  /// wrapped line) moves it into the gap, where the tap lands on nothing and
+  /// the text goes to whatever still had focus. Keying the input itself puts
+  /// the tap in the middle of the box instead. Found driving the sign-in
+  /// screen against a stand, 24.09.2026.
+  final Key? fieldKey;
+
   final ValueChanged<String>? onChanged;
 
   /// Fired by the keyboard's confirm action, so a form can be sent without
@@ -38,6 +51,7 @@ class AdminTextField extends StatelessWidget {
     this.obscure = false,
     this.enabled = true,
     this.autofocus = false,
+    this.fieldKey,
     this.onChanged,
     this.onSubmitted,
     this.errorText,
@@ -68,6 +82,7 @@ class AdminTextField extends StatelessWidget {
         ),
         const SizedBox(height: AdminSpacing.x6),
         TextBox(
+          key: fieldKey,
           controller: controller,
           placeholder: placeholder,
           obscureText: obscure,
