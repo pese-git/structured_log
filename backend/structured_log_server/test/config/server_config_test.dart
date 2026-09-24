@@ -40,6 +40,8 @@ const _expectedParamNames = {
   'rate-limit-max-keys',
   'trusted-proxy-hops',
   'sse-heartbeat-interval-seconds',
+  'max-live-subscriptions-per-user',
+  'max-live-subscriptions',
   'cors-allowed-origins',
   'audit-retention-days',
   'auth-event-retention-days',
@@ -170,6 +172,41 @@ void main() {
             'demand one the command does not need',
       );
     });
+  });
+
+  test('the live-stream ceilings have defaults and can be turned off', () {
+    final defaults = ConfigResolver(serverConfigParams).parse([], {
+      'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+      'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
+    }, command: commandServe);
+    final config = ServerConfig.fromResolved(defaults.values!);
+    expect(config.maxLiveSubscriptionsPerUser, 10);
+    expect(config.maxLiveSubscriptions, 1000);
+
+    final off = ConfigResolver(serverConfigParams).parse([], {
+      'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+      'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
+      'STRUCTURED_LOG_MAX_LIVE_SUBSCRIPTIONS_PER_USER': '0',
+      'STRUCTURED_LOG_MAX_LIVE_SUBSCRIPTIONS': '0',
+    }, command: commandServe);
+    expect(off.outcome, ConfigParseOutcome.success);
+    final unlimited = ServerConfig.fromResolved(off.values!);
+    expect(unlimited.maxLiveSubscriptionsPerUser, 0);
+    expect(
+      unlimited.maxLiveSubscriptions,
+      0,
+      reason: 'zero is how an operator says "no ceiling", not an error',
+    );
+  });
+
+  test('a negative live-stream ceiling is a configuration error', () {
+    final result = ConfigResolver(serverConfigParams).parse([], {
+      'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+      'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
+      'STRUCTURED_LOG_MAX_LIVE_SUBSCRIPTIONS': '-1',
+    }, command: commandServe);
+
+    expect(result.outcome, ConfigParseOutcome.errors);
   });
 
   test('create-admin only requires db-path, not jwt-secret', () {

@@ -95,6 +95,8 @@ Scope openServerScope(
           maxIngestBodyBytes:
               config?.maxIngestBodyBytes ?? defaultMaxIngestBodyBytes,
           sseHeartbeatInterval: sseHeartbeatInterval,
+          maxLiveSubscriptionsPerUser: config?.maxLiveSubscriptionsPerUser ?? 0,
+          maxLiveSubscriptions: config?.maxLiveSubscriptions ?? 0,
         ),
         auditRetention: AuditRetention(
           auditRetentionDays: config?.auditRetentionDays,

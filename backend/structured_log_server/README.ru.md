@@ -234,6 +234,8 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 | `--rate-limit-*` | включено, 10 токенов, 10/мин, 10000 ключей |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` игнорируется |
 | `--sse-heartbeat-interval-seconds` | `25` |
+| `--max-live-subscriptions-per-user` | `10` (`0` — без ограничения) |
+| `--max-live-subscriptions` | `1000` (`0` — без ограничения) |
 | `--cors-allowed-origins` | не задан — CORS-заголовков нет ни на одном ответе |
 | `--audit-retention-days` | не задан — записи аудита хранятся бессрочно |
 | `--auth-event-retention-days` | не задан — записи `auth.*` хранятся бессрочно |

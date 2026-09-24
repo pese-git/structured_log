@@ -167,6 +167,8 @@ pass today.
 | Audit purge chunk | `--audit-purge-batch-size` | `500` | Deleting in chunks keeps ingestion unblocked |
 | Database read connections | `--db-read-pool-size` | `2` | Extra connections beside the single writer, `0`–`16`; `0` sends reads through the writer. Reads no longer queue behind ingestion. SQLite only — under `--db-backend=postgres` a non-default value only warns at startup, it has no effect (see "PostgreSQL" below) |
 | Live-stream heartbeat | `--sse-heartbeat-interval-seconds` | `25` | Also re-validates authorization ([live-streaming.md](../architecture/live-streaming.md)) |
+| Live subscriptions per account | `--max-live-subscriptions-per-user` | `10` | `0` for no limit. One past it is `429 too_many_subscriptions`. A client that vanishes without closing keeps its place until the server's next write to the socket — up to one `--sse-heartbeat-interval-seconds` |
+| Live subscriptions in total | `--max-live-subscriptions` | `1000` | Across every account; `0` for no limit |
 | Own-log level | `--log-level` | `info` | The server's own diagnostics, not ingested entries ([README.md](../architecture/README.md#the-middleware-chain)) |
 | Own-log format | `--log-format` | `console` | `console` or `json` for machine collection |
 | Own-log file | `--log-file` | unset | Unset = console. When set, writing is asynchronous with rotation so it never blocks the single isolate |
