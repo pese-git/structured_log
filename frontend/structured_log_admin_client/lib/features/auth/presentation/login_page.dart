@@ -151,7 +151,7 @@ class _LoginPageState extends State<LoginPage> {
             // wired to submit — so without keys this screen cannot be driven
             // from outside at all (found driving the live stand, 24.09.2026).
             AdminTextField(
-              key: const ValueKey('login-username'),
+              fieldKey: const ValueKey('login-username'),
               label: context.l10n.authUsernameLabel,
               controller: _username,
               autofocus: true,
@@ -161,7 +161,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: AdminSpacing.x18),
             AdminTextField(
-              key: const ValueKey('login-password'),
+              fieldKey: const ValueKey('login-password'),
               label: context.l10n.authPasswordLabel,
               controller: _password,
               obscure: true,

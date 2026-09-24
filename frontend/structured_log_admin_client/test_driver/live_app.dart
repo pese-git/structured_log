@@ -17,6 +17,16 @@ import 'package:structured_log_admin_client/shared/logging/setup.dart';
 /// out, so the sign-in screen is the first thing a driver meets. It became
 /// possible when the server gained `--cors-allowed-origins`; before that a
 /// client on `flutter run`'s own port could not reach the API at all.
+///
+/// **Wait with `waitForTappable`, not for text, before every tap.** `waitFor`
+/// returns as soon as a widget is in the tree, which on a screen still
+/// animating in is too early: the tap goes to a position the field has not
+/// settled into, focus does not move, and the next `enter_text` lands in
+/// whichever box still had it. On this sign-in form that puts the password
+/// into the username box, and the server answers `unknown_user` — a failure
+/// that reads exactly like wrong credentials. Reproduced on the second
+/// sign-in of a session (the first is fine: nothing animates into place at
+/// boot), and fixed by waiting for the field to be tappable.
 const _baseUrl = String.fromEnvironment(
   'STRUCTURED_LOG_BASE_URL',
   defaultValue: 'http://localhost:8099',
