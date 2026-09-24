@@ -96,11 +96,15 @@ void main() {
       test('a leading separator', () => expectRejected('.a'));
       test('a doubled separator', () => expectRejected('a..b'));
 
-      test('a trailing separator is accepted, because SQLite accepts it', () {
-        expect(parseLogFilter(const {'context.a.': 'x'}).contextEquals, {
-          'a.': 'x',
-        });
-      });
+      // Was accepted when the rule was measured on SQLite alone, where
+      // `json_extract` reads `$.a.` as `$.a`. PostgreSQL splits the key into
+      // an array literal instead, and `{a,}` is `22P02: malformed array
+      // literal` — a 500 on a deployed server, found by driving a stand.
+      test('a trailing separator', () => expectRejected('a.'));
+      test(
+        'a trailing separator after a nested key',
+        () => expectRejected('a.b.'),
+      );
 
       test('everything SQLite tolerates keeps working', () {
         // Each of these was checked against SQLite directly; none of them is

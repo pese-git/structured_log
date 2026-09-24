@@ -14,3 +14,4 @@
 ## 3. Documentation
 
 - [x] 3.1 `docs/api/http-api.md` / `.ru.md`: the parameter row states that a dotted key is a nested path and that an empty segment is a `400`.
+- [x] Завершающая точка: правило распространено на неё после того, как прогон против PostgreSQL-стенда показал `22P02`/`500` (24.09.2026); сценарий спеки, разрешавший её, исправлен.

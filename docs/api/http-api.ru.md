@@ -136,7 +136,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `from`, `to` | ISO 8601 | Диапазон по `timestamp` |
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Точное совпадение |
 | `q` | string | Полнотекстовый, по `event` и содержимому |
-| `context.<key>` | string | Точное совпадение по произвольному полю, например `context.order_id=ord_44821`. Ключ с точками адресует вложенный объект (`context.order.id`). Пустой сегмент в ключе недопустим — `context.`, `context..x`, `context..` отвечают `400 invalid_request` |
+| `context.<key>` | string | Точное совпадение по произвольному полю, например `context.order_id=ord_44821`. Ключ с точками адресует вложенный объект (`context.order.id`). Пустой сегмент в ключе недопустим — `context.`, `context..x`, `context..` и завершающая точка (`context.a.`) отвечают `400 invalid_request` |
 | `limit`, `cursor` | | [Пагинация](#пагинация-log-server-pagination) |
 
 **Ответ `200`:** `{"items": [LogEntry], "next_cursor": строка \| null}` — см. [models.md#logentry](models.ru.md#logentry). Без `cursor` — `items` упорядочены сначала новые по `id`; `cursor` продвигает выборку к более ранним записям.

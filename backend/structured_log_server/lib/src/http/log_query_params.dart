@@ -58,24 +58,31 @@ LogFilter parseLogFilter(Map<String, String> params) {
 /// The part of `context.<key>` after the prefix, refused as a `400` when it
 /// names a path no backend can read.
 ///
-/// An empty segment is the whole of what is refused, and that is measured
-/// rather than guessed: SQLite's `json_extract` rejects `$.`, `$..` and
-/// `$..a` and accepts everything else this endpoint can produce — spaces,
-/// quotes, brackets, non-ASCII, a trailing dot. Anything narrower than that
-/// would refuse keys that work today.
+/// An empty segment is the whole of what is refused — an empty key, a
+/// leading dot, two dots in a row, or a trailing one. Everything else this
+/// endpoint can produce is accepted: spaces, quotes, brackets, non-ASCII.
 ///
 /// Worth refusing at all because of what the two backends do with it
-/// otherwise. SQLite raises, and the error is not an [ApiError], so it left
-/// here as a `500` for a string the caller typed. PostgreSQL is quieter and
-/// worse: `#>> '{}'` returns the whole document, so the comparison silently
-/// asks a different question instead of failing.
+/// otherwise. SQLite raises on `$.` and `$..`, and the error is not an
+/// [ApiError], so it left here as a `500` for a string the caller typed.
+/// PostgreSQL is quieter and worse for those: `#>> '{}'` returns the whole
+/// document, so the comparison silently asks a different question instead
+/// of failing.
+///
+/// The trailing dot was measured on SQLite alone and let through on that
+/// evidence — `json_extract` reads `$.a.` as `$.a`. PostgreSQL does not
+/// get a path string but an array literal built by splitting the key
+/// (`log_filter.dart`), and `a.` splits into `{a,}`, whose empty last
+/// element it refuses as `22P02: malformed array literal`. That was a `500`
+/// on a deployed server, with a bare `Internal Server Error` body rather
+/// than the envelope. Refusing it on both backends is what makes the
+/// endpoint answer the same everywhere; accepting it on both would mean
+/// quietly reading a key the caller did not write.
 String _contextKey(String parameter) {
   final key = parameter.substring('context.'.length);
-  // A trailing dot is left alone: SQLite reads `$.a.` as `$.a` rather than
-  // refusing it, and this function's job is to keep 500s out, not to have
-  // opinions about spelling.
-  final hasEmptySegment =
-      key.isEmpty || key.startsWith('.') || key.contains('..');
+  // One rule rather than four: a key splits into segments on `.`, and none
+  // of them may be empty. `''`, `.a`, `a..b` and `a.` all fail it.
+  final hasEmptySegment = key.split('.').any((segment) => segment.isEmpty);
   if (!hasEmptySegment) return key;
   throw ApiError.invalidRequest(
     'A context filter key may not contain an empty segment.',
