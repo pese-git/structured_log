@@ -397,7 +397,7 @@ The ones you'll most likely actually touch:
 |---|---|
 | Network | `--http-host` (`0.0.0.0`), `--http-port` (`8080`) |
 | Storage | `--db-backend`, `--db-path` or `--db-postgres-*` (above), `--db-read-pool-size` (SQLite only, `2`) |
-| Signing secret | `STRUCTURED_LOG_JWT_SECRET`/`_FILE` — **required**, never auto-generated |
+| Signing secret | `STRUCTURED_LOG_JWT_SECRET`/`_FILE` — **required**, never auto-generated, at least 32 bytes |
 | Ingestion limit | `--max-ingest-body-bytes` (`10485760`, 10 MiB) |
 | Bootstrap | `--bootstrap-admin-enabled`/`-username`, `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD`/`_FILE` |
 | Retention & purge | `--retention-purge-interval-seconds` (`3600`), `--audit-retention-days`/`--auth-event-retention-days` (unset = forever), `--audit-purge-batch-size` (`500`) |
@@ -607,6 +607,7 @@ never end up with a corrupted file.
 |---|---|
 | Process exits immediately with code `78` | A configuration problem — re-run with `--print-config` (if it gets that far) or read the startup error, which names every problem found, not just the first |
 | "STRUCTURED_LOG_JWT_SECRET is required" | The signing secret genuinely isn't set anywhere the resolver looked — check the exact env var name and that a `_FILE` path, if used, actually exists and is readable |
+| "The signing secret must be at least 32 bytes in UTF-8" | The secret is set but too short to key HMAC-SHA256 properly. Replace it with `openssl rand -base64 48`; note that changing it invalidates every token already issued, so everyone signs in again |
 | `create-admin` refuses: "An active administrator already exists" | Working as intended — this command only fires on a database with no active admin at all; block/reassign the existing one, or delete it (subject to the primary-administrator protection above) |
 | Postgres backend: "connection refused" / timeout at startup | The server checks connectivity as part of startup validation and exits `78` rather than crashing on the first request — verify host/port/network reachability from *inside* the container if you're using Compose |
 | Admin client shows "Server unreachable" | Usually a CORS or same-origin problem if the client is served from a different host than the API — see [above](#what-youre-running) — or the server process is genuinely down; check `/healthz` directly |

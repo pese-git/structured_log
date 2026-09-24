@@ -140,7 +140,7 @@ dart run bin/server.dart --print-config
 | Пароль PostgreSQL | `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` / `…_FILE` | — | Секрет: флага нет. Обязателен при `--db-backend=postgres` |
 | Размер пула соединений PostgreSQL | `--db-postgres-pool-size` | `10` | `1`–`64`; общий для чтения и записи — в отличие от `--db-read-pool-size`, который специфичен для SQLite и здесь ни на что не влияет |
 | Режим TLS PostgreSQL | `--db-postgres-ssl-mode` | `require` | `disable` / `require` (шифрование, ошибки сертификата игнорируются) / `verify-full` (шифрование и проверка сертификата) |
-| JWT-секрет | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Обязателен**, флага нет, не генерируется |
+| JWT-секрет | `STRUCTURED_LOG_JWT_SECRET` / `…_FILE` | — | **Обязателен**, флага нет, не генерируется; не короче 32 байт, иначе сервер не стартует |
 | JWT issuer | `--jwt-issuer` | `structured_log_server` | Claim `iss`, вписываемый в access-токены |
 | Срок жизни access-токена | *(флага нет)* | `900` (15 мин) | **Запланировано, не реализовано как настройка** — сейчас фиксированная константа в коде, не настраивается |
 | Срок жизни refresh-токена | *(флага нет)* | `2592000` (30 дней) | **Запланировано, не реализовано как настройка** — сейчас фиксированная константа в коде, не настраивается |
@@ -229,7 +229,7 @@ STRUCTURED_LOG_JWT_SECRET=$(openssl rand -hex 32) \
 
 ```bash
 # Разработка: всё флагами, секрет из окружения
-STRUCTURED_LOG_JWT_SECRET=dev-only-secret \
+STRUCTURED_LOG_JWT_SECRET=dev-only-secret-long-enough-to-start \
   dart run bin/server.dart --db-path ./dev.db --http-port 8080
 ```
 

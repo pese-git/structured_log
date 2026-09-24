@@ -59,7 +59,7 @@ cd backend/structured_log_server
 dart pub get
 dart run build_runner build --delete-conflicting-outputs   # drift/freezed/router code
 
-export STRUCTURED_LOG_JWT_SECRET='a-long-random-string'
+export STRUCTURED_LOG_JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
 dart run bin/server.dart serve --db-path=./logs.sqlite
 ```
 
@@ -95,7 +95,7 @@ for `--db-backend=postgres` plus connection settings, nothing else in this
 README changes:
 
 ```bash
-export STRUCTURED_LOG_JWT_SECRET='a-long-random-string'
+export STRUCTURED_LOG_JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
 export STRUCTURED_LOG_DB_POSTGRES_PASSWORD='...'
 dart run bin/server.dart serve \
   --db-backend=postgres \
@@ -223,7 +223,7 @@ order of priority. Secrets are environment-only.
 | `--db-backend` | `sqlite` — or `postgres`, see above |
 | `--db-path` | required for `serve` when `--db-backend=sqlite` (the default) |
 | `--db-postgres-host` / `-database` / `-username`, `STRUCTURED_LOG_DB_POSTGRES_PASSWORD` | required for `serve` when `--db-backend=postgres` |
-| `STRUCTURED_LOG_JWT_SECRET` | required for `serve` |
+| `STRUCTURED_LOG_JWT_SECRET` | required for `serve`; at least 32 bytes |
 | `--http-host` / `--http-port` | `0.0.0.0` / `8080` |
 | `--max-ingest-body-bytes` | `10485760` |
 | `--retention-purge-interval-seconds` | `3600` |

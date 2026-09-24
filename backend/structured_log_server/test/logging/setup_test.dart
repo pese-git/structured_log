@@ -111,7 +111,7 @@ void main() {
     test('masks secrets and keeps everything else', () {
       final outcome = ConfigResolver(serverConfigParams).parse(
         ['--http-port=9000', '--db-path=/tmp/x.sqlite'],
-        {'STRUCTURED_LOG_JWT_SECRET': 'do-not-log-me'},
+        {'STRUCTURED_LOG_JWT_SECRET': 'do-not-log-me-and-long-enough-to-start'},
         command: 'serve',
       );
       expect(outcome.values, isNotNull, reason: '${outcome.errors}');
@@ -121,7 +121,7 @@ void main() {
       expect(context['jwt_secret'], '***');
       expect(
         context.values.join(' '),
-        isNot(contains('do-not-log-me')),
+        isNot(contains('do-not-log-me-and-long-enough-to-start')),
         reason: 'the point of the whole function',
       );
       expect(context['http_port'], 9000, reason: 'non-secrets stay readable');
@@ -131,7 +131,7 @@ void main() {
     test('an unset secret reads as null, not as a mask', () {
       final outcome = ConfigResolver(serverConfigParams).parse(
         ['--db-path=/tmp/x.sqlite'],
-        {'STRUCTURED_LOG_JWT_SECRET': 'irrelevant'},
+        {'STRUCTURED_LOG_JWT_SECRET': 'irrelevant-but-long-enough-to-start'},
         command: 'serve',
       );
       expect(outcome.values, isNotNull, reason: '${outcome.errors}');

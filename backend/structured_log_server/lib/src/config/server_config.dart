@@ -1,4 +1,6 @@
 import '../auth/hashing.dart' show passwordPolicyMessage;
+import '../auth/token_settings.dart'
+    show jwtSecretPolicyMessage, minJwtSecretBytes;
 import 'config_resolver.dart';
 import 'param_spec.dart';
 
@@ -121,9 +123,16 @@ const serverConfigParams = <ParamSpec>[
   ParamSpec(
     name: 'jwt-secret',
     type: ParamType.string,
-    description: 'HMAC secret access tokens are signed with.',
+    description:
+        'HMAC secret access tokens are signed with; at least '
+        '$minJwtSecretBytes bytes.',
     isSecret: true,
     requiredForCommands: {commandServe},
+    // Refuses to start rather than warning. A secret short enough to search
+    // for offline turns one captured token into an `admin` one somebody
+    // signed themselves, and a warning at startup in a JSON log is a thing
+    // nobody reads twice (`auth/token_settings.dart`).
+    validator: jwtSecretPolicyMessage,
   ),
   ParamSpec(
     name: 'jwt-issuer',
