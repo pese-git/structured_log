@@ -344,9 +344,10 @@ STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD или ..._FILE   # опциональн
 команду:
 
 ```bash
-dart run bin/server.dart create-admin \
+STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -base64 18)" \
+  dart run bin/server.dart create-admin \
   --db-path=/data/logs.db \
-  --username=admin --password="$(openssl rand -base64 18)"
+  --bootstrap-admin-username=admin
 ```
 
 В отличие от автобутстрапа, пароль, заданный так, **не** требует

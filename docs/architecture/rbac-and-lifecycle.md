@@ -202,8 +202,9 @@ there is no predictable password in any mode, the password is temporary,
 and the whole behaviour switches off with
 `--bootstrap-admin-enabled=false`.
 
-**Explicitly, with `create-admin`.** The CLI command
-(`create-admin --username ... --password ...`) still exists, and it's
+**Explicitly, with `create-admin`.** The CLI command still exists
+(`create-admin` takes `--bootstrap-admin-username`, and the password
+comes from `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD`), and it's
 the only path on a non-empty database — re-bootstrapping after the sole
 active admin blocked themselves, or setting up a deployment with
 auto-bootstrap disabled. Unlike auto-creation it does *not* set

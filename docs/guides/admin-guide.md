@@ -333,9 +333,10 @@ To re-create an administrator on a database that **already has users**
 account was accidentally blocked), use the explicit command instead:
 
 ```bash
-dart run bin/server.dart create-admin \
+STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD="$(openssl rand -base64 18)" \
+  dart run bin/server.dart create-admin \
   --db-path=/data/logs.db \
-  --username=admin --password="$(openssl rand -base64 18)"
+  --bootstrap-admin-username=admin
 ```
 
 Unlike auto-bootstrap, a password set this way is **not** forced to
