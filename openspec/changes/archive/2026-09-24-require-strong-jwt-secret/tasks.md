@@ -23,4 +23,4 @@
 
 - [x] 5.1 `dart analyze` clean, `dart format --set-exit-if-changed` clean, `dart test --exclude-tags postgres` green for `structured_log_server` (947).
 - [x] 5.2 `flutter test` green for `packages/e2e` (12) — its harness starts the real binary, so its secret had to clear the floor too.
-- [ ] 5.3 CI green on every job, including the `postgres` tag.
+- [x] 5.3 CI green on every job, including the `postgres` tag (PR #55, 18/18).
