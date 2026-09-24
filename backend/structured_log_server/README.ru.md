@@ -219,6 +219,8 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 имя флага в верхнем snake case) или значение по умолчанию, в таком порядке
 приоритета. Секреты — только через окружение.
 
+<!-- config-reference:implemented -->
+
 | Настройка | По умолчанию |
 |---|---|
 | `--db-backend` | `sqlite` — либо `postgres`, см. выше |
@@ -237,6 +239,8 @@ Server-Sent Events с теми же фильтрами, что у `GET /v1/logs`
 | `--auth-event-retention-days` | не задан — записи `auth.*` хранятся бессрочно |
 | `--audit-purge-batch-size` | `500` |
 | `--db-read-pool-size` | `2` |
+
+<!-- /config-reference -->
 
 Полный список с описаниями:
 [docs/operations/configuration.ru.md](../../docs/operations/configuration.ru.md).
