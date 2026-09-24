@@ -51,6 +51,27 @@ class ApiError implements Exception {
   factory ApiError.notFound([String message = 'Resource not found.']) =>
       ApiError(404, 'not_found', message);
 
+  /// The live-stream ceiling is full (`log-server-live-stream`).
+  ///
+  /// A `429`, like the rate limiter's, but a different code and — unlike
+  /// every other `429` this server sends — without `Retry-After`. The
+  /// limiter's answer is a refill the server can compute; this one waits on
+  /// somebody else closing a connection, and there is no honest number for
+  /// that. A header naming a moment the server cannot keep would be worse
+  /// than none.
+  factory ApiError.tooManySubscriptions({
+    required int perUser,
+    required int total,
+  }) => ApiError(
+    429,
+    'too_many_subscriptions',
+    'Too many live subscriptions are open. Close one and try again.',
+    details: {
+      if (perUser > 0) 'max_per_user': perUser,
+      if (total > 0) 'max_total': total,
+    },
+  );
+
   /// Throttled by `log-server-rate-limit`. [retryAfter] is rounded up to
   /// whole seconds, and at least one — `Retry-After: 0` would invite an
   /// immediate retry that is certain to be rejected again.

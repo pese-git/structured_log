@@ -284,6 +284,24 @@ const serverConfigParams = <ParamSpec>[
     defaultValue: 25,
   ),
   ParamSpec(
+    name: 'max-live-subscriptions-per-user',
+    type: ParamType.int,
+    description:
+        'Most GET /v1/logs/stream subscriptions one account may hold at '
+        'once; 0 for no limit.',
+    defaultValue: 10,
+    minValue: 0,
+  ),
+  ParamSpec(
+    name: 'max-live-subscriptions',
+    type: ParamType.int,
+    description:
+        'Most GET /v1/logs/stream subscriptions this process may hold at '
+        'once, across all accounts; 0 for no limit.',
+    defaultValue: 1000,
+    minValue: 0,
+  ),
+  ParamSpec(
     name: 'cors-allowed-origins',
     type: ParamType.string,
     description:
@@ -342,6 +360,14 @@ class ServerConfig {
   final int trustedProxyHops;
   final int sseHeartbeatIntervalSeconds;
 
+  /// Ceilings on open live subscriptions (`log-server-live-stream`). Each
+  /// holds a socket, a heartbeat timer and a listener on the broadcast for as
+  /// long as it lives, and nothing else bounds how many a caller may open:
+  /// rate limiting deliberately leaves the log endpoints alone, and quotas
+  /// count stored entries rather than connections. `0` means no ceiling.
+  final int maxLiveSubscriptionsPerUser;
+  final int maxLiveSubscriptions;
+
   /// Origins allowed to receive CORS headers. Empty by default, which keeps
   /// the server's long-standing behavior: no `Access-Control-Allow-*` header
   /// on any response, for any origin (`specs/log-server-api`).
@@ -387,6 +413,8 @@ class ServerConfig {
     required this.rateLimitMaxKeys,
     required this.trustedProxyHops,
     required this.sseHeartbeatIntervalSeconds,
+    required this.maxLiveSubscriptionsPerUser,
+    required this.maxLiveSubscriptions,
     this.corsAllowedOrigins = const {},
     this.auditRetentionDays,
     this.authEventRetentionDays,
@@ -429,6 +457,8 @@ class ServerConfig {
       rateLimitMaxKeys: get('rate-limit-max-keys'),
       trustedProxyHops: get('trusted-proxy-hops'),
       sseHeartbeatIntervalSeconds: get('sse-heartbeat-interval-seconds'),
+      maxLiveSubscriptionsPerUser: get('max-live-subscriptions-per-user'),
+      maxLiveSubscriptions: get('max-live-subscriptions'),
       corsAllowedOrigins: _parseOrigins(get('cors-allowed-origins')),
       auditRetentionDays: get('audit-retention-days'),
       authEventRetentionDays: get('auth-event-retention-days'),

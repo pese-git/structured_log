@@ -231,6 +231,8 @@ order of priority. Secrets are environment-only.
 | `--rate-limit-*` | enabled, 10 tokens, 10/min, 10000 keys |
 | `--trusted-proxy-hops` | `0` — `X-Forwarded-For` ignored |
 | `--sse-heartbeat-interval-seconds` | `25` |
+| `--max-live-subscriptions-per-user` | `10` (`0` = no limit) |
+| `--max-live-subscriptions` | `1000` (`0` = no limit) |
 | `--cors-allowed-origins` | unset — no CORS headers on any response |
 | `--audit-retention-days` | unset — audit records are kept indefinitely |
 | `--auth-event-retention-days` | unset — `auth.*` records are kept indefinitely |

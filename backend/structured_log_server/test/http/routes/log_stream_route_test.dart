@@ -7,11 +7,13 @@ import 'package:shelf/shelf.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/auth/local_identity_provider.dart';
+import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/log_stream_route.dart';
 import 'package:structured_log_server/src/rbac/authorizer.dart';
 import 'package:structured_log_server/src/storage/log_store.dart';
 import 'package:structured_log_server/src/http/server.dart';
 import 'package:structured_log_server/src/live/log_broadcast.dart';
+import 'package:structured_log_server/src/live/subscription_limit.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 import 'package:test/test.dart';
 
@@ -891,6 +893,173 @@ void main() {
           expect(subs.every((s) => s.logs.isEmpty), isTrue);
         },
       );
+    });
+  });
+
+  group('the ceiling on open subscriptions', () {
+    late StructuredLogDatabase db;
+    late LogBroadcast broadcast;
+    late int projectId;
+    final readers = <StreamReader>[];
+
+    const admin = [
+      EffectiveRole(role: Role.admin, scopeType: ScopeType.global),
+    ];
+
+    LogStreamRoutes routesWith(SubscriptionLimiter limiter) => LogStreamRoutes(
+      db,
+      Authorizer(db),
+      DriftLogStore(db),
+      broadcast,
+      LocalIdentityProvider(db, signingSecret: 'x', issuer: 'y'),
+      // Short, because revalidation is what notices a blocked project, and
+      // one of the tests below needs the server to end a stream itself.
+      heartbeatInterval: const Duration(milliseconds: 60),
+      limiter: limiter,
+    );
+
+    setUp(() async {
+      db = openInMemory();
+      broadcast = LogBroadcast();
+      final groupId = await db
+          .into(db.groups)
+          .insert(GroupsCompanion.insert(name: 'g'));
+      projectId = await db
+          .into(db.projects)
+          .insert(
+            ProjectsCompanion.insert(
+              groupId: groupId,
+              name: 'p',
+              retentionDays: 30,
+            ),
+          );
+    });
+
+    tearDown(() async {
+      for (final reader in readers) {
+        await reader.close();
+      }
+      readers.clear();
+      await broadcast.close();
+      await db.close();
+    });
+
+    Future<Response> open(LogStreamRoutes routes, {int userId = 1}) async {
+      // Through the error middleware, the way `buildHandler` mounts it, so a
+      // refusal is read as the response a client gets rather than as the
+      // exception the handler threw.
+      final handler = errorHandlingMiddleware()(routes.router.call);
+      final response = await handler(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/logs/stream?project_id=$projectId',
+          roles: admin,
+          userId: userId,
+        ),
+      );
+      if (response.statusCode == 200) {
+        readers.add(StreamReader(response));
+      }
+      return response;
+    }
+
+    test('one past the account ceiling is refused, not queued', () async {
+      final routes = routesWith(SubscriptionLimiter(perUser: 2, total: 100));
+
+      expect((await open(routes)).statusCode, 200);
+      expect((await open(routes)).statusCode, 200);
+
+      final refused = await open(routes);
+      expect(refused.statusCode, 429);
+      expect(
+        jsonDecode(await refused.readAsString())['error'],
+        'too_many_subscriptions',
+      );
+    });
+
+    test('another account is unaffected by the first one filling up', () async {
+      final routes = routesWith(SubscriptionLimiter(perUser: 1, total: 100));
+
+      expect((await open(routes, userId: 1)).statusCode, 200);
+      expect((await open(routes, userId: 1)).statusCode, 429);
+      expect((await open(routes, userId: 2)).statusCode, 200);
+    });
+
+    test('the process ceiling holds accounts together', () async {
+      final routes = routesWith(SubscriptionLimiter(perUser: 100, total: 2));
+
+      expect((await open(routes, userId: 1)).statusCode, 200);
+      expect((await open(routes, userId: 2)).statusCode, 200);
+      expect((await open(routes, userId: 3)).statusCode, 429);
+    });
+
+    test('a client that goes away gives its slot back', () async {
+      final limiter = SubscriptionLimiter(perUser: 1, total: 100);
+      final routes = routesWith(limiter);
+
+      final first = await open(routes);
+      expect(first.statusCode, 200);
+      expect((await open(routes)).statusCode, 429);
+
+      // What a browser closing the tab does: cancel the body subscription.
+      await readers.removeAt(0).close();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        limiter.held(1),
+        0,
+        reason: 'the slot is what the disconnect was supposed to free',
+      );
+      expect((await open(routes)).statusCode, 200);
+    });
+
+    test(
+      'a subscription the server ends gives its slot back exactly once',
+      () async {
+        final limiter = SubscriptionLimiter(perUser: 2, total: 100);
+        final routes = routesWith(limiter);
+
+        expect((await open(routes)).statusCode, 200);
+        final reader = readers.last;
+        expect(limiter.held(1), 1);
+
+        // Blocking the project makes revalidation end the stream — and that
+        // is the path this test is about, because the server ending a stream
+        // runs teardown twice: once from `end`, and again when closing the
+        // body cancels the controller.
+        await (db.update(db.projects)..where((t) => t.id.equals(projectId)))
+            .write(const ProjectsCompanion(isBlocked: Value(true)));
+
+        await reader.waitFor(() => reader.end != null);
+        // The reason is `token_revoked` rather than `project_blocked`, and
+        // that is the harness rather than the server: `authenticatedRequest`
+        // puts a principal straight into the request context, so the
+        // revalidation that runs on each heartbeat finds no bearer header to
+        // re-verify. Either way the server ended the stream on its own, which
+        // is the path whose teardown is being counted.
+        expect(reader.end, isNotNull);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(limiter.held(1), 0, reason: 'released — the stream is over');
+        expect(
+          limiter.openTotal,
+          0,
+          reason:
+              'and released once: teardown runs twice on this path, and a '
+              'plain decrement would take the count below the truth, which '
+              'nothing would ever report',
+        );
+      },
+    );
+
+    test('a refused subscription is not counted against anyone', () async {
+      final limiter = SubscriptionLimiter(perUser: 1, total: 100);
+      final routes = routesWith(limiter);
+
+      await open(routes);
+      await open(routes); // refused
+      expect(limiter.held(1), 1);
+      expect(limiter.openTotal, 1);
     });
   });
 }

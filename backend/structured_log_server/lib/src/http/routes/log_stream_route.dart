@@ -8,6 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../../auth/identity_provider.dart';
 import '../../errors.dart';
 import '../../live/log_broadcast.dart';
+import '../../live/subscription_limit.dart';
 import '../../live/project_directory.dart';
 import '../../rbac/authorizer.dart';
 import '../../storage/database.dart';
@@ -56,6 +57,14 @@ class LogStreamRoutes {
   /// is still allowed to hold it.
   final Duration heartbeatInterval;
 
+  /// How many subscriptions may be open at once, per account and across the
+  /// process (`subscription_limit.dart`). A subscription holds a socket, a
+  /// heartbeat timer and a listener on the broadcast for as long as it lives,
+  /// and nothing else in the pipeline bounds how many a caller may open: the
+  /// rate limiter deliberately leaves the log endpoints alone, and quotas
+  /// count stored entries rather than open connections.
+  final SubscriptionLimiter limiter;
+
   /// What a subscription asks about a project, shared by every subscription of
   /// this server (`project_directory.dart`). Created on first use, so a
   /// handler that never streams holds no watch on the database.
@@ -71,7 +80,8 @@ class LogStreamRoutes {
     this._broadcast,
     this._identityProvider, {
     this.heartbeatInterval = defaultSseHeartbeat,
-  });
+    SubscriptionLimiter? limiter,
+  }) : limiter = limiter ?? SubscriptionLimiter(perUser: 0, total: 0);
 
   Router get router => _$LogStreamRoutesRouter(this);
 
@@ -102,6 +112,18 @@ class LogStreamRoutes {
 
     final accessToken = _bearerToken(request);
 
+    // After authorization and after the query is understood, so a caller who
+    // was going to be refused anyway cannot occupy the ceiling by being
+    // refused — and before anything that has to be undone, so the only
+    // teardown this slot needs is the one every subscription already has.
+    final slot = limiter.tryAcquire(identity.userId);
+    if (slot == null) {
+      throw ApiError.tooManySubscriptions(
+        perUser: limiter.perUser,
+        total: limiter.total,
+      );
+    }
+
     // Subscribe *before* reading history. The buffer below is what closes
     // the gap decision 29 is about: anything committed while the catch-up
     // query runs lands in the buffer instead of falling between the two.
@@ -115,6 +137,10 @@ class LogStreamRoutes {
     Future<void> stop() async {
       heartbeat?.cancel();
       heartbeat = null;
+      // Idempotent, and it has to be: this runs twice on the paths where the
+      // server ends the stream itself — once from `end`, and again when
+      // closing the body cancels the controller (`SubscriptionSlot.release`).
+      slot.release();
       await upstream.cancel();
     }
 

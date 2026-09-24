@@ -11,9 +11,17 @@ class HttpSettings {
   final int maxIngestBodyBytes;
   final Duration sseHeartbeatInterval;
 
+  /// Ceilings on open live subscriptions; `0` for none. The defaults here are
+  /// none, because a handler built without a `ServerConfig` — every route
+  /// test — must behave as it did before there were ceilings.
+  final int maxLiveSubscriptionsPerUser;
+  final int maxLiveSubscriptions;
+
   const HttpSettings({
     this.trustedProxyHops = 0,
     this.maxIngestBodyBytes = defaultMaxIngestBodyBytes,
     this.sseHeartbeatInterval = defaultSseHeartbeat,
+    this.maxLiveSubscriptionsPerUser = 0,
+    this.maxLiveSubscriptions = 0,
   });
 }

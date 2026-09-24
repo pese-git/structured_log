@@ -5,6 +5,7 @@ import '../audit/audit_writer.dart';
 import '../auth/identity_provider.dart';
 import '../auth/token_service.dart';
 import '../live/log_broadcast.dart';
+import '../live/subscription_limit.dart';
 import '../rbac/authorizer.dart';
 import '../storage/database.dart';
 import '../storage/log_store.dart';
@@ -79,6 +80,10 @@ abstract class RoutesModule extends Module {
     broadcast,
     identityProvider,
     heartbeatInterval: http.sseHeartbeatInterval,
+    limiter: SubscriptionLimiter(
+      perUser: http.maxLiveSubscriptionsPerUser,
+      total: http.maxLiveSubscriptions,
+    ),
   );
 
   @singleton()

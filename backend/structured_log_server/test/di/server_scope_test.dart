@@ -53,6 +53,10 @@ ServerConfig _config({
   rateLimitMaxKeys: 1000,
   trustedProxyHops: trustedProxyHops,
   sseHeartbeatIntervalSeconds: 30,
+  // No ceiling, so these fixtures behave exactly as
+  // they did before live subscriptions had one.
+  maxLiveSubscriptionsPerUser: 0,
+  maxLiveSubscriptions: 0,
   auditRetentionDays: auditRetentionDays,
 );
 
