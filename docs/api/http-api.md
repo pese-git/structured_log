@@ -132,7 +132,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `from`, `to` | ISO 8601 | Range on `timestamp` |
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Exact match |
 | `q` | string | Full-text, matched against `event` and content |
-| `context.<key>` | string | Exact match on a custom field, e.g. `context.order_id=ord_44821`. A dotted key reaches into a nested object (`context.order.id`). The key may not have an empty segment — `context.`, `context..x`, `context..` are `400 invalid_request` |
+| `context.<key>` | string | Exact match on a custom field, e.g. `context.order_id=ord_44821`. A dotted key reaches into a nested object (`context.order.id`). The key may not have an empty segment — `context.`, `context..x`, `context..` and a trailing dot (`context.a.`) are `400 invalid_request` |
 | `limit`, `cursor` | | [Pagination](#pagination-log-server-pagination) |
 
 **Response `200`:** `{"items": [LogEntry], "next_cursor": string \| null}` — see [models.md#logentry](models.md#logentry). Without `cursor`, `items` is ordered newest-first by `id`; `cursor` advances toward older entries.
