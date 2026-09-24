@@ -127,6 +127,8 @@ implemented" in its Notes column, so a value listed there is what the
 flag *would* be named if the capability existed, not a flag you can
 pass today.
 
+<!-- config-reference:implemented -->
+
 | Setting | Flag / variable | Default | Notes |
 |---|---|---|---|
 | HTTP host | `--http-host` | `0.0.0.0` | |
@@ -172,6 +174,8 @@ pass today.
 | Auto-bootstrap admin | `--bootstrap-admin-enabled` / `--no-bootstrap-admin-enabled` | `true` | Creates the first admin when the `users` table is empty ([rbac-and-lifecycle.md](../architecture/rbac-and-lifecycle.md#bootstrap-two-paths-to-the-first-admin)) |
 | Bootstrap admin username | `--bootstrap-admin-username` | `admin` | Only used when the table is empty |
 | Bootstrap admin password | `STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD` / `…_FILE` | generated | Secret: no flag. Unset = a random one is generated and printed once, marked temporary. A value must be 8 characters to 72 bytes, like any password set through the API; anything else stops startup with a configuration error that names the variable, never the value |
+
+<!-- /config-reference -->
 
 ## The database file
 

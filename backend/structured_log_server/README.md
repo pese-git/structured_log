@@ -218,6 +218,8 @@ Every setting is a CLI flag, an environment variable
 (`STRUCTURED_LOG_` + the flag in upper snake case), or a default — in that
 order of priority. Secrets are environment-only.
 
+<!-- config-reference:implemented -->
+
 | Setting | Default |
 |---|---|
 | `--db-backend` | `sqlite` — or `postgres`, see above |
@@ -236,6 +238,8 @@ order of priority. Secrets are environment-only.
 | `--auth-event-retention-days` | unset — `auth.*` records are kept indefinitely |
 | `--audit-purge-batch-size` | `500` |
 | `--db-read-pool-size` | `2` |
+
+<!-- /config-reference -->
 
 Full list with descriptions:
 [docs/operations/configuration.md](../../docs/operations/configuration.md).
