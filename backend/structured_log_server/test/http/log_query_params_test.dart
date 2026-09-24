@@ -70,6 +70,62 @@ void main() {
       expect(filter.contextEquals, {'user_id': '42', 'tenant': 'acme'});
     });
 
+    group('a context key with an empty segment is rejected, not a 500', () {
+      // `json_extract(context_json, '$.')` is an error in SQLite, and the
+      // error is not an `ApiError`, so it reached the caller as a 500 on
+      // input they typed. Under PostgreSQL the same key is worse than an
+      // error: `#>> '{}'` returns the whole document, so the comparison
+      // silently means something else. Measured against SQLite, an empty
+      // segment is the *only* shape it refuses — spaces, quotes, brackets
+      // and non-ASCII all work — so this rejects exactly that and nothing
+      // that works today.
+      void expectRejected(String key) {
+        expect(
+          () => parseLogFilter({'context.$key': 'x'}),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 400)
+                .having((e) => e.details?['field'], 'field', 'context.$key'),
+          ),
+          reason: 'context.$key',
+        );
+      }
+
+      test('an empty key', () => expectRejected(''));
+      test('a lone separator', () => expectRejected('.'));
+      test('a leading separator', () => expectRejected('.a'));
+      test('a doubled separator', () => expectRejected('a..b'));
+
+      test('a trailing separator is accepted, because SQLite accepts it', () {
+        expect(parseLogFilter(const {'context.a.': 'x'}).contextEquals, {
+          'a.': 'x',
+        });
+      });
+
+      test('everything SQLite tolerates keeps working', () {
+        // Each of these was checked against SQLite directly; none of them is
+        // a path error, so none of them is this function's business to
+        // refuse.
+        for (final key in const [
+          'user_id',
+          'a.b',
+          'a-b',
+          'a b',
+          '0abc',
+          'ключ',
+          'a"b',
+          "a'b",
+          'a[0]',
+          'a\$b',
+          'a,b',
+        ]) {
+          expect(parseLogFilter({'context.$key': 'x'}).contextEquals, {
+            key: 'x',
+          }, reason: key);
+        }
+      });
+    });
+
     test('ignores scope and pagination parameters', () {
       // Scope is authorized separately and pagination belongs to the
       // historical query; neither may leak into a filter that the live
