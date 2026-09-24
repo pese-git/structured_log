@@ -50,8 +50,36 @@ LogFilter parseLogFilter(Map<String, String> params) {
     contextEquals: {
       for (final entry in params.entries)
         if (entry.key.startsWith('context.'))
-          entry.key.substring('context.'.length): entry.value,
+          _contextKey(entry.key): entry.value,
     },
+  );
+}
+
+/// The part of `context.<key>` after the prefix, refused as a `400` when it
+/// names a path no backend can read.
+///
+/// An empty segment is the whole of what is refused, and that is measured
+/// rather than guessed: SQLite's `json_extract` rejects `$.`, `$..` and
+/// `$..a` and accepts everything else this endpoint can produce — spaces,
+/// quotes, brackets, non-ASCII, a trailing dot. Anything narrower than that
+/// would refuse keys that work today.
+///
+/// Worth refusing at all because of what the two backends do with it
+/// otherwise. SQLite raises, and the error is not an [ApiError], so it left
+/// here as a `500` for a string the caller typed. PostgreSQL is quieter and
+/// worse: `#>> '{}'` returns the whole document, so the comparison silently
+/// asks a different question instead of failing.
+String _contextKey(String parameter) {
+  final key = parameter.substring('context.'.length);
+  // A trailing dot is left alone: SQLite reads `$.a.` as `$.a` rather than
+  // refusing it, and this function's job is to keep 500s out, not to have
+  // opinions about spelling.
+  final hasEmptySegment =
+      key.isEmpty || key.startsWith('.') || key.contains('..');
+  if (!hasEmptySegment) return key;
+  throw ApiError.invalidRequest(
+    'A context filter key may not contain an empty segment.',
+    details: {'field': parameter, 'reason': 'invalid'},
   );
 }
 
