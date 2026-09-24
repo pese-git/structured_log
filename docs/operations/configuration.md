@@ -263,8 +263,9 @@ STRUCTURED_LOG_DB_POSTGRES_PASSWORD=... \
 ```bash
 # Re-bootstrap on a non-empty database (auto-creation never fires there);
 # no JWT secret needed for this command
-dart run bin/server.dart create-admin --db-path /data/logs.db \
-  --username admin --password "$(read -rsp 'password: ' p; echo "$p")"
+STRUCTURED_LOG_BOOTSTRAP_ADMIN_PASSWORD="$(read -rsp 'password: ' p; echo "$p")" \
+  dart run bin/server.dart create-admin --db-path /data/logs.db \
+  --bootstrap-admin-username admin
 ```
 
 ## See also
