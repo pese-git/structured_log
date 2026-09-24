@@ -25,9 +25,15 @@ Future<int> revokeRefreshTokensExcept(
   final statement = db.update(db.refreshTokens)
     ..where((t) {
       final live = t.userId.equals(userId) & t.revokedAt.isNull();
+      // `equals(...).not()`, not `isNotValue(...)`: the latter builds drift's
+      // null-safe `IS NOT <value>`, which SQLite accepts and PostgreSQL
+      // refuses outright — there `IS NOT` takes only NULL/TRUE/FALSE, so the
+      // statement dies as `42601: syntax error at or near "$3"` before it
+      // compares anything. `token_hash` is NOT NULL, so the null-safety the
+      // longer form buys is over a case the column cannot be in.
       return exceptTokenHash == null
           ? live
-          : live & t.tokenHash.isNotValue(exceptTokenHash);
+          : live & t.tokenHash.equals(exceptTokenHash).not();
     });
   return statement.write(
     RefreshTokensCompanion(revokedAt: Value(DateTime.now())),
