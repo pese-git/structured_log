@@ -283,6 +283,43 @@ void main() {
       }
     });
 
+    test('a default name is listed in every spelling of itself', () {
+      // Matching is whole-key and ignores only case, so a multi-word name
+      // has to appear three times: snake, kebab, and run together — the
+      // last of which is what covers accessToken and AccessToken.
+      const spellings = [
+        'access_token',
+        'access-token',
+        'accessToken',
+        'AccessToken',
+        'refresh_token',
+        'refresh-token',
+        'refreshToken',
+        'id_token',
+        'id-token',
+        'idToken',
+        'client_secret',
+        'client-secret',
+        'clientSecret',
+        'api_key',
+        'api-key',
+        'apiKey',
+        'APIKey',
+        'private_key',
+        'private-key',
+        'privateKey',
+        'proxy_authorization',
+        'proxy-authorization',
+        'proxyAuthorization',
+        'set_cookie',
+        'set-cookie',
+        'setCookie',
+      ];
+      for (final key in spellings) {
+        expect(redactKeys()({key: 'v'})![key], '***', reason: key);
+      }
+    });
+
     test('the correlation fields survive the default set', () {
       // They are the one kind of identifier this package produces for the
       // express purpose of being read back. A default that swallowed them

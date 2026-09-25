@@ -149,23 +149,50 @@ Map<String, dynamic>? dropNullValues(Map<String, dynamic> entry) {
 /// `request_id`, `connection_generation`, `tool_call_id`, `message_id`,
 /// `operation_id` — are deliberately absent. They exist to be read: a
 /// default that gutted them would break the feature next door to this one.
+/// Every multi-word name appears three times — `snake_case`, `kebab-case`
+/// and run together — because matching is on the whole key and case is the
+/// only thing it ignores. The run-together spelling is what covers
+/// `accessToken` and `AccessToken`, which is how Dart writes map keys even
+/// when the wire format next to it writes `access_token`.
 const defaultSensitiveKeys = <String>{
+  // Passwords.
   'password',
   'passwd',
   'pwd',
+
+  // Tokens.
   'token',
   'access_token',
+  'access-token',
+  'accesstoken',
   'refresh_token',
+  'refresh-token',
+  'refreshtoken',
   'id_token',
+  'id-token',
+  'idtoken',
+
+  // Keys and secrets.
   'secret',
   'client_secret',
+  'client-secret',
+  'clientsecret',
   'api_key',
+  'api-key',
   'apikey',
-  'authorization',
-  'proxy-authorization',
-  'cookie',
-  'set-cookie',
   'private_key',
+  'private-key',
+  'privatekey',
+
+  // Headers that carry credentials.
+  'authorization',
+  'proxy_authorization',
+  'proxy-authorization',
+  'proxyauthorization',
+  'cookie',
+  'set_cookie',
+  'set-cookie',
+  'setcookie',
 };
 
 /// A [Processor] that replaces sensitive values anywhere in the entry —
@@ -180,10 +207,10 @@ const defaultSensitiveKeys = <String>{
 ///
 ///   Matching is on the **whole key**, and case is the only thing ignored:
 ///   separators are not normalised, so `card_number` does not catch
-///   `cardNumber` or `card-number`. That matters more than it sounds in
-///   Dart, where map keys are usually camelCase while the names above are
-///   written the way headers and JSON payloads spell them. List the
-///   spelling your code actually uses, or normalise in [matchesKey]:
+///   `cardNumber` or `card-number`. [defaultSensitiveKeys] carries every
+///   multi-word name in all three spellings for exactly this reason — a
+///   name *you* add is one spelling unless you add it three times, or
+///   normalise once in [matchesKey]:
 ///
 ///   ```dart
 ///   const sensitive = {'cardnumber', 'cvc', 'apikey'};

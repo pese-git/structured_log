@@ -375,11 +375,11 @@ redactKeys(
 | `matchesKey` | `refresh_token`, `x-api-key`, … | Yours to write; a wide predicate silently eats useful fields |
 | `matchesValue` | A secret under an innocent name | Offered `String` values only. `looksLikeJwtOrBearer` ships; `looksLikeCardNumber` ships too but is **not** a default — length plus Luhn still cannot tell a card from a 16-digit order id |
 
-Spelling is the sharp edge worth knowing about. The default names are
-written as headers and JSON payloads spell them (`api_key`,
-`refresh_token`), while Dart map keys are usually camelCase — and nothing
-bridges the two. List the spelling your code uses, or normalise once in
-`matchesKey`:
+Spelling is the sharp edge. `defaultSensitiveKeys` handles it by listing
+every multi-word name three times — `access_token`, `access-token`,
+`accesstoken` — the last of which is what catches `accessToken` and
+`AccessToken`. A name **you** add covers one spelling unless you add it
+three times too, or normalise once in `matchesKey`:
 
 ```dart
 const sensitive = {'cardnumber', 'cvc', 'apikey'};
@@ -390,7 +390,8 @@ redactKeys(
 ```
 
 `defaultSensitiveKeys` holds names whose value is a credential everywhere
-(`password`, `token`, `authorization`, `cookie`, …). The correlation fields
+(`password`, `token`, `authorization`, `cookie`, `api_key`, …, each
+multi-word one in all three spellings). The correlation fields
 this package produces — `session_id`, `request_id` and the rest — are
 deliberately absent: they exist to be read back.
 
