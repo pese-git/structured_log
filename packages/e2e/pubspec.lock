@@ -568,7 +568,7 @@ packages:
       path: "../../emb/structured_log"
       relative: true
     source: path
-    version: "0.2.0+1"
+    version: "0.2.1"
   structured_log_admin_client:
     dependency: "direct main"
     description:
@@ -589,7 +589,7 @@ packages:
       path: "../../emb/structured_log_http"
       relative: true
     source: path
-    version: "0.1.0-dev.0"
+    version: "0.1.0"
   term_glyph:
     dependency: transitive
     description:

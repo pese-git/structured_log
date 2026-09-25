@@ -831,7 +831,7 @@ packages:
       path: "../../emb/structured_log"
       relative: true
     source: path
-    version: "0.2.0+1"
+    version: "0.2.1"
   structured_log_admin_ui:
     dependency: "direct main"
     description:

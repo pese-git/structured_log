@@ -807,6 +807,16 @@ dart run example/main.dart
   под ним не воспроизводится вовсе. `-d web-server`, **не** `-d chrome`: со
   вторым Flutter поднимает браузер сам, драйвер не получает WebDriver-сессию и
   прогон висит, ничего не сообщая. Headless — по умолчанию для этой команды.
+- `site` — сборка сайта: `npm ci` + `npm run build` в [site/](site/) на Node 22,
+  без Dart/Flutter вовсе (Astro-проект вне Melos-workspace). Проверяется
+  именно «производит ли `docs/` сайт, который собирается», а не «актуален ли
+  закоммиченный вывод»: вывода в репозитории нет, `src/content/docs/` (кроме
+  двух посадочных страниц) генерируется хуком `prebuild` из
+  `scripts/migrate_docs.py`. Значит правка в `docs/**` может уронить эту джобу,
+  не тронув ни строчки Dart: падает либо сам генератор на том, чего не ожидал,
+  либо сборка Astro на том, что он произвёл. **Ссылки при этом не проверяются**
+  — валидатора в `astro.config.mjs` нет, так что битая ссылка внутри `docs/`
+  проходит и CI, и эту джобу молча.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
   (+`example/`), `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному
