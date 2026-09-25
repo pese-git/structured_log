@@ -100,6 +100,23 @@ exporter that hands such an image to the local Docker daemon. That is
 also why `--platform` without `--push` is refused rather than quietly
 building something unusable.
 
+`--tag` may be given more than once. "The commit, and also `latest`" is
+one decision and two names for one image, and running the script twice
+would not give you that: two builds of the same commit are not the same
+bytes — the web bundle alone is not reproducible — so `latest` would
+point at an image nobody ever tested. Repeated `--tag` builds once and
+applies every name to it.
+
+```bash
+./build-images.sh --push registry.example.com/structured-log \
+  --platform linux/amd64 \
+  --tag "$(git rev-parse --short HEAD)" --tag latest
+```
+
+The first `--tag` is the one the closing kustomize hint quotes: a run
+tagging both a commit and `latest` means the commit, with `latest` as a
+moving alias for it.
+
 `--server-repo`/`--web-repo` name the repositories inside the registry,
 for a registry that groups them differently from the local tags:
 

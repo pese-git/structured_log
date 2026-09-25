@@ -10,6 +10,7 @@
 #   ./build-images.sh --push registry.example.com/structured-log --tag v1.2.3
 #   ./build-images.sh --push … --platform linux/amd64
 #   ./build-images.sh --push … --server-repo backend --web-repo frontend
+#   ./build-images.sh --push … --tag "$(git rev-parse --short HEAD)" --tag latest
 #
 # `--platform` matters more than it looks. Without it Docker builds for the
 # machine it runs on, and this repository is developed on Apple Silicon
@@ -19,6 +20,13 @@
 # anything about architecture. Nothing in the pipeline would have said so:
 # `docker push` is happy, the registry is happy, the manifest is simply for
 # the wrong machine.
+#
+# `--tag` may be given more than once, because "the commit, and also
+# `latest`" is one decision and two names for one image. Doing it in two
+# runs builds twice, and two builds of the same commit are not the same
+# bytes — the web bundle alone is not reproducible — so `latest` would
+# end up pointing at an image nobody ever tested. Repeated `--tag`
+# produces one image wearing every name.
 #
 # `--server-repo`/`--web-repo` exist because a registry's layout is the
 # registry's business: the defaults spell the names this repository uses
@@ -40,7 +48,7 @@ FLUTTER="$REPO_ROOT/.fvm/flutter_sdk/bin/flutter"
 CLIENT="$REPO_ROOT/frontend/structured_log_admin_client"
 
 registry=""
-tag="local"
+tags=()
 load=""
 platform=""
 server_repo="structured-log-server"
@@ -49,7 +57,7 @@ web_repo="structured-log-web"
 while [ $# -gt 0 ]; do
   case "$1" in
     --push) registry="$2"; shift 2 ;;
-    --tag) tag="$2"; shift 2 ;;
+    --tag) tags+=("$2"); shift 2 ;;
     --load) load="$2"; shift 2 ;;
     --platform) platform="$2"; shift 2 ;;
     --server-repo) server_repo="$2"; shift 2 ;;
@@ -57,6 +65,13 @@ while [ $# -gt 0 ]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+# `:local` is what the kustomize overlays name, so it stays the default —
+# but only when nothing was asked for, since appending to a list the
+# caller filled would tag every build `local` as well.
+if [ ${#tags[@]} -eq 0 ]; then
+  tags=("local")
+fi
 
 if [ -n "$registry" ] && [ -n "$load" ]; then
   echo "error: --push and --load are alternatives, not both — a pushed" >&2
@@ -93,12 +108,18 @@ if [ ! -x "$FLUTTER" ]; then
   exit 1
 fi
 
-server_image="$server_repo:$tag"
-web_image="$web_repo:$tag"
-if [ -n "$registry" ]; then
-  server_image="$registry/$server_repo:$tag"
-  web_image="$registry/$web_repo:$tag"
-fi
+# Every name each image is to be known by. The first is the one the
+# closing hints quote: a run tagging both a commit and `latest` means the
+# commit, with `latest` as the moving alias for it.
+prefix="${registry:+$registry/}"
+server_images=()
+web_images=()
+for t in "${tags[@]}"; do
+  server_images+=("${prefix}${server_repo}:${t}")
+  web_images+=("${prefix}${web_repo}:${t}")
+done
+server_image="${server_images[0]}"
+web_image="${web_images[0]}"
 
 # Same reasoning as deploy.sh: an empty base URL means the client is
 # served from the same origin as the API and every request goes out
@@ -126,27 +147,37 @@ echo "==> building the admin client (web)"
 # uses — has no step in between where the image could live.
 build_image() {
   dockerfile="$1"
-  image="$2"
+  shift
+  names=("$@")
 
-  echo "==> building $image${platform:+ ($platform)}"
+  echo "==> building ${names[*]}${platform:+ ($platform)}"
+
+  args=()
+  for name in "${names[@]}"; do
+    args+=(-t "$name")
+  done
+
   if [ -n "$platform" ]; then
     docker buildx build --platform "$platform" \
-      -f "$dockerfile" -t "$image" --push "$REPO_ROOT"
+      -f "$dockerfile" "${args[@]}" --push "$REPO_ROOT"
   else
-    docker build -f "$dockerfile" -t "$image" "$REPO_ROOT"
+    docker build -f "$dockerfile" "${args[@]}" "$REPO_ROOT"
   fi
 }
 
-build_image "$REPO_ROOT/backend/structured_log_server/Dockerfile" "$server_image"
-build_image "$REPO_ROOT/frontend/structured_log_admin_client/Dockerfile" "$web_image"
+build_image "$REPO_ROOT/backend/structured_log_server/Dockerfile" \
+  "${server_images[@]}"
+build_image "$REPO_ROOT/frontend/structured_log_admin_client/Dockerfile" \
+  "${web_images[@]}"
 
 if [ -n "$registry" ]; then
   # Already in the registry when `--platform` was given: that build pushed
   # as it went, and pushing again would upload nothing and say so.
   if [ -z "$platform" ]; then
     echo "==> pushing to $registry"
-    docker push "$server_image"
-    docker push "$web_image"
+    for name in "${server_images[@]}" "${web_images[@]}"; do
+      docker push "$name"
+    done
   fi
   echo
   echo "Set these in your kustomization (images: transformer, or"
@@ -158,14 +189,16 @@ elif [ -n "$load" ]; then
     minikube)
       require minikube
       echo "==> loading into minikube"
-      minikube image load "$server_image"
-      minikube image load "$web_image"
+      for name in "${server_images[@]}" "${web_images[@]}"; do
+        minikube image load "$name"
+      done
       ;;
     kind)
       require kind
       echo "==> loading into kind"
-      kind load docker-image "$server_image"
-      kind load docker-image "$web_image"
+      for name in "${server_images[@]}" "${web_images[@]}"; do
+        kind load docker-image "$name"
+      done
       ;;
     *)
       echo "error: --load must be 'minikube' or 'kind', got '$load'" >&2
