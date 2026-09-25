@@ -88,6 +88,260 @@ void main() {
     });
   });
 
+  group('redactKeys', () {
+    tearDown(StructlogConfiguration.reset);
+
+    test('a key in the default set is replaced, not removed', () {
+      final entry = redactKeys()({'event': 'login', 'password': 'hunter2'})!;
+      expect(entry['password'], '***');
+      expect(
+        entry.containsKey('password'),
+        isTrue,
+        reason: 'the reader has to be able to tell redacted from absent',
+      );
+      expect(entry['event'], 'login');
+    });
+
+    test('matching ignores case, because headers do not agree on it', () {
+      final entry =
+          redactKeys()({'Authorization': 'Bearer x', 'API_Key': 'k'})!;
+      expect(entry['Authorization'], '***');
+      expect(entry['API_Key'], '***');
+    });
+
+    test('a value of any type is replaced when its key matches', () {
+      final entry = redactKeys(keys: {'pin'})({'pin': 1234})!;
+      expect(entry['pin'], '***');
+    });
+
+    test('nested maps and lists are reached', () {
+      final entry = redactKeys()({
+        'request': {
+          'headers': [
+            {'authorization': 'Bearer x'},
+            {'accept': 'application/json'},
+          ],
+        },
+      })!;
+      final headers =
+          ((entry['request'] as Map)['headers'] as List).cast<Map>();
+      expect(headers[0]['authorization'], '***');
+      expect(headers[1]['accept'], 'application/json');
+    });
+
+    test('the caller keeps its own data', () {
+      // The reason this belongs in the library at all: the obvious
+      // implementation walks and assigns, and `Map.from` is shallow, so a
+      // nested map in the entry is the *same object* the application is
+      // still using. Logging must not take the caller's token away.
+      final headers = <String, dynamic>{'authorization': 'Bearer real'};
+      final captured = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(
+        processors: [redactKeys()],
+        sinks: [LogSink(name: 'capture', output: (e, l) => captured.add(e))],
+      );
+
+      getLogger().bind({'headers': headers}).info('request');
+
+      expect((captured.single['headers'] as Map)['authorization'], '***');
+      expect(headers['authorization'], 'Bearer real');
+    });
+
+    test('an entry with nothing to redact comes back as the same map', () {
+      // Processors run before any sink filtering, so every dropped trace
+      // entry pays for this walk too. A miss must not allocate a copy.
+      final entry = <String, dynamic>{
+        'event': 'tick',
+        'nested': {'a': 1},
+      };
+      final result = redactKeys()(entry);
+      expect(identical(result, entry), isTrue);
+      expect(identical(result!['nested'], entry['nested']), isTrue);
+    });
+
+    test('an explicit key set replaces the default one', () {
+      final entry = redactKeys(keys: {'ssn'})({
+        'ssn': '1',
+        'password': 'hunter2',
+      })!;
+      expect(entry['ssn'], '***');
+      expect(
+        entry['password'],
+        'hunter2',
+        reason: 'passing keys means these keys, not these as well as ours',
+      );
+    });
+
+    test('an empty key set turns name matching off', () {
+      final entry = redactKeys(keys: const {})({'password': 'hunter2'})!;
+      expect(entry['password'], 'hunter2');
+    });
+
+    test('a key predicate catches a family of names', () {
+      final entry = redactKeys(
+        keys: const {},
+        matchesKey: (key) => key.endsWith('_token'),
+      )({'refresh_token': 'r', 'token_count': 3})!;
+      expect(entry['refresh_token'], '***');
+      expect(entry['token_count'], 3);
+    });
+
+    test('a value predicate catches a secret under an innocent name', () {
+      final entry = redactKeys(
+        keys: const {},
+        matchesValue: looksLikeJwtOrBearer,
+      )({
+        'note': 'Bearer abc.def.ghi',
+        'other': 'plain text',
+      })!;
+      expect(entry['note'], '***');
+      expect(entry['other'], 'plain text');
+    });
+
+    test('a value predicate is asked about strings only', () {
+      var asked = 0;
+      redactKeys(
+        keys: const {},
+        matchesValue: (value) {
+          asked++;
+          return false;
+        },
+      )({'n': 42, 's': 'text', 'nested': <String, dynamic>{}});
+      expect(asked, 1, reason: 'guessing at an int costs everything it finds');
+    });
+
+    test('the three criteria combine, and any one of them is enough', () {
+      final entry = redactKeys(
+        keys: {'password'},
+        matchesKey: (key) => key.endsWith('_token'),
+        matchesValue: looksLikeJwtOrBearer,
+      )({
+        'password': 'hunter2',
+        'refresh_token': 'r',
+        'note': 'Bearer abc.def.ghi',
+        'kept': 'plain',
+      })!;
+      expect(entry['password'], '***');
+      expect(entry['refresh_token'], '***');
+      expect(entry['note'], '***');
+      expect(entry['kept'], 'plain');
+    });
+
+    test('a caller may choose the placeholder', () {
+      final entry = redactKeys(placeholder: '[redacted]')({'token': 't'})!;
+      expect(entry['token'], '[redacted]');
+    });
+
+    test('looksLikeJwtOrBearer knows a token from a sentence', () {
+      expect(looksLikeJwtOrBearer('Bearer abc'), isTrue);
+      expect(looksLikeJwtOrBearer('bearer abc'), isTrue);
+      expect(
+        looksLikeJwtOrBearer(
+          'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2ln',
+        ),
+        isTrue,
+      );
+      expect(looksLikeJwtOrBearer('a normal message'), isFalse);
+      expect(looksLikeJwtOrBearer('bearers of bad news'), isFalse);
+    });
+
+    test('looksLikeCardNumber is opt-in and checks Luhn', () {
+      expect(looksLikeCardNumber('4111 1111 1111 1111'), isTrue);
+      expect(looksLikeCardNumber('4111-1111-1111-1111'), isTrue);
+      expect(
+        looksLikeCardNumber('4111111111111112'),
+        isFalse,
+        reason: 'Luhn is what keeps order ids out of this',
+      );
+      expect(looksLikeCardNumber('ord_44821'), isFalse);
+      expect(looksLikeCardNumber('12345678'), isFalse);
+      expect(
+        redactKeys()({'note': '4111 1111 1111 1111'})!['note'],
+        '4111 1111 1111 1111',
+        reason: 'it is not in the defaults — false positives cost data',
+      );
+    });
+
+    test('matching is on the whole key, spelling included', () {
+      // Only case is ignored, so a set written the way headers spell things
+      // misses the way Dart usually spells them. Pinned because it is the
+      // first thing to surprise a caller, and because the recipe below is
+      // what the docs send them to.
+      final asWritten = redactKeys(keys: {'card_number'});
+      expect(asWritten({'card_number': '4111'})!['card_number'], '***');
+      expect(asWritten({'cardNumber': '4111'})!['cardNumber'], '4111');
+
+      const sensitive = {'cardnumber'};
+      final normalised = redactKeys(
+        keys: const {},
+        matchesKey: (key) => sensitive
+            .contains(key.toLowerCase().replaceAll(RegExp('[_-]'), '')),
+      );
+      for (final spelling in ['card_number', 'cardNumber', 'card-number']) {
+        expect(normalised({spelling: '4111'})![spelling], '***',
+            reason: spelling);
+      }
+    });
+
+    test('a default name is listed in every spelling of itself', () {
+      // Matching is whole-key and ignores only case, so a multi-word name
+      // has to appear three times: snake, kebab, and run together — the
+      // last of which is what covers accessToken and AccessToken.
+      const spellings = [
+        'access_token',
+        'access-token',
+        'accessToken',
+        'AccessToken',
+        'refresh_token',
+        'refresh-token',
+        'refreshToken',
+        'id_token',
+        'id-token',
+        'idToken',
+        'client_secret',
+        'client-secret',
+        'clientSecret',
+        'api_key',
+        'api-key',
+        'apiKey',
+        'APIKey',
+        'private_key',
+        'private-key',
+        'privateKey',
+        'proxy_authorization',
+        'proxy-authorization',
+        'proxyAuthorization',
+        'set_cookie',
+        'set-cookie',
+        'setCookie',
+      ];
+      for (final key in spellings) {
+        expect(redactKeys()({key: 'v'})![key], '***', reason: key);
+      }
+    });
+
+    test('the correlation fields survive the default set', () {
+      // They are the one kind of identifier this package produces for the
+      // express purpose of being read back. A default that swallowed them
+      // would break the feature next door while looking careful.
+      final entry = redactKeys()({
+        'session_id': 's-1',
+        'request_id': 'r-1',
+        'operation_id': 'o-1',
+      })!;
+      expect(entry['session_id'], 's-1');
+      expect(entry['request_id'], 'r-1');
+      expect(entry['operation_id'], 'o-1');
+    });
+
+    test('defaultSensitiveKeys names what it protects', () {
+      expect(
+        defaultSensitiveKeys,
+        containsAll(<String>['password', 'token', 'secret', 'authorization']),
+      );
+    });
+  });
+
   group('Correlation', () {
     tearDown(() {
       StructlogConfiguration.reset();

@@ -80,6 +80,20 @@ StructlogConfiguration.configure(sinks: [
 ]);
 ```
 
+If entries can carry credentials — a header map, a request body, a
+config dump — add the redaction processor while you are wiring this up,
+because a secret that reaches a sink is already out:
+
+```dart
+StructlogConfiguration.configure(
+  processors: [redactKeys(), dropNullValues],  // before any renderer
+);
+```
+
+`redactKeys()` replaces `password`, `token`, `authorization` and the rest
+of `defaultSensitiveKeys` at any depth, and takes your own names or
+predicates where those are not enough.
+
 Full API — processors, multi-sink routing, file and rotating-file
 output — in
 [`emb/structured_log/README.md`](../../emb/structured_log/README.md).

@@ -345,19 +345,78 @@ Processors are functions that transform log entries before output. Return `null`
 | `addLogLevel`    | Ensures level key exists       |
 | `jsonRenderer`   | Prints entry as JSON           |
 | `logfmtRenderer` | Prints as `key=value` pairs    |
+| `redactKeys()`   | Replaces sensitive values, at any depth |
+
+### Redacting secrets
+
+`redactKeys()` replaces a value with `***` wherever it appears — top level,
+nested maps, lists — and decides what to replace by any of three criteria,
+used alone or together:
+
+```dart
+StructlogConfiguration.configure(
+  processors: [
+    redactKeys(),                       // defaultSensitiveKeys, as-is
+    dropNullValues,
+  ],
+);
+
+// or, tuned:
+redactKeys(
+  keys: {...defaultSensitiveKeys, 'x-internal-signature'},  // names
+  matchesKey: (key) => key.endsWith('_token'),              // name families
+  matchesValue: looksLikeJwtOrBearer,                       // the value itself
+);
+```
+
+| Criterion | Catches | Note |
+|---|---|---|
+| `keys` | The whole name, case-insensitively | Separators are **not** normalised: `card_number` misses `cardNumber`. Passing a set **replaces** `defaultSensitiveKeys`; `const {}` switches it off |
+| `matchesKey` | `refresh_token`, `x-api-key`, … | Yours to write; a wide predicate silently eats useful fields |
+| `matchesValue` | A secret under an innocent name | Offered `String` values only. `looksLikeJwtOrBearer` ships; `looksLikeCardNumber` ships too but is **not** a default — length plus Luhn still cannot tell a card from a 16-digit order id |
+
+Spelling is the sharp edge. `defaultSensitiveKeys` handles it by listing
+every multi-word name three times — `access_token`, `access-token`,
+`accesstoken` — the last of which is what catches `accessToken` and
+`AccessToken`. A name **you** add covers one spelling unless you add it
+three times too, or normalise once in `matchesKey`:
+
+```dart
+const sensitive = {'cardnumber', 'cvc', 'apikey'};
+redactKeys(
+  matchesKey: (key) =>
+      sensitive.contains(key.toLowerCase().replaceAll(RegExp('[_-]'), '')),
+);
+```
+
+`defaultSensitiveKeys` holds names whose value is a credential everywhere
+(`password`, `token`, `authorization`, `cookie`, `api_key`, …, each
+multi-word one in all three spellings). The correlation fields
+this package produces — `session_id`, `request_id` and the rest — are
+deliberately absent: they exist to be read back.
+
+Two things worth knowing:
+
+- **Put it before any renderer.** `jsonRenderer` and `logfmtRenderer` print
+  as they run, so a redactor after one of them has already lost.
+- **It rebuilds, it does not edit.** `BoundLogger` copies bound context
+  shallowly, so a nested map in an entry is the same object your code still
+  holds — a hand-written redactor that walks and assigns takes your own
+  token away. `redactKeys` copies only along the path it changed, and
+  returns the very same map when nothing matched.
 
 ### Custom Processor
 
 ```dart
-Map<String, dynamic>? maskPasswords(Map<String, dynamic> entry) {
-  if (entry.containsKey('password')) {
-    entry['password'] = '***';
-  }
+// For redaction itself, prefer `redactKeys()` above — this is only safe
+// because it assigns at the top level, which is a fresh copy per entry.
+Map<String, dynamic>? tagEnvironment(Map<String, dynamic> entry) {
+  entry['env'] = 'staging';
   return entry;
 }
 
 StructlogConfiguration.configure(
-  processors: [dropNullValues, maskPasswords],
+  processors: [dropNullValues, tagEnvironment],
 );
 ```
 
@@ -366,7 +425,7 @@ Processor order matters — they run sequentially:
 ```dart
 processors: [
   dropNullValues,      // 1. Clean nulls
-  maskPasswords,       // 2. Mask secrets
+  redactKeys(),        // 2. Mask secrets
   addCorrelationId,    // 3. Enrich
 ]
 ```

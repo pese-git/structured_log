@@ -81,6 +81,20 @@ StructlogConfiguration.configure(sinks: [
 ]);
 ```
 
+Если в записи могут попадать учётные данные — карта заголовков, тело
+запроса, дамп конфигурации, — поставьте процессор затирания сразу при
+настройке: секрет, дошедший до sink'а, уже утёк.
+
+```dart
+StructlogConfiguration.configure(
+  processors: [redactKeys(), dropNullValues],  // до любого рендерера
+);
+```
+
+`redactKeys()` заменяет `password`, `token`, `authorization` и остальные
+имена из `defaultSensitiveKeys` на любой глубине, а где их не хватает —
+принимает ваши собственные имена или предикаты.
+
 Полный API — процессоры, мульти-sink роутинг, файловый и ротируемый
 вывод — в
 [`emb/structured_log/README.md`](../../emb/structured_log/README.md).

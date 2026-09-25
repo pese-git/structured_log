@@ -353,19 +353,79 @@ sink бросает исключение, оно перехватывается 
 | `addLogLevel`    | Гарантирует наличие ключа уровня  |
 | `jsonRenderer`   | Выводит запись как JSON           |
 | `logfmtRenderer` | Выводит в формате `key=value`     |
+| `redactKeys()`   | Затирает секреты на любой глубине |
+
+### Затирание секретов
+
+`redactKeys()` заменяет значение на `***` везде, где оно встретится — на
+верхнем уровне, во вложенных картах, в списках, — а что именно заменять,
+решают три независимых критерия, по отдельности или вместе:
+
+```dart
+StructlogConfiguration.configure(
+  processors: [
+    redactKeys(),                       // defaultSensitiveKeys как есть
+    dropNullValues,
+  ],
+);
+
+// или с настройкой:
+redactKeys(
+  keys: {...defaultSensitiveKeys, 'x-internal-signature'},  // имена
+  matchesKey: (key) => key.endsWith('_token'),              // семейства имён
+  matchesValue: looksLikeJwtOrBearer,                       // само значение
+);
+```
+
+| Критерий | Что ловит | Замечание |
+|---|---|---|
+| `keys` | Имя целиком, без учёта регистра | Разделители **не** нормализуются: `card_number` не ловит `cardNumber`. Переданный набор **заменяет** `defaultSensitiveKeys`; `const {}` выключает критерий |
+| `matchesKey` | `refresh_token`, `x-api-key`, … | Пишете вы; слишком широкий предикат молча съест полезные поля |
+| `matchesValue` | Секрет под безобидным именем | Спрашивается только о `String`. `looksLikeJwtOrBearer` есть в пакете; `looksLikeCardNumber` тоже есть, но **не** в умолчаниях — длина и Лун всё равно не отличают карту от 16-значного номера заказа |
+
+Написание — острый край. `defaultSensitiveKeys` закрывает его тем, что
+перечисляет каждое составное имя трижды — `access_token`, `access-token`,
+`accesstoken`, — и последнее написание ловит `accessToken` и `AccessToken`.
+Имя, которое добавляете **вы**, покрывает одно написание, если не добавить
+его тоже трижды или не нормализовать один раз в `matchesKey`:
+
+```dart
+const sensitive = {'cardnumber', 'cvc', 'apikey'};
+redactKeys(
+  matchesKey: (key) =>
+      sensitive.contains(key.toLowerCase().replaceAll(RegExp('[_-]'), '')),
+);
+```
+
+В `defaultSensitiveKeys` лежат имена, значение которых является учётными
+данными везде (`password`, `token`, `authorization`, `cookie`, `api_key`, …,
+каждое составное — во всех трёх написаниях).
+Корреляционных полей этого пакета — `session_id`, `request_id` и остальных —
+там намеренно нет: они существуют затем, чтобы их читали.
+
+Два важных момента:
+
+- **Ставьте до любого рендерера.** `jsonRenderer` и `logfmtRenderer` печатают
+  по ходу, так что редактор после них уже опоздал.
+- **Он пересобирает, а не правит.** `BoundLogger` копирует привязанный
+  контекст поверхностно, поэтому вложенная карта в записи — **тот же объект**,
+  который держит ваш код: самописный редактор, обходящий и присваивающий,
+  забирает ваш собственный токен. `redactKeys` копирует только путь, который
+  изменил, и возвращает ту же самую карту, если ничего не совпало.
 
 ### Кастомный процессор
 
 ```dart
-Map<String, dynamic>? maskPasswords(Map<String, dynamic> entry) {
-  if (entry.containsKey('password')) {
-    entry['password'] = '***';
-  }
+// Для затирания секретов берите `redactKeys()` выше — этот пример безопасен
+// только потому, что присваивает на верхнем уровне, а он копируется на
+// каждую запись.
+Map<String, dynamic>? tagEnvironment(Map<String, dynamic> entry) {
+  entry['env'] = 'staging';
   return entry;
 }
 
 StructlogConfiguration.configure(
-  processors: [dropNullValues, maskPasswords],
+  processors: [dropNullValues, tagEnvironment],
 );
 ```
 
@@ -374,7 +434,7 @@ StructlogConfiguration.configure(
 ```dart
 processors: [
   dropNullValues,      // 1. Очистка null
-  maskPasswords,       // 2. Маскировка секретов
+  redactKeys(),        // 2. Маскировка секретов
   addCorrelationId,    // 3. Обогащение
 ]
 ```
