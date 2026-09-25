@@ -1,0 +1,13 @@
+{
+  "_comment": "Line-coverage floors, in percent, for tool/coverage_floor.dart. Each is set a little below what the package measured when the gate went in, so ordinary work does not redden a build on noise. Raise one when a package earns it; lowering one to make a build pass is the thing this file exists to make visible.",
+  "_measured_2026_09_25": "structured_log 89.0, structured_log_http 94.6, structured_log_server 91.1 (default run), structured_log_flutter 100.0, structured_log_material 98.3, structured_log_fluent 98.6, structured_log_cupertino 99.2, structured_log_admin_ui 97.5, structured_log_admin_client 88.2",
+  "structured_log": 87,
+  "structured_log_http": 92,
+  "structured_log_server": 89,
+  "structured_log_flutter": 97,
+  "structured_log_material": 96,
+  "structured_log_fluent": 96,
+  "structured_log_cupertino": 97,
+  "structured_log_admin_ui": 95,
+  "structured_log_admin_client": 86
+}

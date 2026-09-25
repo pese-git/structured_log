@@ -7,3 +7,7 @@ environment:
 
 dev_dependencies:
   melos: ^6.0.0
+  # For `test/coverage_floor_test.dart`, which covers the only code this
+  # root package holds: `tool/coverage_floor.dart`, the coverage gate CI
+  # runs for every package.
+  test: ^1.25.0
