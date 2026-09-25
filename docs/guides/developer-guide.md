@@ -143,8 +143,8 @@ curl -X POST https://logs.example.com/v1/logs \
 ```
 
 An entry is a free-form JSON object. Only `event`, `level`, and
-`timestamp` carry fixed meaning (`level` must be one of `debug`/`info`/
-`warning`/`error`/`critical`); everything else — `category`, `logger`,
+`timestamp` carry fixed meaning (`level` must be one of `trace`/`debug`/
+`info`/`warning`/`error`/`critical`); everything else — `category`, `logger`,
 the six correlation fields, and any custom key at all — is optional and
 preserved exactly as sent, byte for byte, in every later query response.
 **Don't send `id`, `project_id`, or `received_at`** — those three names
@@ -160,7 +160,7 @@ body:
 {
   "accepted": 8,
   "rejected": [
-    {"index": 3, "error": "validation_error", "message": "level: must be one of debug, info, warning, error, critical"},
+    {"index": 3, "error": "validation_error", "message": "level: must be one of trace, debug, info, warning, error, critical"},
     {"index": 7, "error": "quota_exceeded", "message": "project max_entries limit reached"}
   ]
 }

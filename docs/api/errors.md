@@ -43,6 +43,7 @@ mix on one response.
 | HTTP status | `error` code | Envelope | Where it can occur | Meaning |
 |---|---|---|---|---|
 | 400 | `invalid_request` | general | Any JSON endpoint | Malformed JSON body, or a required field is missing/wrong type |
+| 400 | `invalid_request` | general | `POST /v1/logs` | Body's top level is not a JSON array — an `{"entries": [...]}` wrapper and a lone entry object are both refused (`"Request body must be a JSON array."`); an empty array and an empty body are accepted as zero entries |
 | 400 | `invalid_request` | RFC | `DELETE /v1/auth/token` | `refresh_token` field missing from the form body |
 | 400 | `invalid_request` | RFC | `POST /v1/auth/token` | Required field missing for the given `grant_type` |
 | 400 | `unsupported_grant_type` | RFC | `POST /v1/auth/token` | `grant_type` is neither `password` nor `refresh_token` |

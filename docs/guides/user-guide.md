@@ -125,7 +125,7 @@ feed:
 | Filter | What it matches |
 |---|---|
 | Free-text search | The event name and log content |
-| Level | A minimum severity — `debug`/`info`/`warning`/`error`/`critical` — everything at or above it |
+| Level | A minimum severity — `trace`/`debug`/`info`/`warning`/`error`/`critical` — everything at or above it |
 | From / To | A time range |
 | Correlation id | Session, request, or another correlation field a developer attached when logging — click "+ correlation id" to add one |
 

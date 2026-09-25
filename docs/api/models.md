@@ -144,7 +144,7 @@ server-assigned fields, preserving whatever custom keys it contained
 | `project_id` | integer | Server-assigned, from the secret key that authenticated ingestion |
 | `received_at` | string | Server-assigned; ISO 8601, independent of client `timestamp` |
 | `event` | string | As submitted |
-| `level` | string | As submitted — one of `debug`/`info`/`warning`/`error`/`critical` |
+| `level` | string | As submitted — one of `trace`/`debug`/`info`/`warning`/`error`/`critical` |
 | `timestamp` | string | As submitted, ISO 8601 |
 | `category` | string \| null | As submitted, if present |
 | `logger` | string \| null | As submitted, if present |
@@ -263,7 +263,7 @@ happened (see [errors.md](errors.md#partial-batch-acceptance-is-not-an-error)).
 {
   "accepted": 8,
   "rejected": [
-    {"index": 3, "error": "validation_error", "message": "level: must be one of debug, info, warning, error, critical"},
+    {"index": 3, "error": "validation_error", "message": "level: must be one of trace, debug, info, warning, error, critical"},
     {"index": 7, "error": "quota_exceeded", "message": "project max_entries limit reached"}
   ]
 }
