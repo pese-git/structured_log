@@ -229,6 +229,41 @@ class HttpLogOutput {
         'must be at least 1',
       );
     }
+    // A negative Duration is a typo whose effect is invisible: the sink goes
+    // on working, quietly without the thing that was configured. Zero is
+    // left legal where it means something — `maxRetryAfter: Duration.zero`
+    // switches honouring off on purpose, and a zero backoff is "retry at
+    // once" — but not where it leaves an attempt no time to happen in.
+    if (batchTimeout.isNegative) {
+      throw ArgumentError.value(
+        batchTimeout,
+        'batchTimeout',
+        'must not be negative',
+      );
+    }
+    if (retryBackoff.isNegative) {
+      throw ArgumentError.value(
+        retryBackoff,
+        'retryBackoff',
+        'must not be negative',
+      );
+    }
+    if (maxRetryAfter.isNegative) {
+      throw ArgumentError.value(
+        maxRetryAfter,
+        'maxRetryAfter',
+        'must not be negative — Duration.zero is how honouring is switched '
+            'off, and a negative value reaches that by accident',
+      );
+    }
+    if (requestTimeout <= Duration.zero) {
+      throw ArgumentError.value(
+        requestTimeout,
+        'requestTimeout',
+        'must be greater than zero, or every attempt times out before it '
+            'leaves',
+      );
+    }
   }
 
   static Uri _logsEndpoint(String serverUrl) {

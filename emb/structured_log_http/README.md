@@ -91,6 +91,13 @@ console keeps `debug` costs nothing extra.
 | `maxRetryAfter` | `5m` | Longest `Retry-After` honoured; `Duration.zero` ignores the header |
 | `requestTimeout` | `30s` | How long one attempt may take |
 
+A value that cannot mean anything is refused with an `ArgumentError` at
+construction rather than absorbed: a buffer smaller than a batch, fewer than
+one attempt, a negative duration, a `requestTimeout` of zero. Where zero does
+mean something it stays legal — `maxRetryAfter: Duration.zero` is how
+honouring the header is switched off, and a zero `retryBackoff` is "retry at
+once".
+
 ## Behaviour worth knowing
 
 **Retry is decided by whether the answer can change.** A network failure, a

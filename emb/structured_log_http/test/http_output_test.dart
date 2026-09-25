@@ -599,6 +599,83 @@ void main() {
     });
   });
 
+  group('durations refused at construction', () {
+    // The numeric parameters were already guarded; the Durations were not,
+    // and a negative one is a typo whose effect is invisible — the sink
+    // keeps working, quietly minus the thing that was configured.
+
+    test('a negative maxRetryAfter is a typo, not a way to switch off', () {
+      // Zero means "do not honour the header" on purpose and stays legal.
+      // Negative reaches the same branch by accident, which is exactly why
+      // it must not be allowed to arrive there silently.
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          maxRetryAfter: const Duration(minutes: -5),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          maxRetryAfter: Duration.zero,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a negative retryBackoff is refused, zero is not', () {
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          retryBackoff: const Duration(milliseconds: -1),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          // "Retry at once" is a real thing to ask for, and the tests
+          // above lean on delays this short.
+          retryBackoff: Duration.zero,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a requestTimeout of zero or less is refused', () {
+      // Unlike the other two, zero is not a weaker setting here: every
+      // attempt would time out before it left, so nothing would ever be
+      // delivered.
+      for (final timeout in const [Duration.zero, Duration(seconds: -1)]) {
+        expect(
+          () => HttpLogOutput(
+            serverUrl: 'http://example.invalid',
+            projectSecretKey: 'slk_test',
+            requestTimeout: timeout,
+          ),
+          throwsArgumentError,
+          reason: '$timeout leaves no time for an attempt to happen in',
+        );
+      }
+    });
+
+    test('a negative batchTimeout is refused', () {
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          batchTimeout: const Duration(seconds: -1),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('flushed', () {
     test('sends what is still buffered rather than waiting for the timeout',
         () async {
