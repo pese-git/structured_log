@@ -215,6 +215,43 @@ void main() {
       await closeApp(tester);
     });
 
+    testWidgets('an access token that aged out while the form was open does '
+        'not cost this session', (tester) async {
+      final otherDevice = server.issueSession();
+      final harness = await pumpApp(tester, server, signedIn: true);
+      await openAccountSettings(tester);
+
+      // A session old enough that its access token expired while the reader
+      // was typing. The change then goes out on a token the server no longer
+      // accepts, and the interceptor renews — which rotates the very refresh
+      // token the body names to keep this session alive.
+      server.expireAccessTokens();
+
+      await changePassword(tester);
+
+      final held = await harness.storage.read();
+      expect(
+        server.refreshTokenIsLive(held!.refreshToken),
+        isTrue,
+        reason:
+            'the replayed body has to name the token the renewal produced, '
+            'not the one it spent — naming the spent one spares nothing and '
+            'sweeps the session that asked for the change',
+      );
+      expect(
+        server.refreshTokenIsLive(otherDevice.refreshToken),
+        isFalse,
+        reason: 'the sweep still happens; only this session is spared',
+      );
+
+      // The proof the reader would recognise: the very next screen, which
+      // needs the renewal the change just made necessary.
+      await tester.tap(find.text('Группы').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Вход в систему'), findsNothing);
+      await closeApp(tester);
+    });
+
     testWidgets('the opt-out leaves the other devices alone', (tester) async {
       final otherDevice = server.issueSession();
       await pumpApp(tester, server, signedIn: true);

@@ -51,6 +51,12 @@ class AuthInterceptor extends Interceptor {
   /// "exactly once" true even when several requests fail at the same moment.
   static const _retriedExtra = 'structured_log.retried';
 
+  /// The one body field that names a refresh token rather than carrying data:
+  /// `POST /v1/auth/change-password` puts this session's own token in it so
+  /// the server knows which session to spare when it sweeps the rest
+  /// (`log-server-forced-password-change`). See [_renameSpentRefreshToken].
+  static const _refreshTokenField = 'current_refresh_token';
+
   /// In-flight refresh, shared by every request that hit a 401 while it runs.
   /// Without this, five parallel requests would each spend the refresh token —
   /// and on a server that rotates them, four would be spending one that had
@@ -120,6 +126,16 @@ class AuthInterceptor extends Interceptor {
       return handler.next(err);
     }
 
+    // The renewal just spent `stored.refreshToken`. A body that names it
+    // would now name nothing, and the replay would ask the server to spare a
+    // token that no longer exists while it sweeps the one this session is
+    // actually holding.
+    _renameSpentRefreshToken(
+      options,
+      spent: stored.refreshToken,
+      renewed: renewed.refreshToken,
+    );
+
     try {
       final response = await _retryClient.fetch<dynamic>(
         options
@@ -132,6 +148,28 @@ class AuthInterceptor extends Interceptor {
       // refusal is about this request, not the session.
       handler.next(retryError);
     }
+  }
+
+  /// Points a body that names [spent] at [renewed] instead.
+  ///
+  /// Only `POST /v1/auth/change-password` carries such a field, and the
+  /// staleness is this interceptor's own doing: the request was built with
+  /// the token the session held, then a 401 on the way out made us rotate it
+  /// before the request had been answered. Replaying the original body would
+  /// spare a revoked token and sweep the live one — the session would come
+  /// back signed out from the one operation that is documented to survive.
+  ///
+  /// Matched on the value, not the path: a body that names some *other*
+  /// session's token means that other session, and nothing here has spent it.
+  static void _renameSpentRefreshToken(
+    RequestOptions options, {
+    required String spent,
+    required String renewed,
+  }) {
+    final body = options.data;
+    if (body is! Map) return;
+    if (body[_refreshTokenField] != spent) return;
+    body[_refreshTokenField] = renewed;
   }
 
   static bool _isExempt(RequestOptions options) =>
