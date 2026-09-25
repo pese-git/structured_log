@@ -125,6 +125,22 @@ for a registry that groups them differently from the local tags:
   --platform linux/amd64 --server-repo backend --web-repo frontend
 ```
 
+`--base-href` is the path the admin client is served under (default `/`).
+It is baked into the bundle as `<base href>`, and every script, the
+manifest and the icons are fetched relative to it — so an Ingress that
+mounts the client under a prefix, rewriting it away before the request
+reaches the pod, needs that same prefix at build time:
+
+```bash
+./build-images.sh --push harbor.example.com/structured-log --tag v1.2.3 \
+  --platform linux/amd64 --web-repo frontend --base-href /dashboard/
+```
+
+Get it wrong and the page still loads, but asks for `/flutter_bootstrap.js`
+at the root; whatever serves `/` answers 404 with an HTML page, and the
+browser reports a MIME type error rather than a missing file. The
+readiness probe does not notice — it asks for `/`, which still works.
+
 ## Secrets
 
 ```bash

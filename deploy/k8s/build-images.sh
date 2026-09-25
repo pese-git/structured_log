@@ -11,6 +11,7 @@
 #   ./build-images.sh --push … --platform linux/amd64
 #   ./build-images.sh --push … --server-repo backend --web-repo frontend
 #   ./build-images.sh --push … --tag "$(git rev-parse --short HEAD)" --tag latest
+#   ./build-images.sh --push … --base-href /dashboard/
 #
 # `--platform` matters more than it looks. Without it Docker builds for the
 # machine it runs on, and this repository is developed on Apple Silicon
@@ -34,6 +35,18 @@
 # project's own Harbor keeps them as `backend` and `frontend`) can say so
 # without the script having to know about any particular one.
 #
+# `--base-href` is the path the admin client is served under, and it is
+# baked into the bundle: `index.html` carries it as `<base href>`, and
+# every script, the manifest and the icons are fetched relative to it.
+# The default `/` fits the single-origin layout this repository ships.
+# An Ingress that mounts the client under a prefix instead (say
+# `/dashboard/`, rewriting it away before the request reaches nginx)
+# needs the same prefix here — otherwise the page itself loads, but asks
+# for `/flutter_bootstrap.js` at the root, where whatever serves `/`
+# answers 404 with an HTML page, and the browser reports a MIME type
+# error instead of a missing file. No readiness probe notices: the probe
+# asks for `/`, and that still works.
+#
 # Run from this directory. Everything it needs beyond Docker is the
 # Flutter SDK the repository already pins (via FVM) — there is no
 # official Flutter Docker image, and a third-party one is not something
@@ -53,6 +66,7 @@ load=""
 platform=""
 server_repo="structured-log-server"
 web_repo="structured-log-web"
+base_href="/"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -62,6 +76,7 @@ while [ $# -gt 0 ]; do
     --platform) platform="$2"; shift 2 ;;
     --server-repo) server_repo="$2"; shift 2 ;;
     --web-repo) web_repo="$2"; shift 2 ;;
+    --base-href) base_href="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -135,6 +150,7 @@ echo "==> building the admin client (web)"
   # a `script-src 'self'` policy. The engine is already in the bundle
   # (`build/web/canvaskit/`); this is what makes it the one that is used.
   "$FLUTTER" build web --release --no-web-resources-cdn \
+    --base-href "$base_href" \
     --dart-define=STRUCTURED_LOG_BASE_URL=
 )
 
