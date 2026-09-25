@@ -35,7 +35,7 @@
 | [lib/src/configuration.dart](../lib/src/configuration.dart) | `StructlogConfiguration` — глобальные processors/sinks/initialContext, `configure()`/`reset()`/`setSinkEnabled()` |
 | [lib/src/correlation.dart](../lib/src/correlation.dart) | `LogCorrelation` — типизированные, объединяемые correlation-поля |
 | [lib/src/sink.dart](../lib/src/sink.dart) | `LogSink` — один output-destination с фильтрацией по уровню/категории и переключателем в рантайме |
-| [lib/src/processors.dart](../lib/src/processors.dart) | typedef `Processor` + встроенные (`dropNullValues`, `addTimestamp`, `addLogLevel`, `jsonRenderer`, `logfmtRenderer`) |
+| [lib/src/processors.dart](../lib/src/processors.dart) | typedef `Processor` + встроенные (`dropNullValues`, `addTimestamp`, `addLogLevel`, `jsonRenderer`, `logfmtRenderer`, `redactKeys()`) |
 | [lib/src/formatters.dart](../lib/src/formatters.dart) | typedef `OutputFunction` + встроенные выводы (консоль, цветная консоль, файл, ротируемый файл) |
 | [lib/src/async_file_output.dart](../lib/src/async_file_output.dart) | `AsyncFileOutput`, `AsyncRotatingFileOutput` — неблокирующие аналоги синхронных файловых выводов |
 
