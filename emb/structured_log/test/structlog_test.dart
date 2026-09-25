@@ -129,6 +129,60 @@ void main() {
       expect(headers[1]['accept'], 'application/json');
     });
 
+    test('a nested map that is not Map<String, dynamic> is walked too', () {
+      // `Map<String, dynamic>` covers what `jsonDecode` and a plain literal
+      // produce, and it covered every test here — so this branch of the
+      // walk had no coverage at all until the gate said so. A map typed by
+      // its values, or keyed by anything but a string, lands here.
+      final entry = redactKeys()({
+        'by_index': <int, String>{1: 'Bearer real', 2: 'kept'},
+        'typed': <Object, Object>{'password': 'hunter2', 'user': 'bob'},
+      })!;
+
+      expect((entry['typed'] as Map)['password'], '***');
+      expect((entry['typed'] as Map)['user'], 'bob');
+      expect(
+        (entry['by_index'] as Map)[1],
+        'Bearer real',
+        reason: 'an int key names nothing, so only a value rule could match',
+      );
+    });
+
+    test('a value rule reaches into a map with no string keys', () {
+      final entry = redactKeys(
+        keys: const {},
+        matchesValue: looksLikeJwtOrBearer,
+      )({
+        'by_index': <int, String>{1: 'Bearer real', 2: 'kept'},
+      })!;
+
+      final nested = entry['by_index'] as Map;
+      expect(nested[1], '***');
+      expect(nested[2], 'kept');
+    });
+
+    test('an oddly typed map is copied, not edited in place', () {
+      // The same aliasing hazard as the `Map<String, dynamic>` branch, and
+      // it needs its own guard because it is a separate piece of code.
+      final headers = <Object, Object>{'authorization': 'Bearer real'};
+      final entry = redactKeys()({'headers': headers})!;
+
+      expect((entry['headers'] as Map)['authorization'], '***');
+      expect(
+        headers['authorization'],
+        'Bearer real',
+        reason: 'logging must not take the caller data away here either',
+      );
+    });
+
+    test('an oddly typed map with nothing to redact is not copied', () {
+      final nested = <Object, Object>{'user': 'bob'};
+      final entry = <String, dynamic>{'nested': nested};
+      final result = redactKeys()(entry);
+      expect(identical(result, entry), isTrue);
+      expect(identical(result!['nested'], nested), isTrue);
+    });
+
     test('the caller keeps its own data', () {
       // The reason this belongs in the library at all: the obvious
       // implementation walks and assigns, and `Map.from` is shallow, so a
