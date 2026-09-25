@@ -503,6 +503,86 @@ void main() {
       }
     });
 
+    test('an unparseable from or to is a 400, not an ignored filter', () async {
+      await seedLogs();
+      for (final bad in [
+        'from=yesterday',
+        'to=nope',
+        'from=',
+        // `DateTime.tryParse` does not refuse these, it rolls them over:
+        // month 13 becomes January of the next year, and February 30th
+        // becomes March 2nd. A bound the caller did not write is the same
+        // silence as a bound that was dropped.
+        'from=2026-13-40',
+        'to=2026-02-30',
+        'from=2026-06-01T25:00:00',
+      ]) {
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'GET',
+              'http://x/v1/logs?project_id=$projectId&$bad',
+              roles: _admin,
+            ),
+          ),
+          throwsA(
+            isA<ApiError>().having((e) => e.statusCode, 'statusCode', 400),
+          ),
+          reason: bad,
+        );
+      }
+    });
+
+    test('the refusal names the parameter that was wrong', () async {
+      await seedLogs();
+      await expectLater(
+        routes.router.call(
+          authenticatedRequest(
+            'GET',
+            'http://x/v1/logs?project_id=$projectId&to=nope',
+            roles: _admin,
+          ),
+        ),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.code, 'code', 'invalid_request')
+              .having((e) => e.details?['field'], 'details.field', 'to'),
+        ),
+      );
+    });
+
+    test('a usable from still filters, and is not merely tolerated', () async {
+      final old = DateTime.utc(2026, 1, 1);
+      final recent = DateTime.utc(2026, 6, 1);
+      for (final (event, at) in [('old', old), ('recent', recent)]) {
+        await logStore.insertBatch(projectId, [
+          LogEntriesCompanion.insert(
+            projectId: 0,
+            receivedAt: at,
+            timestamp: at,
+            level: 'info',
+            event: event,
+            sizeBytes: 1,
+            contextJson: '{"event":"$event","level":"info"}',
+          ),
+        ]);
+      }
+
+      final response = await routes.router.call(
+        authenticatedRequest(
+          'GET',
+          'http://x/v1/logs?project_id=$projectId'
+              '&from=${DateTime.utc(2026, 3, 1).toIso8601String()}',
+          roles: _admin,
+        ),
+      );
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final events = (body['items'] as List)
+          .map((e) => (e as Map)['event'])
+          .toList();
+      expect(events, ['recent'], reason: 'the range must still be applied');
+    });
+
     test('a full last page carries no cursor', () async {
       await seedLogs();
       final response = await routes.router.call(

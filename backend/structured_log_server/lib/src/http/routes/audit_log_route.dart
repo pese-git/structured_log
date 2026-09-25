@@ -11,6 +11,7 @@ import '../../storage/audit_query.dart';
 import '../../storage/database.dart';
 import '../json_response.dart';
 import '../page_request.dart';
+import '../time_range.dart';
 import '../principal_middleware.dart';
 
 part 'audit_log_route.g.dart';
@@ -69,6 +70,7 @@ class AuditLogRoutes {
 
     final params = request.url.queryParameters;
     final paging = parsePageRequest(params);
+    final range = parseTimeRange(params);
 
     AuditAction? action;
     final rawAction = params['action'];
@@ -97,10 +99,8 @@ class AuditLogRoutes {
         targetId: params['target_id'] != null
             ? int.tryParse(params['target_id']!)
             : null,
-        from: params['from'] != null
-            ? DateTime.tryParse(params['from']!)
-            : null,
-        to: params['to'] != null ? DateTime.tryParse(params['to']!) : null,
+        from: range.from,
+        to: range.to,
         limit: paging.limit,
         cursor: paging.cursor,
       ),

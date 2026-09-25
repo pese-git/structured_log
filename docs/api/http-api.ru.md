@@ -133,7 +133,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `project_id` **либо** `group_id` | integer | Ровно один обязателен |
 | `level` | string | Минимальный уровень (включительно) |
 | `category`, `logger` | string | Точное совпадение |
-| `from`, `to` | ISO 8601 | Диапазон по `timestamp` |
+| `from`, `to` | ISO 8601 | Диапазон по `timestamp`. Значение, которое не читается, или значение с несуществующими компонентами (`2026-13-01`, `2026-02-30`) — `400 invalid_request`, а не отброшенный фильтр |
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Точное совпадение |
 | `q` | string | Полнотекстовый, по `event` и содержимому |
 | `context.<key>` | string | Точное совпадение по произвольному полю, например `context.order_id=ord_44821`. Ключ с точками адресует вложенный объект (`context.order.id`). Пустой сегмент в ключе недопустим — `context.`, `context..x`, `context..` и завершающая точка (`context.a.`) отвечают `400 invalid_request` |
@@ -141,7 +141,7 @@ Auth: `Authorization: Bearer <access-token>`.
 
 **Ответ `200`:** `{"items": [LogEntry], "next_cursor": строка \| null}` — см. [models.md#logentry](models.ru.md#logentry). Без `cursor` — `items` упорядочены сначала новые по `id`; `cursor` продвигает выборку к более ранним записям.
 
-**Ошибки:** `403 forbidden` (нет гранта на область), `403 project_blocked` (только при прямом `project_id` — запрос по `group_id` молча исключает записи заблокированного проекта), `404 not_found` (`project_id`/`group_id` не существует).
+**Ошибки:** `400 invalid_request` (нечитаемые `from`/`to`, `limit`/`cursor` или `context.<key>` с пустым сегментом), `403 forbidden` (нет гранта на область), `403 project_blocked` (только при прямом `project_id` — запрос по `group_id` молча исключает записи заблокированного проекта), `404 not_found` (`project_id`/`group_id` не существует).
 
 ```bash
 curl -G http://localhost:8080/v1/logs \
@@ -777,11 +777,11 @@ curl -X DELETE http://localhost:8080/v1/projects/7/secret-keys/15 -H "Authorizat
 
 Auth: `Authorization: Bearer <access-token>`. Роль: только `admin`.
 
-**Query-параметры:** `actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`, `limit`, `cursor`.
+**Query-параметры:** `actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`, `limit`, `cursor`. Неизвестный `action` и нечитаемые `from`/`to` дают `400 invalid_request`, а не пустую страницу: в журнале, отвечающем на вопрос «было ли это», «записей нет» и «вы опечатались» не должны выглядеть одинаково.
 
 **Ответ `200`:** `{"items": [AuditLogEntry], "next_cursor": string \| null, "audit_retention_days": integer \| null, "auth_event_retention_days": integer \| null}` — два поля срока хранения сообщают действующую политику (`null` = хранится без ограничения срока), поэтому пустой результат за её пределами объясняет сам себя ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md#аудит-лог-log-server-audit)).
 
-**Ошибки:** `403 forbidden`.
+**Ошибки:** `400 invalid_request` (неизвестный `action`, нечитаемые `from`/`to`, `limit`/`cursor`), `403 forbidden`.
 
 Эндпоинта, удаляющего записи аудита, не существует ни для какой роли, а сроки хранения задаются конфигурацией сервера, а не через API — администратор является субъектом этого журнала, а не его владельцем. Записи исчезают только по настроенной оператором политике, и каждый проход очистки, что-то удаливший, оставляет после себя запись `audit.purged`.
 
