@@ -150,6 +150,42 @@ void main() {
       );
     });
 
+    test('an unparseable from or to is refused on the same grounds', () async {
+      // Same argument as the unknown action above, and this journal already
+      // makes it: a date nobody can read was silently dropped, so the answer
+      // covered all of time while reading as though it covered the period
+      // asked for.
+      for (final bad in ['from=yesterday', 'to=2026-13-40', 'from=']) {
+        await expectLater(
+          routes.router.call(
+            authenticatedRequest(
+              'GET',
+              'http://x/v1/audit-log?$bad',
+              roles: _admin,
+            ),
+          ),
+          throwsA(
+            isA<ApiError>()
+                .having((e) => e.statusCode, 'statusCode', 400)
+                .having((e) => e.code, 'code', 'invalid_request'),
+          ),
+          reason: bad,
+        );
+      }
+    });
+
+    test('a usable range still narrows the journal', () async {
+      final all = itemsOf(await query());
+      expect(all, hasLength(3), reason: 'the fixture is what it was');
+
+      final future = DateTime.now().toUtc().add(const Duration(days: 1));
+      expect(
+        itemsOf(await query('?from=${future.toIso8601String()}')),
+        isEmpty,
+        reason: 'a range in the future must exclude what was written now',
+      );
+    });
+
     test('the newest record comes first', () async {
       final items = itemsOf(await query());
       expect((items.first! as Map)['action'], 'secret_key.revoked');
@@ -243,6 +279,9 @@ void main() {
       // limit is wrong: the second answer would confirm the route exists and
       // is worth calling to someone who has no business with it.
       await expectStatus('?limit=0', 403, roles: ownerOf(1));
+      // The same holds for a bound the route now refuses: it is parsed
+      // beside the paging, which is to say after the role has been checked.
+      await expectStatus('?from=yesterday', 403, roles: ownerOf(1));
     });
 
     test('a limit above the ceiling is served at the ceiling', () async {

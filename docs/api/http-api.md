@@ -138,7 +138,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `project_id` **xor** `group_id` | integer | Exactly one required |
 | `level` | string | Minimum level (inclusive) |
 | `category`, `logger` | string | Exact match |
-| `from`, `to` | ISO 8601 | Range on `timestamp` |
+| `from`, `to` | ISO 8601 | Range on `timestamp`. A value that cannot be read, or one whose components do not exist (`2026-13-01`, `2026-02-30`), is `400 invalid_request` — not a dropped filter |
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Exact match |
 | `q` | string | Full-text, matched against `event` and content |
 | `context.<key>` | string | Exact match on a custom field, e.g. `context.order_id=ord_44821`. A dotted key reaches into a nested object (`context.order.id`). The key may not have an empty segment — `context.`, `context..x`, `context..` and a trailing dot (`context.a.`) are `400 invalid_request` |
@@ -146,7 +146,7 @@ Auth: `Authorization: Bearer <access-token>`.
 
 **Response `200`:** `{"items": [LogEntry], "next_cursor": string \| null}` — see [models.md#logentry](models.md#logentry). Without `cursor`, `items` is ordered newest-first by `id`; `cursor` advances toward older entries.
 
-**Errors:** `403 forbidden` (no grant covering the scope), `403 project_blocked` (direct `project_id` only — a `group_id` query silently drops the blocked project's entries instead), `404 not_found` (`project_id`/`group_id` doesn't exist).
+**Errors:** `400 invalid_request` (an unreadable `from`/`to`, `limit`/`cursor`, or a `context.<key>` with an empty segment), `403 forbidden` (no grant covering the scope), `403 project_blocked` (direct `project_id` only — a `group_id` query silently drops the blocked project's entries instead), `404 not_found` (`project_id`/`group_id` doesn't exist).
 
 ```bash
 curl -G http://localhost:8080/v1/logs \
@@ -778,11 +778,11 @@ See [quotas-and-audit.md](../architecture/quotas-and-audit.md#audit-log-log-serv
 
 Auth: `Authorization: Bearer <access-token>`. Role: `admin` only — not `owner`.
 
-**Query parameters:** `actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`, `limit`, `cursor`.
+**Query parameters:** `actor_user_id`, `action`, `target_type`, `target_id`, `from`, `to`, `limit`, `cursor`. An unknown `action` and an unreadable `from`/`to` are both `400 invalid_request` rather than an empty page: in a journal answering "did this happen", "no records" and "you misspelled it" must not look alike.
 
 **Response `200`:** `{"items": [AuditLogEntry], "next_cursor": string \| null, "audit_retention_days": integer \| null, "auth_event_retention_days": integer \| null}` — the two retention fields report the policy in force (`null` = kept indefinitely), so an empty result outside the window explains itself ([quotas-and-audit.md](../architecture/quotas-and-audit.md#audit-log-log-server-audit)).
 
-**Errors:** `403 forbidden`.
+**Errors:** `400 invalid_request` (unknown `action`, unreadable `from`/`to`, `limit`/`cursor`), `403 forbidden`.
 
 There is no endpoint that deletes audit entries, for any role, and the retention periods are set in the server's configuration rather than through the API — an admin is a subject of this log, not its owner. Entries disappear only through the operator's configured policy, and each purge that removed anything leaves an `audit.purged` entry behind.
 

@@ -12,6 +12,7 @@ import '../../storage/log_store.dart';
 import '../../storage/query.dart';
 import '../json_response.dart';
 import '../page_request.dart';
+import '../time_range.dart';
 import '../log_query_params.dart';
 import '../request_helpers.dart';
 import '../principal_middleware.dart';
@@ -123,6 +124,7 @@ class LogRoutes {
     final scope = await resolveLogScope(_db, _authorizer, identity, params);
     final filter = parseLogFilter(params);
     final paging = parsePageRequest(params);
+    final range = parseTimeRange(params);
 
     if (scope.projectIds.isEmpty) {
       return jsonOk({'items': <Object?>[], 'next_cursor': null});
@@ -132,10 +134,8 @@ class LogRoutes {
       LogQuery(
         projectIds: scope.projectIds,
         filter: filter,
-        from: params['from'] != null
-            ? DateTime.tryParse(params['from']!)
-            : null,
-        to: params['to'] != null ? DateTime.tryParse(params['to']!) : null,
+        from: range.from,
+        to: range.to,
         limit: paging.limit,
         cursor: paging.cursor,
       ),
