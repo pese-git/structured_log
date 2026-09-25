@@ -43,6 +43,7 @@ token-эндпоинт никогда не использует `message`/`detai
 | HTTP-статус | Код `error` | Конверт | Где встречается | Значение |
 |---|---|---|---|---|
 | 400 | `invalid_request` | общий | Любой JSON-эндпоинт | Некорректный JSON, или обязательное поле отсутствует/неверного типа |
+| 400 | `invalid_request` | общий | `POST /v1/logs` | Верхний уровень тела не JSON-массив — отклоняются и обёртка `{"entries": [...]}`, и одиночный объект записи (`"Request body must be a JSON array."`); пустой массив и пустое тело допустимы и считаются нулём записей |
 | 400 | `invalid_request` | RFC | `DELETE /v1/auth/token` | Поле `refresh_token` отсутствует в form-теле |
 | 400 | `invalid_request` | RFC | `POST /v1/auth/token` | Обязательное поле отсутствует для данного `grant_type` |
 | 400 | `unsupported_grant_type` | RFC | `POST /v1/auth/token` | `grant_type` не `password` и не `refresh_token` |

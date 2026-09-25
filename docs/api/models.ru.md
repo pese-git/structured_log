@@ -145,7 +145,7 @@
 | `project_id` | integer | Назначается сервером, из ключа, аутентифицировавшего приём |
 | `received_at` | string | Назначается сервером; ISO 8601, независимо от клиентского `timestamp` |
 | `event` | string | Как отправлено |
-| `level` | string | Как отправлено — одно из `debug`/`info`/`warning`/`error`/`critical` |
+| `level` | string | Как отправлено — одно из `trace`/`debug`/`info`/`warning`/`error`/`critical` |
 | `timestamp` | string | Как отправлено, ISO 8601 |
 | `category` | string \| null | Как отправлено, если было |
 | `logger` | string \| null | Как отправлено, если было |
@@ -264,7 +264,7 @@
 {
   "accepted": 8,
   "rejected": [
-    {"index": 3, "error": "validation_error", "message": "level: must be one of debug, info, warning, error, critical"},
+    {"index": 3, "error": "validation_error", "message": "level: must be one of trace, debug, info, warning, error, critical"},
     {"index": 7, "error": "quota_exceeded", "message": "project max_entries limit reached"}
   ]
 }

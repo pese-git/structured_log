@@ -98,14 +98,23 @@ the header both schemes share. Presenting an access token here answers
 [models.md#logentry](models.md#logentry). No wrapper object; the array
 is the entire body.
 
+Both natural guesses are refused, with `400 invalid_request` and
+`"Request body must be a JSON array."`: a wrapper such as
+`{"entries": [...]}`, which most batch APIs would take, and a single
+entry object sent on its own without the enclosing array. Wrap one
+entry as a one-element array. An empty array and an empty body are
+both valid, and accepted as zero entries.
+
 **Response `202`:** [Ingestion response](models.md#ingestion-response)
 — always `202` if the request itself is well-formed/authenticated/
 under the size limit and the project isn't blocked, even if every entry
 was rejected; see [errors.md](errors.md#partial-batch-acceptance-is-not-an-error).
 
-**Errors:** `401 unauthorized` (bad/unknown/revoked key), `403
-project_blocked`, `413 payload_too_large`. Per-entry `validation_error`/
-`quota_exceeded` are reported inside the `202` body, not as HTTP errors.
+**Errors:** `400 invalid_request` (body is not a JSON array, or is
+not valid JSON at all), `401 unauthorized` (bad/unknown/revoked key),
+`403 project_blocked`, `413 payload_too_large`. Per-entry
+`validation_error`/`quota_exceeded` are reported inside the `202` body,
+not as HTTP errors.
 
 ```bash
 curl -X POST http://localhost:8080/v1/logs \

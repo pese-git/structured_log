@@ -148,7 +148,7 @@ curl -X POST https://logs.example.com/v1/logs \
 
 Запись — произвольный JSON-объект. Фиксированный смысл несут только
 `event`, `level` и `timestamp` (`level` обязан быть одним из
-`debug`/`info`/`warning`/`error`/`critical`); всё остальное —
+`trace`/`debug`/`info`/`warning`/`error`/`critical`); всё остальное —
 `category`, `logger`, шесть полей корреляции и любой произвольный ключ
 — опционально и сохраняется в точности как отправлено, байт в байт, в
 каждом последующем ответе на запрос. **Не отправляйте `id`,
@@ -163,7 +163,7 @@ curl -X POST https://logs.example.com/v1/logs \
 {
   "accepted": 8,
   "rejected": [
-    {"index": 3, "error": "validation_error", "message": "level: must be one of debug, info, warning, error, critical"},
+    {"index": 3, "error": "validation_error", "message": "level: must be one of trace, debug, info, warning, error, critical"},
     {"index": 7, "error": "quota_exceeded", "message": "project max_entries limit reached"}
   ]
 }
