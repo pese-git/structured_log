@@ -120,7 +120,10 @@ class AuditQueryPage {
       'ORDER BY id DESC '
       'LIMIT ?';
 
-  return (sql: placeholdersForDialect(sql, dialect), variables: variables);
+  return (
+    sql: placeholdersForDialect(sql, dialect, boundVariables: variables.length),
+    variables: variables,
+  );
 }
 
 /// Runs [query] and reports whether there is another page.
