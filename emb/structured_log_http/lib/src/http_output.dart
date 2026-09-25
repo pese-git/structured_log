@@ -173,27 +173,32 @@ class HttpLogOutput {
     Duration requestTimeout = const Duration(seconds: 30),
     BatchSender? sender,
     void Function(String message)? report,
-  }) =>
-      HttpLogOutput._(
-        serverUrl: serverUrl,
-        projectSecretKey: projectSecretKey,
-        batchSize: batchSize,
-        batchTimeout: batchTimeout,
-        maxBufferedEntries: maxBufferedEntries,
-        maxAttempts: maxAttempts,
-        retryBackoff: retryBackoff,
-        maxRetryAfter: maxRetryAfter,
-        requestTimeout: requestTimeout,
-        report: report,
-        ownedSender: sender != null
-            ? null
-            : _HttpBatchSender(
-                endpoint: _logsEndpoint(serverUrl),
-                projectSecretKey: projectSecretKey,
-                timeout: requestTimeout,
-              ),
-        sender: sender,
-      );
+  }) {
+    // Checked even when a `sender` replaces the transport: the field is
+    // documented as the server's base URL, and a test seam is not a reason
+    // for it to hold something that is not one.
+    final endpoint = _logsEndpoint(serverUrl);
+    return HttpLogOutput._(
+      serverUrl: serverUrl,
+      projectSecretKey: projectSecretKey,
+      batchSize: batchSize,
+      batchTimeout: batchTimeout,
+      maxBufferedEntries: maxBufferedEntries,
+      maxAttempts: maxAttempts,
+      retryBackoff: retryBackoff,
+      maxRetryAfter: maxRetryAfter,
+      requestTimeout: requestTimeout,
+      report: report,
+      ownedSender: sender != null
+          ? null
+          : _HttpBatchSender(
+              endpoint: endpoint,
+              projectSecretKey: projectSecretKey,
+              timeout: requestTimeout,
+            ),
+      sender: sender,
+    );
+  }
 
   HttpLogOutput._({
     required this.serverUrl,
@@ -266,8 +271,32 @@ class HttpLogOutput {
     }
   }
 
+  /// `<serverUrl>/v1/logs`, refusing a [serverUrl] this sender cannot send
+  /// to at all.
+  ///
+  /// Refused at construction rather than on the wire because of where the
+  /// failure lands otherwise: `HttpClient` throws `ArgumentError` from
+  /// inside the send, which is not one of the types the transport catches,
+  /// so it surfaces as "sending a batch threw" — once per batch, for the
+  /// life of the process, with every batch dropped. A URL that can never
+  /// work is a mistake in the line that wrote it.
+  ///
+  /// A missing scheme is refused rather than repaired. Prepending `https://`
+  /// would be the friendly reading, and it would also mean a sender quietly
+  /// choosing the transport for someone who meant the other one.
   static Uri _logsEndpoint(String serverUrl) {
-    final base = Uri.parse(serverUrl);
+    final base = Uri.tryParse(serverUrl);
+    if (base == null ||
+        !(base.isScheme('http') || base.isScheme('https')) ||
+        base.host.isEmpty) {
+      throw ArgumentError.value(
+        serverUrl,
+        'serverUrl',
+        'must be an http:// or https:// URL naming a host, such as '
+            'https://logs.example.com',
+      );
+    }
+
     final path = base.path.endsWith('/')
         ? '${base.path}v1/logs'
         : '${base.path}/v1/logs';
