@@ -51,7 +51,28 @@ jobs:
         run: dart analyze
 
       - name: Run tests
+        if: matrix.os != 'ubuntu-latest'
         run: dart test
+
+      # Coverage is collected on one OS only: the number does not differ by
+      # platform, and instrumenting all three would triple the cost of the
+      # slowest job for the same answer.
+      - name: Run tests with coverage
+        if: matrix.os == 'ubuntu-latest'
+        run: dart test --coverage=coverage
+
+      - name: Check coverage against its floor
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: .
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --lcov \
+            --in=emb/structured_log/coverage \
+            --out=emb/structured_log/coverage/lcov.info \
+            --report-on=lib \
+            --packages=emb/structured_log/.dart_tool/package_config.json
+          dart tool/coverage_floor.dart --package structured_log \
+            --lcov emb/structured_log/coverage/lcov.info
 
       - name: Run example
         run: dart run example/main.dart
@@ -139,12 +160,17 @@ jobs:
       # dart_test.yaml) — excluding the tag here, not setting the var, is
       # what keeps this step SQLite-only.
       - name: Run tests
-        run: dart test --exclude-tags integration --exclude-tags postgres
+        run: dart test --coverage=coverage/unit --exclude-tags integration --exclude-tags postgres
 
       # These spawn bin/server.dart as a real OS process. They are the only
       # tests that exercise anything the in-process handler can't show —
       # config resolved from a separate process's environment, SSE actually
       # reaching a socket, and shutdown behaviour on a signal.
+      # Not instrumented, on two measurements rather than taste: these run
+      # the server as a *separate process*, whose coverage the collector
+      # never sees — the whole suite adds 1.4% against the unit run's 91.1%
+      # — and under `--coverage` two of its fourteen tests failed once and
+      # passed on the next run, which is a flake bought for nothing.
       - name: Run integration tests
         run: dart test --tags integration
 
@@ -161,7 +187,30 @@ jobs:
           STRUCTURED_LOG_TEST_POSTGRES_DATABASE: postgres
           STRUCTURED_LOG_TEST_POSTGRES_USERNAME: postgres
           STRUCTURED_LOG_TEST_POSTGRES_PASSWORD: postgres
-        run: dart test --tags postgres --concurrency=1
+        run: dart test --coverage=coverage/postgres --tags postgres --concurrency=1
+
+      # Two runs, one number: the SQLite suite above and the Postgres one
+      # exercise different halves of `storage/database.dart`, and a floor
+      # meeting only the half that runs by default would ask nothing of the
+      # other. `format_coverage` reads one directory at a time, so each is
+      # rendered separately and the two reports are concatenated — a file
+      # measured by both arrives twice, and the gate merges it line by line.
+      - name: Check coverage against its floor
+        working-directory: .
+        run: |
+          dart pub global activate coverage
+          for run in unit postgres; do
+            dart pub global run coverage:format_coverage --lcov \
+              --in=backend/structured_log_server/coverage/$run \
+              --out=backend/structured_log_server/coverage/$run.info \
+              --report-on=lib \
+              --packages=backend/structured_log_server/.dart_tool/package_config.json
+          done
+          cat backend/structured_log_server/coverage/unit.info \
+            backend/structured_log_server/coverage/postgres.info \
+            > backend/structured_log_server/coverage/lcov.info
+          dart tool/coverage_floor.dart --package structured_log_server \
+            --lcov backend/structured_log_server/coverage/lcov.info
 
   e2e:
     name: End-to-end (packages/e2e)
@@ -264,8 +313,20 @@ jobs:
       - name: Analyze
         run: dart analyze
 
-      - name: Run tests
-        run: dart test
+      - name: Run tests with coverage
+        run: dart test --coverage=coverage
+
+      - name: Check coverage against its floor
+        working-directory: .
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --lcov \
+            --in=emb/structured_log_http/coverage \
+            --out=emb/structured_log_http/coverage/lcov.info \
+            --report-on=lib \
+            --packages=emb/structured_log_http/.dart_tool/package_config.json
+          dart tool/coverage_floor.dart --package structured_log_http \
+            --lcov emb/structured_log_http/coverage/lcov.info
 
   admin-client-flow:
     name: Drive the admin client in a browser
@@ -338,6 +399,33 @@ jobs:
           -d web-server
           --browser-name=chrome
 
+  tools:
+    name: Analyze & test repository tooling
+    runs-on: ubuntu-latest
+    # The workspace root is not a package anyone ships; it holds one piece
+    # of code — tool/coverage_floor.dart, the gate every other job calls —
+    # and that code decides whether builds pass, so it gets the same
+    # treatment as the packages it judges.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed tool test
+
+      - name: Analyze
+        run: dart analyze tool test
+
+      - name: Run tests
+        run: dart test
+
   site:
     name: Build the project website
     runs-on: ubuntu-latest
@@ -379,18 +467,28 @@ jobs:
         working-directory: ${{ matrix.package }}
     strategy:
       fail-fast: false
+      # `name` is the key this package has in tool/coverage_floors.json, and
+      # an entry without one is not measured: the example apps are demos
+      # whose tests exist to keep the demo compiling, and a floor on them
+      # would be a number nobody has a reason to defend.
       matrix:
-        package:
-          - emb/structured_log_flutter
-          - emb/structured_log_material
-          - emb/structured_log_material/example
-          - emb/structured_log_fluent
-          - emb/structured_log_fluent/example
-          - emb/structured_log_cupertino
-          - emb/structured_log_cupertino/example
-          - frontend/structured_log_admin_ui
-          - frontend/structured_log_admin_ui/example
-          - frontend/structured_log_admin_client
+        include:
+          - package: emb/structured_log_flutter
+            name: structured_log_flutter
+          - package: emb/structured_log_material
+            name: structured_log_material
+          - package: emb/structured_log_material/example
+          - package: emb/structured_log_fluent
+            name: structured_log_fluent
+          - package: emb/structured_log_fluent/example
+          - package: emb/structured_log_cupertino
+            name: structured_log_cupertino
+          - package: emb/structured_log_cupertino/example
+          - package: frontend/structured_log_admin_ui
+            name: structured_log_admin_ui
+          - package: frontend/structured_log_admin_ui/example
+          - package: frontend/structured_log_admin_client
+            name: structured_log_admin_client
 
     steps:
       - uses: actions/checkout@v4
@@ -426,4 +524,18 @@ jobs:
         run: flutter analyze
 
       - name: Run tests
+        if: matrix.name == ''
         run: flutter test
+
+      - name: Run tests with coverage
+        if: matrix.name != ''
+        run: flutter test --coverage
+
+      # `flutter test --coverage` writes lcov itself, so unlike the Dart
+      # jobs there is no `format_coverage` step here.
+      - name: Check coverage against its floor
+        if: matrix.name != ''
+        working-directory: .
+        run: |
+          dart tool/coverage_floor.dart --package ${{ matrix.name }} \
+            --lcov ${{ matrix.package }}/coverage/lcov.info
