@@ -18,7 +18,10 @@ void main() {
       const sql =
           'SELECT * FROM log_entries WHERE project_id IN (?, ?) '
           'AND level = ? LIMIT ?';
-      expect(placeholdersForDialect(sql, SqlDialect.sqlite), sql);
+      expect(
+        placeholdersForDialect(sql, SqlDialect.sqlite, boundVariables: 4),
+        sql,
+      );
     });
 
     test('numbers every ? sequentially for Postgres', () {
@@ -26,15 +29,71 @@ void main() {
           'SELECT * FROM log_entries WHERE project_id IN (?, ?) '
           'AND level = ? LIMIT ?';
       expect(
-        placeholdersForDialect(sql, SqlDialect.postgres),
+        placeholdersForDialect(sql, SqlDialect.postgres, boundVariables: 4),
         'SELECT * FROM log_entries WHERE project_id IN (\$1, \$2) '
         'AND level = \$3 LIMIT \$4',
       );
     });
 
+    test('a ? the caller did not bind is refused, on every dialect', () {
+      // The whole pass rests on one unwritten rule: every `?` in these
+      // fragments is a bind parameter. A `?` inside a string literal would
+      // be renumbered into `$1` on PostgreSQL and change what the query
+      // asks, while SQLite went on working — which is the shape of failure
+      // that shipped twice already (#59, #64). Counting is what turns it
+      // into a visible error, and it runs for SQLite too *because* that is
+      // where the tests run: a mistake must not wait for a Postgres-tagged
+      // case that nobody wrote.
+      for (final dialect in SqlDialect.values) {
+        expect(
+          () => placeholdersForDialect(
+            "SELECT * FROM log_entries WHERE event LIKE '%?%'",
+            dialect,
+            boundVariables: 0,
+          ),
+          throwsA(isA<StateError>()),
+          reason: '$dialect',
+        );
+      }
+    });
+
+    test('a bound variable with no ? to sit in is refused too', () {
+      for (final dialect in SqlDialect.values) {
+        expect(
+          () => placeholdersForDialect(
+            'SELECT * FROM log_entries WHERE level = ?',
+            dialect,
+            boundVariables: 2,
+          ),
+          throwsA(isA<StateError>()),
+          reason: '$dialect',
+        );
+      }
+    });
+
+    test('the refusal says what it counted', () {
+      expect(
+        () => placeholdersForDialect(
+          "SELECT '?' , ?",
+          SqlDialect.postgres,
+          boundVariables: 1,
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('2'), contains('1')),
+          ),
+        ),
+      );
+    });
+
     test('a fragment with no placeholder at all is unaffected', () {
       const sql = 'SELECT * FROM log_entries WHERE 1 = 1';
-      expect(placeholdersForDialect(sql, SqlDialect.postgres), sql);
+      expect(
+        placeholdersForDialect(sql, SqlDialect.postgres, boundVariables: 0),
+        sql,
+      );
     });
   });
 

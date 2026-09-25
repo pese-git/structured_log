@@ -70,7 +70,31 @@ class LogQueryPage {
 /// fragment these two builders produce because every `?` in them is a bind
 /// parameter — none of their literal SQL text (`ESCAPE '\\'`, table/column
 /// names, the `1 = 1` seed) contains a literal `?` of its own.
-String placeholdersForDialect(String sql, SqlDialect dialect) {
+///
+/// That last sentence used to be a promise; [boundVariables] makes it a
+/// check. A `?` inside a string literal would be renumbered into `$n` here
+/// and change what the query asks — on PostgreSQL only, while SQLite kept
+/// working and the default test run kept passing. That is the shape of
+/// failure this server has shipped twice (#59, #64), so the count is
+/// verified for **every** dialect, not only the one it would break:
+/// the mistake has to be visible where the tests actually run.
+///
+/// A [StateError] rather than an `assert`, because an assert is off in a
+/// release build — which is the build where a corrupted query would run.
+String placeholdersForDialect(
+  String sql,
+  SqlDialect dialect, {
+  required int boundVariables,
+}) {
+  final found = '?'.allMatches(sql).length;
+  if (found != boundVariables) {
+    throw StateError(
+      'A raw fragment must bind every "?" it contains: found $found, '
+      'but $boundVariables variables were bound. Either a literal "?" '
+      'reached the SQL text, or a placeholder lost its variable.\n$sql',
+    );
+  }
+
   if (dialect != SqlDialect.postgres) return sql;
   var index = 0;
   return sql.replaceAllMapped('?', (_) => '\$${++index}');
@@ -130,5 +154,8 @@ String placeholdersForDialect(String sql, SqlDialect dialect) {
       'ORDER BY id $order '
       'LIMIT ?';
 
-  return (sql: placeholdersForDialect(sql, dialect), variables: variables);
+  return (
+    sql: placeholdersForDialect(sql, dialect, boundVariables: variables.length),
+    variables: variables,
+  );
 }

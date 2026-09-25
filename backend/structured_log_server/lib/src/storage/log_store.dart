@@ -176,6 +176,7 @@ class DriftLogStore implements LogStore {
       'VALUES ${rowPlaceholders.join(', ')} '
       'RETURNING *',
       SqlDialect.postgres,
+      boundVariables: variables.length,
     );
     final rows = await _db.customWriteReturning(
       sql,
