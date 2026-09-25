@@ -69,7 +69,7 @@ jobs:
           dart pub global run coverage:format_coverage --lcov \
             --in=emb/structured_log/coverage \
             --out=emb/structured_log/coverage/lcov.info \
-            --report-on=lib \
+            --report-on=emb/structured_log/lib \
             --packages=emb/structured_log/.dart_tool/package_config.json
           dart tool/coverage_floor.dart --package structured_log \
             --lcov emb/structured_log/coverage/lcov.info
@@ -203,7 +203,7 @@ jobs:
             dart pub global run coverage:format_coverage --lcov \
               --in=backend/structured_log_server/coverage/$run \
               --out=backend/structured_log_server/coverage/$run.info \
-              --report-on=lib \
+              --report-on=backend/structured_log_server/lib \
               --packages=backend/structured_log_server/.dart_tool/package_config.json
           done
           cat backend/structured_log_server/coverage/unit.info \
@@ -323,7 +323,7 @@ jobs:
           dart pub global run coverage:format_coverage --lcov \
             --in=emb/structured_log_http/coverage \
             --out=emb/structured_log_http/coverage/lcov.info \
-            --report-on=lib \
+            --report-on=emb/structured_log_http/lib \
             --packages=emb/structured_log_http/.dart_tool/package_config.json
           dart tool/coverage_floor.dart --package structured_log_http \
             --lcov emb/structured_log_http/coverage/lcov.info
