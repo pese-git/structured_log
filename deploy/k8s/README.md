@@ -100,6 +100,23 @@ exporter that hands such an image to the local Docker daemon. That is
 also why `--platform` without `--push` is refused rather than quietly
 building something unusable.
 
+`--tag` may be given more than once. "The commit, and also `latest`" is
+one decision and two names for one image, and running the script twice
+would not give you that: two builds of the same commit are not the same
+bytes — the web bundle alone is not reproducible — so `latest` would
+point at an image nobody ever tested. Repeated `--tag` builds once and
+applies every name to it.
+
+```bash
+./build-images.sh --push registry.example.com/structured-log \
+  --platform linux/amd64 \
+  --tag "$(git rev-parse --short HEAD)" --tag latest
+```
+
+The first `--tag` is the one the closing kustomize hint quotes: a run
+tagging both a commit and `latest` means the commit, with `latest` as a
+moving alias for it.
+
 `--server-repo`/`--web-repo` name the repositories inside the registry,
 for a registry that groups them differently from the local tags:
 
@@ -107,6 +124,22 @@ for a registry that groups them differently from the local tags:
 ./build-images.sh --push harbor.example.com/structured-log --tag v1.2.3 \
   --platform linux/amd64 --server-repo backend --web-repo frontend
 ```
+
+`--base-href` is the path the admin client is served under (default `/`).
+It is baked into the bundle as `<base href>`, and every script, the
+manifest and the icons are fetched relative to it — so an Ingress that
+mounts the client under a prefix, rewriting it away before the request
+reaches the pod, needs that same prefix at build time:
+
+```bash
+./build-images.sh --push harbor.example.com/structured-log --tag v1.2.3 \
+  --platform linux/amd64 --web-repo frontend --base-href /dashboard/
+```
+
+Get it wrong and the page still loads, but asks for `/flutter_bootstrap.js`
+at the root; whatever serves `/` answers 404 with an HTML page, and the
+browser reports a MIME type error rather than a missing file. The
+readiness probe does not notice — it asks for `/`, which still works.
 
 ## Secrets
 

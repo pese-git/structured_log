@@ -10,6 +10,8 @@
 #   ./build-images.sh --push registry.example.com/structured-log --tag v1.2.3
 #   ./build-images.sh --push … --platform linux/amd64
 #   ./build-images.sh --push … --server-repo backend --web-repo frontend
+#   ./build-images.sh --push … --tag "$(git rev-parse --short HEAD)" --tag latest
+#   ./build-images.sh --push … --base-href /dashboard/
 #
 # `--platform` matters more than it looks. Without it Docker builds for the
 # machine it runs on, and this repository is developed on Apple Silicon
@@ -20,11 +22,30 @@
 # `docker push` is happy, the registry is happy, the manifest is simply for
 # the wrong machine.
 #
+# `--tag` may be given more than once, because "the commit, and also
+# `latest`" is one decision and two names for one image. Doing it in two
+# runs builds twice, and two builds of the same commit are not the same
+# bytes — the web bundle alone is not reproducible — so `latest` would
+# end up pointing at an image nobody ever tested. Repeated `--tag`
+# produces one image wearing every name.
+#
 # `--server-repo`/`--web-repo` exist because a registry's layout is the
 # registry's business: the defaults spell the names this repository uses
 # for a local build, and a registry that groups them differently (this
 # project's own Harbor keeps them as `backend` and `frontend`) can say so
 # without the script having to know about any particular one.
+#
+# `--base-href` is the path the admin client is served under, and it is
+# baked into the bundle: `index.html` carries it as `<base href>`, and
+# every script, the manifest and the icons are fetched relative to it.
+# The default `/` fits the single-origin layout this repository ships.
+# An Ingress that mounts the client under a prefix instead (say
+# `/dashboard/`, rewriting it away before the request reaches nginx)
+# needs the same prefix here — otherwise the page itself loads, but asks
+# for `/flutter_bootstrap.js` at the root, where whatever serves `/`
+# answers 404 with an HTML page, and the browser reports a MIME type
+# error instead of a missing file. No readiness probe notices: the probe
+# asks for `/`, and that still works.
 #
 # Run from this directory. Everything it needs beyond Docker is the
 # Flutter SDK the repository already pins (via FVM) — there is no
@@ -40,23 +61,32 @@ FLUTTER="$REPO_ROOT/.fvm/flutter_sdk/bin/flutter"
 CLIENT="$REPO_ROOT/frontend/structured_log_admin_client"
 
 registry=""
-tag="local"
+tags=()
 load=""
 platform=""
 server_repo="structured-log-server"
 web_repo="structured-log-web"
+base_href="/"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --push) registry="$2"; shift 2 ;;
-    --tag) tag="$2"; shift 2 ;;
+    --tag) tags+=("$2"); shift 2 ;;
     --load) load="$2"; shift 2 ;;
     --platform) platform="$2"; shift 2 ;;
     --server-repo) server_repo="$2"; shift 2 ;;
     --web-repo) web_repo="$2"; shift 2 ;;
+    --base-href) base_href="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+
+# `:local` is what the kustomize overlays name, so it stays the default —
+# but only when nothing was asked for, since appending to a list the
+# caller filled would tag every build `local` as well.
+if [ ${#tags[@]} -eq 0 ]; then
+  tags=("local")
+fi
 
 if [ -n "$registry" ] && [ -n "$load" ]; then
   echo "error: --push and --load are alternatives, not both — a pushed" >&2
@@ -93,12 +123,18 @@ if [ ! -x "$FLUTTER" ]; then
   exit 1
 fi
 
-server_image="$server_repo:$tag"
-web_image="$web_repo:$tag"
-if [ -n "$registry" ]; then
-  server_image="$registry/$server_repo:$tag"
-  web_image="$registry/$web_repo:$tag"
-fi
+# Every name each image is to be known by. The first is the one the
+# closing hints quote: a run tagging both a commit and `latest` means the
+# commit, with `latest` as the moving alias for it.
+prefix="${registry:+$registry/}"
+server_images=()
+web_images=()
+for t in "${tags[@]}"; do
+  server_images+=("${prefix}${server_repo}:${t}")
+  web_images+=("${prefix}${web_repo}:${t}")
+done
+server_image="${server_images[0]}"
+web_image="${web_images[0]}"
 
 # Same reasoning as deploy.sh: an empty base URL means the client is
 # served from the same origin as the API and every request goes out
@@ -114,6 +150,7 @@ echo "==> building the admin client (web)"
   # a `script-src 'self'` policy. The engine is already in the bundle
   # (`build/web/canvaskit/`); this is what makes it the one that is used.
   "$FLUTTER" build web --release --no-web-resources-cdn \
+    --base-href "$base_href" \
     --dart-define=STRUCTURED_LOG_BASE_URL=
 )
 
@@ -126,27 +163,37 @@ echo "==> building the admin client (web)"
 # uses — has no step in between where the image could live.
 build_image() {
   dockerfile="$1"
-  image="$2"
+  shift
+  names=("$@")
 
-  echo "==> building $image${platform:+ ($platform)}"
+  echo "==> building ${names[*]}${platform:+ ($platform)}"
+
+  args=()
+  for name in "${names[@]}"; do
+    args+=(-t "$name")
+  done
+
   if [ -n "$platform" ]; then
     docker buildx build --platform "$platform" \
-      -f "$dockerfile" -t "$image" --push "$REPO_ROOT"
+      -f "$dockerfile" "${args[@]}" --push "$REPO_ROOT"
   else
-    docker build -f "$dockerfile" -t "$image" "$REPO_ROOT"
+    docker build -f "$dockerfile" "${args[@]}" "$REPO_ROOT"
   fi
 }
 
-build_image "$REPO_ROOT/backend/structured_log_server/Dockerfile" "$server_image"
-build_image "$REPO_ROOT/frontend/structured_log_admin_client/Dockerfile" "$web_image"
+build_image "$REPO_ROOT/backend/structured_log_server/Dockerfile" \
+  "${server_images[@]}"
+build_image "$REPO_ROOT/frontend/structured_log_admin_client/Dockerfile" \
+  "${web_images[@]}"
 
 if [ -n "$registry" ]; then
   # Already in the registry when `--platform` was given: that build pushed
   # as it went, and pushing again would upload nothing and say so.
   if [ -z "$platform" ]; then
     echo "==> pushing to $registry"
-    docker push "$server_image"
-    docker push "$web_image"
+    for name in "${server_images[@]}" "${web_images[@]}"; do
+      docker push "$name"
+    done
   fi
   echo
   echo "Set these in your kustomization (images: transformer, or"
@@ -158,14 +205,16 @@ elif [ -n "$load" ]; then
     minikube)
       require minikube
       echo "==> loading into minikube"
-      minikube image load "$server_image"
-      minikube image load "$web_image"
+      for name in "${server_images[@]}" "${web_images[@]}"; do
+        minikube image load "$name"
+      done
       ;;
     kind)
       require kind
       echo "==> loading into kind"
-      kind load docker-image "$server_image"
-      kind load docker-image "$web_image"
+      for name in "${server_images[@]}" "${web_images[@]}"; do
+        kind load docker-image "$name"
+      done
       ;;
     *)
       echo "error: --load must be 'minikube' or 'kind', got '$load'" >&2
