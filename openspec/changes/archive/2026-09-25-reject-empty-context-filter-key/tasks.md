@@ -9,7 +9,7 @@
 - [x] 2.1 Reproduce the defect against a running server before the fix: `context.=x` and `context..=x` both answer `500`.
 - [x] 2.2 Confirm against a running server built from this branch: the same requests answer `400` with the envelope, while `context.user_id`, `context.a.`, `context.a b` and a Cyrillic key answer `200`.
 - [x] 2.3 `dart analyze`, `dart format --set-exit-if-changed`, `dart test --exclude-tags postgres` for `structured_log_server`.
-- [ ] 2.4 CI green on every job, including the `postgres` tag — the PostgreSQL half of this (`#>> '{}'` returning the whole document) has no local instance to check against.
+- [x] 2.4 CI green on every job, including the `postgres` tag — the PostgreSQL half of this (`#>> '{}'` returning the whole document) has no local instance to check against. Green 18/18 on #61 and again on #64, which corrected the trailing dot; the `postgres`-tagged run is part of the `structured_log_server` job, so both crossings are covered.
 
 ## 3. Documentation
 
