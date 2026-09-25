@@ -81,7 +81,7 @@ console keeps `debug` costs nothing extra.
 
 | Parameter | Default | What it controls |
 |---|---|---|
-| `serverUrl` | — | Base URL; `/v1/logs` is appended |
+| `serverUrl` | — | Base URL; `/v1/logs` is appended. Must be `http://` or `https://` and name a host |
 | `projectSecretKey` | — | Sent as `Authorization: Bearer <key>` |
 | `batchSize` | `50` | Entries that trigger a send without waiting |
 | `batchTimeout` | `5s` | How long a partial batch waits before going out |
@@ -93,7 +93,10 @@ console keeps `debug` costs nothing extra.
 
 A value that cannot mean anything is refused with an `ArgumentError` at
 construction rather than absorbed: a buffer smaller than a batch, fewer than
-one attempt, a negative duration, a `requestTimeout` of zero. Where zero does
+one attempt, a negative duration, a `requestTimeout` of zero, a `serverUrl`
+whose scheme is not `http`/`https` or that names no host. A missing scheme is
+refused rather than repaired — prepending `https://` would mean picking the
+transport on your behalf. Where zero does
 mean something it stays legal — `maxRetryAfter: Duration.zero` is how
 honouring the header is switched off, and a zero `retryBackoff` is "retry at
 once".

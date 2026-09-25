@@ -599,6 +599,74 @@ void main() {
     });
   });
 
+  group('serverUrl refused at construction', () {
+    HttpLogOutput build(String url) => HttpLogOutput(
+          serverUrl: url,
+          projectSecretKey: 'slk_test',
+        );
+
+    test('a scheme this sender cannot speak is refused', () {
+      // Today these reach `HttpClient`, which throws `ArgumentError` from
+      // inside the send — a type the transport does not catch, so it
+      // surfaces as "sending a batch threw", once per batch, for the life
+      // of the process, with every batch dropped. The configuration was
+      // wrong from the first line; this is where it should be said.
+      for (final url in [
+        'ftp://logs.example.com',
+        'ws://logs.example.com',
+        'file:///var/log',
+      ]) {
+        expect(() => build(url), throwsArgumentError, reason: url);
+      }
+    });
+
+    test('a URL with no host is refused', () {
+      for (final url in [
+        'logs.example.com',
+        'logs.example.com:8080',
+        'not a url at all',
+        '',
+        'https://',
+      ]) {
+        expect(() => build(url), throwsArgumentError, reason: url);
+      }
+    });
+
+    test('a scheme is never guessed at', () {
+      // Prepending `https://` would be the friendly repair, and it would
+      // also mean a sender that quietly picks the transport for someone
+      // who meant the other one.
+      expect(() => build('logs.example.com'), throwsArgumentError);
+    });
+
+    test('http and https are both accepted, with a port or a path', () {
+      for (final url in [
+        'http://localhost:8080',
+        'https://logs.example.com',
+        'https://logs.example.com/',
+        'https://logs.example.com:8443/ingest',
+        // Accepted because `Uri` lowercases the scheme as it parses, not
+        // because the check spells the comparison one way or the other.
+        'HTTPS://logs.example.com',
+      ]) {
+        expect(() => build(url), returnsNormally, reason: url);
+      }
+    });
+
+    test('the check applies even when a sender is supplied', () {
+      // The field is documented as the server's base URL, and a test seam
+      // is not a reason for it to hold something that is not one.
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'ftp://logs.example.com',
+          projectSecretKey: 'slk_test',
+          sender: (_) async => const BatchResult.delivered(),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('durations refused at construction', () {
     // The numeric parameters were already guarded; the Durations were not,
     // and a negative one is a typo whose effect is invisible — the sink
