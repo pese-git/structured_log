@@ -80,6 +80,34 @@ kustomize edit set image \
   structured-log-web:local=registry.example.com/structured-log/structured-log-web:v1.2.3
 ```
 
+### Building for the cluster's architecture
+
+`--platform` decides what the image is *for*, and leaving it out means
+"for whatever this machine is". That is the wrong answer whenever they
+differ — this repository is developed on Apple Silicon and deployed to
+`linux/amd64` nodes — and nothing reports it: the build succeeds, the
+push succeeds, and the node fails to start the container with `exec
+format error`, which says nothing about architecture.
+
+```bash
+./build-images.sh --push registry.example.com/structured-log --tag v1.2.3 \
+  --platform linux/amd64
+```
+
+A cross-architecture build goes out through `buildx` and pushes from the
+same command, because there is nowhere else for it to go: `buildx` has no
+exporter that hands such an image to the local Docker daemon. That is
+also why `--platform` without `--push` is refused rather than quietly
+building something unusable.
+
+`--server-repo`/`--web-repo` name the repositories inside the registry,
+for a registry that groups them differently from the local tags:
+
+```bash
+./build-images.sh --push harbor.example.com/structured-log --tag v1.2.3 \
+  --platform linux/amd64 --server-repo backend --web-repo frontend
+```
+
 ## Secrets
 
 ```bash

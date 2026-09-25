@@ -83,6 +83,33 @@ kustomize edit set image \
   structured-log-web:local=registry.example.com/structured-log/structured-log-web:v1.2.3
 ```
 
+### Сборка под архитектуру кластера
+
+`--platform` решает, **для чего** собирается образ, и его отсутствие
+означает «для того, на чём запущено». Это неверный ответ всякий раз,
+когда они расходятся — репозиторий разрабатывается на Apple Silicon, а
+разворачивается на узлы `linux/amd64`, — и никто об этом не сообщит:
+сборка проходит, пуш проходит, а узел не запускает контейнер с `exec
+format error`, где про архитектуру не сказано ни слова.
+
+```bash
+./build-images.sh --push registry.example.com/structured-log --tag v1.2.3 \
+  --platform linux/amd64
+```
+
+Межархитектурная сборка идёт через `buildx` и пушится той же командой,
+потому что деваться ей больше некуда: у `buildx` нет экспортёра, который
+отдал бы такой образ локальному демону Docker. По той же причине
+`--platform` без `--push` отклоняется, а не собирает молча непригодное.
+
+`--server-repo`/`--web-repo` задают имена репозиториев внутри registry —
+для registry, где они сгруппированы иначе, чем локальные теги:
+
+```bash
+./build-images.sh --push harbor.example.com/structured-log --tag v1.2.3 \
+  --platform linux/amd64 --server-repo backend --web-repo frontend
+```
+
 ## Секреты
 
 ```bash

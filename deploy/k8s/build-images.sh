@@ -8,6 +8,23 @@
 #   ./build-images.sh --load minikube       # build, then load into minikube
 #   ./build-images.sh --load kind           # build, then load into a kind cluster
 #   ./build-images.sh --push registry.example.com/structured-log --tag v1.2.3
+#   ./build-images.sh --push … --platform linux/amd64
+#   ./build-images.sh --push … --server-repo backend --web-repo frontend
+#
+# `--platform` matters more than it looks. Without it Docker builds for the
+# machine it runs on, and this repository is developed on Apple Silicon
+# while the clusters it deploys to are `linux/amd64` — so a push from a
+# laptop lands an arm64 image under the tag a node will try to pull, and
+# the failure surfaces as `exec format error` in a crash loop rather than
+# anything about architecture. Nothing in the pipeline would have said so:
+# `docker push` is happy, the registry is happy, the manifest is simply for
+# the wrong machine.
+#
+# `--server-repo`/`--web-repo` exist because a registry's layout is the
+# registry's business: the defaults spell the names this repository uses
+# for a local build, and a registry that groups them differently (this
+# project's own Harbor keeps them as `backend` and `frontend`) can say so
+# without the script having to know about any particular one.
 #
 # Run from this directory. Everything it needs beyond Docker is the
 # Flutter SDK the repository already pins (via FVM) — there is no
@@ -25,12 +42,18 @@ CLIENT="$REPO_ROOT/frontend/structured_log_admin_client"
 registry=""
 tag="local"
 load=""
+platform=""
+server_repo="structured-log-server"
+web_repo="structured-log-web"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --push) registry="$2"; shift 2 ;;
     --tag) tag="$2"; shift 2 ;;
     --load) load="$2"; shift 2 ;;
+    --platform) platform="$2"; shift 2 ;;
+    --server-repo) server_repo="$2"; shift 2 ;;
+    --web-repo) web_repo="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -39,6 +62,19 @@ if [ -n "$registry" ] && [ -n "$load" ]; then
   echo "error: --push and --load are alternatives, not both — a pushed" >&2
   echo "       image is pulled by the cluster from the registry; a loaded" >&2
   echo "       one never leaves the local machine, there's nothing to pull." >&2
+  exit 2
+fi
+
+# A foreign-architecture image has nowhere to go but a registry: `buildx`
+# cannot hand one to the local daemon, and a cluster on this machine runs
+# the machine's own architecture anyway. Refusing the combination here says
+# that plainly, rather than letting buildx fail further in with its own
+# wording about exporters.
+if [ -n "$platform" ] && [ -z "$registry" ]; then
+  echo "error: --platform needs --push — an image built for another" >&2
+  echo "       architecture cannot be loaded into this machine's Docker" >&2
+  echo "       daemon or into a local cluster, only pushed to a registry" >&2
+  echo "       for a node of that architecture to pull." >&2
   exit 2
 fi
 
@@ -57,11 +93,11 @@ if [ ! -x "$FLUTTER" ]; then
   exit 1
 fi
 
-server_image="structured-log-server:$tag"
-web_image="structured-log-web:$tag"
+server_image="$server_repo:$tag"
+web_image="$web_repo:$tag"
 if [ -n "$registry" ]; then
-  server_image="$registry/structured-log-server:$tag"
-  web_image="$registry/structured-log-web:$tag"
+  server_image="$registry/$server_repo:$tag"
+  web_image="$registry/$web_repo:$tag"
 fi
 
 # Same reasoning as deploy.sh: an empty base URL means the client is
@@ -81,18 +117,37 @@ echo "==> building the admin client (web)"
     --dart-define=STRUCTURED_LOG_BASE_URL=
 )
 
-echo "==> building $server_image"
-docker build -f "$REPO_ROOT/backend/structured_log_server/Dockerfile" \
-  -t "$server_image" "$REPO_ROOT"
+# One image, built the way this invocation asked for.
+#
+# With `--platform` the build goes through `buildx` and pushes from the
+# same command, because that is the only way out for a cross-architecture
+# image: `buildx` has no exporter that puts one in the local daemon, so
+# building first and pushing after — the shape the rest of this script
+# uses — has no step in between where the image could live.
+build_image() {
+  dockerfile="$1"
+  image="$2"
 
-echo "==> building $web_image"
-docker build -f "$REPO_ROOT/frontend/structured_log_admin_client/Dockerfile" \
-  -t "$web_image" "$REPO_ROOT"
+  echo "==> building $image${platform:+ ($platform)}"
+  if [ -n "$platform" ]; then
+    docker buildx build --platform "$platform" \
+      -f "$dockerfile" -t "$image" --push "$REPO_ROOT"
+  else
+    docker build -f "$dockerfile" -t "$image" "$REPO_ROOT"
+  fi
+}
+
+build_image "$REPO_ROOT/backend/structured_log_server/Dockerfile" "$server_image"
+build_image "$REPO_ROOT/frontend/structured_log_admin_client/Dockerfile" "$web_image"
 
 if [ -n "$registry" ]; then
-  echo "==> pushing to $registry"
-  docker push "$server_image"
-  docker push "$web_image"
+  # Already in the registry when `--platform` was given: that build pushed
+  # as it went, and pushing again would upload nothing and say so.
+  if [ -z "$platform" ]; then
+    echo "==> pushing to $registry"
+    docker push "$server_image"
+    docker push "$web_image"
+  fi
   echo
   echo "Set these in your kustomization (images: transformer, or"
   echo "'kustomize edit set image'):"
