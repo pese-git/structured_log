@@ -274,6 +274,182 @@ void main() {
     });
   });
 
+  group('Retry-After', () {
+    test('the named delay replaces the backoff for that attempt', () async {
+      final at = <DateTime>[];
+      final output = HttpLogOutput(
+        serverUrl: 'http://example.invalid',
+        projectSecretKey: 'slk_test',
+        batchSize: 1,
+        maxAttempts: 2,
+        // Small enough that a backoff-driven retry would be unmistakable.
+        retryBackoff: const Duration(milliseconds: 1),
+        sender: (_) async {
+          at.add(DateTime.now());
+          return const BatchResult.retryable(
+            'HTTP 429',
+            retryAfter: Duration(milliseconds: 150),
+          );
+        },
+        report: (_) {},
+      );
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(at, hasLength(2));
+      expect(
+        at[1].difference(at[0]),
+        greaterThanOrEqualTo(const Duration(milliseconds: 140)),
+        reason: 'the refusal named a moment; the backoff must not undercut it',
+      );
+    });
+
+    test('the wait holds the next batch too, not just the refused one',
+        () async {
+      // `maxAttempts: 1` leaves the refused batch no retry at all, so
+      // anything waited here is waited on behalf of what comes after — the
+      // point of the header: a limiter saying "not before T" is talking
+      // about the connection, not about one batch.
+      final at = <DateTime>[];
+      final output = HttpLogOutput(
+        serverUrl: 'http://example.invalid',
+        projectSecretKey: 'slk_test',
+        batchSize: 1,
+        maxAttempts: 1,
+        retryBackoff: const Duration(milliseconds: 1),
+        sender: (_) async {
+          at.add(DateTime.now());
+          return at.length == 1
+              ? const BatchResult.retryable(
+                  'HTTP 429',
+                  retryAfter: Duration(milliseconds: 150),
+                )
+              : const BatchResult.delivered();
+        },
+        report: (_) {},
+      );
+
+      output(entry('one'), LogLevel.info);
+      output(entry('two'), LogLevel.info);
+      await output.flushed;
+
+      expect(at, hasLength(2));
+      expect(
+        at[1].difference(at[0]),
+        greaterThanOrEqualTo(const Duration(milliseconds: 140)),
+        reason: 'the second batch went out before the named moment',
+      );
+    });
+
+    test('a delay past maxRetryAfter is clamped, and said out loud', () async {
+      final reports = <String>[];
+      final at = <DateTime>[];
+      final output = HttpLogOutput(
+        serverUrl: 'http://example.invalid',
+        projectSecretKey: 'slk_test',
+        batchSize: 1,
+        maxAttempts: 2,
+        retryBackoff: const Duration(milliseconds: 1),
+        maxRetryAfter: const Duration(milliseconds: 100),
+        sender: (_) async {
+          at.add(DateTime.now());
+          return const BatchResult.retryable(
+            'HTTP 429',
+            retryAfter: Duration(seconds: 30),
+          );
+        },
+        report: reports.add,
+      );
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(at, hasLength(2));
+      final waited = at[1].difference(at[0]);
+      expect(waited, greaterThanOrEqualTo(const Duration(milliseconds: 90)));
+      expect(
+        waited,
+        lessThan(const Duration(seconds: 5)),
+        reason: '30 seconds was asked for, and obeying it would stall the sink',
+      );
+      expect(
+        reports.where((r) => r.contains('maxRetryAfter')),
+        isNotEmpty,
+        reason: 'ignoring what the server asked for must not be silent',
+      );
+    });
+
+    test('a zero ceiling turns honouring off rather than to zero', () async {
+      final at = <DateTime>[];
+      final output = HttpLogOutput(
+        serverUrl: 'http://example.invalid',
+        projectSecretKey: 'slk_test',
+        batchSize: 1,
+        maxAttempts: 2,
+        retryBackoff: const Duration(milliseconds: 60),
+        maxRetryAfter: Duration.zero,
+        sender: (_) async {
+          at.add(DateTime.now());
+          return const BatchResult.retryable(
+            'HTTP 429',
+            retryAfter: Duration(seconds: 30),
+          );
+        },
+        report: (_) {},
+      );
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(at, hasLength(2));
+      final waited = at[1].difference(at[0]);
+      expect(
+        waited,
+        greaterThanOrEqualTo(const Duration(milliseconds: 50)),
+        reason: 'the backoff still stands — the header is what was dropped',
+      );
+      expect(waited, lessThan(const Duration(seconds: 5)));
+    });
+
+    test('close() does not sit out a wait the process will not see', () async {
+      final reports = <String>[];
+      var attempts = 0;
+      final output = HttpLogOutput(
+        serverUrl: 'http://example.invalid',
+        projectSecretKey: 'slk_test',
+        batchSize: 1,
+        maxAttempts: 1,
+        sender: (_) async {
+          attempts++;
+          return const BatchResult.retryable(
+            'HTTP 429',
+            retryAfter: Duration(seconds: 30),
+          );
+        },
+        report: reports.add,
+      );
+
+      output(entry('one'), LogLevel.info);
+      output(entry('two'), LogLevel.info);
+      final started = DateTime.now();
+      await output.close();
+
+      expect(
+        DateTime.now().difference(started),
+        lessThan(const Duration(seconds: 5)),
+        reason: 'a process on its way out must not hang on a 30s Retry-After',
+      );
+      expect(
+        attempts,
+        1,
+        reason:
+            'the gate still holds during close — it is abandoned, not ignored',
+      );
+      expect(reports.join('\n'), contains('at exit'));
+    });
+  });
+
   group('non-retryable answers', () {
     test('a rejection is reported once and never retried', () async {
       final reports = <String>[];
@@ -423,6 +599,83 @@ void main() {
     });
   });
 
+  group('durations refused at construction', () {
+    // The numeric parameters were already guarded; the Durations were not,
+    // and a negative one is a typo whose effect is invisible — the sink
+    // keeps working, quietly minus the thing that was configured.
+
+    test('a negative maxRetryAfter is a typo, not a way to switch off', () {
+      // Zero means "do not honour the header" on purpose and stays legal.
+      // Negative reaches the same branch by accident, which is exactly why
+      // it must not be allowed to arrive there silently.
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          maxRetryAfter: const Duration(minutes: -5),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          maxRetryAfter: Duration.zero,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a negative retryBackoff is refused, zero is not', () {
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          retryBackoff: const Duration(milliseconds: -1),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          // "Retry at once" is a real thing to ask for, and the tests
+          // above lean on delays this short.
+          retryBackoff: Duration.zero,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a requestTimeout of zero or less is refused', () {
+      // Unlike the other two, zero is not a weaker setting here: every
+      // attempt would time out before it left, so nothing would ever be
+      // delivered.
+      for (final timeout in const [Duration.zero, Duration(seconds: -1)]) {
+        expect(
+          () => HttpLogOutput(
+            serverUrl: 'http://example.invalid',
+            projectSecretKey: 'slk_test',
+            requestTimeout: timeout,
+          ),
+          throwsArgumentError,
+          reason: '$timeout leaves no time for an attempt to happen in',
+        );
+      }
+    });
+
+    test('a negative batchTimeout is refused', () {
+      expect(
+        () => HttpLogOutput(
+          serverUrl: 'http://example.invalid',
+          projectSecretKey: 'slk_test',
+          batchTimeout: const Duration(seconds: -1),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
   group('flushed', () {
     test('sends what is still buffered rather than waiting for the timeout',
         () async {
@@ -473,18 +726,33 @@ void main() {
   group('over a real socket', () {
     late HttpServer server;
     late List<HttpRequest> received;
+    late List<DateTime> receivedAt;
     late List<String> bodies;
     late int status;
+
+    /// Sent as `Retry-After` when set. The server this package talks to
+    /// never throttles ingestion — `rateLimitedEndpoints` is a closed list
+    /// and `POST /v1/logs` is deliberately not on it — so the header
+    /// reaches the sender from whatever sits in front of it, which is also
+    /// why both shapes RFC 9110 allows have to be read.
+    late String? retryAfter;
 
     setUp(() async {
       status = 202;
       received = [];
+      receivedAt = [];
       bodies = [];
+      retryAfter = null;
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         received.add(request);
+        receivedAt.add(DateTime.now());
         bodies.add(await utf8.decodeStream(request));
         request.response.statusCode = status;
+        final header = retryAfter;
+        if (header != null) {
+          request.response.headers.set(HttpHeaders.retryAfterHeader, header);
+        }
         await request.response.close();
       });
     });
@@ -586,6 +854,110 @@ void main() {
       await output.flushed;
 
       expect(received, hasLength(2));
+    });
+
+    test('a Retry-After in seconds is read off the wire', () async {
+      status = 429;
+      retryAfter = '1';
+      final output = HttpLogOutput(
+        serverUrl: 'http://localhost:${server.port}',
+        projectSecretKey: 'slk_secret',
+        batchSize: 1,
+        maxAttempts: 2,
+        retryBackoff: const Duration(milliseconds: 5),
+        report: (_) {},
+      );
+      addTearDown(output.close);
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(received, hasLength(2));
+      final waited = receivedAt[1].difference(receivedAt[0]);
+      expect(waited, greaterThanOrEqualTo(const Duration(milliseconds: 900)));
+      expect(
+        waited,
+        lessThan(const Duration(seconds: 4)),
+        reason: 'one second was asked for, not some multiple of it',
+      );
+    });
+
+    test('an HTTP-date is read too, since a proxy may send one', () async {
+      status = 429;
+      // Whole seconds is all the format carries, so the wait lands
+      // somewhere in 1-2s.
+      retryAfter = HttpDate.format(
+        DateTime.now().add(const Duration(seconds: 2)),
+      );
+      final output = HttpLogOutput(
+        serverUrl: 'http://localhost:${server.port}',
+        projectSecretKey: 'slk_secret',
+        batchSize: 1,
+        maxAttempts: 2,
+        retryBackoff: const Duration(milliseconds: 5),
+        report: (_) {},
+      );
+      addTearDown(output.close);
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(received, hasLength(2));
+      final waited = receivedAt[1].difference(receivedAt[0]);
+      expect(waited, greaterThanOrEqualTo(const Duration(milliseconds: 900)));
+      expect(waited, lessThan(const Duration(seconds: 5)));
+    });
+
+    test('a header that is not a delay leaves the backoff alone', () async {
+      status = 429;
+      retryAfter = 'soon';
+      final output = HttpLogOutput(
+        serverUrl: 'http://localhost:${server.port}',
+        projectSecretKey: 'slk_secret',
+        batchSize: 1,
+        maxAttempts: 2,
+        // Long enough to tell "the backoff stood" from "the header was
+        // honoured as a wait of no length", which look the same at 5ms.
+        retryBackoff: const Duration(milliseconds: 80),
+        report: (_) {},
+      );
+      addTearDown(output.close);
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(received, hasLength(2));
+      final waited = receivedAt[1].difference(receivedAt[0]);
+      expect(waited, greaterThanOrEqualTo(const Duration(milliseconds: 60)));
+      expect(waited, lessThan(const Duration(seconds: 2)));
+    });
+
+    test('a header naming now or the past leaves the backoff alone', () async {
+      status = 429;
+      retryAfter = '0';
+      final output = HttpLogOutput(
+        serverUrl: 'http://localhost:${server.port}',
+        projectSecretKey: 'slk_secret',
+        batchSize: 1,
+        maxAttempts: 2,
+        // Long enough to tell "the backoff stood" from "the header was
+        // honoured as a wait of no length", which look the same at 5ms.
+        retryBackoff: const Duration(milliseconds: 80),
+        report: (_) {},
+      );
+      addTearDown(output.close);
+
+      output(entry('e'), LogLevel.info);
+      await output.flushed;
+
+      expect(received, hasLength(2));
+      final waited = receivedAt[1].difference(receivedAt[0]);
+      expect(
+        waited,
+        greaterThanOrEqualTo(const Duration(milliseconds: 60)),
+        reason: 'nothing to wait for is not the same as a zero-length wait',
+      );
+      expect(waited, lessThan(const Duration(seconds: 2)));
     });
 
     test('an unreachable server is retried, then given up on', () async {

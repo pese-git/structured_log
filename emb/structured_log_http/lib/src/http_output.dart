@@ -25,21 +25,27 @@ class BatchResult {
   final bool retryable;
   final String? error;
 
+  /// What `Retry-After` named, when the answer carried one and it pointed
+  /// at the future. Null means nothing was said — not that zero was.
+  final Duration? retryAfter;
+
   const BatchResult.delivered()
       : delivered = true,
         retryable = false,
-        error = null;
+        error = null,
+        retryAfter = null;
 
   /// The server may yet accept this batch — a network failure, a timeout, or
   /// a 5xx.
-  const BatchResult.retryable(String this.error)
+  const BatchResult.retryable(String this.error, {this.retryAfter})
       : delivered = false,
         retryable = true;
 
   /// The server rejected the batch and will keep rejecting it — a 4xx.
   const BatchResult.rejected(String this.error)
       : delivered = false,
-        retryable = false;
+        retryable = false,
+        retryAfter = null;
 }
 
 /// A [structured_log] sink that ships entries to a `structured_log_server`
@@ -91,6 +97,18 @@ class HttpLogOutput {
   /// Delay before the second attempt; doubles for each attempt after that.
   final Duration retryBackoff;
 
+  /// Ceiling on a `Retry-After` this sink will honour. A longer one is
+  /// clamped to this and reported, and [Duration.zero] switches honouring
+  /// off entirely — the backoff then stands as it did before.
+  ///
+  /// A ceiling is needed because the header does not come from the log
+  /// server: `POST /v1/logs` is deliberately absent from its throttled
+  /// endpoints, so a `429` here was written by whatever sits in front of it,
+  /// and a misconfigured proxy answering `Retry-After: 86400` would
+  /// otherwise silence the sink for a day while the buffer evicted its way
+  /// through the outage.
+  final Duration maxRetryAfter;
+
   /// How long one HTTP attempt may take before it counts as a retryable
   /// failure.
   final Duration requestTimeout;
@@ -109,6 +127,22 @@ class HttpLogOutput {
   /// the pending chain while the buffer itself looked bounded.
   final Queue<Map<String, dynamic>> _buffer = Queue();
   Timer? _timer;
+
+  /// The moment before which nothing may go out, named by a `Retry-After`
+  /// on a refusal.
+  ///
+  /// It gates the *pump*, not the batch that was refused: a limiter saying
+  /// "not before T" is talking about the connection, and honouring it per
+  /// batch would leave the sender hammering anyway — a refused batch
+  /// exhausts its attempts, gives up, and the next one starts over at once.
+  DateTime? _quietUntil;
+  Timer? _quietTimer;
+  Completer<void>? _quietWake;
+
+  /// Whether the current episode of clamping has been announced, on the
+  /// same reasoning as [_overflowAnnounced]: a server stuck on a long
+  /// `Retry-After` would otherwise fill the console per batch.
+  var _clampAnnounced = false;
 
   /// At most one pump runs at a time, so batches never overlap and their
   /// order is the order entries were logged in.
@@ -135,6 +169,7 @@ class HttpLogOutput {
     int maxBufferedEntries = 10000,
     int maxAttempts = 4,
     Duration retryBackoff = const Duration(milliseconds: 500),
+    Duration maxRetryAfter = const Duration(minutes: 5),
     Duration requestTimeout = const Duration(seconds: 30),
     BatchSender? sender,
     void Function(String message)? report,
@@ -147,6 +182,7 @@ class HttpLogOutput {
         maxBufferedEntries: maxBufferedEntries,
         maxAttempts: maxAttempts,
         retryBackoff: retryBackoff,
+        maxRetryAfter: maxRetryAfter,
         requestTimeout: requestTimeout,
         report: report,
         ownedSender: sender != null
@@ -167,6 +203,7 @@ class HttpLogOutput {
     required this.maxBufferedEntries,
     required this.maxAttempts,
     required this.retryBackoff,
+    required this.maxRetryAfter,
     required this.requestTimeout,
     required _HttpBatchSender? ownedSender,
     required BatchSender? sender,
@@ -190,6 +227,41 @@ class HttpLogOutput {
         maxAttempts,
         'maxAttempts',
         'must be at least 1',
+      );
+    }
+    // A negative Duration is a typo whose effect is invisible: the sink goes
+    // on working, quietly without the thing that was configured. Zero is
+    // left legal where it means something — `maxRetryAfter: Duration.zero`
+    // switches honouring off on purpose, and a zero backoff is "retry at
+    // once" — but not where it leaves an attempt no time to happen in.
+    if (batchTimeout.isNegative) {
+      throw ArgumentError.value(
+        batchTimeout,
+        'batchTimeout',
+        'must not be negative',
+      );
+    }
+    if (retryBackoff.isNegative) {
+      throw ArgumentError.value(
+        retryBackoff,
+        'retryBackoff',
+        'must not be negative',
+      );
+    }
+    if (maxRetryAfter.isNegative) {
+      throw ArgumentError.value(
+        maxRetryAfter,
+        'maxRetryAfter',
+        'must not be negative — Duration.zero is how honouring is switched '
+            'off, and a negative value reaches that by accident',
+      );
+    }
+    if (requestTimeout <= Duration.zero) {
+      throw ArgumentError.value(
+        requestTimeout,
+        'requestTimeout',
+        'must be greater than zero, or every attempt times out before it '
+            'leaves',
       );
     }
   }
@@ -247,9 +319,63 @@ class HttpLogOutput {
   /// silently swallowed.
   Future<void> close() async {
     _closed = true;
+    // A wait named by the server can outlive the process that owes it. Wake
+    // the pump so it can abandon what it is holding rather than hang the
+    // shutdown — and cancel the timer, which would keep the isolate alive
+    // on its own.
+    _wakeFromQuietPeriod();
     await flushed;
     _ownedSender?.close();
   }
+
+  void _wakeFromQuietPeriod() {
+    _quietTimer?.cancel();
+    _quietTimer = null;
+    final wake = _quietWake;
+    _quietWake = null;
+    if (wake != null && !wake.isCompleted) wake.complete();
+  }
+
+  /// Waits out the moment a refusal named. Answers `false` when the wait was
+  /// abandoned because the sink is closing — the caller then drops what it
+  /// holds rather than send before a server said it could.
+  Future<bool> _passQuietPeriod() async {
+    final until = _quietUntil;
+    if (until == null) return true;
+    if (!DateTime.now().isBefore(until)) return true;
+    if (_closed) return false;
+
+    final wake = Completer<void>();
+    _quietWake = wake;
+    _quietTimer = Timer(until.difference(DateTime.now()), () {
+      if (!wake.isCompleted) wake.complete();
+    });
+    await wake.future;
+    _wakeFromQuietPeriod();
+    return !_closed || !DateTime.now().isBefore(until);
+  }
+
+  /// How long to actually wait for a [asked] the server named — [maxRetryAfter]
+  /// at most, and `null` when there is nothing to act on.
+  ///
+  /// A header naming zero or a moment already past says nothing this sink can
+  /// use, so the backoff stands rather than collapsing to an immediate retry.
+  Duration? _quietPeriodFor(Duration? asked) {
+    if (asked == null || asked <= Duration.zero) return null;
+    if (maxRetryAfter <= Duration.zero) return null;
+    if (asked <= maxRetryAfter) return asked;
+    if (!_clampAnnounced) {
+      _clampAnnounced = true;
+      _report(
+        'the server asked to wait ${_seconds(asked)} before sending again; '
+        'waiting ${_seconds(maxRetryAfter)} instead (maxRetryAfter)',
+      );
+    }
+    return maxRetryAfter;
+  }
+
+  static String _seconds(Duration d) =>
+      '${(d.inMilliseconds / 1000).toStringAsFixed(1)}s';
 
   void _startPump() {
     _timer?.cancel();
@@ -280,13 +406,26 @@ class HttpLogOutput {
           for (var i = 0; i < take; i++) _buffer.removeFirst(),
         ];
 
+        var carryOn = true;
         try {
-          await _deliver(batch);
+          carryOn = await _deliver(batch);
         } catch (error, stackTrace) {
           // One batch that blew up must not stop the ones behind it — the
           // same failure isolation `_SerializedAsyncOutput` applies per
           // write in structured_log.
           _report('sending a batch threw: $error\n$stackTrace');
+        }
+
+        if (!carryOn) {
+          final abandoned = batch.length + _buffer.length;
+          _buffer.clear();
+          final left = _quietUntil?.difference(DateTime.now()) ?? Duration.zero;
+          _report(
+            'dropped $abandoned unsent entries at exit: the server asked for '
+            'another ${_seconds(left)}, and a closing sink holds the process '
+            'for neither that nor a burst it was told not to send',
+          );
+          return;
         }
       }
     } finally {
@@ -294,31 +433,51 @@ class HttpLogOutput {
     }
   }
 
-  Future<void> _deliver(List<Map<String, dynamic>> batch) async {
+  /// Delivers [batch], retrying what may yet succeed. Answers `false` when
+  /// the pump must stop altogether — a wait the server named, abandoned
+  /// because the sink is closing.
+  Future<bool> _deliver(List<Map<String, dynamic>> batch) async {
     var delay = retryBackoff;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (!await _passQuietPeriod()) return false;
+
       final result = await _send(batch);
-      if (result.delivered) return;
+      if (result.delivered) {
+        _clampAnnounced = false;
+        return true;
+      }
 
       if (!result.retryable) {
         _report(
           'server rejected ${batch.length} entries and will not be retried: '
           '${result.error}',
         );
-        return;
+        return true;
       }
+
+      // Set before the attempt count is checked: the moment belongs to the
+      // connection, so it holds the batches behind this one even when this
+      // one has no attempts left.
+      final asked = _quietPeriodFor(result.retryAfter);
+      if (asked != null) _quietUntil = DateTime.now().add(asked);
 
       if (attempt == maxAttempts) {
         _report(
           'giving up on ${batch.length} entries after $maxAttempts attempts: '
           '${result.error}',
         );
-        return;
+        return true;
       }
 
-      await Future<void>.delayed(delay);
-      delay *= 2;
+      // A named moment is waited out by the gate at the top of the next
+      // attempt; the backoff is what stands in when nothing was named, and
+      // only then does it grow.
+      if (asked == null) {
+        await Future<void>.delayed(delay);
+        delay *= 2;
+      }
     }
+    return true;
   }
 }
 
@@ -355,11 +514,19 @@ class _HttpBatchSender {
 
       final status = response.statusCode;
       if (status >= 200 && status < 300) return const BatchResult.delivered();
-      if (status >= 500) return BatchResult.retryable('HTTP $status');
+      if (status >= 500) {
+        return BatchResult.retryable(
+          'HTTP $status',
+          retryAfter: _retryAfterOf(response),
+        );
+      }
       if (status == 408 || status == 429) {
         // Timeouts and throttling are the two 4xx answers that mean "later",
         // not "never".
-        return BatchResult.retryable('HTTP $status');
+        return BatchResult.retryable(
+          'HTTP $status',
+          retryAfter: _retryAfterOf(response),
+        );
       }
       return BatchResult.rejected('HTTP $status');
     } on TimeoutException catch (error) {
@@ -369,5 +536,32 @@ class _HttpBatchSender {
     } on HttpException catch (error) {
       return BatchResult.retryable('$error');
     }
+  }
+}
+
+/// How long `Retry-After` asks for, in both shapes RFC 9110 allows.
+///
+/// Both are read because the header does not come from the log server —
+/// ingestion is not throttled there — but from a proxy or gateway in front
+/// of it, and those send delay-seconds and HTTP-dates alike.
+///
+/// A header that is missing, unparseable, zero, or points at a moment
+/// already past answers `null`: there is nothing to wait for, which is not
+/// the same as a wait of no length, and the caller's backoff is the better
+/// answer in every one of those cases.
+Duration? _retryAfterOf(HttpClientResponse response) {
+  final header = response.headers.value(HttpHeaders.retryAfterHeader)?.trim();
+  if (header == null || header.isEmpty) return null;
+
+  final seconds = int.tryParse(header);
+  if (seconds != null) {
+    return seconds > 0 ? Duration(seconds: seconds) : null;
+  }
+
+  try {
+    final delay = HttpDate.parse(header).difference(DateTime.now());
+    return delay > Duration.zero ? delay : null;
+  } on Exception {
+    return null;
   }
 }

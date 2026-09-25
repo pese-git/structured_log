@@ -101,6 +101,12 @@ What you get for free:
 - **Retry with backoff** on network failures/timeouts/5xx, never on a
   4xx — a revoked key answers 401 forever, so retrying it only delays
   what's queued behind it.
+- **`Retry-After` is obeyed**, and the wait holds the whole sender
+  rather than the one refused batch — a limiter saying "not before T"
+  is talking about the connection. Honoured up to `maxRetryAfter`
+  (5 minutes by default), because the header comes from whatever proxy
+  sits in front of the API: the server itself never throttles
+  ingestion.
 - **Buffer eviction**: a bounded in-memory buffer drops the *oldest*
   unsent entries first if the server is unreachable for a while — an
   unbounded queue would turn a logging outage into an application
