@@ -262,6 +262,27 @@ void main() {
       );
     });
 
+    test('matching is on the whole key, spelling included', () {
+      // Only case is ignored, so a set written the way headers spell things
+      // misses the way Dart usually spells them. Pinned because it is the
+      // first thing to surprise a caller, and because the recipe below is
+      // what the docs send them to.
+      final asWritten = redactKeys(keys: {'card_number'});
+      expect(asWritten({'card_number': '4111'})!['card_number'], '***');
+      expect(asWritten({'cardNumber': '4111'})!['cardNumber'], '4111');
+
+      const sensitive = {'cardnumber'};
+      final normalised = redactKeys(
+        keys: const {},
+        matchesKey: (key) => sensitive
+            .contains(key.toLowerCase().replaceAll(RegExp('[_-]'), '')),
+      );
+      for (final spelling in ['card_number', 'cardNumber', 'card-number']) {
+        expect(normalised({spelling: '4111'})![spelling], '***',
+            reason: spelling);
+      }
+    });
+
     test('the correlation fields survive the default set', () {
       // They are the one kind of identifier this package produces for the
       // express purpose of being read back. A default that swallowed them

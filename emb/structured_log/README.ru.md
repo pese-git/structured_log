@@ -379,9 +379,23 @@ redactKeys(
 
 | Критерий | Что ловит | Замечание |
 |---|---|---|
-| `keys` | Точное имя, без учёта регистра | Переданный набор **заменяет** `defaultSensitiveKeys`; `const {}` выключает критерий |
+| `keys` | Имя целиком, без учёта регистра | Разделители **не** нормализуются: `card_number` не ловит `cardNumber`. Переданный набор **заменяет** `defaultSensitiveKeys`; `const {}` выключает критерий |
 | `matchesKey` | `refresh_token`, `x-api-key`, … | Пишете вы; слишком широкий предикат молча съест полезные поля |
 | `matchesValue` | Секрет под безобидным именем | Спрашивается только о `String`. `looksLikeJwtOrBearer` есть в пакете; `looksLikeCardNumber` тоже есть, но **не** в умолчаниях — длина и Лун всё равно не отличают карту от 16-значного номера заказа |
+
+Написание — острый край, о котором стоит знать. Имена в умолчаниях записаны
+так, как их пишут заголовки и JSON (`api_key`, `refresh_token`), а ключи карт
+в Dart обычно camelCase — и ничто эти два мира не соединяет. Перечисляйте то
+написание, которое реально в вашем коде, либо нормализуйте один раз в
+`matchesKey`:
+
+```dart
+const sensitive = {'cardnumber', 'cvc', 'apikey'};
+redactKeys(
+  matchesKey: (key) =>
+      sensitive.contains(key.toLowerCase().replaceAll(RegExp('[_-]'), '')),
+);
+```
 
 В `defaultSensitiveKeys` лежат имена, значение которых является учётными
 данными везде (`password`, `token`, `authorization`, `cookie`, …).

@@ -177,6 +177,22 @@ const defaultSensitiveKeys = <String>{
 /// - its key is in [keys] (compared without regard to case; pass `const {}`
 ///   to switch this off, and note that passing a set *replaces*
 ///   [defaultSensitiveKeys] rather than adding to it);
+///
+///   Matching is on the **whole key**, and case is the only thing ignored:
+///   separators are not normalised, so `card_number` does not catch
+///   `cardNumber` or `card-number`. That matters more than it sounds in
+///   Dart, where map keys are usually camelCase while the names above are
+///   written the way headers and JSON payloads spell them. List the
+///   spelling your code actually uses, or normalise in [matchesKey]:
+///
+///   ```dart
+///   const sensitive = {'cardnumber', 'cvc', 'apikey'};
+///   redactKeys(
+///     matchesKey: (key) => sensitive.contains(
+///       key.toLowerCase().replaceAll(RegExp('[_-]'), ''),
+///     ),
+///   );
+///   ```
 /// - [matchesKey] answers `true` for its key — for families of names a set
 ///   cannot enumerate, like `(key) => key.endsWith('_token')`;
 /// - [matchesValue] answers `true` for its value. Only `String` values are
