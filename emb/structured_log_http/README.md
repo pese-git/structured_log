@@ -88,6 +88,7 @@ console keeps `debug` costs nothing extra.
 | `maxBufferedEntries` | `10000` | Ceiling on unsent entries held in memory |
 | `maxAttempts` | `4` | Attempts per batch, including the first |
 | `retryBackoff` | `500ms` | Delay before the second attempt; doubles thereafter |
+| `maxRetryAfter` | `5m` | Longest `Retry-After` honoured; `Duration.zero` ignores the header |
 | `requestTimeout` | `30s` | How long one attempt may take |
 
 ## Behaviour worth knowing
@@ -97,6 +98,21 @@ timeout and a 5xx are retried with a doubling delay. A 4xx is not: a 401 from
 a revoked project key will answer 401 forever, and retrying it only delays
 the entries queued behind it. `408` and `429` are the exceptions — they mean
 "later", not "never".
+
+**`Retry-After` is obeyed, and it holds the whole sender.** A refusal that
+names a moment to come back at is waited out instead of the backoff, and the
+wait applies to every batch, not only the refused one — a limiter saying "not
+before T" is talking about the connection. Without that, a throttled sender
+keeps hammering: the batch exhausts its attempts, gives up, and the next one
+starts over at once. The header is not this server's, incidentally —
+ingestion is deliberately not throttled by `structured_log_server`, so a
+`429` here was written by a proxy or gateway in front of it, which is why
+both the delay-seconds and HTTP-date forms are read. A wait longer than
+`maxRetryAfter` is clamped to it and said on `stderr`; a header that is
+missing, unparseable, zero or already past leaves the backoff alone. On
+`close()` a wait still outstanding is abandoned rather than sat out — a
+process on its way out holds neither for minutes nor sends a burst it was
+told not to — and the entries it was holding are reported as dropped.
 
 **Memory is bounded, and the oldest entries lose.** If the server is
 unreachable for long enough, the buffer fills and the oldest unsent entries
