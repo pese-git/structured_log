@@ -399,6 +399,44 @@ jobs:
           -d web-server
           --browser-name=chrome
 
+  shell:
+    name: Shellcheck the deployment scripts
+    runs-on: ubuntu-latest
+    # Three scripts stand between a working tree and a running deployment —
+    # `deploy/deploy.sh` and the two under `deploy/k8s/` — and nothing
+    # checked them. They are not Dart, so no other job here looks at them;
+    # they are not run by any test, so a mistake in one waits for whoever
+    # deploys next to find it.
+    #
+    # What this catches is the class a reader skims past: an unquoted
+    # expansion that word-splits on a path with a space, a variable whose
+    # name is misspelled in one of its uses, a `[` test that means something
+    # other than it reads. Not logic — `shellcheck` has no idea what these
+    # scripts are for — and, worth saying because it was the reason this job
+    # was proposed, **not** a shell other than the one declared: the mistake
+    # that prompted it was `"$repo:latest"` typed into an interactive zsh,
+    # where `:l` is the lowercase modifier and the result is a plausible
+    # wrong name. That is valid `bash`, so `shellcheck` passes it, and every
+    # script here declares `#!/usr/bin/env bash` and is run as bash.
+    #
+    # Default severity: everything `shellcheck` reports fails the job. The
+    # three scripts are clean at that setting today, so there is no backlog
+    # to grandfather and nothing to argue about later — the first finding
+    # will be one somebody just introduced.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner image ships shellcheck; `shellcheck --version` in the log
+      # records which one, since a newer release can add a check that turns
+      # a passing script red without anyone having touched it.
+      - name: Check the scripts
+        run: |
+          shellcheck --version
+          shellcheck deploy/deploy.sh \
+                     deploy/k8s/build-images.sh \
+                     deploy/k8s/create-secrets.sh
+
   tools:
     name: Analyze & test repository tooling
     runs-on: ubuntu-latest
