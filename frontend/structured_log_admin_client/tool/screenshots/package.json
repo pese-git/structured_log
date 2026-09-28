@@ -1,0 +1,12 @@
+{
+  "name": "structured-log-admin-client-screenshots",
+  "private": true,
+  "type": "module",
+  "description": "Regenerates the user guide's screenshots by driving the admin client in a browser.",
+  "scripts": {
+    "shoot": "node shoot.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}
