@@ -6,7 +6,10 @@ import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
 import 'group_detail_cubit.dart';
-import 'resource_dialogs.dart';
+import 'dialogs/grant_access_dialog.dart';
+import 'dialogs/name_dialog.dart';
+import 'dialogs/project_quota_dialogs.dart';
+import 'dialogs/team_members_dialog.dart';
 import 'resource_failure_text.dart';
 import 'resources_section.dart';
 

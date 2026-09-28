@@ -1,6 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:structured_log_admin_client/features/resources/presentation/resource_dialogs.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/dialogs/name_dialog.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/dialogs/project_quota_dialogs.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/dialogs/secret_key_reveal_dialog.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/dialogs/team_members_dialog.dart';
 
 import '../../support/localized_app.dart';
 import 'package:structured_log_admin_client/shared/api/cursor_page.dart';

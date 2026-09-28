@@ -400,7 +400,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - **Содержимое `ContentDialog` не пишется голой `Column`.** Диалог отдаёт `content` в **loose**
   `Flexible` — это максимум высоты, а не жёсткая высота, — а `Column` по умолчанию
   `MainAxisSize.max` и забирает её целиком: диалог с одним полем и фразой стоял 876 при экране 900.
-  Либо `SingleChildScrollView` (так во всех диалогах `resource_dialogs.dart` и в настройках
+  Либо `SingleChildScrollView` (так во всех диалогах `resources/presentation/dialogs/` и в настройках
   аккаунта — заодно короткое окно прокручивается, а не переполняется), либо
   `mainAxisSize: MainAxisSize.min` (так в `AdminConfirmDialog`). Держит
   `test/features/resources/dialog_layout_test.dart`, меряющий **видимую** коробку: сам
