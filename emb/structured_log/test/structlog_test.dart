@@ -664,6 +664,138 @@ void main() {
 
       expect(File('$path.0').existsSync(), isTrue);
     });
+
+    test(
+        'a failing write on the rotating output is reported like the '
+        'plain one', () async {
+      // Same trick as the test above, for the other subclass: a path that
+      // is an existing directory can never be opened as a file. What is
+      // being held here is that the rotating output *has* its own
+      // diagnostic label — the reporting path reads it, and until now no
+      // test made that path run for this class.
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final badPath = '${dir.path}/not_a_file';
+      Directory(badPath).createSync();
+
+      final output = AsyncRotatingFileOutput(badPath, maxSizeBytes: 10);
+      StructlogConfiguration.configure(output: output);
+      getLogger().info('one');
+
+      await expectLater(output.flushed, completes);
+    });
+
+    test('an async output creates the directory it was pointed into', () async {
+      // Pointing a log file at a directory that does not exist yet is the
+      // ordinary case on a fresh machine — `logs/app.log` before anything
+      // has run — so both outputs make it rather than failing every write.
+      final root = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => root.deleteSync(recursive: true));
+
+      final plainPath = '${root.path}/made/up/plain.log';
+      final rotatingPath = '${root.path}/another/made/up/rotating.log';
+      expect(Directory('${root.path}/made').existsSync(), isFalse);
+
+      final plain = AsyncFileOutput(plainPath);
+      final rotating = AsyncRotatingFileOutput(rotatingPath);
+      expect(File(plainPath).parent.existsSync(), isTrue);
+      expect(File(rotatingPath).parent.existsSync(), isTrue);
+
+      plain({'event': 'a'}, LogLevel.info);
+      rotating({'event': 'b'}, LogLevel.info);
+      await plain.flushed;
+      await rotating.flushed;
+
+      expect(File(plainPath).readAsStringSync(), contains('"event":"a"'));
+      expect(File(rotatingPath).readAsStringSync(), contains('"event":"b"'));
+    });
+  });
+
+  group('Sync file outputs', () {
+    test('both create the directory they were pointed into', () {
+      final root = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => root.deleteSync(recursive: true));
+
+      final plainPath = '${root.path}/made/up/plain.log';
+      final rotatingPath = '${root.path}/another/made/up/rotating.log';
+      expect(Directory('${root.path}/made').existsSync(), isFalse);
+
+      final plain = fileOutput(plainPath);
+      final rotating = rotatingFileOutput(rotatingPath);
+      expect(File(plainPath).parent.existsSync(), isTrue);
+      expect(File(rotatingPath).parent.existsSync(), isTrue);
+
+      plain({'event': 'a'}, LogLevel.info);
+      rotating({'event': 'b'}, LogLevel.info);
+
+      expect(File(plainPath).readAsStringSync(), contains('"event":"a"'));
+      expect(File(rotatingPath).readAsStringSync(), contains('"event":"b"'));
+    });
+
+    test('rotation drops the oldest backup rather than keeping every one', () {
+      // `maxBackups` is a promise about disk, and it is only kept on the
+      // rotation that finds the last slot already taken — the one that
+      // deletes before it shifts. Two backups means the third rotation is
+      // the first to do it.
+      //
+      // What this test holds is the promise, not the delete: removing
+      // `oldest.deleteSync()` keeps it green on POSIX, because `rename(2)`
+      // replaces the destination anyway. The delete is there for the other
+      // side of the CI matrix — this package runs on Windows for exactly
+      // this file's sake — and a macOS run cannot tell the difference.
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/rotating.log';
+
+      final output = rotatingFileOutput(path, maxSizeBytes: 1, maxBackups: 2);
+      for (var i = 0; i < 4; i++) {
+        output({'event': 'e', 'i': i}, LogLevel.info);
+      }
+
+      expect(File('$path.0').existsSync(), isTrue);
+      expect(File('$path.1').existsSync(), isTrue);
+      expect(
+        File('$path.2').existsSync(),
+        isFalse,
+        reason: 'maxBackups: 2 means two backups, however long this runs',
+      );
+      expect(
+        File('$path.1').readAsStringSync(),
+        contains('"i":1'),
+        reason: 'the oldest entry was deleted, not shifted further along',
+      );
+    });
+  });
+
+  group('Console output', () {
+    test('every level gets its own colour, critical included', () {
+      // `critical` is the last arm of the switch and the only one no test
+      // reached; the others are here so the test says what it is really
+      // holding — a level-to-colour map, not one colour.
+      const expected = {
+        LogLevel.trace: '\x1B[90m',
+        LogLevel.debug: '\x1B[36m',
+        LogLevel.info: '\x1B[32m',
+        LogLevel.warning: '\x1B[33m',
+        LogLevel.error: '\x1B[31m',
+        LogLevel.critical: '\x1B[35m',
+      };
+
+      for (final entry in expected.entries) {
+        final lines = <String>[];
+        runZoned(
+          () => coloredConsoleOutput({
+            'event': 'e',
+            'level': entry.key.name,
+          }, entry.key),
+          zoneSpecification: ZoneSpecification(
+            print: (self, parent, zone, line) => lines.add(line),
+          ),
+        );
+
+        expect(lines.single, startsWith(entry.value), reason: '${entry.key}');
+      }
+    });
   });
 }
 
