@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -85,6 +86,71 @@ void main() {
       final result = dropNullValues(entry);
       expect(result, isNotNull);
       expect(result!.containsKey('b'), isFalse);
+    });
+
+    test('addTimestamp stamps an entry that has none', () {
+      final entry = <String, dynamic>{'event': 'custom'};
+      final result = addTimestamp(entry)!;
+
+      expect(identical(result, entry), isTrue, reason: 'it works in place');
+      expect(
+        DateTime.tryParse(result['timestamp'] as String),
+        isNotNull,
+        reason: 'the value has to be a timestamp, not just a string',
+      );
+    });
+
+    test('addTimestamp leaves an existing timestamp alone', () {
+      // The reason it can sit anywhere in a pipeline: `BoundLogger` has
+      // already stamped every entry it produces, and a processor that
+      // restamped would move the moment the caller logged to the moment the
+      // pipeline reached this line.
+      final entry = <String, dynamic>{'timestamp': '2020-01-01T00:00:00.000'};
+      expect(addTimestamp(entry)!['timestamp'], '2020-01-01T00:00:00.000');
+    });
+
+    test('addLogLevel adds nothing — it is a no-op, despite the name', () {
+      // Documented as a no-op: `level` is set by `BoundLogger.tryLog` before
+      // any processor runs, and this exists so a `processors:` list can say
+      // so out loud. Pinned because the name promises the opposite.
+      final entry = <String, dynamic>{'event': 'e'};
+      final result = addLogLevel(entry)!;
+
+      expect(identical(result, entry), isTrue);
+      expect(result.containsKey('level'), isFalse);
+    });
+
+    test('jsonRenderer prints one line of JSON and passes the entry on', () {
+      final printed = _capturePrints(
+        () => jsonRenderer({'event': 'startup', 'pid': 123}),
+      );
+
+      expect(printed, hasLength(1));
+      expect(jsonDecode(printed.single), {'event': 'startup', 'pid': 123});
+      expect(printed.single, isNot(contains('\n')));
+    });
+
+    test('jsonRenderer returns the very same map', () {
+      final entry = <String, dynamic>{'event': 'e'};
+      late Map<String, dynamic>? result;
+      _capturePrints(() => result = jsonRenderer(entry));
+      expect(identical(result, entry), isTrue);
+    });
+
+    test('logfmtRenderer quotes strings and leaves other types bare', () {
+      final printed = _capturePrints(
+        () => logfmtRenderer({'event': 'startup', 'pid': 123, 'ok': true}),
+      );
+
+      expect(printed, hasLength(1));
+      expect(printed.single, 'event="startup" pid=123 ok=true');
+    });
+
+    test('logfmtRenderer returns the very same map', () {
+      final entry = <String, dynamic>{'event': 'e'};
+      late Map<String, dynamic>? result;
+      _capturePrints(() => result = logfmtRenderer(entry));
+      expect(identical(result, entry), isTrue);
     });
   });
 
@@ -599,4 +665,19 @@ void main() {
       expect(File('$path.0').existsSync(), isTrue);
     });
   });
+}
+
+/// Runs [body] and returns whatever it printed.
+///
+/// `jsonRenderer` and `logfmtRenderer` deliver through `print`, so there is
+/// nothing to assert on unless the zone's `print` is the one collecting it.
+List<String> _capturePrints(void Function() body) {
+  final printed = <String>[];
+  runZoned(
+    body,
+    zoneSpecification: ZoneSpecification(
+      print: (self, parent, zone, line) => printed.add(line),
+    ),
+  );
+  return printed;
 }
