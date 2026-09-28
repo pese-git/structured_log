@@ -162,6 +162,7 @@ dart run bin/server.dart --print-config
 | Предел числа ключей | `--rate-limit-max-keys` | `10000` | Сверх него — LRU-вытеснение |
 | Доверенных прокси | `--trusted-proxy-hops` | `0` | `0` = `X-Forwarded-For` игнорируется полностью |
 | Разрешённые CORS-origin | `--cors-allowed-origins` | не задано | Список точных origin через запятую; не задано/пусто = CORS-заголовков нет вообще ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
+| Refresh-токен в cookie | `--refresh-token-cookie` | `auto` | `auto` ставит cookie `HttpOnly; Secure; SameSite=Strict`, если `Origin` запроса не перечислен строкой выше; `on` ставит всегда (для клиента на другом origin того же site — например, `admin.example.com` рядом с `api.example.com`); `off` не ставит никогда. **Требует HTTPS для всего, кроме `localhost`** — `Secure`-cookie браузер отбрасывает по обычному HTTP молча, и симптом выглядит так: вход прошёл, а минут через пятнадцать снова экран входа ([log-server-config](../../openspec/changes/add-refresh-token-cookie/specs/log-server-config/spec.md)) |
 | Хранение аудита | `--audit-retention-days` | не задано | Не задано = хранить вечно ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | Хранение auth-событий | `--auth-event-retention-days` | не задано | Отделено от предыдущего намеренно |
 | Порция очистки аудита | `--audit-purge-batch-size` | `500` | Удаление порциями не блокирует приём логов |

@@ -43,6 +43,7 @@ const _expectedParamNames = {
   'max-live-subscriptions-per-user',
   'max-live-subscriptions',
   'cors-allowed-origins',
+  'refresh-token-cookie',
   'audit-retention-days',
   'auth-event-retention-days',
   'audit-purge-batch-size',
@@ -485,6 +486,53 @@ void main() {
     test('a trailing comma does not produce a blank origin', () {
       final config = resolve(['--cors-allowed-origins=http://a.test,']);
       expect(config.corsAllowedOrigins, {'http://a.test'});
+    });
+  });
+
+  group('refresh-token-cookie', () {
+    ConfigParseResult resolve(List<String> args) =>
+        ConfigResolver(serverConfigParams).parse(args, {
+          'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+          'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
+        }, command: commandServe);
+
+    ServerConfig configFrom(List<String> args) {
+      final result = resolve(args);
+      expect(result.outcome, ConfigParseOutcome.success);
+      return ServerConfig.fromResolved(result.values!);
+    }
+
+    test('unset means auto — the protection is on without being asked for', () {
+      expect(configFrom([]).refreshTokenCookie, 'auto');
+    });
+
+    test('each of the three modes is accepted verbatim', () {
+      for (final mode in ['auto', 'on', 'off']) {
+        expect(
+          configFrom(['--refresh-token-cookie=$mode']).refreshTokenCookie,
+          mode,
+        );
+      }
+    });
+
+    test('a mode outside the set is a configuration error', () {
+      expect(
+        resolve(['--refresh-token-cookie=cookie']).outcome,
+        ConfigParseOutcome.errors,
+      );
+    });
+
+    test('the mode is readable from the environment too', () {
+      final result = ConfigResolver(serverConfigParams).parse([], {
+        'STRUCTURED_LOG_DB_PATH': '/tmp/db.sqlite',
+        'STRUCTURED_LOG_JWT_SECRET': 'test-secret-long-enough-for-the-policy',
+        'STRUCTURED_LOG_REFRESH_TOKEN_COOKIE': 'off',
+      }, command: commandServe);
+      expect(result.outcome, ConfigParseOutcome.success);
+      expect(
+        ServerConfig.fromResolved(result.values!).refreshTokenCookie,
+        'off',
+      );
     });
   });
 }
