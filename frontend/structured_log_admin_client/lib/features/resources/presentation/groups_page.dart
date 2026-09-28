@@ -6,7 +6,7 @@ import '../../../l10n/formatting.dart';
 import '../../../l10n/l10n.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import 'groups_cubit.dart';
-import 'resource_dialogs.dart';
+import 'dialogs/name_dialog.dart';
 import 'resource_failure_text.dart';
 
 /// The list of groups, and the way to add one (`Groups.dc.html`).

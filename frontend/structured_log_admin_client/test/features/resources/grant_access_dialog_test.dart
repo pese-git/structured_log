@@ -1,6 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:structured_log_admin_client/features/resources/presentation/resource_dialogs.dart';
+import 'package:structured_log_admin_client/features/resources/presentation/dialogs/grant_access_dialog.dart';
 import 'package:structured_log_admin_client/shared/api/dto/resource_dto.dart';
 import 'package:structured_log_admin_client/shared/api/dto/user_dto.dart';
 
