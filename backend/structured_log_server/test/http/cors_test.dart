@@ -196,6 +196,24 @@ void main() {
       expect(response.headers['vary'], 'Origin');
     });
 
+    test('credentials are allowed, so the refresh cookie can travel', () async {
+      // `add-server-cors` recorded the opposite as a non-goal, on the
+      // reasoning that the client authenticates through `Authorization` and
+      // never a cookie. `add-refresh-token-cookie` makes that untrue, and
+      // without this header a browser stores neither the cookie nor sends it.
+      final response = await get(allowed, path: '/healthz');
+
+      expect(response.headers['access-control-allow-credentials'], 'true');
+    });
+
+    test('the preflight allows credentials too', () async {
+      // A preflight that omits it fails the CORS check before the real
+      // request is ever made, so the header has to be on both.
+      final response = await preflight(allowed, path: '/v1/auth/token');
+
+      expect(response.headers['access-control-allow-credentials'], 'true');
+    });
+
     test('an error response carries the header too', () async {
       // 401 for want of a token — the point is that the browser needs the
       // header on *this* response to be allowed to read the refusal at all.
