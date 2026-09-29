@@ -42,18 +42,23 @@ void main() {
 
   const password = 'chosen-by-the-operator';
 
-  /// Every value the page can read out of both browser stores.
-  List<String> storedValues() {
-    final values = <String>[];
+  /// Every key the page can see in both browser stores.
+  ///
+  /// Keys, not values, and the distinction is why this file was worth running
+  /// rather than reasoning about. `flutter_secure_storage` on the web stores
+  /// AES-GCM ciphertext, so a scan for the token's plaintext finds nothing
+  /// *whether or not the token is there* — the first version of this test
+  /// asserted exactly that, and passed for no reason at all. A key is what
+  /// says something is stored under it.
+  List<String> storedKeys() {
+    final keys = <String>[];
     for (final store in [web.window.localStorage, web.window.sessionStorage]) {
       for (var i = 0; i < store.length; i++) {
         final key = store.key(i);
-        if (key == null) continue;
-        final value = store.getItem(key);
-        if (value != null) values.add(value);
+        if (key != null) keys.add(key);
       }
     }
-    return values;
+    return keys;
   }
 
   void clearBrowserStorage() {
@@ -128,28 +133,38 @@ void main() {
   ) async {
     final server = MockServer(username: 'admin', password: password)
       ..refreshTokenCookie = true;
-    await openApp(tester, server, storage: realStorage());
+    final storage = realStorage();
+    await openApp(tester, server, storage: storage);
 
     await signIn(tester);
 
     expect(find.text('Вход в систему'), findsNothing);
-    final values = storedValues();
     expect(
-      values.any((v) => v.startsWith('refresh-')),
-      isFalse,
-      reason:
-          'the mock issues refresh tokens as `refresh-N`, and a script on '
-          'this origin can read every value listed here. Finding one would '
-          'mean the cookie was set and the copy kept anyway — the change '
-          'achieving nothing while appearing to work',
+      await storage.readRefreshToken(),
+      isNull,
+      reason: 'the client was told a cookie was set and let go of its copy',
     );
     expect(
-      values.any((v) => v.startsWith('access-')),
-      isTrue,
+      storedKeys().any((k) => k.contains('refresh_token')),
+      isFalse,
       reason:
-          'the access token is meant to be here: it is sent as a header on '
-          'every request, so the page has to be able to read it. Fifteen '
-          'minutes, one tab',
+          'and nothing is stored under that name either — the assertion '
+          'above goes through the app, this one goes around it',
+    );
+    expect(
+      web.window.sessionStorage.getItem('structured_log.access_token'),
+      isNotNull,
+      reason:
+          'the access token is meant to be here, in plain sight: it is sent '
+          'as a header on every request, so the page has to read it. Fifteen '
+          'minutes, and it dies with the tab',
+    );
+    expect(
+      web.window.localStorage.getItem('structured_log.access_token'),
+      isNull,
+      reason:
+          'per tab, not shared — a second tab renews rather than borrowing '
+          'this one',
     );
   });
 
@@ -162,17 +177,28 @@ void main() {
     // improves on, not a regression.
     final server = MockServer(username: 'admin', password: password)
       ..refreshTokenCookie = false;
-    await openApp(tester, server, storage: realStorage());
+    final storage = realStorage();
+    await openApp(tester, server, storage: storage);
 
     await signIn(tester);
 
     expect(find.text('Вход в систему'), findsNothing);
     expect(
-      storedValues().any((v) => v.contains('refresh-')),
-      isTrue,
+      await storage.readRefreshToken(),
+      isNotNull,
       reason:
-          'no cookie in this deployment — the session could not be '
-          'renewed at all if the client let go of it',
+          'no cookie in this deployment — the session could not be renewed '
+          'at all if the client let go of it',
+    );
+    expect(storedKeys().any((k) => k.contains('refresh_token')), isTrue);
+    expect(
+      storedKeys(),
+      contains('FlutterSecureStorage'),
+      reason:
+          'and this is the whole argument for the change, observed rather '
+          'than taken from documentation: the key that decrypts the token is '
+          'in the same store as the token, readable by any script on this '
+          'origin. "Secure storage" on the web is obfuscation',
     );
   });
 
@@ -184,7 +210,8 @@ void main() {
     // The assertion is simply that the screen after the renewal arrives.
     final server = MockServer(username: 'admin', password: password)
       ..refreshTokenCookie = true;
-    await openApp(tester, server, storage: realStorage());
+    final storage = realStorage();
+    await openApp(tester, server, storage: storage);
     await signIn(tester);
 
     // Every access token issued so far stops being accepted, so the next
@@ -202,7 +229,7 @@ void main() {
           'never leave the spinner',
     );
     expect(
-      storedValues().any((v) => v.startsWith('refresh-')),
+      storedKeys().any((k) => k.contains('refresh_token')),
       isFalse,
       reason: 'the renewed session is held the same way the first one was',
     );
