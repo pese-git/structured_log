@@ -55,11 +55,11 @@
 ## 9. Документация
 
 - [x] 9.1 `docs/operations/configuration.md`/`.ru.md` — строка про `--refresh-token-cookie` (значения, умолчание, что делает `auto`).
-- [ ] 9.2 `docs/guides/admin-guide.md`/`.ru.md` — TLS перестаёт быть опциональным для не-`localhost` развёртываний: `Secure`-cookie не ставится по обычному HTTP, и симптом — бесконечный возврат на экран входа. Плюс раздел про раздельные хосты: когда работает `on` (поддомены одного site), когда не работает ничего (разные домены).
-- [ ] 9.3 `docs/guides/developer-guide.md`/`.ru.md` — раздел про токены: cookie появилась, тело не изменилось, `current_refresh_token` остался необязательным. Примеры с curl оставить как есть — они продолжают работать, и это стоит сказать прямо.
-- [ ] 9.4 `backend/structured_log_server/README.md`/`.ru.md` — настройка в таблицу конфигурации.
-- [ ] 9.5 `AGENTS.md` (корень) — абзац про `frontend/structured_log_admin_client/`: чем заменён `_renameSpentRefreshToken` и почему длинное объяснение про ротацию и щадимый токен больше не нужно; абзац про `deploy/` — `Access-Control-Allow-Credentials` появился; новый абзац про гонку вкладок как про ещё один класс «ловится только настоящим Chrome».
-- [ ] 9.6 `openspec/changes/add-structured-log-server/design.md`, decision 20 — не переписывать (это история), но сослаться на эту change там, где сказано, что `flutter_secure_storage` защищает токены: на web это неверно, и об этом должно быть видно из того же места.
+- [x] 9.2 `docs/guides/admin-guide.md`/`.ru.md` — TLS перестаёт быть опциональным для не-`localhost` развёртываний: `Secure`-cookie не ставится по обычному HTTP, и симптом — бесконечный возврат на экран входа. Плюс раздел про раздельные хосты: когда работает `on` (поддомены одного site), когда не работает ничего (разные домены).
+- [x] 9.3 `docs/guides/developer-guide.md`/`.ru.md` — раздел про токены: cookie появилась, тело не изменилось, `current_refresh_token` остался необязательным. Примеры с curl оставить как есть — они продолжают работать, и это стоит сказать прямо.
+- [x] 9.4 `backend/structured_log_server/README.md`/`.ru.md` — настройка в таблицу конфигурации.
+- [x] 9.5 `AGENTS.md` (корень) — абзац про `frontend/structured_log_admin_client/`: чем заменён `_renameSpentRefreshToken` и почему длинное объяснение про ротацию и щадимый токен больше не нужно; абзац про `deploy/` — `Access-Control-Allow-Credentials` появился; новый абзац про гонку вкладок как про ещё один класс «ловится только настоящим Chrome».
+- [x] 9.6 `openspec/changes/add-structured-log-server/design.md`, decision 20 — не переписывать (это история), но сослаться на эту change там, где сказано, что `flutter_secure_storage` защищает токены: на web это неверно, и об этом должно быть видно из того же места.
 
 ## 10. Перед завершением
 
