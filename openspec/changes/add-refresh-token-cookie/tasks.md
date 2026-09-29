@@ -63,7 +63,7 @@
 
 ## 10. Перед завершением
 
-- [ ] 10.1 `dart analyze` по всем затронутым пакетам — чисто.
-- [ ] 10.2 `dart test` сервера: дефолтный прогон, `--tags integration`, `--tags postgres --concurrency=1`. Кейс под тегом `postgres` здесь не нужен — change не трогает ни одного запроса к БД и не опирается на измеренное поведение SQLite; зафиксировать это явным замечанием в PR, а не молчанием.
-- [ ] 10.3 `flutter test` клиента, `flutter drive` браузерного пути, `flutter test` в `packages/e2e`.
-- [ ] 10.4 `dart format --set-exit-if-changed .` пинованным SDK (`.fvm/flutter_sdk/bin/dart`), не тем, что в `PATH`.
+- [x] 10.1 `dart analyze` по всем затронутым пакетам — чисто.
+- [ ] 10.2 `dart test` сервера: дефолтный прогон ✅ (1043) и `--tags integration` ✅ (14) пройдены; **`--tags postgres --concurrency=1` не прогнан — Docker на машине не поднят**. Кейса под тегом `postgres` change не требует: она не трогает ни одного запроса к БД (правки — заголовки HTTP, конфигурация, middleware) и не опирается на измеренное поведение SQLite. Но прогон под тегом всё равно нужен как проверка отсутствия регрессии, и до слияния его надо выполнить — либо локально с поднятым Docker, либо джобой `server` в CI, которая поднимает `postgres:16-alpine` сервис-контейнером.
+- [x] 10.3 `flutter test` клиента, `flutter drive` браузерного пути, `flutter test` в `packages/e2e`.
+- [x] 10.4 `dart format --set-exit-if-changed .` пинованным SDK (`.fvm/flutter_sdk/bin/dart`), не тем, что в `PATH`.

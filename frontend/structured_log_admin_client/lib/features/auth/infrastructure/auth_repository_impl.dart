@@ -8,7 +8,6 @@ import '../../../shared/api/failure_mapper.dart';
 import '../../../shared/api/token_response.dart';
 import '../../../shared/auth/access_token_claims.dart';
 import '../../../shared/auth/password_rejection.dart';
-import '../../../shared/auth/token_pair.dart';
 import '../../../shared/auth/token_storage.dart';
 import '../domain/auth_failure.dart';
 import '../domain/auth_repository.dart';
