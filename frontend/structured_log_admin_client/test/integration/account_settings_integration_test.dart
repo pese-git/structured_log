@@ -207,7 +207,7 @@ void main() {
       );
       final held = await harness.storage.read();
       expect(
-        server.refreshTokenIsLive(held!.refreshToken),
+        server.refreshTokenIsLive(held!.refreshToken!),
         isTrue,
         reason: 'the reader is not signed out of the device they are using',
       );
@@ -231,7 +231,7 @@ void main() {
 
       final held = await harness.storage.read();
       expect(
-        server.refreshTokenIsLive(held!.refreshToken),
+        server.refreshTokenIsLive(held!.refreshToken!),
         isTrue,
         reason:
             'the replayed body has to name the token the renewal produced, '

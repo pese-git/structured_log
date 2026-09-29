@@ -19,11 +19,13 @@ Request authenticatedRequest(
   String username = 'alice',
   bool mustChangePassword = false,
   Object? jsonBody,
+  Map<String, String> headers = const {},
 }) {
   return Request(
     method,
     Uri.parse(url),
     body: jsonBody == null ? null : jsonEncode(jsonBody),
+    headers: headers.isEmpty ? null : headers,
     context: {
       'structured_log_server.principal': UserPrincipal(
         VerifiedIdentity(

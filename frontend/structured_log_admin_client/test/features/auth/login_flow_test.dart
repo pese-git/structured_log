@@ -28,6 +28,25 @@ const _tokens = FakeReply(
   },
 );
 
+/// A server where nobody is signed in: a refresh grant is refused, a password
+/// grant works.
+///
+/// The distinction did not matter until the refresh token moved into an
+/// `HttpOnly` cookie. The app now asks the server at startup whether a
+/// session exists, because with the cookie unreadable nothing local can
+/// answer that — so a fake that says yes to every request puts the app
+/// straight past the login screen these tests are about.
+FakeReply _signedOut(RequestOptions options) {
+  final body = options.data;
+  if (body is Map && body['grant_type'] == 'refresh_token') {
+    return const FakeReply(
+      400,
+      body: {'error': 'invalid_grant', 'error_description': 'no session'},
+    );
+  }
+  return _tokens;
+}
+
 /// The whole app over a scripted server, composed the way `main()` composes
 /// it — scope, session controller and all — so these exercise the wiring and
 /// not a screen in isolation.
@@ -87,7 +106,7 @@ void main() {
     tester,
   ) async {
     useArtboardSurface(tester);
-    final built = _buildApp((_) => _tokens);
+    final built = _buildApp(_signedOut);
 
     await tester.pumpWidget(built.app);
     await tester.pumpAndSettle();
@@ -111,7 +130,7 @@ void main() {
       'signed in', (tester) async {
     useArtboardSurface(tester);
     final controller = LocaleController(initial: const Locale('ru'));
-    final built = _buildApp((_) => _tokens, localeController: controller);
+    final built = _buildApp(_signedOut, localeController: controller);
 
     await tester.pumpWidget(built.app);
     await tester.pumpAndSettle();
@@ -200,7 +219,7 @@ void main() {
 
   testWidgets('a stored session skips the login screen', (tester) async {
     final built = _buildApp(
-      (_) => _tokens,
+      _signedOut,
       storedSession: const TokenPair(
         accessToken: 'access-1',
         refreshToken: 'refresh-1',
@@ -218,7 +237,7 @@ void main() {
     'an unrenewable session returns to the login screen and says so',
     (tester) async {
       final built = _buildApp(
-        (_) => _tokens,
+        _signedOut,
         storedSession: const TokenPair(
           accessToken: 'access-1',
           refreshToken: 'refresh-1',
@@ -269,7 +288,7 @@ void main() {
   });
 
   testWidgets('the server the window points at is shown', (tester) async {
-    final built = _buildApp((_) => _tokens);
+    final built = _buildApp(_signedOut);
 
     await tester.pumpWidget(built.app);
     await tester.pumpAndSettle();
@@ -284,7 +303,7 @@ void main() {
     // What the bundled deployment builds with: the client is served beside the
     // API and addresses it relative to the page. A label with nothing after it
     // says less than no label, which is what this pins.
-    final built = _buildApp((_) => _tokens, baseUrl: '');
+    final built = _buildApp(_signedOut, baseUrl: '');
 
     await tester.pumpWidget(built.app);
     await tester.pumpAndSettle();

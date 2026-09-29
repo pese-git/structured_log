@@ -4,6 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:structured_log/structured_log.dart';
 
 import '../api/api_client.dart';
+import '../auth/session_lock.dart';
+import '../auth/session_store.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import 'structured_log_observer.dart';
@@ -27,8 +29,14 @@ class AppModule extends Module {
   /// that would reinstall it every time the scope was rebuilt.
   final BoundLogger logger;
 
-  /// Supplied by tests and by the web build, which has no keychain. Left null
-  /// in a real desktop or mobile build, where [SecureTokenStorage] is right.
+  /// Supplied by tests, which have neither a browser nor a keychain. Left
+  /// null by the app itself, which builds [SplitTokenStorage] below.
+  ///
+  /// The comment that used to sit here said the web build supplied one
+  /// because it "has no keychain". It never did: `main.dart` passes nothing,
+  /// and `web/` is the only platform this package has — so the storage the
+  /// comment described as unused was the only one ever used
+  /// (`add-refresh-token-cookie/proposal.md`).
   final TokenStorage? tokenStorageOverride;
 
   /// Answers HTTP without a socket. Supplied by tests that drive the whole
@@ -66,7 +74,10 @@ class AppModule extends Module {
         .toProvide(
           () =>
               tokenStorageOverride ??
-              const SecureTokenStorage(FlutterSecureStorage()),
+              SplitTokenStorage(
+                accessStore: createSessionStore(),
+                refreshStore: const PlatformSecretStore(FlutterSecureStorage()),
+              ),
         )
         .singleton();
 
@@ -78,6 +89,7 @@ class AppModule extends Module {
             onSessionExpired: onSessionExpired,
             onPasswordChangeRequired: onPasswordChangeRequired,
             adapter: httpAdapter,
+            sessionLock: createSessionLock(),
           ),
         )
         .singleton();

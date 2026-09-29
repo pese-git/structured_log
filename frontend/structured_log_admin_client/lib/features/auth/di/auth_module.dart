@@ -3,6 +3,7 @@ import 'package:cherrypick_annotations/cherrypick_annotations.dart';
 import 'package:structured_log/structured_log.dart';
 
 import '../../../shared/api/api_client.dart';
+import '../../../shared/auth/session_lock.dart';
 import '../../../shared/auth/token_storage.dart';
 import '../application/change_password.dart';
 import '../application/delete_account.dart';
@@ -31,7 +32,12 @@ abstract class AuthModule extends Module {
     ApiClient api,
     TokenStorage storage,
     BoundLogger logger,
-  ) => AuthRepositoryImpl(api: api.auth, storage: storage, logger: logger);
+  ) => AuthRepositoryImpl(
+    api: api.auth,
+    storage: storage,
+    logger: logger,
+    lock: createSessionLock(),
+  );
 
   // Use cases are cheap and stateless, so they are provided rather than kept
   // as singletons — a new one per screen costs nothing and keeps no state

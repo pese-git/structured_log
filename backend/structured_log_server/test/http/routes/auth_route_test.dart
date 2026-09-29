@@ -7,6 +7,7 @@ import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/claims.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/auth/token_service.dart';
+import 'package:structured_log_server/src/http/refresh_cookie.dart';
 import 'package:structured_log_server/src/http/routes/auth_route.dart';
 import 'package:structured_log_server/src/rbac/authorizer.dart';
 import 'package:structured_log_server/src/storage/database.dart';
@@ -48,9 +49,15 @@ class _StubTokenService implements TokenService {
     return passwordResult;
   }
 
+  /// What the route decided to refresh with — the form's value or the
+  /// cookie's, which is the whole question when both are present.
+  String? seenRefreshToken;
+
   @override
-  Future<Either<TokenError, TokenPair>> refreshTokenGrant(String token) async =>
-      refreshResult;
+  Future<Either<TokenError, TokenPair>> refreshTokenGrant(String token) async {
+    seenRefreshToken = token;
+    return refreshResult;
+  }
 
   @override
   Future<void> revoke(
@@ -73,12 +80,16 @@ const _pair = TokenPair(
   refreshTokenTtl: Duration(days: 30),
 );
 
-Request form(String method, String body) {
+Request form(String method, String body, {String? cookie, String? origin}) {
   return Request(
     method,
     Uri.parse('http://x/v1/auth/token'),
     body: body,
-    headers: {'content-type': 'application/x-www-form-urlencoded'},
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      if (cookie != null) 'cookie': cookie,
+      if (origin != null) 'origin': origin,
+    },
   );
 }
 
@@ -118,6 +129,9 @@ void main() {
         'expires_in': 900,
         'refresh_token': 'refresh',
         'refresh_expires_in': 2592000,
+        // Additive, and `false` here because these routes are built without a
+        // `ServerConfig` — see `HttpSettings`.
+        'refresh_token_cookie_set': false,
       });
     });
 
@@ -388,6 +402,200 @@ void main() {
 
       expect(response.statusCode, 400);
       expect(await decode(response), containsPair('error', 'invalid_request'));
+    });
+  });
+
+  // The cookie half (`add-refresh-token-cookie`). What is being pinned is not
+  // "a cookie appears" but the two properties that make it safe to add at all:
+  // the body keeps its `refresh_token` in every mode, so a caller that holds
+  // no cookies never notices; and an explicitly presented value always beats
+  // the ambient one.
+  group('the refresh token as a cookie', () {
+    late _StubTokenService service;
+
+    setUp(() {
+      service = _StubTokenService(
+        passwordResult: const Right(_pair),
+        refreshResult: const Right(_pair),
+      );
+    });
+
+    AuthRoutes routesWith(
+      RefreshCookieMode mode, {
+      Set<String> allowedOrigins = const {},
+    }) => AuthRoutes(
+      service,
+      refreshTokenCookie: mode,
+      corsAllowedOrigins: allowedOrigins,
+    );
+
+    test('a password grant sets it, and still answers with the body', () async {
+      final response = await routesWith(
+        RefreshCookieMode.on,
+      ).router.call(form('POST', 'grant_type=password&username=u&password=p'));
+
+      expect(
+        response.headers['set-cookie'],
+        contains('$refreshCookieName=refresh'),
+      );
+      final body = await decode(response);
+      expect(
+        body['refresh_token'],
+        'refresh',
+        reason:
+            'the cookie is an addition to the body, never a replacement — '
+            'curl and packages/e2e read the body and know nothing of cookies',
+      );
+      expect(body['refresh_token_cookie_set'], isTrue);
+    });
+
+    test('a refresh grant sets the rotated token, not the spent one', () async {
+      final response = await routesWith(
+        RefreshCookieMode.on,
+      ).router.call(form('POST', 'grant_type=refresh_token&refresh_token=old'));
+
+      expect(
+        response.headers['set-cookie'],
+        contains('$refreshCookieName=refresh'),
+      );
+    });
+
+    test('off sets nothing and says so', () async {
+      final response = await routesWith(
+        RefreshCookieMode.off,
+      ).router.call(form('POST', 'grant_type=password&username=u&password=p'));
+
+      expect(response.headers['set-cookie'], isNull);
+      expect((await decode(response))['refresh_token_cookie_set'], isFalse);
+    });
+
+    test('auto withholds it from an origin declared foreign', () async {
+      final routes = routesWith(
+        RefreshCookieMode.auto,
+        allowedOrigins: {'https://admin.example.test'},
+      );
+
+      final foreign = await routes.router.call(
+        form(
+          'POST',
+          'grant_type=password&username=u&password=p',
+          origin: 'https://admin.example.test',
+        ),
+      );
+      expect(foreign.headers['set-cookie'], isNull);
+      expect((await decode(foreign))['refresh_token_cookie_set'], isFalse);
+
+      final ours = await routes.router.call(
+        form(
+          'POST',
+          'grant_type=password&username=u&password=p',
+          origin: 'https://logs.example.test',
+        ),
+      );
+      expect(ours.headers['set-cookie'], isNotNull);
+    });
+
+    test('a failed grant sets no cookie', () async {
+      service.passwordResult = const Left(
+        TokenError(TokenErrorCode.invalidGrant),
+      );
+
+      final response = await routesWith(
+        RefreshCookieMode.on,
+      ).router.call(form('POST', 'grant_type=password&username=u&password=p'));
+
+      expect(response.statusCode, 400);
+      expect(response.headers['set-cookie'], isNull);
+    });
+
+    test('the cookie refreshes when the form carries no token', () async {
+      final response = await routesWith(RefreshCookieMode.on).router.call(
+        form(
+          'POST',
+          'grant_type=refresh_token',
+          cookie: '$refreshCookieName=from-cookie',
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      expect(service.seenRefreshToken, 'from-cookie');
+    });
+
+    test('the form wins over the cookie', () async {
+      await routesWith(RefreshCookieMode.on).router.call(
+        form(
+          'POST',
+          'grant_type=refresh_token&refresh_token=from-form',
+          cookie: '$refreshCookieName=from-cookie',
+        ),
+      );
+
+      expect(
+        service.seenRefreshToken,
+        'from-form',
+        reason:
+            'the field is the caller saying which token they mean; the '
+            'cookie is what the browser attached on its own',
+      );
+    });
+
+    test('neither form nor cookie is invalid_request', () async {
+      final response = await routesWith(
+        RefreshCookieMode.on,
+      ).router.call(form('POST', 'grant_type=refresh_token'));
+
+      expect(response.statusCode, 400);
+      expect((await decode(response))['error'], 'invalid_request');
+    });
+
+    test('DELETE revokes what the cookie names, and clears it', () async {
+      final response = await routesWith(RefreshCookieMode.on).router.call(
+        form('DELETE', '', cookie: '$refreshCookieName=from-cookie'),
+      );
+
+      expect(response.statusCode, 200);
+      expect(service.revoked, ['from-cookie']);
+      expect(response.headers['set-cookie'], contains('Max-Age=0'));
+    });
+
+    test('DELETE with a form field revokes that one, not the cookie', () async {
+      final response = await routesWith(RefreshCookieMode.on).router.call(
+        form(
+          'DELETE',
+          'refresh_token=from-form',
+          cookie: '$refreshCookieName=from-cookie',
+        ),
+      );
+
+      expect(service.revoked, ['from-form']);
+      expect(
+        response.headers['set-cookie'],
+        isNull,
+        reason:
+            'a caller revoking some other session must not be logged out '
+            'of its own along the way',
+      );
+    });
+
+    test('DELETE without either is invalid_request', () async {
+      final response = await routesWith(
+        RefreshCookieMode.on,
+      ).router.call(form('DELETE', ''));
+
+      expect(response.statusCode, 400);
+      expect((await decode(response))['error'], 'invalid_request');
+      expect(service.revoked, isEmpty);
+    });
+
+    test('DELETE clears the cookie even when nothing was revoked', () async {
+      // RFC 7009 anti-enumeration: the response may not differ by whether the
+      // token was live. Clearing only on a hit would make it differ.
+      final response = await routesWith(RefreshCookieMode.on).router.call(
+        form('DELETE', '', cookie: '$refreshCookieName=never-existed'),
+      );
+
+      expect(response.statusCode, 200);
+      expect(response.headers['set-cookie'], contains('Max-Age=0'));
     });
   });
 }

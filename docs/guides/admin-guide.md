@@ -539,6 +539,27 @@ by design, not by redaction after the fact.
   backend on a real network hop, keep `--db-postgres-ssl-mode` at its
   `require` default or above — `disable` is for same-host/local
   development only.
+- **Since `--refresh-token-cookie` arrived, TLS stopped being optional
+  for anything but `localhost`** — and its absence announces itself in
+  no way at all. The refresh token goes to the browser as a cookie
+  carrying `Secure`; over plain HTTP a browser drops it silently, and
+  what you see is a sign-in that works, a panel that opens, and then the
+  sign-in screen again about fifteen minutes later, round and round. The
+  server cannot detect this and cannot warn you: behind a proxy it sees
+  plain HTTP whatever the browser used. Browsers trust
+  `http://localhost`; they do not trust `http://10.0.0.5:8080`. With no
+  TLS in place, set `--refresh-token-cookie=off` and the client holds
+  the token itself, as it did before this version.
+- **A client and an API on different addresses.** `auto` (the default)
+  withholds the cookie from an origin you listed under
+  `--cors-allowed-origins`: by listing it you declared it foreign. One
+  subtlety is worth a setting, though — `SameSite` reasons about *site*
+  (the registrable domain), not origin, so `admin.example.com` beside
+  `api.example.com` is a different origin but the same site, and the
+  cookie works there. For that layout pass
+  `--refresh-token-cookie=on` explicitly. Different domains nothing can
+  rescue: browsers are winding down third-party cookies, and there the
+  client keeps the token itself.
 - **Browser security headers ship with the images, except HSTS.** The
   `web` image sets `Content-Security-Policy`, `X-Frame-Options`,
   `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`

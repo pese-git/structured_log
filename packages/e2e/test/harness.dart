@@ -29,7 +29,14 @@ class ServerProcess {
   });
 
   /// Starts a server on an empty database and waits until it answers.
-  static Future<ServerProcess> start() async {
+  ///
+  /// [extraArgs] go on the command line after the fixed ones, for the
+  /// settings a single file cares about — the refresh-token cookie mode is
+  /// the first, and it has to be a real server argument rather than a stub
+  /// because what that file checks is the `Set-Cookie` a browser would get.
+  static Future<ServerProcess> start({
+    List<String> extraArgs = const [],
+  }) async {
     final directory = Directory.systemTemp.createTempSync('structured_log_e2e');
     final port = await _freePort();
 
@@ -52,6 +59,7 @@ class ServerProcess {
         // has its own tests, against a server configured for it
         // (`test/http/rate_limit_middleware_test.dart`).
         '--rate-limit-bucket-capacity=200',
+        ...extraArgs,
       ],
       workingDirectory: serverDirectory,
       environment: {

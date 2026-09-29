@@ -38,8 +38,12 @@ abstract class RoutesModule extends Module {
 
   @singleton()
   @provide()
-  AuthRoutes authRoutes(TokenService tokens, HttpSettings http) =>
-      AuthRoutes(tokens, trustedProxyHops: http.trustedProxyHops);
+  AuthRoutes authRoutes(TokenService tokens, HttpSettings http) => AuthRoutes(
+    tokens,
+    trustedProxyHops: http.trustedProxyHops,
+    refreshTokenCookie: http.refreshTokenCookie,
+    corsAllowedOrigins: http.corsAllowedOrigins,
+  );
 
   @singleton()
   @provide()

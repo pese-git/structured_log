@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+import '../refresh_cookie.dart';
 import '../../audit/audit_action.dart';
 import '../../audit/audit_writer.dart';
 import '../../auth/hashing.dart';
@@ -75,7 +76,14 @@ class ChangePasswordRoutes {
         details: {'field': 'current_refresh_token', 'reason': 'invalid'},
       );
     }
-    final currentRefreshToken = rawCurrentRefreshToken as String?;
+    // Which session to spare: the one the caller named, else the one the
+    // browser's cookie carries.
+    // The cast is needed rather than tidy: the guard above is a disjunction
+    // once negated (`null` or a String), and flow analysis does not promote
+    // through that.
+    final spared =
+        rawCurrentRefreshToken as String? ??
+        refreshCookieOf(request.headers['cookie']);
 
     final user = await (_db.select(
       _db.users,
@@ -114,14 +122,19 @@ class ChangePasswordRoutes {
       // and `refresh_tokens` holds hashes that say nothing about which device
       // is asking. Naming none of them ends this session too
       // (`revokeRefreshTokensExcept`).
+      //
+      // Two ways to present it, and the field beats the cookie for the reason
+      // it does on the token endpoints: the field is the caller naming a
+      // session, the cookie is what the browser attached by itself. The cookie
+      // is why a browser client no longer has to name its own token — and why
+      // it no longer has to notice that a refresh in flight has just replaced
+      // the token its request body already named.
       final revoked = keepOtherSessions
           ? 0
           : await revokeRefreshTokensExcept(
               _db,
               identity.userId,
-              exceptTokenHash: currentRefreshToken == null
-                  ? null
-                  : hashToken(currentRefreshToken),
+              exceptTokenHash: spared == null ? null : hashToken(spared),
             );
       // Neither password appears, here or anywhere, and neither does the token
       // that was spared — it is a live credential. How many sessions ended is

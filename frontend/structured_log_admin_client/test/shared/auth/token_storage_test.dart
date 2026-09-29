@@ -22,6 +22,35 @@ void main() {
     });
   });
 
+  group('TokenPair.fromGrant', () {
+    test('keeps the refresh token when the server set no cookie', () {
+      const pair = TokenPair.fromGrant(
+        accessToken: 'a',
+        refreshToken: 'r',
+        cookieSet: false,
+      );
+
+      expect(pair.refreshToken, 'r');
+    });
+
+    test('drops it when the server said it set a cookie', () {
+      const pair = TokenPair.fromGrant(
+        accessToken: 'a',
+        refreshToken: 'r',
+        cookieSet: true,
+      );
+
+      expect(
+        pair.refreshToken,
+        isNull,
+        reason:
+            'the body carries the token in both modes — dropping the copy '
+            'here is the entire benefit, and forgetting to would leave it in '
+            'browser storage exactly as before',
+      );
+    });
+  });
+
   group('TokenPair', () {
     test('compares by value, so a rewrite of the same pair is a no-op', () {
       expect(

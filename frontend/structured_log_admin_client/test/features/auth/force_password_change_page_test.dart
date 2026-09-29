@@ -37,7 +37,7 @@ class _FakeRepository implements AuthRepository {
   Future<void> signOut() async {}
 
   @override
-  Future<bool> hasSession() async => true;
+  Future<bool> restoreSession() async => true;
 }
 
 void main() {

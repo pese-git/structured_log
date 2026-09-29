@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/http/refresh_cookie.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/change_password_route.dart';
 import 'package:structured_log_server/src/storage/database.dart';
@@ -284,13 +285,17 @@ void main() {
       return row.revokedAt == null;
     }
 
-    Future<void> change({Map<String, Object?> extra = const {}}) async {
+    Future<void> change({
+      Map<String, Object?> extra = const {},
+      String? cookie,
+    }) async {
       await routes.router.call(
         authenticatedRequest(
           'POST',
           'http://x/v1/auth/change-password',
           roles: const [],
           userId: userId,
+          headers: cookie == null ? const {} : {'cookie': cookie},
           jsonBody: {
             'current_password': 'old-pass',
             'new_password': 'new-pass',
@@ -330,6 +335,57 @@ void main() {
             'reading of "sign the others out" is to sign this one out too',
       );
       expect(await isLive(phone), isFalse);
+    });
+
+    // The cookie is the second way to name the caller's own session
+    // (`add-refresh-token-cookie`). It exists so the client stops having to
+    // name its token itself — the thing that made `_renameSpentRefreshToken`
+    // necessary on the client, because a token renamed by a refresh in flight
+    // was the wrong one by the time the body arrived.
+    test(
+      'the cookie names the session to spare, with no field at all',
+      () async {
+        final mine = await issueToken();
+        final phone = await issueToken();
+
+        await change(cookie: '$refreshCookieName=$mine');
+
+        expect(await isLive(mine), isTrue);
+        expect(await isLive(phone), isFalse);
+      },
+    );
+
+    test('the field wins over a cookie naming another session', () async {
+      final named = await issueToken();
+      final inCookie = await issueToken();
+
+      await change(
+        extra: {'current_refresh_token': named},
+        cookie: '$refreshCookieName=$inCookie',
+      );
+
+      expect(await isLive(named), isTrue);
+      expect(
+        await isLive(inCookie),
+        isFalse,
+        reason:
+            'the field is the caller naming a session; the cookie is what '
+            'the browser attached — an explicit ask must not be overridden',
+      );
+    });
+
+    test('a cookie nobody holds spares nothing', () async {
+      final mine = await issueToken();
+
+      final unheld = generateRandomToken();
+
+      await change(cookie: '$refreshCookieName=$unheld');
+
+      expect(
+        await isLive(mine),
+        isFalse,
+        reason: 'failing to identify the session revokes, never skips',
+      );
     });
 
     test('a current_refresh_token nobody holds spares nothing', () async {

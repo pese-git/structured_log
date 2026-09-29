@@ -298,6 +298,17 @@ curl -X POST https://logs.example.com/v1/auth/token \
   -d grant_type=refresh_token -d refresh_token=$REFRESH_TOKEN
 ```
 
+A server configured for it also returns the refresh token as an
+`HttpOnly` cookie, and the response says so with
+`refresh_token_cookie_set: true`. **Nothing above changes for you.** The
+body still carries `refresh_token`, the field you send still outranks
+the cookie on every endpoint that takes one, and a client that keeps no
+cookies — `curl`, a script, anything not a browser — never has to know
+the cookie exists. It is there for the browser client, whose
+`localStorage` is readable by any script on its origin; the field is
+named for what the server did, not for where the token is, because a
+caller with no `Origin` gets a cookie it will never use.
+
 Revoke a session explicitly with `DELETE /v1/auth/token` (RFC 7009 —
 always answers `200`, whether or not the token was actually valid, so
 the response can't be used to probe someone else's session). There is
@@ -321,7 +332,8 @@ One thing to get right while automating that step: a successful
 Pass the refresh token you are holding as `current_refresh_token` and
 the session you are using survives; omit it and your own script is
 signed out along with everything else, because the server has no other
-way to tell which session is asking. `keep_other_sessions: true` skips
+way to tell which session is asking — the cookie, if there is one, is
+the only other way, and a script has none. `keep_other_sessions: true` skips
 the revocation entirely — reasonable for a provisioning script setting
 up an account nobody is signed in to yet.
 
