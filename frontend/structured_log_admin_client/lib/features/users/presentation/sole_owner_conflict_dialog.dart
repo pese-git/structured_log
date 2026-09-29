@@ -5,7 +5,7 @@ import '../../../l10n/l10n.dart';
 import '../../../shared/api/cursor_page.dart';
 import '../../../shared/api/dto/resource_dto.dart';
 import '../../../shared/api/dto/user_dto.dart';
-import '../../resources/presentation/resource_dialogs.dart'
+import '../../resources/presentation/dialogs/grant_access_dialog.dart'
     show GrantAccessDialog;
 
 /// `409 sole_group_owner` on a user delete — the groups it named as blocked,

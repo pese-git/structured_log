@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -86,6 +87,71 @@ void main() {
       expect(result, isNotNull);
       expect(result!.containsKey('b'), isFalse);
     });
+
+    test('addTimestamp stamps an entry that has none', () {
+      final entry = <String, dynamic>{'event': 'custom'};
+      final result = addTimestamp(entry)!;
+
+      expect(identical(result, entry), isTrue, reason: 'it works in place');
+      expect(
+        DateTime.tryParse(result['timestamp'] as String),
+        isNotNull,
+        reason: 'the value has to be a timestamp, not just a string',
+      );
+    });
+
+    test('addTimestamp leaves an existing timestamp alone', () {
+      // The reason it can sit anywhere in a pipeline: `BoundLogger` has
+      // already stamped every entry it produces, and a processor that
+      // restamped would move the moment the caller logged to the moment the
+      // pipeline reached this line.
+      final entry = <String, dynamic>{'timestamp': '2020-01-01T00:00:00.000'};
+      expect(addTimestamp(entry)!['timestamp'], '2020-01-01T00:00:00.000');
+    });
+
+    test('addLogLevel adds nothing — it is a no-op, despite the name', () {
+      // Documented as a no-op: `level` is set by `BoundLogger.tryLog` before
+      // any processor runs, and this exists so a `processors:` list can say
+      // so out loud. Pinned because the name promises the opposite.
+      final entry = <String, dynamic>{'event': 'e'};
+      final result = addLogLevel(entry)!;
+
+      expect(identical(result, entry), isTrue);
+      expect(result.containsKey('level'), isFalse);
+    });
+
+    test('jsonRenderer prints one line of JSON and passes the entry on', () {
+      final printed = _capturePrints(
+        () => jsonRenderer({'event': 'startup', 'pid': 123}),
+      );
+
+      expect(printed, hasLength(1));
+      expect(jsonDecode(printed.single), {'event': 'startup', 'pid': 123});
+      expect(printed.single, isNot(contains('\n')));
+    });
+
+    test('jsonRenderer returns the very same map', () {
+      final entry = <String, dynamic>{'event': 'e'};
+      late Map<String, dynamic>? result;
+      _capturePrints(() => result = jsonRenderer(entry));
+      expect(identical(result, entry), isTrue);
+    });
+
+    test('logfmtRenderer quotes strings and leaves other types bare', () {
+      final printed = _capturePrints(
+        () => logfmtRenderer({'event': 'startup', 'pid': 123, 'ok': true}),
+      );
+
+      expect(printed, hasLength(1));
+      expect(printed.single, 'event="startup" pid=123 ok=true');
+    });
+
+    test('logfmtRenderer returns the very same map', () {
+      final entry = <String, dynamic>{'event': 'e'};
+      late Map<String, dynamic>? result;
+      _capturePrints(() => result = logfmtRenderer(entry));
+      expect(identical(result, entry), isTrue);
+    });
   });
 
   group('redactKeys', () {
@@ -127,6 +193,60 @@ void main() {
           ((entry['request'] as Map)['headers'] as List).cast<Map>();
       expect(headers[0]['authorization'], '***');
       expect(headers[1]['accept'], 'application/json');
+    });
+
+    test('a nested map that is not Map<String, dynamic> is walked too', () {
+      // `Map<String, dynamic>` covers what `jsonDecode` and a plain literal
+      // produce, and it covered every test here — so this branch of the
+      // walk had no coverage at all until the gate said so. A map typed by
+      // its values, or keyed by anything but a string, lands here.
+      final entry = redactKeys()({
+        'by_index': <int, String>{1: 'Bearer real', 2: 'kept'},
+        'typed': <Object, Object>{'password': 'hunter2', 'user': 'bob'},
+      })!;
+
+      expect((entry['typed'] as Map)['password'], '***');
+      expect((entry['typed'] as Map)['user'], 'bob');
+      expect(
+        (entry['by_index'] as Map)[1],
+        'Bearer real',
+        reason: 'an int key names nothing, so only a value rule could match',
+      );
+    });
+
+    test('a value rule reaches into a map with no string keys', () {
+      final entry = redactKeys(
+        keys: const {},
+        matchesValue: looksLikeJwtOrBearer,
+      )({
+        'by_index': <int, String>{1: 'Bearer real', 2: 'kept'},
+      })!;
+
+      final nested = entry['by_index'] as Map;
+      expect(nested[1], '***');
+      expect(nested[2], 'kept');
+    });
+
+    test('an oddly typed map is copied, not edited in place', () {
+      // The same aliasing hazard as the `Map<String, dynamic>` branch, and
+      // it needs its own guard because it is a separate piece of code.
+      final headers = <Object, Object>{'authorization': 'Bearer real'};
+      final entry = redactKeys()({'headers': headers})!;
+
+      expect((entry['headers'] as Map)['authorization'], '***');
+      expect(
+        headers['authorization'],
+        'Bearer real',
+        reason: 'logging must not take the caller data away here either',
+      );
+    });
+
+    test('an oddly typed map with nothing to redact is not copied', () {
+      final nested = <Object, Object>{'user': 'bob'};
+      final entry = <String, dynamic>{'nested': nested};
+      final result = redactKeys()(entry);
+      expect(identical(result, entry), isTrue);
+      expect(identical(result!['nested'], nested), isTrue);
     });
 
     test('the caller keeps its own data', () {
@@ -598,5 +718,152 @@ void main() {
 
       expect(File('$path.0').existsSync(), isTrue);
     });
+
+    test(
+        'a failing write on the rotating output is reported like the '
+        'plain one', () async {
+      // Same trick as the test above, for the other subclass: a path that
+      // is an existing directory can never be opened as a file. What is
+      // being held here is that the rotating output *has* its own
+      // diagnostic label — the reporting path reads it, and until now no
+      // test made that path run for this class.
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final badPath = '${dir.path}/not_a_file';
+      Directory(badPath).createSync();
+
+      final output = AsyncRotatingFileOutput(badPath, maxSizeBytes: 10);
+      StructlogConfiguration.configure(output: output);
+      getLogger().info('one');
+
+      await expectLater(output.flushed, completes);
+    });
+
+    test('an async output creates the directory it was pointed into', () async {
+      // Pointing a log file at a directory that does not exist yet is the
+      // ordinary case on a fresh machine — `logs/app.log` before anything
+      // has run — so both outputs make it rather than failing every write.
+      final root = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => root.deleteSync(recursive: true));
+
+      final plainPath = '${root.path}/made/up/plain.log';
+      final rotatingPath = '${root.path}/another/made/up/rotating.log';
+      expect(Directory('${root.path}/made').existsSync(), isFalse);
+
+      final plain = AsyncFileOutput(plainPath);
+      final rotating = AsyncRotatingFileOutput(rotatingPath);
+      expect(File(plainPath).parent.existsSync(), isTrue);
+      expect(File(rotatingPath).parent.existsSync(), isTrue);
+
+      plain({'event': 'a'}, LogLevel.info);
+      rotating({'event': 'b'}, LogLevel.info);
+      await plain.flushed;
+      await rotating.flushed;
+
+      expect(File(plainPath).readAsStringSync(), contains('"event":"a"'));
+      expect(File(rotatingPath).readAsStringSync(), contains('"event":"b"'));
+    });
   });
+
+  group('Sync file outputs', () {
+    test('both create the directory they were pointed into', () {
+      final root = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => root.deleteSync(recursive: true));
+
+      final plainPath = '${root.path}/made/up/plain.log';
+      final rotatingPath = '${root.path}/another/made/up/rotating.log';
+      expect(Directory('${root.path}/made').existsSync(), isFalse);
+
+      final plain = fileOutput(plainPath);
+      final rotating = rotatingFileOutput(rotatingPath);
+      expect(File(plainPath).parent.existsSync(), isTrue);
+      expect(File(rotatingPath).parent.existsSync(), isTrue);
+
+      plain({'event': 'a'}, LogLevel.info);
+      rotating({'event': 'b'}, LogLevel.info);
+
+      expect(File(plainPath).readAsStringSync(), contains('"event":"a"'));
+      expect(File(rotatingPath).readAsStringSync(), contains('"event":"b"'));
+    });
+
+    test('rotation drops the oldest backup rather than keeping every one', () {
+      // `maxBackups` is a promise about disk, and it is only kept on the
+      // rotation that finds the last slot already taken — the one that
+      // deletes before it shifts. Two backups means the third rotation is
+      // the first to do it.
+      //
+      // What this test holds is the promise, not the delete: removing
+      // `oldest.deleteSync()` keeps it green on POSIX, because `rename(2)`
+      // replaces the destination anyway. The delete is there for the other
+      // side of the CI matrix — this package runs on Windows for exactly
+      // this file's sake — and a macOS run cannot tell the difference.
+      final dir = Directory.systemTemp.createTempSync('structured_log_test_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/rotating.log';
+
+      final output = rotatingFileOutput(path, maxSizeBytes: 1, maxBackups: 2);
+      for (var i = 0; i < 4; i++) {
+        output({'event': 'e', 'i': i}, LogLevel.info);
+      }
+
+      expect(File('$path.0').existsSync(), isTrue);
+      expect(File('$path.1').existsSync(), isTrue);
+      expect(
+        File('$path.2').existsSync(),
+        isFalse,
+        reason: 'maxBackups: 2 means two backups, however long this runs',
+      );
+      expect(
+        File('$path.1').readAsStringSync(),
+        contains('"i":1'),
+        reason: 'the oldest entry was deleted, not shifted further along',
+      );
+    });
+  });
+
+  group('Console output', () {
+    test('every level gets its own colour, critical included', () {
+      // `critical` is the last arm of the switch and the only one no test
+      // reached; the others are here so the test says what it is really
+      // holding — a level-to-colour map, not one colour.
+      const expected = {
+        LogLevel.trace: '\x1B[90m',
+        LogLevel.debug: '\x1B[36m',
+        LogLevel.info: '\x1B[32m',
+        LogLevel.warning: '\x1B[33m',
+        LogLevel.error: '\x1B[31m',
+        LogLevel.critical: '\x1B[35m',
+      };
+
+      for (final entry in expected.entries) {
+        final lines = <String>[];
+        runZoned(
+          () => coloredConsoleOutput({
+            'event': 'e',
+            'level': entry.key.name,
+          }, entry.key),
+          zoneSpecification: ZoneSpecification(
+            print: (self, parent, zone, line) => lines.add(line),
+          ),
+        );
+
+        expect(lines.single, startsWith(entry.value), reason: '${entry.key}');
+      }
+    });
+  });
+}
+
+/// Runs [body] and returns whatever it printed.
+///
+/// `jsonRenderer` and `logfmtRenderer` deliver through `print`, so there is
+/// nothing to assert on unless the zone's `print` is the one collecting it.
+List<String> _capturePrints(void Function() body) {
+  final printed = <String>[];
+  runZoned(
+    body,
+    zoneSpecification: ZoneSpecification(
+      print: (self, parent, zone, line) => printed.add(line),
+    ),
+  );
+  return printed;
 }

@@ -61,7 +61,7 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       ),
       // Scrolling for the reason every dialog in this app scrolls: a bare
       // `Column` inside `ContentDialog`'s loose `Flexible` takes the whole of
-      // it (`resource_dialogs.dart`).
+      // it (`features/resources/presentation/dialogs/`).
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
