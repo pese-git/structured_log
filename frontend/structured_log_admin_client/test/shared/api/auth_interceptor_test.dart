@@ -350,13 +350,16 @@ void main() {
     final refreshRequest = adapter.requests.firstWhere(
       (r) => r.path == '/v1/auth/token',
     );
-    expect((refreshRequest.data as Map).containsKey('refresh_token'), isFalse);
     expect(
-      (await storage.read())!.refreshToken,
-      isNull,
+      (refreshRequest.data as Map).containsKey('refresh_token'),
+      isFalse,
       reason:
-          'the body carried one; holding on to it would put the token '
-          'back in reach of this page',
+          'an empty field would outrank the cookie on the server and fail '
+          'the renewal; the field has to be absent, not blank',
     );
+    // Whether the client then *drops* the token the body carried is not
+    // visible here: this runs on the VM, where nothing holds cookies, so
+    // `sessionFrom` rightly keeps the copy. The browser half is pinned in
+    // `integration_test/`.
   });
 }

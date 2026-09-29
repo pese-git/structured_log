@@ -241,7 +241,14 @@ void main() {
       );
       final held = await storage.read();
       expect(held!.accessToken, 'fresh-access');
-      expect(held.refreshToken, isNull);
+      expect(
+        held.refreshToken,
+        'fresh-refresh',
+        reason:
+            'the server set a cookie, but this host keeps none — so the copy '
+            'from the body is the only credential there is. Letting go of it '
+            'is what a browser does (`sessionFrom`)',
+      );
     });
 
     test('a cookie-less tab presents the token it holds', () async {

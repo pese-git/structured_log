@@ -7,6 +7,7 @@ import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import 'audit_api.dart';
 import 'auth_api.dart';
+import 'token_response.dart';
 import 'auth_interceptor.dart';
 import 'logs_api.dart';
 import 'resources_api.dart';
@@ -130,11 +131,7 @@ class ApiClient implements Disposable {
             AuthApi.refreshGrant,
             refreshToken,
           );
-          return TokenPair.fromGrant(
-            accessToken: response.accessToken,
-            refreshToken: response.refreshToken,
-            cookieSet: response.refreshTokenCookieSet,
-          );
+          return sessionFrom(response);
         } on DioException {
           // Any failure here — refused, offline, timed out — ends the
           // session. Distinguishing them would only offer the user a retry

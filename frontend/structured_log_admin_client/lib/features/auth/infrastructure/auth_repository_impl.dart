@@ -5,6 +5,7 @@ import 'package:structured_log/structured_log.dart';
 import '../../../shared/api/auth_api.dart';
 import '../../../shared/api/dto/auth_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
+import '../../../shared/api/token_response.dart';
 import '../../../shared/auth/access_token_claims.dart';
 import '../../../shared/auth/password_rejection.dart';
 import '../../../shared/auth/token_pair.dart';
@@ -36,13 +37,7 @@ class AuthRepositoryImpl implements AuthRepository {
         username,
         password,
       );
-      await _storage.write(
-        TokenPair.fromGrant(
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          cookieSet: tokens.refreshTokenCookieSet,
-        ),
-      );
+      await _storage.write(sessionFrom(tokens));
       // The username is context, not a secret; neither password nor token is
       // ever logged (decision 48).
       _log.info('auth.signed_in', context: {'username': username});
@@ -93,13 +88,7 @@ class AuthRepositoryImpl implements AuthRepository {
         AuthApi.refreshGrant,
         await _storage.readRefreshToken(),
       );
-      await _storage.write(
-        TokenPair.fromGrant(
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          cookieSet: tokens.refreshTokenCookieSet,
-        ),
-      );
+      await _storage.write(sessionFrom(tokens));
       return true;
     } on DioException {
       // No session, an expired one, or an unreachable server. All three end

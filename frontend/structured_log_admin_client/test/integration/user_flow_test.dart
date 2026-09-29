@@ -267,24 +267,21 @@ void _operatorPath({required bool refreshCookie}) {
     final held = await storage.read();
 
     expect(held, isNotNull, reason: 'the operator is still signed in');
-    if (refreshCookie) {
-      expect(
-        held!.refreshToken,
-        isNull,
-        reason:
-            'the server holds it; a copy here would be reachable from any '
-            'script on this origin, which is what the cookie exists to stop',
-      );
-      expect(server.refreshCookie, isNotNull);
-    } else {
-      expect(
-        held!.refreshToken,
-        isNotNull,
-        reason:
-            'no cookie in this deployment — the client has to hold it, or '
-            'the session cannot be renewed at all',
-      );
-    }
+    expect(
+      server.refreshCookie,
+      refreshCookie ? isNotNull : isNull,
+      reason: 'the server put the credential where the deployment says',
+    );
+    expect(
+      held!.refreshToken,
+      isNotNull,
+      reason:
+          'this runs on the VM, which holds no cookies — so the client rightly '
+          'keeps the copy the body carried, in either mode. Letting go of it '
+          'is browser-only and is checked in a browser (`integration_test/`); '
+          'a client that dropped it here would have no way to renew at all, '
+          'which is how `packages/e2e` caught the first attempt at this',
+    );
     await closeApp(tester);
   });
 
