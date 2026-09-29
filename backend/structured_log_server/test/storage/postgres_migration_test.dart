@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:postgres/postgres.dart' as pg;
 import 'package:structured_log_server/src/storage/database.dart';
 import 'package:test/test.dart';
@@ -100,13 +101,63 @@ void main() {
       for (final name in _wantedIndexes) {
         await fresh.customStatement('DROP INDEX $name');
       }
+      // Version 1 predates `revoked_reason` (version 3) too.
+      await fresh.customStatement(
+        'ALTER TABLE refresh_tokens DROP COLUMN revoked_reason',
+      );
       await fresh.customStatement('UPDATE __schema SET version = 1');
       await fresh.close();
 
       final upgraded = _open();
       addTearDown(upgraded.close);
-      await upgraded.customStatement('SELECT 1'); // triggers onUpgrade(1, 2)
+      await upgraded.customStatement(
+        'SELECT 1',
+      ); // triggers onUpgrade(1, current)
       expect(await _indexNames(upgraded), containsAll(_wantedIndexes));
+    },
+  );
+
+  test(
+    'a version 2 database gains revoked_reason on open, old rows left NULL',
+    () async {
+      final fresh = _open();
+      await fresh.customStatement('SELECT 1'); // creates at the current version
+      await fresh.customStatement(
+        'ALTER TABLE refresh_tokens DROP COLUMN revoked_reason',
+      );
+      final userId = await fresh
+          .into(fresh.users)
+          .insert(UsersCompanion.insert(username: 'alice', passwordHash: 'h'));
+      // Only the columns named here are written, so the insert works against
+      // the table as version 2 had it.
+      await fresh
+          .into(fresh.refreshTokens)
+          .insert(
+            RefreshTokensCompanion.insert(
+              userId: userId,
+              tokenHash: 'old-hash',
+              expiresAt: DateTime.now().add(const Duration(days: 1)),
+              revokedAt: Value(DateTime.now()),
+            ),
+          );
+      await fresh.customStatement('UPDATE __schema SET version = 2');
+      await fresh.close();
+
+      final upgraded = _open();
+      addTearDown(upgraded.close);
+      final row = await upgraded.select(upgraded.refreshTokens).getSingle();
+      expect(row.revokedAt, isNotNull);
+      expect(row.revokedReason, isNull);
+
+      // And the column takes a reason, the way `TokenService` writes one.
+      await (upgraded.update(
+        upgraded.refreshTokens,
+      )).write(const RefreshTokensCompanion(revokedReason: Value('rotated')));
+      expect(
+        (await upgraded.select(upgraded.refreshTokens).getSingle())
+            .revokedReason,
+        'rotated',
+      );
     },
   );
 

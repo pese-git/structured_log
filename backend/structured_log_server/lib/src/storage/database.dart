@@ -98,6 +98,14 @@ class RoleAssignments extends Table {
 /// An issued, revocable refresh token for a [Users] session
 /// (`log-server-auth`). `tokenHash` is a hash of the token, never the token
 /// itself.
+///
+/// `revokedReason` says why `revokedAt` was set — one of
+/// `RevocationReason.wire` (`auth/session.dart`). Only a token spent by
+/// rotation is evidence of theft when it comes back; one ended by a sign-out,
+/// a password change or an administrator is a stale client, and answering it
+/// with reuse detection signs out the very sessions that were meant to
+/// survive. `NULL` on a revoked row means it was revoked before schema
+/// version 3, when nobody recorded why.
 class RefreshTokens extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get userId => integer().references(Users, #id)();
@@ -105,6 +113,7 @@ class RefreshTokens extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get expiresAt => dateTime()();
   DateTimeColumn get revokedAt => dateTime().nullable()();
+  TextColumn get revokedReason => text().nullable()();
 }
 
 /// A one-time password-recovery token (`log-server-password-reset`).
@@ -314,7 +323,7 @@ class StructuredLogDatabase extends _$StructuredLogDatabase
   bool get isInTransaction => !identical(resolvedEngine, this);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -347,6 +356,12 @@ class StructuredLogDatabase extends _$StructuredLogDatabase
         for (final statement in _v2IndexStatements) {
           await customStatement(statement);
         }
+      }
+      if (from < 3) {
+        // Rows already revoked keep `NULL`: why they died was never written
+        // down, and guessing would be inventing it. `refreshTokenGrant`
+        // treats that as it treated every revoked token before.
+        await m.addColumn(refreshTokens, refreshTokens.revokedReason);
       }
     },
   );

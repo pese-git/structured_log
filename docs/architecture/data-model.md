@@ -125,7 +125,10 @@ erDiagram
   lets the server distinguish "this token never existed" from "this
   token existed and was already consumed" — the latter is the signal
   used to detect refresh-token reuse and revoke the whole chain (see
-  [auth.md](auth.md)).
+  [auth.md](auth.md)). A refresh token also records *why* it was
+  revoked (`revoked_reason`): only one spent by rotation is a reuse
+  signal, not one ended by a sign-out, a password change or an
+  administrator.
 
 ## User lifecycle fields, at a glance
 

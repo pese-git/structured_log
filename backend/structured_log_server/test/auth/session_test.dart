@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
 import 'package:structured_log_server/src/auth/session.dart';
@@ -58,6 +58,7 @@ void main() {
       await revokeRefreshTokensExcept(
         db,
         userId,
+        reason: RevocationReason.passwordChanged,
         exceptTokenHash: hashToken(kept),
       );
 
@@ -74,6 +75,7 @@ void main() {
       final revoked = await revokeRefreshTokensExcept(
         db,
         userId,
+        reason: RevocationReason.passwordChanged,
         exceptTokenHash: hashToken(kept),
       );
 
@@ -87,6 +89,7 @@ void main() {
       final revoked = await revokeRefreshTokensExcept(
         db,
         userId,
+        reason: RevocationReason.passwordChanged,
         exceptTokenHash: hashToken('never-issued'),
       );
 
@@ -105,7 +108,11 @@ void main() {
             .write(RefreshTokensCompanion(revokedAt: Value(revokedAt)));
         await issueToken();
 
-        final revoked = await revokeRefreshTokensExcept(db, userId);
+        final revoked = await revokeRefreshTokensExcept(
+          db,
+          userId,
+          reason: RevocationReason.passwordChanged,
+        );
 
         expect(revoked, 1, reason: 'only the one that was still live');
         final row = await (db.select(
@@ -120,6 +127,55 @@ void main() {
         );
       },
     );
+
+    test('records why on each row it revokes', () async {
+      final kept = await issueToken();
+      final phone = await issueToken();
+
+      await revokeRefreshTokensExcept(
+        db,
+        userId,
+        reason: RevocationReason.passwordChanged,
+        exceptTokenHash: hashToken(kept),
+      );
+
+      Future<String?> reasonOf(String plain) async =>
+          (await (db.select(db.refreshTokens)
+                    ..where((t) => t.tokenHash.equals(hashToken(plain))))
+                  .getSingle())
+              .revokedReason;
+      expect(await reasonOf(phone), RevocationReason.passwordChanged.wire);
+      expect(await reasonOf(kept), isNull, reason: 'the spared one is live');
+    });
+
+    test('does not rewrite why an already-revoked token died', () async {
+      final spent = await issueToken();
+      await (db.update(
+        db.refreshTokens,
+      )..where((t) => t.tokenHash.equals(hashToken(spent)))).write(
+        RefreshTokensCompanion(
+          revokedAt: Value(DateTime.now()),
+          revokedReason: Value(RevocationReason.rotated.wire),
+        ),
+      );
+
+      await revokeRefreshTokensExcept(
+        db,
+        userId,
+        reason: RevocationReason.passwordChanged,
+      );
+
+      final row = await (db.select(
+        db.refreshTokens,
+      )..where((t) => t.tokenHash.equals(hashToken(spent)))).getSingle();
+      expect(
+        row.revokedReason,
+        RevocationReason.rotated.wire,
+        reason:
+            'a sweep relabelling a rotated token would hide the reuse its '
+            'return is evidence of',
+      );
+    });
 
     test('leaves another account alone', () async {
       final mine = await issueToken();
@@ -142,7 +198,11 @@ void main() {
             ),
           );
 
-      await revokeRefreshTokensExcept(db, userId);
+      await revokeRefreshTokensExcept(
+        db,
+        userId,
+        reason: RevocationReason.passwordChanged,
+      );
 
       expect(await isLive(mine), isFalse);
       expect(await isLive(theirs), isTrue);
@@ -155,10 +215,31 @@ void main() {
       final phone = await issueToken();
       final laptop = await issueToken();
 
-      await revokeAllRefreshTokens(db, userId);
+      await revokeAllRefreshTokens(
+        db,
+        userId,
+        reason: RevocationReason.blocked,
+      );
 
       expect(await isLive(phone), isFalse);
       expect(await isLive(laptop), isFalse);
     },
   );
+
+  group('RevocationReason.signalsReuse', () {
+    test('only a rotated token is a theft signal', () {
+      for (final reason in RevocationReason.values) {
+        expect(
+          RevocationReason.signalsReuse(reason.wire),
+          reason == RevocationReason.rotated,
+          reason: reason.wire,
+        );
+      }
+    });
+
+    test('an unrecorded or unknown reason fails towards detection', () {
+      expect(RevocationReason.signalsReuse(null), isTrue);
+      expect(RevocationReason.signalsReuse('something-new'), isTrue);
+    });
+  });
 }

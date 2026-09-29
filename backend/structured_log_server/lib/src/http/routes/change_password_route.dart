@@ -119,6 +119,7 @@ class ChangePasswordRoutes {
           : await revokeRefreshTokensExcept(
               _db,
               identity.userId,
+              reason: RevocationReason.passwordChanged,
               exceptTokenHash: currentRefreshToken == null
                   ? null
                   : hashToken(currentRefreshToken),

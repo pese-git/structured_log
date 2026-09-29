@@ -129,6 +129,17 @@ Key properties, each traced to a decision:
   token is a resource, revocation is its deletion (RFC 7009). It always
   answers `200` with an empty body, valid token or not, so the response
   can't be used to probe whether someone else's token is still live.
+- **Only a rotated token coming back is treated as theft.** A refresh
+  token spent by `grant_type=refresh_token` has a live successor, so a
+  second presentation means two parties hold one session, and the server
+  revokes every refresh token of the account. A token ended any other
+  way — sign-out, the password-change sweep, an administrator's reset,
+  block or deletion — is refused with the same `invalid_grant`, and
+  nothing else happens: that is a device which has not heard yet,
+  renewing on its own schedule. `refresh_tokens.revoked_reason` records
+  which it was. Before it did, a swept device renewing signed out the
+  very session that had just changed the password. A row revoked before
+  the column existed (`NULL`) is still treated as rotated.
 - **Roles are a snapshot in the JWT claims** (`roles: [{role, scope_type,
   scope_id}]`), not resolved from the database on every request. This is
   the throughput win over the earlier design revision (full DB
