@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../auth/session_lock.dart';
 import '../auth/token_pair.dart';
 import '../auth/token_storage.dart';
 
@@ -67,15 +68,20 @@ class AuthInterceptor extends Interceptor {
   /// just been revoked.
   Future<TokenPair?>? _refreshInFlight;
 
+  /// Takes turns with the other tabs of this origin.
+  final SessionLock _lock;
+
   AuthInterceptor({
     required TokenStorage storage,
+    SessionLock lock = const NoSessionLock(),
     required Future<TokenPair?> Function(String? refreshToken) refresh,
     required Dio retryClient,
     this.onSessionExpired,
     this.onPasswordChangeRequired,
   }) : _storage = storage,
        _refresh = refresh,
-       _retryClient = retryClient;
+       _retryClient = retryClient,
+       _lock = lock;
 
   @override
   Future<void> onRequest(
@@ -121,7 +127,7 @@ class AuthInterceptor extends Interceptor {
     final stored = await _storage.read();
     if (stored == null) return handler.next(err);
 
-    final renewed = await _runRefresh(stored.refreshToken);
+    final renewed = await _runRefresh();
     if (renewed == null) {
       // The refresh token is spent, revoked, or the account is blocked.
       // Nothing the app can do but start over.
@@ -191,12 +197,26 @@ class AuthInterceptor extends Interceptor {
     return body is Map<String, dynamic> ? body['error'] as String? : null;
   }
 
-  Future<TokenPair?> _runRefresh(String? refreshToken) {
+  /// One renewal at a time in this tab, and one across all of them.
+  ///
+  /// [_refreshInFlight] collapses the requests of this instance; [_lock] takes
+  /// a turn among the tabs. They are different problems: five parallel 401s
+  /// here share a future, whereas another tab holds a separate `ApiClient`
+  /// that knows nothing of this one.
+  ///
+  /// The token is read *inside* the lock, never captured before it. Whoever
+  /// waited is looking at a rotated token by the time they run — the shared
+  /// secret store holds the new one in the cookie-less mode, and the browser
+  /// holds it in the cookie mode — and presenting the value from before the
+  /// wait would present a spent token. The server cannot tell that from
+  /// theft, and answers by revoking the account's whole chain.
+  Future<TokenPair?> _runRefresh() {
     final existing = _refreshInFlight;
     if (existing != null) return existing;
 
-    final attempt = _refresh(refreshToken)
-        .then((tokens) async {
+    final attempt = _lock
+        .synchronized(() async {
+          final tokens = await _refresh(await _storage.readRefreshToken());
           if (tokens != null) await _storage.write(tokens);
           return tokens;
         })

@@ -1,6 +1,7 @@
 import 'package:cherrypick/cherrypick.dart';
 import 'package:dio/dio.dart';
 
+import '../auth/session_lock.dart';
 import '../auth/token_pair.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
@@ -75,6 +76,9 @@ class ApiClient implements Disposable {
 
     /// Swapped in tests for an adapter that answers without a socket.
     HttpClientAdapter? adapter,
+
+    /// Takes turns with the other tabs of this origin when renewing.
+    SessionLock sessionLock = const NoSessionLock(),
   }) {
     BaseOptions optionsFor(Duration timeout) => BaseOptions(
       baseUrl: config.baseUrl,
@@ -116,6 +120,7 @@ class ApiClient implements Disposable {
 
     final authInterceptor = AuthInterceptor(
       storage: storage,
+      lock: sessionLock,
       retryClient: retryClient,
       onSessionExpired: onSessionExpired,
       onPasswordChangeRequired: onPasswordChangeRequired,

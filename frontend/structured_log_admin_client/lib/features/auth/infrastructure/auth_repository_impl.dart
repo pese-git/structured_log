@@ -79,7 +79,35 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<bool> hasSession() async => await _storage.read() != null;
+  Future<bool> restoreSession() async {
+    // This tab already has an access token: a reload, not a new tab. Costs
+    // nothing, and — more to the point — keeps a reload out of the renewal
+    // race between tabs altogether.
+    if (await _storage.read() != null) return true;
+
+    try {
+      // No token to present in the cookie mode; the browser attaches it. In
+      // the cookie-less mode the shared secret store still holds one, and a
+      // new tab must use it rather than renew with nothing.
+      final tokens = await _api.refresh(
+        AuthApi.refreshGrant,
+        await _storage.readRefreshToken(),
+      );
+      await _storage.write(
+        TokenPair.fromGrant(
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          cookieSet: tokens.refreshTokenCookieSet,
+        ),
+      );
+      return true;
+    } on DioException {
+      // No session, an expired one, or an unreachable server. All three end
+      // at the login screen, and telling them apart would only offer the
+      // reader a distinction they cannot act on.
+      return false;
+    }
+  }
 
   @override
   Future<Either<AuthFailure, Unit>> changePassword({

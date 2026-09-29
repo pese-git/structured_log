@@ -11,6 +11,16 @@ import 'token_pair.dart';
 abstract interface class TokenStorage {
   Future<TokenPair?> read();
 
+  /// The refresh half on its own, for a caller that has no access token to
+  /// pair it with.
+  ///
+  /// Two of them: a tab restoring a session it has no access token for, and a
+  /// renewal that has just taken the cross-tab lock and must look again
+  /// rather than trust what it read before waiting. `null` means the browser
+  /// holds it in a cookie, or there is no session — the server tells those
+  /// two apart, the client cannot.
+  Future<String?> readRefreshToken();
+
   Future<void> write(TokenPair tokens);
 
   /// Called on sign-out and whenever a refresh is refused. Must succeed even
@@ -86,6 +96,11 @@ class SplitTokenStorage implements TokenStorage {
     );
   }
 
+  /// Unlike [read], this does not require an access token: the tab asking is
+  /// precisely the one that has none.
+  @override
+  Future<String?> readRefreshToken() => _refreshStore.read();
+
   @override
   Future<void> write(TokenPair tokens) async {
     _accessStore.write(tokens.accessToken);
@@ -116,6 +131,9 @@ class InMemoryTokenStorage implements TokenStorage {
 
   @override
   Future<TokenPair?> read() async => _tokens;
+
+  @override
+  Future<String?> readRefreshToken() async => _tokens?.refreshToken;
 
   @override
   Future<void> write(TokenPair tokens) async => _tokens = tokens;

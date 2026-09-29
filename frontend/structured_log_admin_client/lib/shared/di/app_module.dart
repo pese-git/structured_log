@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:structured_log/structured_log.dart';
 
 import '../api/api_client.dart';
+import '../auth/session_lock.dart';
 import '../auth/session_store.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
@@ -88,6 +89,7 @@ class AppModule extends Module {
             onSessionExpired: onSessionExpired,
             onPasswordChangeRequired: onPasswordChangeRequired,
             adapter: httpAdapter,
+            sessionLock: createSessionLock(),
           ),
         )
         .singleton();
