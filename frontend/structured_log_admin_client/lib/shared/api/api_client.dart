@@ -125,9 +125,10 @@ class ApiClient implements Disposable {
             AuthApi.refreshGrant,
             refreshToken,
           );
-          return TokenPair(
+          return TokenPair.fromGrant(
             accessToken: response.accessToken,
             refreshToken: response.refreshToken,
+            cookieSet: response.refreshTokenCookieSet,
           );
         } on DioException {
           // Any failure here — refused, offline, timed out — ends the

@@ -29,9 +29,13 @@ abstract class AuthApi {
 
   @POST('/v1/auth/token')
   @FormUrlEncoded()
+  /// [refreshToken] is `null` when the server holds it in an `HttpOnly`
+  /// cookie: the field is then absent and the cookie travels by itself
+  /// (`log-server-auth`). A field that is present always wins over the
+  /// cookie, so sending `null` is not the same as sending an empty string.
   Future<TokenResponseDto> refresh(
     @Field('grant_type') String grantType,
-    @Field('refresh_token') String refreshToken,
+    @Field('refresh_token') String? refreshToken,
   );
 
   /// Answers 200 whether or not the token was valid, so a caller learns
@@ -40,7 +44,9 @@ abstract class AuthApi {
   /// (`specs/admin-client-auth`).
   @DELETE('/v1/auth/token')
   @FormUrlEncoded()
-  Future<void> signOut(@Field('refresh_token') String refreshToken);
+  /// `null` for the same reason as [refresh]: in cookie mode this session's
+  /// token is named by the cookie, and the response clears it.
+  Future<void> signOut(@Field('refresh_token') String? refreshToken);
 
   /// Also the way out of the forced-change gate: on success the server stops
   /// answering `403 must_change_password`.

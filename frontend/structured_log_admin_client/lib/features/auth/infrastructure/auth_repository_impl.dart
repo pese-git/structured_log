@@ -37,9 +37,10 @@ class AuthRepositoryImpl implements AuthRepository {
         password,
       );
       await _storage.write(
-        TokenPair(
+        TokenPair.fromGrant(
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
+          cookieSet: tokens.refreshTokenCookieSet,
         ),
       );
       // The username is context, not a secret; neither password nor token is

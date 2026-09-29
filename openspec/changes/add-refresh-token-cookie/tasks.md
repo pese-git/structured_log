@@ -1,36 +1,36 @@
 ## 1. Конфигурация сервера
 
-- [ ] 1.1 Добавить `refresh-token-cookie` в `serverConfigParams` (`lib/src/config/server_config.dart`): `ParamType.string`, `allowedValues: ['auto', 'on', 'off']`, значение по умолчанию `auto` — по образцу `log-format`. Поле `RefreshCookieMode refreshTokenCookie` в `ServerConfig`, разбор в `fromResolved`.
-- [ ] 1.2 Дописать `_expectedParamNames` в `test/config/server_config_test.dart`.
-- [ ] 1.3 Тест разбора: не задано → `auto`; каждое из трёх значений; значение вне набора → ошибка конфигурации до открытия порта (тем же путём, что `db-backend`).
+- [x] 1.1 Добавить `refresh-token-cookie` в `serverConfigParams` (`lib/src/config/server_config.dart`): `ParamType.string`, `allowedValues: ['auto', 'on', 'off']`, значение по умолчанию `auto` — по образцу `log-format`. Поле `RefreshCookieMode refreshTokenCookie` в `ServerConfig`, разбор в `fromResolved`.
+- [x] 1.2 Дописать `_expectedParamNames` в `test/config/server_config_test.dart`.
+- [x] 1.3 Тест разбора: не задано → `auto`; каждое из трёх значений; значение вне набора → ошибка конфигурации до открытия порта (тем же путём, что `db-backend`).
 
 ## 2. Сервер: cookie на token-эндпоинтах
 
-- [ ] 2.1 `lib/src/http/refresh_cookie.dart`: имя cookie (константа), сборка `Set-Cookie` (`HttpOnly; Secure; SameSite=Strict; Path=/v1/auth; Max-Age=<ttl>`), сборка гасящего `Set-Cookie` (`Max-Age=0`), чтение значения из заголовка `Cookie` запроса. Разбор — устойчивый к нескольким cookie в одном заголовке и к пробелам; отсутствие нужной → `null`.
-- [ ] 2.2 Решение о постановке cookie: функция `shouldSetRefreshCookie(mode, origin, allowedOrigins)` — чистая, без обращения к `Request`, чтобы проверяться таблицей. `auto`: `origin != null && allowedOrigins.contains(origin)` → `false`, иначе `true`. Тест-таблица на все девять сочетаний режима и наличия origin в списке.
-- [ ] 2.3 `auth_route.dart`, `POST /v1/auth/token`: на успешную выдачу по обоим grant type — добавить `Set-Cookie`, когда 2.2 разрешает, и поле `refresh_token_cookie_set` в тело **всегда**. `refresh_token` из тела **не убирать** ни в каком режиме.
-- [ ] 2.4 `auth_route.dart`, `grant_type=refresh_token`: брать токен из поля формы, при его отсутствии — из cookie; отсутствие обоих → `invalid_request`. Приоритет формы — отдельным тестом с **разными** значениями в поле и в cookie.
-- [ ] 2.5 `auth_route.dart`, `DELETE /v1/auth/token`: тот же приоритет; отсутствие обоих → `invalid_request`; ответ гасит cookie, если запрос её принёс.
-- [ ] 2.6 Прокинуть в `AuthRoutes` режим и список разрешённых origin — через `HttpSettings` (значение-объект, а не строки: `routes_module.dart` связывает по типу).
-- [ ] 2.7 Тесты `test/http/routes/auth_route_test.dart` (или новый `auth_cookie_test.dart`): атрибуты cookie присутствуют все до одного (мутацией проверить каждый — снятие `HttpOnly`/`Secure`/`SameSite` должно валить тест); тело несёт `refresh_token` в обоих режимах; `refresh_token_cookie_set` соответствует режиму; обновление по cookie; гашение на `DELETE`.
+- [x] 2.1 `lib/src/http/refresh_cookie.dart`: имя cookie (константа), сборка `Set-Cookie` (`HttpOnly; Secure; SameSite=Strict; Path=/v1/auth; Max-Age=<ttl>`), сборка гасящего `Set-Cookie` (`Max-Age=0`), чтение значения из заголовка `Cookie` запроса. Разбор — устойчивый к нескольким cookie в одном заголовке и к пробелам; отсутствие нужной → `null`.
+- [x] 2.2 Решение о постановке cookie: функция `shouldSetRefreshCookie(mode, origin, allowedOrigins)` — чистая, без обращения к `Request`, чтобы проверяться таблицей. `auto`: `origin != null && allowedOrigins.contains(origin)` → `false`, иначе `true`. Тест-таблица на все девять сочетаний режима и наличия origin в списке.
+- [x] 2.3 `auth_route.dart`, `POST /v1/auth/token`: на успешную выдачу по обоим grant type — добавить `Set-Cookie`, когда 2.2 разрешает, и поле `refresh_token_cookie_set` в тело **всегда**. `refresh_token` из тела **не убирать** ни в каком режиме.
+- [x] 2.4 `auth_route.dart`, `grant_type=refresh_token`: брать токен из поля формы, при его отсутствии — из cookie; отсутствие обоих → `invalid_request`. Приоритет формы — отдельным тестом с **разными** значениями в поле и в cookie.
+- [x] 2.5 `auth_route.dart`, `DELETE /v1/auth/token`: тот же приоритет; отсутствие обоих → `invalid_request`; ответ гасит cookie, если запрос её принёс.
+- [x] 2.6 Прокинуть в `AuthRoutes` режим и список разрешённых origin — через `HttpSettings` (значение-объект, а не строки: `routes_module.dart` связывает по типу).
+- [x] 2.7 Тесты `test/http/routes/auth_route_test.dart` (или новый `auth_cookie_test.dart`): атрибуты cookie присутствуют все до одного (мутацией проверить каждый — снятие `HttpOnly`/`Secure`/`SameSite` должно валить тест); тело несёт `refresh_token` в обоих режимах; `refresh_token_cookie_set` соответствует режиму; обновление по cookie; гашение на `DELETE`.
 
 ## 3. Сервер: смена пароля
 
-- [ ] 3.1 `change_password_route.dart`: при отсутствии `current_refresh_token` брать значение из cookie; приоритет поля сохранить. Логика «что отзывать» не меняется — меняется только источник щадимого значения.
-- [ ] 3.2 Тесты: щажение по cookie без поля; поле выигрывает у cookie с другим значением; ни поля, ни cookie → отзыв всех (существующий тест остаётся как есть).
+- [x] 3.1 `change_password_route.dart`: при отсутствии `current_refresh_token` брать значение из cookie; приоритет поля сохранить. Логика «что отзывать» не меняется — меняется только источник щадимого значения.
+- [x] 3.2 Тесты: щажение по cookie без поля; поле выигрывает у cookie с другим значением; ни поля, ни cookie → отзыв всех (существующий тест остаётся как есть).
 
 ## 4. CORS
 
-- [ ] 4.1 `cors_middleware.dart`: добавить `Access-Control-Allow-Credentials: true` рядом с `Access-Control-Allow-Origin` — и в ответе на preflight, и в обычном ответе.
-- [ ] 4.2 Расширить `test/http/cors_test.dart`: заголовок присутствует для origin из списка (на обычном ответе и на preflight) и отсутствует для origin вне списка и при пустом списке.
+- [x] 4.1 `cors_middleware.dart`: добавить `Access-Control-Allow-Credentials: true` рядом с `Access-Control-Allow-Origin` — и в ответе на preflight, и в обычном ответе.
+- [x] 4.2 Расширить `test/http/cors_test.dart`: заголовок присутствует для origin из списка (на обычном ответе и на preflight) и отсутствует для origin вне списка и при пустом списке.
 
 ## 5. Клиент: хранилище и режим
 
-- [ ] 5.1 Расщепить `TokenStorage` (`lib/shared/auth/token_storage.dart`): access-токен — пер-вкладочное хранилище (`sessionStorage` через условный импорт, как `locale_store_web.dart`; вне web — в памяти), refresh-токен — прежняя защищённая обёртка, используемая только в режиме без cookie. `InMemoryTokenStorage` остаётся для тестов и галереи.
-- [ ] 5.2 Хранить режим (`refresh_token_cookie_set` из последнего успешного ответа) рядом с сессией: `AuthRepositoryImpl` его читает и решает, сохранять ли refresh-токен. До первого ответа режим неизвестен — это состояние должно быть выразимо, а не подменяться дефолтом.
-- [ ] 5.3 `AuthInterceptor`: не слать `refresh_token` в режиме cookie; **удалить** `_renameSpentRefreshToken` целиком вместе с его тестами в `test/integration/account_settings_integration_test.dart` и `packages/e2e/test/aged_session_test.dart` — заменить их на тесты щажения по cookie (та же гарантия, другой механизм).
+- [x] 5.1 Расщепить `TokenStorage` (`lib/shared/auth/token_storage.dart`): access-токен — пер-вкладочное хранилище (`sessionStorage` через условный импорт, как `locale_store_web.dart`; вне web — в памяти), refresh-токен — прежняя защищённая обёртка, используемая только в режиме без cookie. `InMemoryTokenStorage` остаётся для тестов и галереи.
+- [x] 5.2 Хранить режим (`refresh_token_cookie_set` из последнего успешного ответа) рядом с сессией: `AuthRepositoryImpl` его читает и решает, сохранять ли refresh-токен. До первого ответа режим неизвестен — это состояние должно быть выразимо, а не подменяться дефолтом.
+- [x] 5.3 `AuthInterceptor`: не слать `refresh_token` в режиме cookie. `_renameSpentRefreshToken` **сохранить** — он нужен режиму без cookie, где тело по-прежнему называет токен (см. `design.md`, decision 6); вызов обусловить наличием токена у клиента. Тесты в `test/integration/account_settings_integration_test.dart` и `packages/e2e/test/aged_session_test.dart` остаются как есть — они стерегут режим без cookie; тесты щажения по cookie добавляются рядом, а не вместо.
 - [ ] 5.4 `sign_out.dart` / `change_password.dart`: перестать слать значение токена в режиме cookie.
-- [ ] 5.5 `app_module.dart`: исправить комментарий про «supplied by tests and by the web build» — он описывает несуществующую сборку; заодно `token_storage.dart`'s «platform-backed secure storage».
+- [x] 5.5 `app_module.dart`: исправить комментарий про «supplied by tests and by the web build» — он описывает несуществующую сборку; заодно `token_storage.dart`'s «platform-backed secure storage».
 
 ## 6. Клиент: старт сессии и гонка вкладок
 
@@ -54,7 +54,7 @@
 
 ## 9. Документация
 
-- [ ] 9.1 `docs/operations/configuration.md`/`.ru.md` — строка про `--refresh-token-cookie` (значения, умолчание, что делает `auto`).
+- [x] 9.1 `docs/operations/configuration.md`/`.ru.md` — строка про `--refresh-token-cookie` (значения, умолчание, что делает `auto`).
 - [ ] 9.2 `docs/guides/admin-guide.md`/`.ru.md` — TLS перестаёт быть опциональным для не-`localhost` развёртываний: `Secure`-cookie не ставится по обычному HTTP, и симптом — бесконечный возврат на экран входа. Плюс раздел про раздельные хосты: когда работает `on` (поддомены одного site), когда не работает ничего (разные домены).
 - [ ] 9.3 `docs/guides/developer-guide.md`/`.ru.md` — раздел про токены: cookie появилась, тело не изменилось, `current_refresh_token` остался необязательным. Примеры с curl оставить как есть — они продолжают работать, и это стоит сказать прямо.
 - [ ] 9.4 `backend/structured_log_server/README.md`/`.ru.md` — настройка в таблицу конфигурации.

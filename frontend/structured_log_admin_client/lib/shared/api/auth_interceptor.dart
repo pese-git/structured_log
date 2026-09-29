@@ -19,7 +19,7 @@ class AuthInterceptor extends Interceptor {
   /// server refuses. Injected rather than calling `AuthApi` directly: that
   /// client runs on the very `Dio` this interceptor is installed in, and a
   /// refresh answered with 401 would drive it back through here.
-  final Future<TokenPair?> Function(String refreshToken) _refresh;
+  final Future<TokenPair?> Function(String? refreshToken) _refresh;
 
   /// The session ended and cannot be recovered — the app returns to sign-in.
   /// Called once per expiry, after the stored tokens are cleared.
@@ -55,6 +55,10 @@ class AuthInterceptor extends Interceptor {
   /// `POST /v1/auth/change-password` puts this session's own token in it so
   /// the server knows which session to spare when it sweeps the rest
   /// (`log-server-forced-password-change`). See [_renameSpentRefreshToken].
+  ///
+  /// Only the cookie-less mode fills it. When the server holds the refresh
+  /// token itself, the body names nothing and the cookie identifies the
+  /// session — which is why that mode needs no repair at all.
   static const _refreshTokenField = 'current_refresh_token';
 
   /// In-flight refresh, shared by every request that hit a 401 while it runs.
@@ -65,7 +69,7 @@ class AuthInterceptor extends Interceptor {
 
   AuthInterceptor({
     required TokenStorage storage,
-    required Future<TokenPair?> Function(String refreshToken) refresh,
+    required Future<TokenPair?> Function(String? refreshToken) refresh,
     required Dio retryClient,
     this.onSessionExpired,
     this.onPasswordChangeRequired,
@@ -129,12 +133,13 @@ class AuthInterceptor extends Interceptor {
     // The renewal just spent `stored.refreshToken`. A body that names it
     // would now name nothing, and the replay would ask the server to spare a
     // token that no longer exists while it sweeps the one this session is
-    // actually holding.
-    _renameSpentRefreshToken(
-      options,
-      spent: stored.refreshToken,
-      renewed: renewed.refreshToken,
-    );
+    // actually holding. Nothing to repair when the client held no token: the
+    // cookie the server reads is the rotated one by then.
+    final spent = stored.refreshToken;
+    final renewedToken = renewed.refreshToken;
+    if (spent != null && renewedToken != null) {
+      _renameSpentRefreshToken(options, spent: spent, renewed: renewedToken);
+    }
 
     try {
       final response = await _retryClient.fetch<dynamic>(
@@ -161,6 +166,11 @@ class AuthInterceptor extends Interceptor {
   ///
   /// Matched on the value, not the path: a body that names some *other*
   /// session's token means that other session, and nothing here has spent it.
+  ///
+  /// This exists for the deployments that cannot use the refresh cookie — a
+  /// client served from an origin the operator declared foreign. Where the
+  /// cookie is in use the body names no token, so there is nothing to rename
+  /// and the caller above skips this entirely.
   static void _renameSpentRefreshToken(
     RequestOptions options, {
     required String spent,
@@ -181,7 +191,7 @@ class AuthInterceptor extends Interceptor {
     return body is Map<String, dynamic> ? body['error'] as String? : null;
   }
 
-  Future<TokenPair?> _runRefresh(String refreshToken) {
+  Future<TokenPair?> _runRefresh(String? refreshToken) {
     final existing = _refreshInFlight;
     if (existing != null) return existing;
 

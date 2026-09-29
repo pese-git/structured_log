@@ -15,6 +15,19 @@ abstract class TokenResponseDto with _$TokenResponseDto {
     /// a refresh off it — the 401 interceptor is what actually renews — but a
     /// screen may show how long a session has left.
     @JsonKey(name: 'expires_in') required int expiresIn,
+
+    /// Whether the server also handed the refresh token to the browser as an
+    /// `HttpOnly` cookie. When it did, the client drops its copy from the
+    /// body and renews with no token at all — the cookie travels by itself
+    /// (`log-server-auth`).
+    ///
+    /// Defaulted rather than required: a server predating this field sets no
+    /// cookie, and `false` is exactly what that means. Naming what the server
+    /// *did* rather than where the token is, because under `auto` a caller
+    /// with no `Origin` gets a cookie it will never use.
+    @JsonKey(name: 'refresh_token_cookie_set')
+    @Default(false)
+    bool refreshTokenCookieSet,
   }) = _TokenResponseDto;
 
   factory TokenResponseDto.fromJson(Map<String, dynamic> json) =>
