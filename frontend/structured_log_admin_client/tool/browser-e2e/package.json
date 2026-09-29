@@ -1,0 +1,12 @@
+{
+  "name": "structured-log-admin-client-browser-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Drives the admin client against a real server behind one origin, to check what the browser does with the refresh cookie.",
+  "scripts": {
+    "test": "node run.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}

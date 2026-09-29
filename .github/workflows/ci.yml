@@ -328,6 +328,68 @@ jobs:
           dart tool/coverage_floor.dart --package structured_log_http \
             --lcov emb/structured_log_http/coverage/lcov.info
 
+  browser-cookie:
+    name: What the browser does with the refresh cookie
+    runs-on: ubuntu-latest
+    # Its own job, and the only one that can answer its question. The three
+    # layers that already cover the cookie each stop short of the same thing:
+    # `flutter test` and `packages/e2e` run where nothing holds cookies, and
+    # `admin-client-flow` below runs in a real browser but mocks the network
+    # under `dio`, so no `Set-Cookie` ever reaches it. Here the server is real,
+    # the bundle is the shipped one, and both sit behind one origin — which is
+    # what makes `HttpOnly`, `SameSite` and a second tab mean anything.
+    #
+    # Needs Dart *and* Node: it starts `bin/server.dart` as a process, builds
+    # the client with Flutter, and drives Chrome from a script.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: >-
+            ${{ runner.os }}-pub-${{
+              hashFiles('frontend/structured_log_admin_client/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # The server is a path dependency on `emb/structured_log` in the
+      # workspace, and CI runs without melos — same override every other job
+      # that builds it writes for itself.
+      - name: Point the server at the workspace's structured_log
+        working-directory: backend/structured_log_server
+        run: |
+          printf 'dependency_overrides:\n  structured_log:\n    path: ../../emb/structured_log\n' > pubspec_overrides.yaml
+          dart pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install client dependencies
+        working-directory: frontend/structured_log_admin_client
+        run: |
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+
+      # Chrome comes with the runner image; puppeteer-core drives it rather
+      # than downloading one of its own.
+      - name: Drive the cookie through a browser
+        working-directory: frontend/structured_log_admin_client/tool/browser-e2e
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: |
+          npm install
+          npm test
+
   admin-client-flow:
     name: Drive the admin client in a browser
     runs-on: ubuntu-latest

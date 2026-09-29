@@ -6,6 +6,7 @@ import '../../../shared/api/auth_api.dart';
 import '../../../shared/api/dto/auth_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
 import '../../../shared/api/token_response.dart';
+import '../../../shared/auth/session_lock.dart';
 import '../../../shared/auth/access_token_claims.dart';
 import '../../../shared/auth/password_rejection.dart';
 import '../../../shared/auth/token_storage.dart';
@@ -17,12 +18,18 @@ class AuthRepositoryImpl implements AuthRepository {
   final TokenStorage _storage;
   final BoundLogger _log;
 
+  /// The same turn-taking the interceptor uses, for the same reason — see
+  /// [restoreSession], which is the other place a renewal starts.
+  final SessionLock _lock;
+
   AuthRepositoryImpl({
     required AuthApi api,
     required TokenStorage storage,
     required BoundLogger logger,
+    SessionLock lock = const NoSessionLock(),
   }) : _api = api,
        _storage = storage,
+       _lock = lock,
        _log = logger.bind({'feature': 'auth'});
 
   @override
@@ -80,13 +87,23 @@ class AuthRepositoryImpl implements AuthRepository {
     if (await _storage.read() != null) return true;
 
     try {
-      // No token to present in the cookie mode; the browser attaches it. In
-      // the cookie-less mode the shared secret store still holds one, and a
-      // new tab must use it rather than renew with nothing.
-      final tokens = await _api.refresh(
-        AuthApi.refreshGrant,
-        await _storage.readRefreshToken(),
-      );
+      // Inside the cross-tab lock, exactly like the interceptor's renewal.
+      // Two tabs opened together boot together, and each one starts here —
+      // so without this the second presents a cookie the first has already
+      // spent, the server reads that as reuse and revokes the account's
+      // whole chain. Putting the lock only on the 401 path left this one
+      // open, which a browser harness found and no test on the VM could
+      // (`tool/browser-e2e`).
+      final tokens = await _lock.synchronized(() async {
+        // No token to present in the cookie mode; the browser attaches it.
+        // In the cookie-less mode the shared secret store still holds one,
+        // and it is read *here*, after the wait, because whoever waited is
+        // looking at a rotated token.
+        return _api.refresh(
+          AuthApi.refreshGrant,
+          await _storage.readRefreshToken(),
+        );
+      });
       await _storage.write(sessionFrom(tokens));
       return true;
     } on DioException {
