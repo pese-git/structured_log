@@ -24,27 +24,25 @@ class _WebSessionLock implements SessionLock {
     // while refusing to renew would sign the reader out for certain.
     if (locks.isUndefinedOrNull) return body();
 
-    final result = Completer<T>();
+    // The body's own future is what the caller gets, not a Completer filled
+    // from it. A Completer completed with an error before anyone listens
+    // reports that error as uncaught — and nobody listens until the lock's
+    // promise has come back through JS, which is well after. Every cold start
+    // without a session did exactly that: the renewal's 400 surfaced as an
+    // uncaught error in the console while the login screen worked as meant.
+    late final Future<T> run;
     await locks
         .request(
           _name,
           ((JSAny? _) {
+            run = body();
             // The promise this returns is what the browser holds the lock
             // for, so the lock spans the whole renewal rather than just its
-            // scheduling.
-            return body()
-                .then(
-                  (value) {
-                    if (!result.isCompleted) result.complete(value);
-                  },
-                  onError: (Object error, StackTrace stack) {
-                    if (!result.isCompleted) result.completeError(error, stack);
-                  },
-                )
-                .toJS;
+            // scheduling. Listening here also marks the error handled.
+            return run.then<void>((_) {}, onError: (Object _) {}).toJS;
           }).toJS,
         )
         .toDart;
-    return result.future;
+    return run;
   }
 }

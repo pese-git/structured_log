@@ -66,6 +66,9 @@ async function enableSemantics(page) {
 /// Opens the app on a fresh page, with semantics on and the first frame up.
 async function open(browser) {
   const page = await browser.newPage();
+  // Before the navigation, so that nothing the boot throws goes unseen.
+  page.uncaught = [];
+  page.on('pageerror', (error) => page.uncaught.push(error.message));
   await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en' });
   await page.goto(origin, { waitUntil: 'networkidle0' });
   await settle(page, 8);
@@ -193,6 +196,17 @@ async function main() {
   try {
     await primeLocale(browser);
     const page = await open(browser);
+    // A tab with no session asks the server anyway — the cookie is the only
+    // place a session could be — and is told 400. That answer is expected
+    // and must end quietly at the login screen. It used to surface as an
+    // uncaught error instead: the cross-tab lock handed the failure to a
+    // Completer nobody was listening to yet. Checked before any typing,
+    // because the engine's text input throws on its own under a driver.
+    check(
+      'a cold start with no session raises no uncaught error',
+      page.uncaught.length === 0,
+      page.uncaught.join(' | '),
+    );
     await signIn(page, server.password);
     await completeForcedChange(page, server.password, CHOSEN_PASSWORD);
 
