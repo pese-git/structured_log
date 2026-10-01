@@ -30,6 +30,7 @@
 ## Impact
 
 - Капабилити `log-server-auth` описана в ещё не заархивированной change `add-structured-log-server` (в `openspec/specs/` её пока нет) — delta этой change читается поверх той; при архивации порядок «сначала `add-structured-log-server`, потом эта» (как в `unify-server-auth`).
+- То же требование `log-server-auth` модифицирует и уже заархивированная `2026-09-29-add-refresh-token-cookie` (смержена раньше этой). `MODIFIED` заменяет требование целиком, поэтому delta этой change несёт и её абзац «размещение в cookie не ослабляет правило», и её сценарий «Ротация не щадит токен оттого, что он предъявлен из cookie» — иначе при синхронизации в порядке архивации они молча пропали бы. Порядок архивации: `add-structured-log-server` → … → `add-refresh-token-cookie` → эта.
 - `backend/structured_log_server/lib/src/storage/database.dart` — колонка, `schemaVersion` 3, шаг `onUpgrade`.
 - `backend/structured_log_server/lib/src/auth/session.dart` — enum `RevocationReason`, обязательный `reason` у двух хелперов.
 - `backend/structured_log_server/lib/src/auth/token_service.dart` — запись `rotated`/`signed_out`, условный отзыв цепочки; `_revokeAllForUser` идёт через общий хелпер с `reuse_detected`.
