@@ -75,7 +75,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   что у `structured_log_dio`. **Не путать с `structured_log_http`**: тот *отправляет* логи на сервер, этот
   *логирует* HTTP-вызовы приложения (имя `structured_log_http` было уже занято). Чистый Dart, не
   опубликован (`0.1.0-dev.0`),
-  [openspec/changes/add-structured-log-http-client/](openspec/changes/add-structured-log-http-client/).
+  [openspec/changes/archive/2026-10-01-add-structured-log-http-client/](openspec/changes/archive/2026-10-01-add-structured-log-http-client/), основная спека — [openspec/specs/http-client-logging/](openspec/specs/http-client-logging/spec.md).
 
 Плюс один пакет в `backend/`:
 

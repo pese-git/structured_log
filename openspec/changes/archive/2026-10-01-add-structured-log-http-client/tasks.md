@@ -10,7 +10,7 @@
 - [x] 2.1 `melos.yaml`: пакет в `packages:` и в scope `test:dart`
 - [x] 2.2 CI-джоба `http-client` (форма `dio-interceptor`)
 - [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — 97 при измеренных 100 % (144/144)
-- [ ] 2.4 CI зелёный на GitHub Actions
+- [x] 2.4 CI зелёный на GitHub Actions — все проверки [#89](https://github.com/pese-git/structured_log/pull/89), включая новую джобу `http-client`; влит squash'ем в `8375998`
 
 ## 3. Документация
 
