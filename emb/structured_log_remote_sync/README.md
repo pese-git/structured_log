@@ -9,7 +9,7 @@ Ships [`structured_log`](https://pub.dev/packages/structured_log) entries to a
 
 Formerly published as
 [`structured_log_http`](https://pub.dev/packages/structured_log_http) — renamed
-in 0.1.0; moving over is one dependency line, one import and one class name
+in 0.2.0; moving over is one dependency line, one import and one class name
 (`HttpLogOutput` → `RemoteSyncLogOutput`), with no change in behaviour.
 
 `RemoteSyncLogOutput` is an ordinary `OutputFunction`, so it plugs into a
@@ -30,7 +30,7 @@ logged: entries are queued and shipped in batches on a background future.
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_remote_sync: ^0.1.0
+  structured_log_remote_sync: ^0.2.0
 ```
 
 ## Quick Start
