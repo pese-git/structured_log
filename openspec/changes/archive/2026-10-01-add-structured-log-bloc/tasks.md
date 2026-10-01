@@ -10,7 +10,7 @@
 - [x] 2.1 `melos.yaml`: пакет в `packages:` и в scope `test:dart`
 - [x] 2.2 CI-джоба `bloc-observer` (форма `http-sender` + прогон примера)
 - [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — 97 при измеренных 100 % (60/60)
-- [ ] 2.4 CI зелёный на GitHub Actions
+- [x] 2.4 CI зелёный на GitHub Actions — все проверки [#87](https://github.com/pese-git/structured_log/pull/87), включая новую джобу `bloc-observer`; влит squash'ем в `1713f3a`
 
 ## 3. Документация
 

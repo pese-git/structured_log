@@ -63,7 +63,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `structured_log` с `category: 'bloc'`. Зависит от `package:bloc`, **не** от `flutter_bloc` —
   `flutter_bloc` построен поверх него и выставляет тот же `Bloc.observer`, так что пакет работает в
   Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Не опубликован
-  (`0.1.0-dev.0`), [openspec/changes/add-structured-log-bloc/](openspec/changes/add-structured-log-bloc/).
+  (`0.1.0-dev.0`), [openspec/changes/archive/2026-10-01-add-structured-log-bloc/](openspec/changes/archive/2026-10-01-add-structured-log-bloc/), основная спека — [openspec/specs/bloc-log-observer/](openspec/specs/bloc-log-observer/spec.md).
 
 Плюс один пакет в `backend/`:
 
