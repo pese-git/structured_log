@@ -13,6 +13,7 @@ packages:
   - emb/structured_log_bloc
   - emb/structured_log_dio
   - emb/structured_log_http_client
+  - emb/structured_log_go_router
   - backend/structured_log_server
   - frontend/structured_log_admin_ui
   - frontend/structured_log_admin_ui/example
@@ -63,6 +64,7 @@ scripts:
         "structured_log_fluent_example",
         "structured_log_cupertino",
         "structured_log_cupertino_example",
+        "structured_log_go_router",
         "structured_log_admin_ui",
         "structured_log_admin_ui_example",
         "structured_log_admin_client",

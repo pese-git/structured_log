@@ -1,0 +1,144 @@
+# structured_log_go_router
+
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
+*Читать на [русском](README.ru.md).*
+
+Logs where a [`go_router`](https://pub.dev/packages/go_router) app goes —
+every navigation, redirect and routing error — as
+[`structured_log`](https://pub.dev/packages/structured_log) entries.
+
+`StructuredLogGoRouter` listens to a `GoRouter` and writes an entry each
+time it settles on a new location, through the sinks you have already
+configured — the console, a file, the in-app log viewer
+(`structured_log_flutter`), or a `structured_log_server` via
+`structured_log_http`. Next to the `bloc` entries from
+`structured_log_bloc` and the `http` ones from `structured_log_dio` /
+`structured_log_http_client`, it answers the first question of most bug
+reports: *which screen was the user on?*
+
+## Features
+
+- **Attach to any router** — `routeLog.attach(router)`; `go`, `push`,
+  `pop`, deep links and the browser's back button all count
+- **Pattern next to location** — `/users/42` is logged with its route
+  `/users/:id` and route name, so screens group without parsing URLs
+- **Where the user came from** — `previous_location` on every entry
+- **Redirects and routing errors** — wrap `redirect` and `onException` to
+  log them too; the not-found page is logged without any wrapping
+- **Tokens stay out** — token-like query parameters are redacted, in the
+  query and in an OAuth-style fragment (`#access_token=...`); `extra` is
+  never logged
+- **Its own category** — every entry carries `category: 'navigation'`
+- **Never breaks navigation** — a filter that throws costs the entry; a
+  wrapped redirect's answer and exceptions reach the router unchanged
+
+## Installation
+
+Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it as a path or
+git dependency for now:
+
+```yaml
+dependencies:
+  go_router: ">=17.0.0 <19.0.0"
+  structured_log: ^0.2.1
+  structured_log_go_router:
+    path: ../structured_log_go_router # within this monorepo
+```
+
+## Quick Start
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:structured_log/structured_log.dart';
+import 'package:structured_log_go_router/structured_log_go_router.dart';
+
+void main() {
+  StructlogConfiguration.configure(
+    sinks: [LogSink(name: 'console', output: coloredConsoleOutput)],
+  );
+
+  final routeLog = StructuredLogGoRouter();
+  final router = GoRouter(
+    routes: [/* ... */],
+    redirect: routeLog.redirect(authRedirect), // optional
+  );
+  routeLog.attach(router);
+
+  runApp(MaterialApp.router(routerConfig: router));
+}
+```
+
+```text
+INFO:  route_changed    {"category":"navigation","location":"/","route":"/","route_name":"home"}
+DEBUG: route_redirected {"category":"navigation","from":"/settings","to":"/login"}
+INFO:  route_changed    {"category":"navigation","location":"/login","route":"/login","previous_location":"/","previous_route":"/"}
+```
+
+[example/main.dart](example/main.dart) is a small app with three screens,
+a redirect and a not-found page. The package has no platform folders of its
+own, so run it as the `lib/main.dart` of any Flutter app that depends on
+this package.
+
+## What gets logged
+
+| Entry              | When | Default level | Fields |
+|--------------------|------|---------------|--------|
+| `route_changed`    | the router settled on a new location — `go`, `push`, `pop`, a deep link, the browser's back button | `info` | `location`, `route` (the pattern), `route_name` if the route has one, `previous_location`, `previous_route` |
+| `route_redirected` | a redirect wrapped with `routeLog.redirect(...)` sent the navigation elsewhere | `debug` | `from`, `to` |
+| `route_error`      | a location matched no route, or routing failed | `warning` | `location`, `error` |
+
+`route_error` reaches the log in either of go_router's two error modes:
+with `errorBuilder`/`errorPageBuilder` (or neither), `attach` sees the
+router land on its error page; with `onException`, the router stays where
+it was, so wrap the handler — `onException: routeLog.onException(handler)`.
+
+Only the router's own pages are seen. A dialog or bottom sheet opened with
+`showDialog`/`showModalBottomSheet` is not a location and does not appear.
+
+## Keeping secrets out of the log
+
+Locations are logged as they are — path parameters included, since that
+is what identifies the screen — with two exceptions:
+
+- the values of `defaultRedactedQueryParameters` — `access_token`,
+  `refresh_token`, `id_token`, `token`, `api_key`, `apikey`, `password`,
+  `client_secret`, and `code` (the OAuth authorization code a sign-in
+  callback carries) — become `REDACTED`, in the query and in a fragment
+  shaped like one (`#access_token=...`). Pass `redactedQueryParameters`
+  to change the set (lower-case names; compared case-insensitively);
+- `extra` and other route state objects are never logged.
+
+If a path parameter itself is sensitive (an email in `/invite/:email`),
+leave that route out with `filter`.
+
+## Configuration
+
+```dart
+StructuredLogGoRouter(
+  // Which entries are logged, and at what level; null turns one off.
+  levels: const RouteLogLevels(navigation: LogLevel.debug),
+  // Leave a screen out — its navigations only; redirects and errors stay.
+  filter: (state) => state.fullPath != '/invite/:email',
+  category: 'ui',
+);
+```
+
+`attach` again to move to another router; `detach` before disposing the
+router it is attached to.
+
+## API Reference
+
+| Symbol | Description |
+|---|---|
+| `StructuredLogGoRouter({logger, loggerName, category, levels, redactedQueryParameters, filter})` | The logger. Without `logger` it calls `getLogger(loggerName)` (`router`) on every entry, so a later `StructlogConfiguration.configure` reaches it too. `category: null` binds no category. |
+| `attach(router)` / `detach()` | Start logging a router's navigations — including the location it is already on — or stop. |
+| `redirect(inner)` | Wraps a top-level or route-level `GoRouterRedirect`, logging each redirect it makes; a synchronous redirect stays synchronous. |
+| `onException(inner)` | Wraps a `GoExceptionHandler`, logging each routing error before handing it on. |
+| `RouteLogLevels({navigation, redirect, error})` | A `LogLevel?` per entry; `null` turns it off. |
+| `defaultRedactedQueryParameters`, `redactedValue` | The default redaction set and the value (`REDACTED`) that replaces what it matches. |
+
+## License
+
+See [LICENSE](LICENSE).

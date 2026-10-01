@@ -2,7 +2,7 @@
 title: "Packages"
 ---
 
-Nine libraries you embed directly in your own Dart or Flutter app —
+Ten libraries you embed directly in your own Dart or Flutter app —
 install one, import it, and go. (For the self-hosted server and its
 admin client, see the [guides](/guides/) instead.)
 
@@ -17,6 +17,7 @@ admin client, see the [guides](/guides/) instead.)
 | [structured_log_bloc](/packages/structured_log_bloc/) | A `BlocObserver` that logs every bloc's and cubit's lifecycle, events, state changes and errors as `structured_log` entries. Works with `flutter_bloc` as is. |
 | [structured_log_dio](/packages/structured_log_dio/) | A `dio` interceptor that logs every request and its outcome, with the level following the status code and auth headers, cookies and token-like query parameters redacted. |
 | [structured_log_http_client](/packages/structured_log_http_client/) | The same for `package:http`: a client that wraps any `http.Client` and logs every call it passes through. Not to be confused with `structured_log_http`, which sends logs to the server. |
+| [structured_log_go_router](/packages/structured_log_go_router/) | Logs every `go_router` navigation — location, route pattern, previous location — plus redirects and routing errors, with token-like query parameters redacted. |
 
 Each package's page below is its README verbatim: installation, a quick
 start, the full feature list, and an API reference table.
