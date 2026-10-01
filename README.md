@@ -65,6 +65,14 @@ self-hosted server for shipping logs off the device and reading them back.
   and bodies stay out unless asked for; auth headers, cookies and
   token-like query parameters are redacted. *Not yet published.*
 
+- **[`structured_log_http_client`](emb/structured_log_http_client/)** —
+  `StructuredLogHttpClient`, the same for `package:http`: a client that
+  wraps any `http.Client` and logs every call it passes through, with the
+  same entries, levels and redaction as `structured_log_dio`. Response
+  bodies are logged without buffering them. (Not to be confused with
+  `structured_log_http`, which *sends* logs to the server.) *Not yet
+  published.*
+
 - **[`structured_log_server`](backend/structured_log_server/)** — a
   self-hosted, multi-tenant server for log ingestion, storage, query and
   live streaming (`shelf`/`shelf_router` + `drift`, SQLite by default or
@@ -102,7 +110,7 @@ self-hosted server for shipping logs off the device and reading them back.
 Packages are grouped by top-level category, each listed by its full path
 in [melos.yaml](melos.yaml): `emb/` for libraries meant to be embedded in
 another app (`structured_log` and its log-viewer skins, `structured_log_http`,
-`structured_log_bloc`, `structured_log_dio`),
+`structured_log_bloc`, `structured_log_dio`, `structured_log_http_client`),
 `backend/` for standalone server apps (`structured_log_server`), `frontend/`
 for standalone client apps with a UI (`structured_log_admin_ui`,
 `structured_log_admin_client`), and `packages/` for anything that doesn't

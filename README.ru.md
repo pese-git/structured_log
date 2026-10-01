@@ -71,6 +71,14 @@ Monorepo на Melos + FVM для структурированного логир
   включить; заголовки авторизации, cookie и query-параметры с токенами
   маскируются. *Пока не опубликован.*
 
+- **[`structured_log_http_client`](emb/structured_log_http_client/)** —
+  `StructuredLogHttpClient`, то же для `package:http`: клиент-обёртка над
+  любым `http.Client`, который пишет каждый проходящий через него вызов с
+  теми же записями, уровнями и маскированием, что `structured_log_dio`.
+  Тело ответа пишется без буферизации. (Не путать с
+  `structured_log_http`, который *отправляет* логи на сервер.) *Пока не
+  опубликован.*
+
 - **[`structured_log_server`](backend/structured_log_server/)** —
   self-hosted мультитенантный сервер приёма, хранения, поиска и живой
   трансляции логов (`shelf`/`shelf_router` + `drift`, SQLite по умолчанию
@@ -111,7 +119,8 @@ Monorepo на Melos + FVM для структурированного логир
 Пакеты сгруппированы по категориям верхнего уровня, каждая перечислена по
 полному пути в [melos.yaml](melos.yaml): `emb/` — встраиваемые в чужое
 приложение библиотеки (`structured_log` и скины просмотрщика логов,
-`structured_log_http`, `structured_log_bloc`, `structured_log_dio`), `backend/` — самостоятельные серверные приложения
+`structured_log_http`, `structured_log_bloc`, `structured_log_dio`,
+`structured_log_http_client`), `backend/` — самостоятельные серверные приложения
 (`structured_log_server`), `frontend/` — самостоятельные клиентские
 приложения с UI (`structured_log_admin_ui`, `structured_log_admin_client`),
 `packages/` — то, что не подпадает ни под одну из трёх категорий выше

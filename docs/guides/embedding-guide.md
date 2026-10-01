@@ -27,8 +27,8 @@ Several packages, and you only need as many of them as your project does:
    [`structured_log_bloc`](#4-optional-log-your-blocs-structured_log_bloc),
    a `BlocObserver` for apps built on `bloc`/`flutter_bloc`.
 4. **Log your HTTP calls** —
-   [`structured_log_dio`](#5-optional-log-your-http-calls-structured_log_dio),
-   an interceptor for apps that talk to their backend through `dio`.
+   [`structured_log_dio` or `structured_log_http_client`](#5-optional-log-your-http-calls),
+   for apps that talk to their backend through `dio` or `package:http`.
 5. **Also ship those logs to a server** —
    [`structured_log_http`](#6-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
@@ -214,7 +214,14 @@ withholds them — see the package's
 [README](../../emb/structured_log_bloc/README.md#keeping-secrets-out-of-the-log),
 which also lists every entry it writes and how to tune levels per hook.
 
-## 5. Optional: log your HTTP calls: `structured_log_dio`
+## 5. Optional: log your HTTP calls
+
+Two packages, one per HTTP client, with the same entries
+(`http_request`, then `http_response` or `http_error`, paired by
+`http_request_id`), the same levels by status code and the same redaction.
+Pick the one matching the client the app already uses.
+
+### `dio`: `structured_log_dio`
 
 If the app talks to its backend through [`dio`](https://pub.dev/packages/dio),
 [`structured_log_dio`](../../emb/structured_log_dio/) logs every request
@@ -240,6 +247,33 @@ parameters are redacted — but a body, once on, is logged as it is; see
 the package's
 [README](../../emb/structured_log_dio/README.md#keeping-secrets-out-of-the-log)
 before turning bodies on for login or token calls.
+
+### `package:http`: `structured_log_http_client`
+
+`package:http` has no interceptors, so
+[`structured_log_http_client`](../../emb/structured_log_http_client/) is a
+client that wraps the one you already use — `IOClient`, `BrowserClient`,
+`cupertino_http`, a `RetryClient` — and logs every call it passes through:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_http_client:
+    path: ../structured_log_http_client   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+```
+
+```dart
+final client = StructuredLogHttpClient(http.Client());
+await client.get(Uri.parse('https://api.example.com/items'));
+```
+
+`package:http` does not throw on a status code, so a 404 is an
+`http_response` at `warning`. With `logResponseBody` on, the body is not
+buffered — it reaches your code as it arrives — and the response entry is
+written once the body has been read; see the package's
+[README](../../emb/structured_log_http_client/README.md#what-gets-logged).
+Not to be confused with `structured_log_http` in the next section, which
+*sends* logs to a server.
 
 ## 6. Optional: also ship logs to a server
 
@@ -285,6 +319,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.md),
   [`structured_log_bloc`](../../emb/structured_log_bloc/README.md),
   [`structured_log_dio`](../../emb/structured_log_dio/README.md),
+  [`structured_log_http_client`](../../emb/structured_log_http_client/README.md),
   [`structured_log_http`](../../emb/structured_log_http/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:
   the ingestion HTTP endpoint directly, querying logs back out,

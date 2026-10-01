@@ -2,7 +2,7 @@
 title: "Пакеты"
 ---
 
-Восемь библиотек, встраиваемых напрямую в собственное Dart- или
+Девять библиотек, встраиваемых напрямую в собственное Dart- или
 Flutter-приложение — устанавливаете, импортируете и пользуетесь. (Про
 self-hosted сервер и его admin-клиент — см. [руководства](/ru/guides/).)
 
@@ -16,6 +16,7 @@ self-hosted сервер и его admin-клиент — см. [руковод�
 | [structured_log_http](/ru/packages/structured_log_http/) | Sink `HttpLogOutput`, отправляющий записи на экземпляр `structured_log_server` по HTTP — батчинг, retry с backoff, ограниченный буфер. Полный разбор приёма логов — в [Руководстве разработчика](/ru/guides/developer-guide/). |
 | [structured_log_bloc](/ru/packages/structured_log_bloc/) | `BlocObserver`, который пишет жизненный цикл, события, смену состояния и ошибки каждого блока и кубита записями `structured_log`. Работает с `flutter_bloc` как есть. |
 | [structured_log_dio](/ru/packages/structured_log_dio/) | Перехватчик `dio`, который пишет каждый запрос и его итог с уровнем по статусу ответа и маскирует заголовки авторизации, cookie и query-параметры с токенами. |
+| [structured_log_http_client](/ru/packages/structured_log_http_client/) | То же для `package:http`: клиент-обёртка над любым `http.Client`, который пишет каждый проходящий через него вызов. Не путать с `structured_log_http`, который отправляет логи на сервер. |
 
 Страница каждого пакета ниже — это его README дословно: установка,
 быстрый старт, полный список возможностей и таблица API.
