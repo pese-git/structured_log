@@ -1,5 +1,6 @@
 import 'package:cherrypick/cherrypick.dart';
 import 'package:structured_log/structured_log.dart';
+import 'package:structured_log_cherrypick/structured_log_cherrypick.dart';
 import 'package:structured_log_server/src/di/container_setup.dart';
 import 'package:test/test.dart';
 
@@ -50,7 +51,7 @@ void main() {
 
     setUp(() {
       heard = _capture();
-      observer = StructuredLogCherryPickObserver(getLogger('test'));
+      observer = StructuredLogCherryPickObserver(logger: getLogger('test'));
     });
 
     test('says when a scope opens and closes, and what was installed', () {
