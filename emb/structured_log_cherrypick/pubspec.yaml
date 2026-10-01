@@ -5,6 +5,12 @@ description: >-
   structured_log entries, without ever printing an instance.
 version: 0.1.0-dev.0
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - cherrypick
+  - dependency-injection
+  - di
+  - structured-logging
 
 environment:
   sdk: ^3.2.0

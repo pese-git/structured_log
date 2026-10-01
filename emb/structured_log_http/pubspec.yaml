@@ -4,6 +4,12 @@ description: >-
   entries to a structured_log_server instance over HTTP.
 version: 0.1.0
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - http
+  - log-shipping
+  - observability
+  - structured-logging
 
 environment:
   sdk: ^3.0.0

@@ -5,6 +5,12 @@ description: >-
   headers and query parameters redacted.
 version: 0.1.0-dev.0
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - http
+  - http-client
+  - network
+  - structured-logging
 
 environment:
   sdk: ^3.4.0

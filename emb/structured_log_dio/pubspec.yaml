@@ -5,6 +5,12 @@ description: >-
   query parameters redacted.
 version: 0.1.0-dev.0
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - dio
+  - http
+  - interceptor
+  - network
 
 environment:
   sdk: ^3.0.0

@@ -4,6 +4,12 @@ description: >-
   LogViewerController, decoupled from any specific Flutter design system.
 version: 0.1.1
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - flutter
+  - log-viewer
+  - structured-logging
+  - debugging
 
 environment:
   sdk: ^3.0.0

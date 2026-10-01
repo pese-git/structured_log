@@ -5,6 +5,12 @@ description: >-
   Works with flutter_bloc as is.
 version: 0.1.0-dev.0
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - bloc
+  - state-management
+  - structured-logging
+  - debugging
 
 environment:
   sdk: ^3.0.0

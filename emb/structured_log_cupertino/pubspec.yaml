@@ -4,6 +4,12 @@ description: >-
   structured_log_flutter.
 version: 0.1.1
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - log-viewer
+  - cupertino
+  - widget
+  - debugging
 
 environment:
   sdk: ^3.0.0

@@ -5,6 +5,12 @@ description: >-
   in the location redacted.
 version: 0.1.0-dev.0
 repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - go-router
+  - navigation
+  - routing
+  - structured-logging
 
 environment:
   sdk: ^3.10.0
