@@ -2,7 +2,7 @@
 title: "Пакеты"
 ---
 
-Шесть библиотек, встраиваемых напрямую в собственное Dart- или
+Семь библиотек, встраиваемых напрямую в собственное Dart- или
 Flutter-приложение — устанавливаете, импортируете и пользуетесь. (Про
 self-hosted сервер и его admin-клиент — см. [руководства](/ru/guides/).)
 
@@ -14,6 +14,7 @@ self-hosted сервер и его admin-клиент — см. [руковод�
 | [structured_log_fluent](/ru/packages/structured_log_fluent/) | Готовый к использованию просмотрщик логов на Fluent UI (в стиле WinUI), построенный поверх `structured_log_flutter`. |
 | [structured_log_cupertino](/ru/packages/structured_log_cupertino/) | Готовый к использованию просмотрщик логов на Cupertino (в стиле iOS), построенный поверх `structured_log_flutter`. |
 | [structured_log_http](/ru/packages/structured_log_http/) | Sink `HttpLogOutput`, отправляющий записи на экземпляр `structured_log_server` по HTTP — батчинг, retry с backoff, ограниченный буфер. Полный разбор приёма логов — в [Руководстве разработчика](/ru/guides/developer-guide/). |
+| [structured_log_bloc](/ru/packages/structured_log_bloc/) | `BlocObserver`, который пишет жизненный цикл, события, смену состояния и ошибки каждого блока и кубита записями `structured_log`. Работает с `flutter_bloc` как есть. |
 
 Страница каждого пакета ниже — это его README дословно: установка,
 быстрый старт, полный список возможностей и таблица API.

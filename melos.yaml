@@ -10,6 +10,7 @@ packages:
   - emb/structured_log_cupertino
   - emb/structured_log_cupertino/example
   - emb/structured_log_http
+  - emb/structured_log_bloc
   - backend/structured_log_server
   - frontend/structured_log_admin_ui
   - frontend/structured_log_admin_ui/example
@@ -46,7 +47,7 @@ scripts:
   test:dart:
     exec: dart test
     packageFilters:
-      scope: ["structured_log", "structured_log_server", "structured_log_http"]
+      scope: ["structured_log", "structured_log_server", "structured_log_http", "structured_log_bloc"]
     description: Run tests for Dart-only packages
 
   test:flutter:

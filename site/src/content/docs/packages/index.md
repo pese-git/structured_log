@@ -2,7 +2,7 @@
 title: "Packages"
 ---
 
-Six libraries you embed directly in your own Dart or Flutter app —
+Seven libraries you embed directly in your own Dart or Flutter app —
 install one, import it, and go. (For the self-hosted server and its
 admin client, see the [guides](/guides/) instead.)
 
@@ -14,6 +14,7 @@ admin client, see the [guides](/guides/) instead.)
 | [structured_log_fluent](/packages/structured_log_fluent/) | A ready-to-use Fluent UI (WinUI-style) in-app log viewer, built on `structured_log_flutter`. |
 | [structured_log_cupertino](/packages/structured_log_cupertino/) | A ready-to-use Cupertino (iOS-style) in-app log viewer, built on `structured_log_flutter`. |
 | [structured_log_http](/packages/structured_log_http/) | An `HttpLogOutput` sink that ships log entries to a `structured_log_server` instance over HTTP — batching, retry with backoff, a bounded buffer. See the [Developer Guide](/guides/developer-guide/) for the full ingestion walkthrough. |
+| [structured_log_bloc](/packages/structured_log_bloc/) | A `BlocObserver` that logs every bloc's and cubit's lifecycle, events, state changes and errors as `structured_log` entries. Works with `flutter_bloc` as is. |
 
 Each package's page below is its README verbatim: installation, a quick
 start, the full feature list, and an API reference table.
