@@ -61,7 +61,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   Реализован (раздел 9 `tasks.md`), с билингвальным `README.md`/`README.ru.md`. **Раньше назывался
   `structured_log_http`** (опубликован под этим именем как `0.1.0`) — переименован вместе с классом
   (`HttpLogOutput` → `RemoteSyncLogOutput`), поведение не менялось
-  ([openspec/changes/rename-structured-log-http-to-remote-sync/](openspec/changes/rename-structured-log-http-to-remote-sync/)).
+  ([openspec/changes/archive/2026-10-01-rename-structured-log-http-to-remote-sync/](openspec/changes/archive/2026-10-01-rename-structured-log-http-to-remote-sync/)).
   Под новым именем вышел как `0.2.0`, а не `0.1.0`: `melos version` запустили без ручного бампа, и
   `BREAKING CHANGE` коммита переименования поднял минорную. Для `0.x` констрейнт `^0.1.0` значит `<0.2.0`,
   поэтому документация обязана называть `^0.2.0` — `^0.1.0` под опубликованный пакет не подходит вовсе.
