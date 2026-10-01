@@ -351,7 +351,7 @@ with `HttpLogOutput` — same behaviour under the new names):
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_remote_sync: ^0.1.0
+  structured_log_remote_sync: ^0.2.0
 ```
 
 ```dart

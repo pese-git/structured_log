@@ -62,7 +62,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `structured_log_http`** (опубликован под этим именем как `0.1.0`) — переименован вместе с классом
   (`HttpLogOutput` → `RemoteSyncLogOutput`), поведение не менялось
   ([openspec/changes/rename-structured-log-http-to-remote-sync/](openspec/changes/rename-structured-log-http-to-remote-sync/)).
-  Под новым именем начинает с `0.1.0`.
+  Под новым именем вышел как `0.2.0`, а не `0.1.0`: `melos version` запустили без ручного бампа, и
+  `BREAKING CHANGE` коммита переименования поднял минорную. Для `0.x` констрейнт `^0.1.0` значит `<0.2.0`,
+  поэтому документация обязана называть `^0.2.0` — `^0.1.0` под опубликованный пакет не подходит вовсе.
 - [emb/structured_log_http/](emb/structured_log_http/) — **устаревшая прослойка**, а не пакет: последняя
   версия `structured_log_http` без собственного кода. Библиотека помечена `@Deprecated`, реэкспортирует
   `BatchSender`/`BatchResult` из `structured_log_remote_sync` и объявляет `HttpLogOutput` устаревшим
