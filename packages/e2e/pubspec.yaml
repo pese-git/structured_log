@@ -22,7 +22,7 @@ dependencies:
   # is started as a real OS process, not imported, which is the only way to
   # prove it resolves its own configuration and serves over a real socket.
   structured_log: ^0.2.2
-  structured_log_remote_sync: ^0.2.0
+  structured_log_remote_sync: ^0.2.0+1
   structured_log_admin_client:
     path: ../../frontend/structured_log_admin_client
 

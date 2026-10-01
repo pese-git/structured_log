@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-10-02
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log_http` - `v0.2.0+1`](#structured_log_http---v0201)
+ - [`structured_log_remote_sync` - `v0.2.0+1`](#structured_log_remote_sync---v0201)
+
+---
+
+#### `structured_log_http` - `v0.2.0+1`
+
+ - **FIX**(structured_log_http): point the migration at structured_log_remote_sync ^0.2.0.
+
+#### `structured_log_remote_sync` - `v0.2.0+1`
+
+ - **FIX**(structured_log_remote_sync): name ^0.2.0 in the install instructions.
+
+
 ## 2026-10-01
 
 ### Changes

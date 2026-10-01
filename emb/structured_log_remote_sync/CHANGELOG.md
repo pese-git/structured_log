@@ -1,3 +1,7 @@
+## 0.2.0+1
+
+ - **FIX**(structured_log_remote_sync): name ^0.2.0 in the install instructions.
+
 ## 0.2.0
 
 > Note: This release has breaking changes.

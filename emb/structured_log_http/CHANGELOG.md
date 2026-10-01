@@ -1,3 +1,7 @@
+## 0.2.0+1
+
+ - **FIX**(structured_log_http): point the migration at structured_log_remote_sync ^0.2.0.
+
 ## 0.2.0
 
 > Note: This release has breaking changes.
