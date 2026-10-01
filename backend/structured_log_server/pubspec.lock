@@ -640,6 +640,13 @@ packages:
       relative: true
     source: path
     version: "0.2.1"
+  structured_log_cherrypick:
+    dependency: "direct main"
+    description:
+      path: "../../emb/structured_log_cherrypick"
+      relative: true
+    source: path
+    version: "0.1.0-dev.0"
   term_glyph:
     dependency: transitive
     description:

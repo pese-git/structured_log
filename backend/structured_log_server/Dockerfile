@@ -8,9 +8,11 @@ FROM dart:3.12 AS build
 
 WORKDIR /workspace
 
-# The core package first, so a change in the server does not invalidate the
-# layer that resolved its dependencies.
+# The workspace packages first, so a change in the server does not invalidate
+# the layer that resolved its dependencies. structured_log_cherrypick is a path
+# dependency of the server, so pub cannot resolve anything without it.
 COPY emb/structured_log/ emb/structured_log/
+COPY emb/structured_log_cherrypick/ emb/structured_log_cherrypick/
 COPY backend/structured_log_server/pubspec.yaml backend/structured_log_server/
 
 WORKDIR /workspace/backend/structured_log_server

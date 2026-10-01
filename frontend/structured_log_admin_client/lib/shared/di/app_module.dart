@@ -2,13 +2,13 @@ import 'package:cherrypick/cherrypick.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:structured_log/structured_log.dart';
+import 'package:structured_log_cherrypick/structured_log_cherrypick.dart';
 
 import '../api/api_client.dart';
 import '../auth/session_lock.dart';
 import '../auth/session_store.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
-import 'structured_log_observer.dart';
 
 /// The application's shared dependencies.
 ///
@@ -109,9 +109,12 @@ Scope openAppScope({
   void Function()? onPasswordChangeRequired,
 }) {
   // Before the root scope is opened: a scope takes the global observer when it
-  // is created. Cycle detection stays on in release too — a cycle is a mistake
-  // in the wiring, and the alternative to reporting it is a stack overflow.
-  CherryPick.setGlobalObserver(StructuredLogCherryPickObserver(logger));
+  // is created. The observer never prints an instance — `TokenStorage` is one
+  // of the things resolved, and an object printed is a token printed
+  // (`test/shared/di/scopes_test.dart`, "never prints an instance"). Cycle
+  // detection stays on in release too — a cycle is a mistake in the wiring,
+  // and the alternative to reporting it is a stack overflow.
+  CherryPick.setGlobalObserver(StructuredLogCherryPickObserver(logger: logger));
   CherryPick.enableGlobalCycleDetection();
   CherryPick.enableGlobalCrossScopeCycleDetection();
 

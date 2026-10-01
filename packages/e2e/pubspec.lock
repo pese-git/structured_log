@@ -583,6 +583,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0-dev.0"
+  structured_log_cherrypick:
+    dependency: transitive
+    description:
+      path: "../../emb/structured_log_cherrypick"
+      relative: true
+    source: path
+    version: "0.1.0-dev.0"
   structured_log_http:
     dependency: "direct main"
     description:

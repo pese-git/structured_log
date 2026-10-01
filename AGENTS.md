@@ -84,10 +84,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   [openspec/changes/archive/2026-10-01-add-structured-log-go-router/](openspec/changes/archive/2026-10-01-add-structured-log-go-router/), основная спека — [openspec/specs/go-router-logging/](openspec/specs/go-router-logging/spec.md).
 - [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — `StructuredLogCherryPickObserver`:
   `CherryPickObserver`, пишущий работу DI-контейнера `cherrypick` (скоупы, модули, циклы, ошибки) с
-  `category: 'di'`, никогда не печатая экземпляр. Обобщение наблюдателя, который до сих пор жил двумя
-  дословными копиями — в сервере (`di/container_setup.dart`) и admin-клиенте
-  (`shared/di/structured_log_observer.dart`); **обе копии пока на месте**, перевод их на пакет —
-  отдельный шаг. Чистый Dart, `cherrypick` 3.x и 4.x, не опубликован (`0.1.0-dev.0`),
+  `category: 'di'`, никогда не печатая экземпляр. Обобщение наблюдателя, который раньше жил двумя
+  дословными копиями — в сервере и admin-клиенте; **оба теперь берут его из пакета** — зависимостью по
+  пути (`path: ../../emb/structured_log_cherrypick`), как клиент берёт `structured_log_admin_ui`: пакет не
+  опубликован, а оба потребителя — `publish_to: none`. Чистый Dart, `cherrypick` 3.x и 4.x, не опубликован
+  (`0.1.0-dev.0`),
   [openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/](openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/), основная спека — [openspec/specs/cherrypick-log-observer/](openspec/specs/cherrypick-log-observer/spec.md).
 
 Плюс один пакет в `backend/`:
@@ -374,11 +375,14 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 
 - [emb/structured_log_cherrypick/lib/src/cherrypick_observer.dart](emb/structured_log_cherrypick/lib/src/cherrypick_observer.dart) —
   `StructuredLogCherryPickObserver`, `DiLogLevels` (уровень на хук, `null` выключает).
-- **Имена событий и поля — те же, что у копий в сервере и клиенте** (`di.scope_opened`,
-  `di.modules_installed`, …, `scope`/`modules`/`type`/`name`/`chain`/`message`/`error`), чтобы их можно было
-  заменить пакетом без изменения журнала и тестов (`test/bin/server_integration_test.dart` наблюдает
-  `di.modules_installed`/`di.scope_closed`). Добавлено: `category`, `stack_trace` у `di.error`, необязательные
-  per-instance записи; `scope: null` больше не пишется.
+- **Имена событий и поля — те же, что у прежних копий в сервере и клиенте** (`di.scope_opened`,
+  `di.modules_installed`, …, `scope`/`modules`/`type`/`name`/`chain`/`message`/`error`): копии заменены пакетом без
+  изменения журнала и тестов (`test/bin/server_integration_test.dart` наблюдает `di.modules_installed`/
+  `di.scope_closed`, `scopes_test.dart` клиента — `di.scope_opened`/`di.scope_closed`/`di.instance_disposed`).
+  Добавлено: `category: 'di'`, `stack_trace` у `di.error`, необязательные per-instance записи; `scope: null` больше
+  не пишется. **Переименование события — ломающее изменение для обоих потребителей**, а не только для пакета.
+- **Docker-образ сервера копирует `emb/structured_log_cherrypick/` до `dart pub get`** — это зависимость по пути, и
+  без каталога pub не разрешит ничего. Новая path-зависимость сервера требует того же.
 - **Экземпляр не пишется никогда**, ошибка — по типу, `details` предупреждения/диагностики отбрасываются.
   Мутацией проверены: текст ошибки, `details`, per-instance записи по умолчанию, защита от бросающего логгера.
 - **Что контейнер сообщает на самом деле — одинаково в 3.0.2, 4.0.0-dev.5 и dev.6** (проверено тестами на всех
@@ -644,7 +648,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   метод — тест красный). Жизненный цикл: `ApiClient implements Disposable` и закрывает свои четыре `Dio` при закрытии
   скоупа; `HomeShell` закрывает свои четыре скоупа в `dispose` (`close<Фича>Scope`), `AuthGate` — `auth` (скоуп
   общий: `HomeShell` открывает его тем же именем, поэтому не закрывает). Включены детекция циклов
-  (`enableGlobalCycleDetection` + межскоуповая) и `StructuredLogCherryPickObserver` (сцена/модули/освобождение — debug,
+  (`enableGlobalCycleDetection` + межскоуповая) и `StructuredLogCherryPickObserver` из `emb/structured_log_cherrypick`
+  (сцена/модули/освобождение — debug,
   цикл — error; **запросы и создание экземпляров не пишутся**: контейнер спрашивают постоянно, а печатать
   экземпляр значит печатать `TokenStorage`). Наблюдатель — реализация интерфейса, не наследник
   `SilentCherryPickObserver`: контейнер не зовёт наблюдателя, который им является. `cherrypick_flutter` не
@@ -827,7 +832,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   вызовов в тестах остались как были.
 - **Наблюдатель и детекция циклов контейнера включаются одним вызовом `configureContainer(log)`** (`di/container_setup.dart`;
   `bin/server.dart` зовёт его до `CherryPick.openScope`, потому что скоуп берёт глобальный наблюдатель при создании).
-  `StructuredLogCherryPickObserver` пишет в собственный журнал сервера: скоупы, модули и освобождение — на debug, цикл,
+  `StructuredLogCherryPickObserver` (из `emb/structured_log_cherrypick`, раньше — своя копия в этом файле) пишет в
+  собственный журнал сервера: скоупы, модули и освобождение — на debug, цикл,
   предупреждение и ошибку — выше; **запросы и создание экземпляров не пишутся, экземпляр не печатается никогда** (граф
   держит `TokenSettings` с секретом подписи; процессный тест проверяет, что секрет не попадает в журнал). Это реализация
   интерфейса, а не наследник `SilentCherryPickObserver`: контейнер не зовёт наблюдателя, который им является. Детекция

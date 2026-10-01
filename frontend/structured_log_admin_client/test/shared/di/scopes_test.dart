@@ -34,7 +34,7 @@ import 'package:structured_log_admin_client/shared/api/api_client.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
 import 'package:structured_log_admin_client/shared/di/app_module.dart';
-import 'package:structured_log_admin_client/shared/di/structured_log_observer.dart';
+import 'package:structured_log_cherrypick/structured_log_cherrypick.dart';
 
 import '../api/fake_adapter.dart';
 
@@ -272,7 +272,7 @@ void main() {
           ),
         ],
       );
-      observer = StructuredLogCherryPickObserver(getLogger('test'));
+      observer = StructuredLogCherryPickObserver(logger: getLogger('test'));
     });
     tearDown(StructlogConfiguration.reset);
 
