@@ -81,7 +81,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   перенаправление (`route_redirected`, через обёртку `redirect`) и ошибку маршрутизации (`route_error`) с
   `category: 'navigation'`. **Flutter-пакет** (в отличие от трёх соседей выше): `go_router` тянет Flutter,
   поэтому `flutter test` и строка во Flutter-матрице CI. Не опубликован (`0.1.0-dev.0`),
-  [openspec/changes/add-structured-log-go-router/](openspec/changes/add-structured-log-go-router/).
+  [openspec/changes/archive/2026-10-01-add-structured-log-go-router/](openspec/changes/archive/2026-10-01-add-structured-log-go-router/), основная спека — [openspec/specs/go-router-logging/](openspec/specs/go-router-logging/spec.md).
 
 Плюс один пакет в `backend/`:
 

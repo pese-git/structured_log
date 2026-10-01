@@ -11,7 +11,7 @@
 - [x] 2.1 `melos.yaml`: пакет в `packages:` и в scope `test:flutter`
 - [x] 2.2 Строка во Flutter-матрице CI с `name` (порог покрытия)
 - [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — 97 при измеренных 100 % (84/84)
-- [ ] 2.4 CI зелёный на GitHub Actions
+- [x] 2.4 CI зелёный на GitHub Actions — все проверки [#90](https://github.com/pese-git/structured_log/pull/90), включая новую строку Flutter-матрицы `emb/structured_log_go_router`; влит squash'ем в `0bb93f5`
 
 ## 3. Документация
 
