@@ -4,6 +4,7 @@ import 'package:structured_log/structured_log.dart';
 import 'package:structured_log_admin_client/features/auth/domain/auth_failure.dart';
 import 'package:structured_log_admin_client/features/auth/infrastructure/auth_repository_impl.dart';
 import 'package:structured_log_admin_client/shared/api/api_client.dart';
+import 'package:structured_log_admin_client/shared/auth/session_store.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
@@ -11,6 +12,20 @@ import 'package:structured_log_admin_client/shared/config/app_config.dart';
 import '../../shared/api/fake_adapter.dart';
 
 const _config = AppConfig(baseUrl: 'https://logs.example.test');
+
+/// A secret store that already holds a token, as a shared one does for a tab
+/// that was not the one to sign in.
+class _HeldSecret implements SecretStore {
+  String? value;
+
+  _HeldSecret(this.value);
+
+  @override
+  Future<String?> read() async => value;
+
+  @override
+  Future<void> write(String? next) async => value = next;
+}
 
 /// The token endpoint answers in the RFC 6749 shape, not the API's general
 /// envelope — which is exactly why this repository maps its own errors.
@@ -184,11 +199,78 @@ void main() {
     },
   );
 
-  test(
-    'hasSession reports what is stored, without asking the server',
-    () async {
-      final adapter = FakeAdapter((_) => const FakeReply(200));
-      final storage = InMemoryTokenStorage();
+  group('restoreSession', () {
+    test('an access token already in this tab costs no request', () async {
+      final (repository, storage, adapter) = _repository(
+        (_) => const FakeReply(200),
+      );
+      await storage.write(const TokenPair(accessToken: 'a', refreshToken: 'r'));
+
+      expect(await repository.restoreSession(), isTrue);
+      expect(
+        adapter.requests,
+        isEmpty,
+        reason:
+            'reloading a page must not cost a renewal — that is what '
+            'keeps the reload off the cross-tab race entirely',
+      );
+    });
+
+    test('a new tab asks the server, because only it knows', () async {
+      // The refresh token is in an `HttpOnly` cookie, so this page cannot
+      // read it and cannot tell a live session from none. Trying is the only
+      // way to find out.
+      final (repository, storage, adapter) = _repository(
+        (options) => FakeReply(
+          200,
+          body: {
+            'access_token': 'fresh-access',
+            'refresh_token': 'fresh-refresh',
+            'token_type': 'Bearer',
+            'expires_in': 900,
+            'refresh_token_cookie_set': true,
+          },
+        ),
+      );
+
+      expect(await repository.restoreSession(), isTrue);
+      expect(adapter.requests.single.path, '/v1/auth/token');
+      expect(
+        (adapter.requests.single.data as Map)['grant_type'],
+        'refresh_token',
+      );
+      final held = await storage.read();
+      expect(held!.accessToken, 'fresh-access');
+      expect(
+        held.refreshToken,
+        'fresh-refresh',
+        reason:
+            'the server set a cookie, but this host keeps none — so the copy '
+            'from the body is the only credential there is. Letting go of it '
+            'is what a browser does (`sessionFrom`)',
+      );
+    });
+
+    test('a cookie-less tab presents the token it holds', () async {
+      // The secret store is shared between tabs, the per-tab one is not — so
+      // a new tab in a deployment without the cookie starts with a refresh
+      // token and no access token, and must use the one it has rather than
+      // renewing with nothing.
+      final adapter = FakeAdapter(
+        (_) => const FakeReply(
+          200,
+          body: {
+            'access_token': 'fresh-access',
+            'refresh_token': 'fresh-refresh',
+            'token_type': 'Bearer',
+            'expires_in': 900,
+          },
+        ),
+      );
+      final storage = SplitTokenStorage(
+        accessStore: InMemorySessionStore(),
+        refreshStore: _HeldSecret('held-refresh'),
+      );
       final repository = AuthRepositoryImpl(
         api: ApiClient(
           config: _config,
@@ -199,12 +281,35 @@ void main() {
         logger: getLogger('test'),
       );
 
-      expect(await repository.hasSession(), isFalse);
-      await storage.write(const TokenPair(accessToken: 'a', refreshToken: 'r'));
-      expect(await repository.hasSession(), isTrue);
-      expect(adapter.requests, isEmpty);
-    },
-  );
+      expect(await repository.restoreSession(), isTrue);
+      expect(
+        (adapter.requests.single.data as Map)['refresh_token'],
+        'held-refresh',
+      );
+    });
+
+    test(
+      'no session at all lands on the login screen, not on an error',
+      () async {
+        final (repository, _, _) = _repository(
+          (_) => _rfcError('invalid_grant'),
+        );
+
+        expect(await repository.restoreSession(), isFalse);
+      },
+    );
+
+    test('an unreachable server is no session either', () async {
+      final (repository, _, _) = _repository(
+        (_) => throw DioException.connectionError(
+          requestOptions: RequestOptions(),
+          reason: 'offline',
+        ),
+      );
+
+      expect(await repository.restoreSession(), isFalse);
+    });
+  });
   group('changePassword and the other sessions', () {
     /// The body as it went on the wire — retrofit hands dio the DTO's
     /// `toJson()`, so this is the JSON the server would parse.

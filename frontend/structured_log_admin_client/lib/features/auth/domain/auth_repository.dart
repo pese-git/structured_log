@@ -26,7 +26,13 @@ abstract interface class AuthRepository {
 
   /// Whether a session is already stored — what decides between the login
   /// screen and the app on startup.
-  Future<bool> hasSession();
+  /// Whether this tab starts inside the app or at the login screen.
+  ///
+  /// Not a question about local storage any more. With the refresh token in
+  /// an `HttpOnly` cookie, a tab that holds no access token cannot tell a
+  /// live session from none — the cookie is unreadable to it — so the only
+  /// way to find out is to try renewing (`admin-client-auth`).
+  Future<bool> restoreSession();
 
   /// Replaces this account's own password.
   ///

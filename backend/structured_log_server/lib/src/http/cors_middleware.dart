@@ -21,6 +21,16 @@ const _allowedHeaders = 'Authorization, Content-Type';
 /// gets the header added on the way back out, because a browser needs it on
 /// the error response itself to let the page read a 401 or 500.
 ///
+/// `Access-Control-Allow-Credentials: true` rides along with every
+/// `Access-Control-Allow-Origin` this middleware adds. The change that
+/// introduced CORS here recorded its absence as a non-goal — the client
+/// authenticated through `Authorization` and never a cookie — and
+/// `add-refresh-token-cookie` made that untrue. Without it a browser neither
+/// stores the refresh cookie nor sends it, and a preflight missing it fails
+/// the check before the real request is made, so it belongs on both answers.
+/// Pairing it with `*` is rejected by browsers outright; the exact echo below
+/// is what makes it usable at all.
+///
 /// Matching is exact string equality against the `Origin` header, never a
 /// wildcard: the header is already a normalized `scheme://host[:port]`, so
 /// asking the operator to list it verbatim keeps the allow-list a literal,
@@ -39,6 +49,7 @@ Middleware corsMiddleware(Set<String> allowedOrigins) {
           204,
           headers: {
             'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Credentials': 'true',
             'Access-Control-Allow-Methods': _allowedMethods,
             'Access-Control-Allow-Headers': _allowedHeaders,
             'Vary': 'Origin',
@@ -51,7 +62,11 @@ Middleware corsMiddleware(Set<String> allowedOrigins) {
       // rather than replacing them — exactly what's wanted here, since the
       // handler's own headers (`content-type` and the like) must survive.
       return response.change(
-        headers: {'Access-Control-Allow-Origin': origin, 'Vary': 'Origin'},
+        headers: {
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Credentials': 'true',
+          'Vary': 'Origin',
+        },
       );
     };
   };

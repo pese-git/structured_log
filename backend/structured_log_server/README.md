@@ -236,6 +236,7 @@ order of priority. Secrets are environment-only.
 | `--max-live-subscriptions-per-user` | `10` (`0` = no limit) |
 | `--max-live-subscriptions` | `1000` (`0` = no limit) |
 | `--cors-allowed-origins` | unset — no CORS headers on any response |
+| `--refresh-token-cookie` | `auto` — an `HttpOnly` cookie unless the `Origin` is listed above |
 | `--audit-retention-days` | unset — audit records are kept indefinitely |
 | `--auth-event-retention-days` | unset — `auth.*` records are kept indefinitely |
 | `--audit-purge-batch-size` | `500` |
@@ -256,6 +257,22 @@ Set `--cors-allowed-origins` (comma-separated) only when the client is
 genuinely served from elsewhere, such as a client run against this server
 on its own port during local development; an origin not in the list gets no
 headers regardless.
+
+**The refresh token goes to the browser as an `HttpOnly` cookie**, which a
+script on the page cannot read — where `localStorage` is readable by anything
+running on that origin. The body of the token response still carries
+`refresh_token`, so `curl`, scripts and any non-browser client work exactly as
+before; the cookie is an addition, never a replacement. `--refresh-token-cookie`
+takes `auto` (the default: set unless the request's `Origin` is one you listed
+under `--cors-allowed-origins`), `on` (always — for a client on another origin
+of the same site, say `admin.example.com` beside `api.example.com`) and `off`.
+
+**This makes TLS required for anything but `localhost`**, and the failure is
+silent: the cookie carries `Secure`, a browser drops it over plain HTTP without
+saying so, and the symptom is a session that returns to the sign-in screen
+about fifteen minutes after a login that worked. The server cannot detect it —
+behind a proxy it sees plain HTTP whatever the browser used. Terminate TLS, or
+set `--refresh-token-cookie=off`.
 
 ## Documentation
 

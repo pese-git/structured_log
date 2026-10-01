@@ -166,6 +166,29 @@ class MockServer implements HttpClientAdapter {
     );
   }
 
+  /// Whether a token grant also hands the refresh token over as an
+  /// `HttpOnly` cookie, the way a server with `--refresh-token-cookie` on
+  /// does (`log-server-config`). Off by default, so every test written before
+  /// the cookie existed still describes the server it was written against.
+  bool refreshTokenCookie = false;
+
+  /// The cookie jar there is no browser to provide.
+  ///
+  /// This mock sits under `HttpClientAdapter`, so the request never went near
+  /// a browser and dio on the VM stores nothing. Remembering what was handed
+  /// out and treating a later request as carrying it is a *pretence* — a
+  /// faithful one for what these tests check (which token the server ends up
+  /// using), and no evidence at all that a real browser would send it. That
+  /// part is pinned only by `integration_test/` in Chrome.
+  ///
+  /// Deliberately minimal: one name, no path matching, no expiry. Attributes
+  /// are the server's business and the browser's, and asserting them here
+  /// would be asserting against this file rather than against either.
+  String? _refreshCookie;
+
+  /// What the jar holds, for a test that wants to assert on it directly.
+  String? get refreshCookie => _refreshCookie;
+
   /// Every access token issued so far stops being accepted; refresh tokens
   /// still are. This is what a token that has simply aged out looks like from
   /// the client, and it is the only way to make the interceptor's
@@ -388,24 +411,44 @@ class MockServer implements HttpClientAdapter {
           return const MockReply(400, body: {'error': 'invalid_grant'});
         }
       case 'refresh_token':
-        final presented = form['refresh_token'];
-        if (presented == null || !_liveRefresh.remove(presented)) {
+        // The field first, the cookie only without one — the server's rule,
+        // and the reason a client that names a token still gets that token
+        // (`log-server-auth`).
+        final presented = form['refresh_token'] ?? _refreshCookie;
+        if (presented == null) {
+          return const MockReply(400, body: {'error': 'invalid_request'});
+        }
+        if (!_liveRefresh.remove(presented)) {
           return const MockReply(400, body: {'error': 'invalid_grant'});
         }
       default:
         return const MockReply(400, body: {'error': 'unsupported_grant_type'});
     }
 
+    final pair = _issuePair();
+    if (refreshTokenCookie) _refreshCookie = pair['refresh_token'];
     return MockReply(
       200,
-      body: {..._issuePair(), 'token_type': 'Bearer', 'expires_in': 900},
+      body: {
+        ...pair,
+        'token_type': 'Bearer',
+        'expires_in': 900,
+        // Always present, whichever way it went: this field is how the client
+        // learns the mode, and a client left to guess is the thing the design
+        // set out to avoid.
+        'refresh_token_cookie_set': refreshTokenCookie,
+      },
     );
   }
 
   /// Answers 200 whether or not the token was any good — a caller learns
   /// nothing about tokens it does not hold.
   MockReply _signOut(RecordedRequest request) {
-    _liveRefresh.remove(request.form['refresh_token']);
+    final named = request.form['refresh_token'];
+    _liveRefresh.remove(named ?? _refreshCookie);
+    // Cleared only when the cookie is what was revoked: a caller ending some
+    // other session by naming it must keep its own.
+    if (named == null) _refreshCookie = null;
     return const MockReply(204);
   }
 
@@ -487,8 +530,12 @@ class MockServer implements HttpClientAdapter {
     // same rule `change_password_route.dart` applies, spelled out here rather
     // than assumed, because a mock that agrees with the client instead of the
     // server proves nothing (`log-server-forced-password-change`).
+    // The session to spare is the one the caller named, else the one the
+    // cookie carries — again the server's order, not the client's
+    // convenience.
+    final spared = presentedRefresh ?? _refreshCookie;
     if (keepOtherSessions != true) {
-      _liveRefresh.removeWhere((token) => token != presentedRefresh);
+      _liveRefresh.removeWhere((token) => token != spared);
     }
     return const MockReply(204);
   }

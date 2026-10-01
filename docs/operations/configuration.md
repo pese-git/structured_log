@@ -162,6 +162,7 @@ pass today.
 | Limiter key ceiling | `--rate-limit-max-keys` | `10000` | LRU eviction above it |
 | Trusted proxy hops | `--trusted-proxy-hops` | `0` | `0` = ignore `X-Forwarded-For` entirely |
 | CORS allowed origins | `--cors-allowed-origins` | unset | Comma-separated exact origins; unset/empty = no CORS headers at all ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
+| Refresh token in a cookie | `--refresh-token-cookie` | `auto` | `auto` sets an `HttpOnly; Secure; SameSite=Strict` cookie unless the request `Origin` is listed above; `on` always sets it (for a client on another origin of the same site, e.g. `admin.example.com` beside `api.example.com`); `off` never does. **Needs HTTPS for anything but `localhost`** — a browser drops a `Secure` cookie over plain HTTP without saying so, and the symptom is a session that returns to the sign-in screen about fifteen minutes after a successful login ([log-server-config](../../openspec/changes/archive/2026-09-29-add-refresh-token-cookie/specs/log-server-config/spec.md)) |
 | Audit retention | `--audit-retention-days` | unset | Unset = keep forever ([quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
 | Audit purge chunk | `--audit-purge-batch-size` | `500` | Deleting in chunks keeps ingestion unblocked |

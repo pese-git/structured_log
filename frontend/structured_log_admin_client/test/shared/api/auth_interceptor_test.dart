@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:structured_log_admin_client/shared/api/api_client.dart';
 import 'package:structured_log_admin_client/shared/api/api_failure.dart';
 import 'package:structured_log_admin_client/shared/api/failure_mapper.dart';
+import 'package:structured_log_admin_client/shared/auth/session_lock.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
@@ -28,6 +29,21 @@ Map<String, Object?> _tokenBody(String access, String refresh) => {
   'token_type': 'Bearer',
   'expires_in': 900,
 };
+
+/// A lock that lets the test act as the tab that won it.
+class _RotatingLock implements SessionLock {
+  final Future<void> Function() beforeBody;
+  var held = 0;
+
+  _RotatingLock(this.beforeBody);
+
+  @override
+  Future<T> synchronized<T>(Future<T> Function() body) async {
+    held++;
+    await beforeBody();
+    return body();
+  }
+}
 
 void main() {
   test('attaches the access token to an ordinary request', () async {
@@ -261,5 +277,89 @@ void main() {
     // on a server that rotates them the later ones would present a token that
     // had just been revoked.
     expect(refreshes, 1);
+  });
+
+  test('a renewal reads the token again after taking the lock', () async {
+    // The tab that won the lock has already rotated the token by the time
+    // this one runs. Refreshing with the value captured before the wait would
+    // present a spent token — which the server cannot tell from theft, and
+    // answers by revoking the whole chain.
+    final storage = InMemoryTokenStorage(_session);
+    final lock = _RotatingLock(() async {
+      await storage.write(
+        const TokenPair(accessToken: 'access-1', refreshToken: 'rotated-by-a'),
+      );
+    });
+    final adapter = FakeAdapter((options) {
+      if (options.path == '/v1/auth/token') {
+        return FakeReply(200, body: _tokenBody('access-2', 'refresh-2'));
+      }
+      return options.headers['Authorization'] == 'Bearer access-2'
+          ? const FakeReply(200, body: _emptyCollection)
+          : const FakeReply(401, body: {'error': 'unauthorized'});
+    });
+    final client = ApiClient(
+      config: _config,
+      storage: storage,
+      adapter: adapter,
+      sessionLock: lock,
+    );
+
+    await client.groups.list();
+
+    expect(lock.held, 1, reason: 'the renewal is what the lock guards');
+    final refreshRequest = adapter.requests.firstWhere(
+      (r) => r.path == '/v1/auth/token',
+    );
+    expect(
+      (refreshRequest.data as Map)['refresh_token'],
+      'rotated-by-a',
+      reason: 'the token as it stands after the wait, not as it stood before',
+    );
+  });
+
+  test('a renewal in cookie mode presents no token at all', () async {
+    // Nothing for the client to send: the cookie is the credential, and the
+    // browser attaches it. A field carrying the empty string would outrank
+    // the cookie on the server and fail the renewal.
+    final storage = InMemoryTokenStorage(
+      const TokenPair(accessToken: 'access-1'),
+    );
+    final adapter = FakeAdapter((options) {
+      if (options.path == '/v1/auth/token') {
+        return FakeReply(
+          200,
+          body: {
+            ..._tokenBody('access-2', 'refresh-2'),
+            'refresh_token_cookie_set': true,
+          },
+        );
+      }
+      return options.headers['Authorization'] == 'Bearer access-2'
+          ? const FakeReply(200, body: _emptyCollection)
+          : const FakeReply(401, body: {'error': 'unauthorized'});
+    });
+    final client = ApiClient(
+      config: _config,
+      storage: storage,
+      adapter: adapter,
+    );
+
+    await client.groups.list();
+
+    final refreshRequest = adapter.requests.firstWhere(
+      (r) => r.path == '/v1/auth/token',
+    );
+    expect(
+      (refreshRequest.data as Map).containsKey('refresh_token'),
+      isFalse,
+      reason:
+          'an empty field would outrank the cookie on the server and fail '
+          'the renewal; the field has to be absent, not blank',
+    );
+    // Whether the client then *drops* the token the body carried is not
+    // visible here: this runs on the VM, where nothing holds cookies, so
+    // `sessionFrom` rightly keeps the copy. The browser half is pinned in
+    // `integration_test/`.
   });
 }

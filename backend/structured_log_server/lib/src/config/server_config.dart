@@ -310,6 +310,18 @@ const serverConfigParams = <ParamSpec>[
         'client is expected to be served from the same origin as the API.',
     defaultValue: '',
   ),
+  ParamSpec(
+    name: 'refresh-token-cookie',
+    type: ParamType.string,
+    description:
+        'Whether a successful token grant also sets the refresh token as an '
+        'HttpOnly cookie: auto (the default) sets it unless the request '
+        "Origin is listed in cors-allowed-origins, on always sets it, off "
+        'never does. Requires HTTPS for anything but localhost — the cookie '
+        'carries Secure, and a browser silently drops it over plain HTTP.',
+    defaultValue: 'auto',
+    allowedValues: {'auto', 'on', 'off'},
+  ),
 ];
 
 /// The fully resolved, immutable configuration Stage 1 uses. No global
@@ -373,6 +385,14 @@ class ServerConfig {
   /// on any response, for any origin (`specs/log-server-api`).
   final Set<String> corsAllowedOrigins;
 
+  /// Where a successful token grant puts the refresh token: `auto` (the
+  /// default), `on` or `off` — a closed value set carried as a string, the
+  /// same convention as [dbBackend]/[logFormat]. `auto` withholds the cookie
+  /// from an origin the operator has listed under [corsAllowedOrigins],
+  /// having thereby declared it something other than the API's own
+  /// (`specs/log-server-config`).
+  final String refreshTokenCookie;
+
   /// Both `null` by default, meaning records are kept indefinitely — which is
   /// the behaviour a server that predates this setting already had. Upgrading
   /// SHALL not delete anything on its own: an operator who deployed a year ago
@@ -416,6 +436,7 @@ class ServerConfig {
     required this.maxLiveSubscriptionsPerUser,
     required this.maxLiveSubscriptions,
     this.corsAllowedOrigins = const {},
+    this.refreshTokenCookie = 'auto',
     this.auditRetentionDays,
     this.authEventRetentionDays,
     this.auditPurgeBatchSize = 500,
@@ -460,6 +481,7 @@ class ServerConfig {
       maxLiveSubscriptionsPerUser: get('max-live-subscriptions-per-user'),
       maxLiveSubscriptions: get('max-live-subscriptions'),
       corsAllowedOrigins: _parseOrigins(get('cors-allowed-origins')),
+      refreshTokenCookie: get('refresh-token-cookie'),
       auditRetentionDays: get('audit-retention-days'),
       authEventRetentionDays: get('auth-event-retention-days'),
       auditPurgeBatchSize: get('audit-purge-batch-size'),

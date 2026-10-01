@@ -5,6 +5,7 @@ import 'package:shelf_router/shelf_router.dart';
 
 import '../../auth/token_service.dart';
 import '../rate_limit/client_ip.dart';
+import '../refresh_cookie.dart';
 import '../request_helpers.dart';
 import '../rate_limit_middleware.dart';
 
@@ -48,12 +49,26 @@ String _description(TokenErrorCode code) {
   }
 }
 
-Map<String, Object?> _pairJson(TokenPair pair) => {
+/// The RFC 6749 §5.1 body, plus one field of this server's own.
+///
+/// `refresh_token` is present whatever [cookieSet] says: the cookie is an
+/// addition, so a caller that keeps none reads the body exactly as it did
+/// before cookies existed. `refresh_token_cookie_set` is what tells a browser
+/// client it may drop its copy — the client is told the mode rather than
+/// configured with it, so the two can never disagree
+/// (`add-refresh-token-cookie/design.md`, decision 2).
+///
+/// The name describes what the server did, not where the token is: under
+/// `auto` a cookie is set for a caller with no `Origin` at all, and calling
+/// the field `refresh_token_in_cookie` would be untrue for exactly those
+/// callers who cannot use it.
+Map<String, Object?> _pairJson(TokenPair pair, {required bool cookieSet}) => {
   'access_token': pair.accessToken,
   'token_type': 'Bearer',
   'expires_in': pair.accessTokenTtl.inSeconds,
   'refresh_token': pair.refreshToken,
   'refresh_expires_in': pair.refreshTokenTtl.inSeconds,
+  'refresh_token_cookie_set': cookieSet,
 };
 
 /// The form body, or `null` when it is malformed or over the cap. Public and
@@ -77,8 +92,41 @@ class AuthRoutes {
   /// here writes a forged address into a journal kept for years.
   final int _trustedProxyHops;
 
-  AuthRoutes(this._tokenService, {int trustedProxyHops = 0})
-    : _trustedProxyHops = trustedProxyHops;
+  /// Whether a successful grant also hands the refresh token to the browser
+  /// as an `HttpOnly` cookie, and the origins the operator declared foreign.
+  final RefreshCookieMode _refreshTokenCookie;
+  final Set<String> _corsAllowedOrigins;
+
+  AuthRoutes(
+    this._tokenService, {
+    int trustedProxyHops = 0,
+    RefreshCookieMode refreshTokenCookie = RefreshCookieMode.off,
+    Set<String> corsAllowedOrigins = const {},
+  }) : _trustedProxyHops = trustedProxyHops,
+       _refreshTokenCookie = refreshTokenCookie,
+       _corsAllowedOrigins = corsAllowedOrigins;
+
+  /// The successful token response, carrying the cookie when this request's
+  /// origin is one that should get it.
+  Response _pairResponse(Request request, TokenPair pair) {
+    final setsCookie = shouldSetRefreshCookie(
+      _refreshTokenCookie,
+      origin: request.headers['origin'],
+      allowedOrigins: _corsAllowedOrigins,
+    );
+    return Response(
+      200,
+      body: jsonEncode(_pairJson(pair, cookieSet: setsCookie)),
+      headers: {
+        'content-type': 'application/json',
+        if (setsCookie)
+          'set-cookie': buildRefreshCookie(
+            pair.refreshToken,
+            maxAge: pair.refreshTokenTtl,
+          ),
+      },
+    );
+  }
 
   Router get router => _$AuthRoutesRouter(this);
 
@@ -127,16 +175,16 @@ class AuthRoutes {
           },
           (pair) {
             attempt.succeeded();
-            return Response(
-              200,
-              body: jsonEncode(_pairJson(pair)),
-              headers: {'content-type': 'application/json'},
-            );
+            return _pairResponse(request, pair);
           },
         );
 
       case 'refresh_token':
-        final refreshToken = form['refresh_token'];
+        // The field first, the cookie only in its absence: the field is the
+        // caller naming a token, the cookie is what the browser attached by
+        // itself. On `DELETE` below the same order decides whose session ends.
+        final refreshToken =
+            form['refresh_token'] ?? refreshCookieOf(request.headers['cookie']);
         if (refreshToken == null) {
           return _rfc6749Error(
             400,
@@ -146,11 +194,7 @@ class AuthRoutes {
         final result = await _tokenService.refreshTokenGrant(refreshToken);
         return result.match(
           (error) => _rfc6749Error(400, error),
-          (pair) => Response(
-            200,
-            body: jsonEncode(_pairJson(pair)),
-            headers: {'content-type': 'application/json'},
-          ),
+          (pair) => _pairResponse(request, pair),
         );
 
       default:
@@ -172,7 +216,8 @@ class AuthRoutes {
         const TokenError(TokenErrorCode.invalidRequest),
       );
     }
-    final refreshToken = form['refresh_token'];
+    final fromCookie = refreshCookieOf(request.headers['cookie']);
+    final refreshToken = form['refresh_token'] ?? fromCookie;
     if (refreshToken == null) {
       return _rfc6749Error(
         400,
@@ -184,6 +229,16 @@ class AuthRoutes {
       clientIp: resolveClientIp(request, trustedProxyHops: _trustedProxyHops),
       userAgent: request.headers['user-agent'],
     );
-    return Response(200, body: '');
+    // Cleared when the cookie is what we just revoked, and then regardless of
+    // whether that token was live: RFC 7009 §2.2 forbids the response from
+    // differing by validity, and clearing only on a hit would make it differ.
+    // A caller that named a token in the form is revoking something other than
+    // the browser's own session, so its cookie is left alone.
+    final clears = form['refresh_token'] == null && fromCookie != null;
+    return Response(
+      200,
+      body: '',
+      headers: {if (clears) 'set-cookie': clearRefreshCookie()},
+    );
   }
 }

@@ -22,6 +22,7 @@ import 'infra_module.dart';
 import 'process_resources.dart';
 import 'cors_middleware.dart';
 import 'http_settings.dart';
+import 'refresh_cookie.dart';
 import 'logging_middleware.dart';
 import 'principal_middleware.dart';
 import 'rate_limit_middleware.dart';
@@ -97,6 +98,8 @@ Scope openServerScope(
           sseHeartbeatInterval: sseHeartbeatInterval,
           maxLiveSubscriptionsPerUser: config?.maxLiveSubscriptionsPerUser ?? 0,
           maxLiveSubscriptions: config?.maxLiveSubscriptions ?? 0,
+          refreshTokenCookie: refreshCookieModeOf(config?.refreshTokenCookie),
+          corsAllowedOrigins: config?.corsAllowedOrigins ?? const {},
         ),
         auditRetention: AuditRetention(
           auditRetentionDays: config?.auditRetentionDays,

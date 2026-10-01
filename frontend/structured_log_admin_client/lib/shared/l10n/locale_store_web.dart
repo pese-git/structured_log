@@ -2,9 +2,15 @@ import 'package:web/web.dart' as web;
 
 import 'locale_controller.dart';
 
-/// The browser's `localStorage`. A language is not a secret — unlike the
-/// tokens, which never come near it (decision 20) — and it has to survive a
-/// reload, or the switcher would be undone by the next F5.
+/// The browser's `localStorage`. A language is not a secret, and it has to
+/// survive a reload, or the switcher would be undone by the next F5.
+///
+/// The tokens are the contrast: the access token lives one tab at a time in
+/// `sessionStorage`, and the refresh token is not here at all when the server
+/// can hold it in an `HttpOnly` cookie. This comment used to claim they never
+/// came near `localStorage` on the strength of decision 20 — on the web they
+/// did, because that is what `flutter_secure_storage` is there
+/// (`add-refresh-token-cookie`).
 LocaleStore createLocaleStore() => _WebLocaleStore();
 
 class _WebLocaleStore implements LocaleStore {

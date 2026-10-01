@@ -29,5 +29,5 @@
 
 ## 6. Verification
 
-- [ ] 6.1 CI green on every job.
-- [ ] 6.2 `nginx -t` on all three configs. **Not done here** — neither nginx nor Docker is available on this machine, so only a structural check (balanced blocks, terminated directives) was possible. Run it before merging, or let the first image build do it.
+- [x] 6.1 CI green on every job. Closed 29.09.2026 from the record: all 18 checks of #63, which merged this change as `e861e84`, passed.
+- [x] 6.2 `nginx -t` on all three configs. **Not done here** — neither nginx nor Docker is available on this machine, so only a structural check (balanced blocks, terminated directives) was possible. Run it before merging, or let the first image build do it. **Done 29.09.2026** in `nginx:1.27-alpine` (1.27.5, the image all three are deployed on), each mounted where its Dockerfile or `docker-compose.yml` puts it: `syntax is ok` / `test is successful` for all three, both as merged in `e861e84` and as they stand today. The proxy template was rendered by the image's own entrypoint with `NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1`, so `${NGINX_LOCAL_RESOLVERS}` was substituted exactly as in deployment rather than by hand.

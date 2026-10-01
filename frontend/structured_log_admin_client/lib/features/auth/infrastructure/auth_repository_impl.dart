@@ -5,9 +5,10 @@ import 'package:structured_log/structured_log.dart';
 import '../../../shared/api/auth_api.dart';
 import '../../../shared/api/dto/auth_dto.dart';
 import '../../../shared/api/failure_mapper.dart';
+import '../../../shared/api/token_response.dart';
+import '../../../shared/auth/session_lock.dart';
 import '../../../shared/auth/access_token_claims.dart';
 import '../../../shared/auth/password_rejection.dart';
-import '../../../shared/auth/token_pair.dart';
 import '../../../shared/auth/token_storage.dart';
 import '../domain/auth_failure.dart';
 import '../domain/auth_repository.dart';
@@ -17,12 +18,18 @@ class AuthRepositoryImpl implements AuthRepository {
   final TokenStorage _storage;
   final BoundLogger _log;
 
+  /// The same turn-taking the interceptor uses, for the same reason — see
+  /// [restoreSession], which is the other place a renewal starts.
+  final SessionLock _lock;
+
   AuthRepositoryImpl({
     required AuthApi api,
     required TokenStorage storage,
     required BoundLogger logger,
+    SessionLock lock = const NoSessionLock(),
   }) : _api = api,
        _storage = storage,
+       _lock = lock,
        _log = logger.bind({'feature': 'auth'});
 
   @override
@@ -36,12 +43,7 @@ class AuthRepositoryImpl implements AuthRepository {
         username,
         password,
       );
-      await _storage.write(
-        TokenPair(
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-        ),
-      );
+      await _storage.write(sessionFrom(tokens));
       // The username is context, not a secret; neither password nor token is
       // ever logged (decision 48).
       _log.info('auth.signed_in', context: {'username': username});
@@ -78,7 +80,39 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<bool> hasSession() async => await _storage.read() != null;
+  Future<bool> restoreSession() async {
+    // This tab already has an access token: a reload, not a new tab. Costs
+    // nothing, and — more to the point — keeps a reload out of the renewal
+    // race between tabs altogether.
+    if (await _storage.read() != null) return true;
+
+    try {
+      // Inside the cross-tab lock, exactly like the interceptor's renewal.
+      // Two tabs opened together boot together, and each one starts here —
+      // so without this the second presents a cookie the first has already
+      // spent, the server reads that as reuse and revokes the account's
+      // whole chain. Putting the lock only on the 401 path left this one
+      // open, which a browser harness found and no test on the VM could
+      // (`tool/browser-e2e`).
+      final tokens = await _lock.synchronized(() async {
+        // No token to present in the cookie mode; the browser attaches it.
+        // In the cookie-less mode the shared secret store still holds one,
+        // and it is read *here*, after the wait, because whoever waited is
+        // looking at a rotated token.
+        return _api.refresh(
+          AuthApi.refreshGrant,
+          await _storage.readRefreshToken(),
+        );
+      });
+      await _storage.write(sessionFrom(tokens));
+      return true;
+    } on DioException {
+      // No session, an expired one, or an unreachable server. All three end
+      // at the login screen, and telling them apart would only offer the
+      // reader a distinction they cannot act on.
+      return false;
+    }
+  }
 
   @override
   Future<Either<AuthFailure, Unit>> changePassword({

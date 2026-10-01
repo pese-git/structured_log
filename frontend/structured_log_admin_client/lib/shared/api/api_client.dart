@@ -1,11 +1,12 @@
 import 'package:cherrypick/cherrypick.dart';
 import 'package:dio/dio.dart';
 
-import '../auth/token_pair.dart';
+import '../auth/session_lock.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import 'audit_api.dart';
 import 'auth_api.dart';
+import 'token_response.dart';
 import 'auth_interceptor.dart';
 import 'logs_api.dart';
 import 'resources_api.dart';
@@ -75,6 +76,9 @@ class ApiClient implements Disposable {
 
     /// Swapped in tests for an adapter that answers without a socket.
     HttpClientAdapter? adapter,
+
+    /// Takes turns with the other tabs of this origin when renewing.
+    SessionLock sessionLock = const NoSessionLock(),
   }) {
     BaseOptions optionsFor(Duration timeout) => BaseOptions(
       baseUrl: config.baseUrl,
@@ -116,6 +120,7 @@ class ApiClient implements Disposable {
 
     final authInterceptor = AuthInterceptor(
       storage: storage,
+      lock: sessionLock,
       retryClient: retryClient,
       onSessionExpired: onSessionExpired,
       onPasswordChangeRequired: onPasswordChangeRequired,
@@ -125,10 +130,7 @@ class ApiClient implements Disposable {
             AuthApi.refreshGrant,
             refreshToken,
           );
-          return TokenPair(
-            accessToken: response.accessToken,
-            refreshToken: response.refreshToken,
-          );
+          return sessionFrom(response);
         } on DioException {
           // Any failure here — refused, offline, timed out — ends the
           // session. Distinguishing them would only offer the user a retry

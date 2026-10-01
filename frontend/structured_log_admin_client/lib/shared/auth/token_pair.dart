@@ -6,9 +6,36 @@
 /// ever run.
 class TokenPair {
   final String accessToken;
-  final String refreshToken;
 
-  const TokenPair({required this.accessToken, required this.refreshToken});
+  /// `null` when the server put the refresh token in an `HttpOnly` cookie —
+  /// the browser holds it, and this page cannot read it even to store it.
+  /// That is the point: the 30-day credential stops being reachable from
+  /// script on this origin (`add-refresh-token-cookie`).
+  ///
+  /// So `null` here does not mean "no session". It means the half of the
+  /// session that renews it is kept somewhere better, and a renewal sends no
+  /// token at all — the cookie travels on its own.
+  final String? refreshToken;
+
+  const TokenPair({required this.accessToken, this.refreshToken});
+
+  /// The pair to keep, out of what `POST /v1/auth/token` answered.
+  ///
+  /// The body carries `refresh_token` in both modes — that is what keeps
+  /// non-browser callers working — so the client has to be told whether to
+  /// hold on to it. [cookieSet] is the server's `refresh_token_cookie_set`,
+  /// and it is the only thing that decides: the client is told the mode
+  /// rather than configured with it, so the two cannot disagree
+  /// (`add-refresh-token-cookie/design.md`, decision 2).
+  ///
+  /// Keeping the copy anyway would leave the change achieving nothing: the
+  /// token would sit in browser storage exactly as before, cookie or no
+  /// cookie.
+  const TokenPair.fromGrant({
+    required this.accessToken,
+    required String refreshToken,
+    required bool cookieSet,
+  }) : refreshToken = cookieSet ? null : refreshToken;
 
   @override
   bool operator ==(Object other) =>

@@ -23,7 +23,24 @@ import 'package:structured_log_admin_client/testing/mock_server.dart';
 /// up, not five independent cases — and each opens the app again, which is
 /// what coming back to it looks like. The session survives between them
 /// because the token store does, exactly as a real one would.
+/// Both ways a deployment can hold the refresh token, walked identically.
+///
+/// The path must not depend on which one is in use — that is the contract the
+/// cookie was added under (`add-refresh-token-cookie`): the client is told
+/// the mode and adapts, and an operator sees the same application either way.
+/// Running the whole path twice is what would notice a screen that quietly
+/// works in only one of them.
 void main() {
+  group('with the refresh token in a cookie', () {
+    _operatorPath(refreshCookie: true);
+  });
+
+  group('with the client holding the refresh token', () {
+    _operatorPath(refreshCookie: false);
+  });
+}
+
+void _operatorPath({required bool refreshCookie}) {
   late MockServer server;
   late InMemoryTokenStorage storage;
 
@@ -39,7 +56,8 @@ void main() {
     // the password an administrator generated for it, and the gate that
     // password brings with it (design.md decisions 42/49).
     server = MockServer(username: 'admin', password: temporaryPassword)
-      ..mustChangePassword = true;
+      ..mustChangePassword = true
+      ..refreshTokenCookie = refreshCookie;
     storage = InMemoryTokenStorage();
   });
 
@@ -234,6 +252,36 @@ void main() {
       reason: 'the new entry joins the list rather than replacing it',
     );
     expect(find.text('В реальном времени'), findsOneWidget);
+    await closeApp(tester);
+  });
+
+  testWidgets('the refresh token is where the deployment says it is', (
+    tester,
+  ) async {
+    // The end-to-end form of the whole point. Everything above passed in both
+    // modes precisely because the client adapts — so the one thing left to
+    // check is that adapting actually moved the credential, rather than
+    // leaving a copy behind while the cookie was also set.
+    await pumpApp(tester, server, storage: storage);
+
+    final held = await storage.read();
+
+    expect(held, isNotNull, reason: 'the operator is still signed in');
+    expect(
+      server.refreshCookie,
+      refreshCookie ? isNotNull : isNull,
+      reason: 'the server put the credential where the deployment says',
+    );
+    expect(
+      held!.refreshToken,
+      isNotNull,
+      reason:
+          'this runs on the VM, which holds no cookies — so the client rightly '
+          'keeps the copy the body carried, in either mode. Letting go of it '
+          'is browser-only and is checked in a browser (`integration_test/`); '
+          'a client that dropped it here would have no way to renew at all, '
+          'which is how `packages/e2e` caught the first attempt at this',
+    );
     await closeApp(tester);
   });
 
