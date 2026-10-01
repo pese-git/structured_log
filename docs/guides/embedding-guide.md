@@ -26,8 +26,11 @@ Several packages, and you only need as many of them as your project does:
 3. **Log what your blocs do** —
    [`structured_log_bloc`](#4-optional-log-your-blocs-structured_log_bloc),
    a `BlocObserver` for apps built on `bloc`/`flutter_bloc`.
-4. **Also ship those logs to a server** —
-   [`structured_log_http`](#5-optional-also-ship-logs-to-a-server), a
+4. **Log your HTTP calls** —
+   [`structured_log_dio`](#5-optional-log-your-http-calls-structured_log_dio),
+   an interceptor for apps that talk to their backend through `dio`.
+5. **Also ship those logs to a server** —
+   [`structured_log_http`](#6-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -211,7 +214,34 @@ withholds them — see the package's
 [README](../../emb/structured_log_bloc/README.md#keeping-secrets-out-of-the-log),
 which also lists every entry it writes and how to tune levels per hook.
 
-## 5. Optional: also ship logs to a server
+## 5. Optional: log your HTTP calls: `structured_log_dio`
+
+If the app talks to its backend through [`dio`](https://pub.dev/packages/dio),
+[`structured_log_dio`](../../emb/structured_log_dio/) logs every request
+and how it ended — response, error, timeout, cancellation — with the
+duration and a level that follows the status code:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_dio:
+    path: ../structured_log_dio   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+```
+
+```dart
+final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
+  ..interceptors.add(StructuredLogDioInterceptor()); // add it last
+```
+
+Entries carry `category: 'http'`, next to the blocs' `bloc`, so the viewer
+can show either on its own. Headers and bodies are not logged until you
+turn them on, and `Authorization`, cookies and token-like query
+parameters are redacted — but a body, once on, is logged as it is; see
+the package's
+[README](../../emb/structured_log_dio/README.md#keeping-secrets-out-of-the-log)
+before turning bodies on for login or token calls.
+
+## 6. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,
@@ -254,6 +284,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_fluent`](../../emb/structured_log_fluent/README.md),
   [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.md),
   [`structured_log_bloc`](../../emb/structured_log_bloc/README.md),
+  [`structured_log_dio`](../../emb/structured_log_dio/README.md),
   [`structured_log_http`](../../emb/structured_log_http/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:
   the ingestion HTTP endpoint directly, querying logs back out,
