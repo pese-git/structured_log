@@ -23,10 +23,11 @@
 - [x] 4.1 `dart analyze`, `dart format --set-exit-if-changed`, `dart test` для обоих пакетов; `flutter analyze` для `packages/e2e`. Плюс `test/system_test.dart` из `packages/e2e` против настоящего сервера (9/9) и пакет-потребитель на старом имени: собирается, запускается, анализатор помечает импорт и `HttpLogOutput` новым именем.
 - [x] 4.2 `dart pub publish --dry-run` для обоих пакетов.
 - [x] 4.3 Генератор сайта и сборка сайта проходят.
-- [ ] 4.4 CI зелёный на всех джобах.
+- [x] 4.4 CI зелёный на всех джобах. Зелёный 26/26 на #93.
 
 ## 5. Публикация (владелец пакета)
 
-- [ ] 5.1 Опубликовать `structured_log_remote_sync 0.1.0`, поставить тег `structured_log_remote_sync-v0.1.0`.
-- [ ] 5.2 `melos version -V structured_log_http:patch` → `0.1.1` (ручной бамп: тип коммита выбрал бы не ту ступень), опубликовать прослойку.
+- [x] 5.1 Опубликовать `structured_log_remote_sync`, поставить тег. Вышел как **`0.2.0`**, а не `0.1.0`: `melos version` запустили общим прогоном без ручного бампа, и `BREAKING CHANGE` коммита переименования поднял минорную. Тег `structured_log_remote_sync-v0.2.0`.
+- [x] 5.2 Опубликовать прослойку `structured_log_http`. Вышла как **`0.2.0`** (не `0.1.1`) по той же причине, с зависимостью `structured_log_remote_sync: ^0.2.0` — разрешается.
 - [ ] 5.3 pub.dev → `structured_log_http` → Admin: Discontinued, Replaced by `structured_log_remote_sync`.
+- [ ] 5.4 Патч-релизы `structured_log_remote_sync` 0.2.1 и `structured_log_http` 0.2.1. Документация обоих пакетов (и опубликованные README на pub.dev) называла `structured_log_remote_sync: ^0.1.0`, а для `0.x` это `<0.2.0` — под опубликованную `0.2.0` констрейнт не подходит, и пользователь, сделавший как написано, получает ошибку разрешения. Исправлено на `^0.2.0` коммитами `fix(structured_log_remote_sync)`/`fix(structured_log_http)`, чтобы `melos version` вывел патч сам.
