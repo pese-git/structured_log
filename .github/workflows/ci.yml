@@ -767,6 +767,8 @@ jobs:
           - package: emb/structured_log_cupertino
             name: structured_log_cupertino
           - package: emb/structured_log_cupertino/example
+          - package: emb/structured_log_go_router
+            name: structured_log_go_router
           - package: frontend/structured_log_admin_ui
             name: structured_log_admin_ui
           - package: frontend/structured_log_admin_ui/example

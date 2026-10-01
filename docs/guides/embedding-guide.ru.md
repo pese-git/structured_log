@@ -31,8 +31,11 @@ Dart- или Flutter-приложение. Здесь ничто не обращ
 4. **Писать в лог HTTP-вызовы** —
    [`structured_log_dio` или `structured_log_http_client`](#5-опционально-логировать-http-вызовы),
    для приложений, которые ходят на свой бэкенд через `dio` или `package:http`.
-5. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_http`](#6-опционально-доставлять-логи-и-на-сервер),
+5. **Писать в лог навигацию** —
+   [`structured_log_go_router`](#6-опционально-логировать-навигацию-structured_log_go_router),
+   для Flutter-приложений с маршрутизацией на `go_router`.
+6. **Ещё и доставлять эти логи на сервер** —
+   [`structured_log_http`](#7-опционально-доставлять-логи-и-на-сервер),
    тонкий add-on поверх `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -278,7 +281,39 @@ await client.get(Uri.parse('https://api.example.com/items'));
 пакета. Не путать с `structured_log_http` из следующего раздела — тот
 *отправляет* логи на сервер.
 
-## 6. Опционально: доставлять логи и на сервер
+## 6. Опционально: логировать навигацию: `structured_log_go_router`
+
+Если маршрутизация приложения построена на
+[`go_router`](https://pub.dev/packages/go_router),
+[`structured_log_go_router`](../../emb/structured_log_go_router/) пишет
+каждую навигацию — расположение, шаблон маршрута (`/users/:id`) и
+предыдущее расположение, — так что лог говорит, на каком экране был
+пользователь, когда что-то пошло не так:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_go_router:
+    path: ../structured_log_go_router   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+```
+
+```dart
+final routeLog = StructuredLogGoRouter();
+final router = GoRouter(
+  routes: [/* ... */],
+  redirect: routeLog.redirect(authRedirect), // по желанию: пишет и перенаправления
+);
+routeLog.attach(router);
+```
+
+Записи несут `category: 'navigation'` — рядом с `bloc` и `http`.
+Query-параметры с токенами — включая `code` из callback OAuth и фрагмент
+`#access_token=...` — маскируются; path-параметры — нет, поэтому если
+маршрут несёт в пути что-то чувствительное, см.
+[README](../../emb/structured_log_go_router/README.ru.md#как-не-пустить-секреты-в-лог)
+пакета.
+
+## 7. Опционально: доставлять логи и на сервер
 
 Всё выше — полностью локально: без сети, без сервера. Если нужно ещё и
 собирать эти логи централизованно (искать их между перезапусками,
@@ -324,6 +359,7 @@ StructlogConfiguration.configure(sinks: [
   [`structured_log_bloc`](../../emb/structured_log_bloc/README.ru.md),
   [`structured_log_dio`](../../emb/structured_log_dio/README.ru.md),
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.ru.md),
+  [`structured_log_go_router`](../../emb/structured_log_go_router/README.ru.md),
   [`structured_log_http`](../../emb/structured_log_http/README.ru.md).
 - [Руководство разработчика](developer-guide.ru.md) — когда в дело
   вступает сервер: эндпоинт приёма по HTTP напрямую, запрос логов

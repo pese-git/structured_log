@@ -29,8 +29,11 @@ Several packages, and you only need as many of them as your project does:
 4. **Log your HTTP calls** —
    [`structured_log_dio` or `structured_log_http_client`](#5-optional-log-your-http-calls),
    for apps that talk to their backend through `dio` or `package:http`.
-5. **Also ship those logs to a server** —
-   [`structured_log_http`](#6-optional-also-ship-logs-to-a-server), a
+5. **Log navigation** —
+   [`structured_log_go_router`](#6-optional-log-navigation-structured_log_go_router),
+   for Flutter apps routed with `go_router`.
+6. **Also ship those logs to a server** —
+   [`structured_log_http`](#7-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -275,7 +278,38 @@ written once the body has been read; see the package's
 Not to be confused with `structured_log_http` in the next section, which
 *sends* logs to a server.
 
-## 6. Optional: also ship logs to a server
+## 6. Optional: log navigation: `structured_log_go_router`
+
+If the app is routed with [`go_router`](https://pub.dev/packages/go_router),
+[`structured_log_go_router`](../../emb/structured_log_go_router/) logs
+every navigation — the location, its route pattern (`/users/:id`) and the
+previous location — so the log says which screen the user was on when
+something went wrong:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_go_router:
+    path: ../structured_log_go_router   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+```
+
+```dart
+final routeLog = StructuredLogGoRouter();
+final router = GoRouter(
+  routes: [/* ... */],
+  redirect: routeLog.redirect(authRedirect), // optional: logs redirects too
+);
+routeLog.attach(router);
+```
+
+Entries carry `category: 'navigation'`, next to `bloc` and `http`.
+Token-like query parameters — including an OAuth callback's `code` and a
+`#access_token=...` fragment — are redacted; path parameters are not, so
+see the package's
+[README](../../emb/structured_log_go_router/README.md#keeping-secrets-out-of-the-log)
+if a route carries something sensitive in its path.
+
+## 7. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,
@@ -320,6 +354,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_bloc`](../../emb/structured_log_bloc/README.md),
   [`structured_log_dio`](../../emb/structured_log_dio/README.md),
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.md),
+  [`structured_log_go_router`](../../emb/structured_log_go_router/README.md),
   [`structured_log_http`](../../emb/structured_log_http/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:
   the ingestion HTTP endpoint directly, querying logs back out,

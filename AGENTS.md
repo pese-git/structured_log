@@ -38,7 +38,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Девять пакетов в `emb/`:
+Десять пакетов в `emb/`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -76,6 +76,12 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   *логирует* HTTP-вызовы приложения (имя `structured_log_http` было уже занято). Чистый Dart, не
   опубликован (`0.1.0-dev.0`),
   [openspec/changes/archive/2026-10-01-add-structured-log-http-client/](openspec/changes/archive/2026-10-01-add-structured-log-http-client/), основная спека — [openspec/specs/http-client-logging/](openspec/specs/http-client-logging/spec.md).
+- [emb/structured_log_go_router/](emb/structured_log_go_router/) — `StructuredLogGoRouter`: пишет каждую
+  навигацию `go_router` (`route_changed`: расположение, шаблон маршрута, предыдущее расположение),
+  перенаправление (`route_redirected`, через обёртку `redirect`) и ошибку маршрутизации (`route_error`) с
+  `category: 'navigation'`. **Flutter-пакет** (в отличие от трёх соседей выше): `go_router` тянет Flutter,
+  поэтому `flutter test` и строка во Flutter-матрице CI. Не опубликован (`0.1.0-dev.0`),
+  [openspec/changes/add-structured-log-go-router/](openspec/changes/add-structured-log-go-router/).
 
 Плюс один пакет в `backend/`:
 
@@ -127,6 +133,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_bloc/](emb/structured_log_bloc/) — наблюдатель `bloc`/`flutter_bloc` (см. ниже).
 - [emb/structured_log_dio/](emb/structured_log_dio/) — перехватчик `dio` (см. ниже).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — логирующая обёртка `http.Client` (см. ниже).
+- [emb/structured_log_go_router/](emb/structured_log_go_router/) — логирование навигации `go_router` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -327,6 +334,33 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   при досрочной отписке, захват тела.
 - Тесты — на `MockClient` из `package:http/testing.dart`; `example/main.dart` — на настоящем `IOClient`
   против своего `HttpServer` на loopback.
+
+Внутри [emb/structured_log_go_router/](emb/structured_log_go_router/):
+
+- [emb/structured_log_go_router/lib/src/go_router_logging.dart](emb/structured_log_go_router/lib/src/go_router_logging.dart) —
+  `StructuredLogGoRouter` (`attach`/`detach`, обёртки `redirect`/`onException`), `RouteLogLevels`,
+  набор маскирования.
+- **Навигация читается со `router.routerDelegate`, а не с `NavigatorObserver`**: делегат — единственное
+  место, где видны и `go`, и `push`/`pop`, и deep link, и вместе с расположением — шаблон маршрута
+  (`GoRouterState.fullPath`). Цена — диалоги и bottom sheet, открытые мимо роутера, не видны.
+- **Ошибка маршрута — это `RouteMatchList` без совпадений**, поэтому `isError` проверяется **до**
+  `isEmpty` (пустого списка до первой навигации). Первая редакция проверяла наоборот и ошибки не видела;
+  поймано тестом, мутацией проверено.
+- **Повтор уведомления без нового расположения не пишется** — сравнение с прошлым `RouteMatchList`.
+  `go_router` сам неизменённую конфигурацию не публикует, поэтому тест шлёт `notifyListeners()`
+  напрямую — иначе защита не проверяется ничем (мутацией подтверждено: без такого теста её удаление
+  проходило).
+- **С `onException` роутер не меняет конфигурацию**, и слушатель ошибку не видит — для этого обёртка
+  `onException`. С `errorBuilder` (или без обработчиков) ошибку видит слушатель. Двойной записи нет:
+  режимы взаимоисключающие.
+- **Обёртка `redirect` не делает синхронный redirect асинхронным** — `FutureOr` разбирается на месте.
+- Маскируются только query и фрагмент вида `a=b` (OAuth implicit flow). Набор — как у `dio`/`http`, плюс
+  `code` (код авторизации OAuth в callback); **это третья копия правил маскирования URL** — общего пакета
+  по-прежнему нет, расхождение набора (`code`) намеренное.
+- `go_router: ">=17.0.0 <19.0.0"` — 18.x поменял только зависимости Flutter (`material_ui`/`cupertino_ui`) и
+  минимальный SDK; тесты проходят на 17.5.0 и 18.0.2. `sdk: ^3.10.0` — нижняя граница самого `go_router` 17.
+- `example/main.dart` — одиночный файл, как у `structured_log_flutter`: платформенных папок нет, CI его
+  только анализирует.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -998,7 +1032,7 @@ dart run example/main.dart
   проходит и CI, и эту джобу молча.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
-  (+`example/`), `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному
+  (+`example/`), `structured_log_go_router`, `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному
   матричному прогону на пакет: `flutter pub get`, `dart format --set-exit-if-changed`,
   `flutter analyze`, `flutter test`. Для `structured_log_admin_client` между `pub get` и
   `format` вставлен условный (`if: matrix.package == ...`) шаг `build_runner` — кодогенерация нужна
@@ -1063,6 +1097,7 @@ dart run example/main.dart
    [emb/structured_log_cupertino/](emb/structured_log_cupertino/README.md),
    [emb/structured_log_bloc/](emb/structured_log_bloc/README.md),
    [emb/structured_log_dio/](emb/structured_log_dio/README.md),
-   [emb/structured_log_http_client/](emb/structured_log_http_client/README.md))
+   [emb/structured_log_http_client/](emb/structured_log_http_client/README.md),
+   [emb/structured_log_go_router/](emb/structured_log_go_router/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.
