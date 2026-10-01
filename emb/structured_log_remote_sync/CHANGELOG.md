@@ -1,3 +1,9 @@
+## 0.2.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
 ## 0.1.0
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.

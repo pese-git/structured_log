@@ -1,3 +1,11 @@
+## 0.2.0
+
+> Note: This release has breaking changes.
+
+ - **FIX**(http): refuse a serverUrl this sender can never send to (#74).
+ - **FIX**(http): obey Retry-After, and refuse a duration that cannot mean anything (#69).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
 ## 0.1.0
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.

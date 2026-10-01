@@ -1,3 +1,7 @@
+## 0.2.2
+
+ - **FEAT**(structured_log): redact sensitive values, at any depth (#70).
+
 ## 0.2.1
 
  - Graduate package to a stable release. See pre-releases prior to this version for changelog entries.

@@ -57,7 +57,7 @@ dependencies:
   # (decision 48). No dependency on structured_log_server or
   # structured_log_remote_sync: this client talks to the server over HTTP like any
   # other consumer (decision 19).
-  structured_log: ^0.2.1
+  structured_log: ^0.2.2
   # The container's observer, shared with the server; a path like
   # structured_log_admin_ui's, since neither it nor this app is published.
   structured_log_cherrypick:

@@ -3,6 +3,84 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-10-01
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`structured_log_bloc` - `v0.1.0-dev.1`](#structured_log_bloc---v010-dev1)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.1`](#structured_log_cherrypick---v010-dev1)
+ - [`structured_log_dio` - `v0.1.0-dev.1`](#structured_log_dio---v010-dev1)
+ - [`structured_log_go_router` - `v0.1.0-dev.1`](#structured_log_go_router---v010-dev1)
+ - [`structured_log_http` - `v0.2.0`](#structured_log_http---v020)
+ - [`structured_log_http_client` - `v0.1.0-dev.1`](#structured_log_http_client---v010-dev1)
+ - [`structured_log_remote_sync` - `v0.2.0`](#structured_log_remote_sync---v020)
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.2.2`](#structured_log---v022)
+ - [`structured_log_cupertino` - `v0.1.1+1`](#structured_log_cupertino---v0111)
+ - [`structured_log_flutter` - `v0.1.1+1`](#structured_log_flutter---v0111)
+ - [`structured_log_material` - `v0.1.1+1`](#structured_log_material---v0111)
+ - [`structured_log_fluent` - `v0.1.1+1`](#structured_log_fluent---v0111)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_flutter` - `v0.1.1+1`
+ - `structured_log_material` - `v0.1.1+1`
+ - `structured_log_fluent` - `v0.1.1+1`
+
+---
+
+#### `structured_log_bloc` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_bloc): add a BlocObserver that logs through structured_log (#87).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_cherrypick): log the cherrypick DI container through structured_log (#91).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log_dio` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_dio): add a dio interceptor that logs through structured_log (#88).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log_go_router` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_go_router): log go_router navigation through structured_log (#90).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log_http` - `v0.2.0`
+
+ - **FIX**(http): refuse a serverUrl this sender can never send to (#74).
+ - **FIX**(http): obey Retry-After, and refuse a duration that cannot mean anything (#69).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log_http_client` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_http_client): add a package:http client that logs through structured_log (#89).
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log_remote_sync` - `v0.2.0`
+
+ - **BREAKING** **REFACTOR**: rename structured_log_http to structured_log_remote_sync (#93).
+
+#### `structured_log` - `v0.2.2`
+
+ - **FEAT**(structured_log): redact sensitive values, at any depth (#70).
+
+#### `structured_log_cupertino` - `v0.1.1+1`
+
+ - **DOCS**(openspec): archive eight finished changes.
+
+
 ## 2026-09-23
 
 ### Changes
