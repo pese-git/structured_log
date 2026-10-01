@@ -79,6 +79,12 @@ self-hosted server for shipping logs off the device and reading them back.
   error under `category: 'navigation'`, with token-like query parameters
   redacted. A Flutter package. *Not yet published.*
 
+- **[`structured_log_cherrypick`](emb/structured_log_cherrypick/)** —
+  `StructuredLogCherryPickObserver`, a `CherryPickObserver` that logs what
+  the `cherrypick` DI container does — scopes, modules, cycles, resolve
+  errors — under `category: 'di'`, without ever printing an instance.
+  Works with `cherrypick` 3.x and 4.x. *Not yet published.*
+
 - **[`structured_log_server`](backend/structured_log_server/)** — a
   self-hosted, multi-tenant server for log ingestion, storage, query and
   live streaming (`shelf`/`shelf_router` + `drift`, SQLite by default or
@@ -117,7 +123,7 @@ Packages are grouped by top-level category, each listed by its full path
 in [melos.yaml](melos.yaml): `emb/` for libraries meant to be embedded in
 another app (`structured_log` and its log-viewer skins, `structured_log_http`,
 `structured_log_bloc`, `structured_log_dio`, `structured_log_http_client`,
-`structured_log_go_router`),
+`structured_log_go_router`, `structured_log_cherrypick`),
 `backend/` for standalone server apps (`structured_log_server`), `frontend/`
 for standalone client apps with a UI (`structured_log_admin_ui`,
 `structured_log_admin_client`), and `packages/` for anything that doesn't

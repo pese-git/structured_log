@@ -32,8 +32,11 @@ Several packages, and you only need as many of them as your project does:
 5. **Log navigation** —
    [`structured_log_go_router`](#6-optional-log-navigation-structured_log_go_router),
    for Flutter apps routed with `go_router`.
-6. **Also ship those logs to a server** —
-   [`structured_log_http`](#7-optional-also-ship-logs-to-a-server), a
+6. **Log the DI container** —
+   [`structured_log_cherrypick`](#7-optional-log-the-di-container-structured_log_cherrypick),
+   for apps wired with `cherrypick`.
+7. **Also ship those logs to a server** —
+   [`structured_log_http`](#8-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -309,7 +312,35 @@ see the package's
 [README](../../emb/structured_log_go_router/README.md#keeping-secrets-out-of-the-log)
 if a route carries something sensitive in its path.
 
-## 7. Optional: also ship logs to a server
+## 7. Optional: log the DI container: `structured_log_cherrypick`
+
+If the app is wired with [`cherrypick`](https://pub.dev/packages/cherrypick),
+[`structured_log_cherrypick`](../../emb/structured_log_cherrypick/) logs
+what the container does — scopes opening and closing, modules installed,
+dependency cycles, resolve errors — which is how a wiring that silently did
+not happen shows up:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_cherrypick:
+    path: ../structured_log_cherrypick   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+```
+
+```dart
+// Before the first scope: a scope takes the global observer when created.
+CherryPick.setGlobalObserver(StructuredLogCherryPickObserver());
+```
+
+Entries carry `category: 'di'`. An instance is never logged — only the
+name and type it is bound under — so a container full of clients and token
+stores is safe to observe. The per-resolve reports are off by default; see
+the package's
+[README](../../emb/structured_log_cherrypick/README.md#what-gets-logged)
+for turning them on and for what the container itself does and does not
+report.
+
+## 8. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,
@@ -355,6 +386,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_dio`](../../emb/structured_log_dio/README.md),
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.md),
   [`structured_log_go_router`](../../emb/structured_log_go_router/README.md),
+  [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/README.md),
   [`structured_log_http`](../../emb/structured_log_http/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:
   the ingestion HTTP endpoint directly, querying logs back out,
