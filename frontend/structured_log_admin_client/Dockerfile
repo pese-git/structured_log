@@ -18,4 +18,12 @@ FROM nginx:1.27-alpine
 COPY frontend/structured_log_admin_client/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/structured_log_admin_client/build/web/ /usr/share/nginx/html/
 
+# `.gz` siblings for nginx.conf's `gzip_static`, so the multi-megabyte engine
+# and app bundle are compressed once here rather than on every request.
+# Originals stay (`-k`): a client that does not accept gzip still gets them.
+RUN find /usr/share/nginx/html -type f \
+      \( -name '*.js' -o -name '*.wasm' -o -name '*.json' -o -name '*.css' \
+         -o -name '*.html' -o -name '*.ttf' -o -name '*.otf' -o -name '*.svg' \) \
+      -size +1k -exec gzip -9 -k {} +
+
 EXPOSE 80
