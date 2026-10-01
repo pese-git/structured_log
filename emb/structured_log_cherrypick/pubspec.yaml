@@ -5,6 +5,7 @@ description: >-
   structured_log entries, without ever printing an instance.
 version: 0.1.0-dev.1
 homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_cherrypick/
 repository: https://github.com/pese-git/structured_log.git
 topics:
   - logging

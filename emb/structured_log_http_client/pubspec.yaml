@@ -5,6 +5,7 @@ description: >-
   headers and query parameters redacted.
 version: 0.1.0-dev.1
 homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_http_client/
 repository: https://github.com/pese-git/structured_log.git
 topics:
   - logging

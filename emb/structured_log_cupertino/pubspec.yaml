@@ -4,6 +4,7 @@ description: >-
   structured_log_flutter.
 version: 0.1.1+1
 homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_cupertino/
 repository: https://github.com/pese-git/structured_log.git
 topics:
   - logging

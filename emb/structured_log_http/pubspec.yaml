@@ -4,6 +4,7 @@ description: >-
   re-exports structured_log_remote_sync and marks HttpLogOutput deprecated.
 version: 0.2.0+1
 homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_http/
 repository: https://github.com/pese-git/structured_log.git
 topics:
   - logging

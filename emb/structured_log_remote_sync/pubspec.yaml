@@ -4,6 +4,7 @@ description: >-
   entries to a structured_log_server instance over HTTP.
 version: 0.2.0+1
 homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_remote_sync/
 repository: https://github.com/pese-git/structured_log.git
 topics:
   - logging
