@@ -1,0 +1,18 @@
+name: structured_log_dio
+description: >-
+  StructuredLogDioInterceptor — a dio Interceptor that logs every request,
+  response and failure as structured_log entries, with sensitive headers and
+  query parameters redacted.
+version: 0.1.0-dev.0
+repository: https://github.com/pese-git/structured_log.git
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  dio: ^5.4.0
+  structured_log: ^0.2.1
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.24.0

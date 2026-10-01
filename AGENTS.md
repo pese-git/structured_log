@@ -38,7 +38,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Семь пакетов в `emb/`:
+Восемь пакетов в `emb/`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -64,6 +64,12 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `flutter_bloc` построен поверх него и выставляет тот же `Bloc.observer`, так что пакет работает в
   Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Не опубликован
   (`0.1.0-dev.0`), [openspec/changes/archive/2026-10-01-add-structured-log-bloc/](openspec/changes/archive/2026-10-01-add-structured-log-bloc/), основная спека — [openspec/specs/bloc-log-observer/](openspec/specs/bloc-log-observer/spec.md).
+- [emb/structured_log_dio/](emb/structured_log_dio/) — `StructuredLogDioInterceptor`: перехватчик `dio`,
+  пишущий каждый запрос (`http_request`) и его итог (`http_response`/`http_error`) записями
+  `structured_log` с `category: 'http'`, уровень — по статусу ответа. Заголовки и тела по умолчанию
+  не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются. Чистый Dart,
+  не опубликован (`0.1.0-dev.0`),
+  [openspec/changes/add-structured-log-dio/](openspec/changes/add-structured-log-dio/).
 
 Плюс один пакет в `backend/`:
 
@@ -113,6 +119,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
 - [emb/structured_log_bloc/](emb/structured_log_bloc/) — наблюдатель `bloc`/`flutter_bloc` (см. ниже).
+- [emb/structured_log_dio/](emb/structured_log_dio/) — перехватчик `dio` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -264,6 +271,31 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - В тестах `Bloc` **перебрасывает** исключение обработчика в зону после `onError`, поэтому сценарии с
   падающим обработчиком идут через `runZonedGuarded` (`uncaughtErrorsOf`); `Bloc.observer` —
   глобальный, тесты восстанавливают прежний в `tearDown`.
+
+Внутри [emb/structured_log_dio/](emb/structured_log_dio/):
+
+- [emb/structured_log_dio/lib/src/dio_interceptor.dart](emb/structured_log_dio/lib/src/dio_interceptor.dart) —
+  `StructuredLogDioInterceptor`, `HttpLogLevels` (уровень на итог, `null` выключает), `describeHttpBody`,
+  наборы маскирования по умолчанию.
+- **Уровень итога — по статусу ответа, а не по пути, которым он пришёл.** 404 при `validateStatus`,
+  который его пропустил, приходит в `onResponse`, а при отвергнувшем — в `onError` как `badResponse`;
+  оба раза это `warning`. Мутацией проверено: если в `onError` смотреть только на тип — тест красный.
+- **Пара записей связывается через `options.extra`**: на запросе туда кладётся объект вызова
+  (номер `http_request_id` + `Stopwatch`), итог его читает. Отсюда два следствия: отфильтрованный
+  запрос не даёт и итоговой записи; исключение, несущее **чужие** `RequestOptions`, итога не даёт —
+  настоящие адаптеры передают опции самого запроса, подставной в тестах обязан делать так же.
+- **Отмена до отправки перехватчика не достигает**: `dio` проверяет `CancelToken` до цепочки, поэтому
+  тест на отмену ждёт, пока запрос дойдёт до адаптера.
+- **Секреты по умолчанию не пишутся**: заголовки и тела выключены; при включённых заголовках
+  `authorization`/`proxy-authorization`/`cookie`/`set-cookie`/`x-api-key` → `REDACTED`; query-параметры
+  с токенами и user info в URL маскируются всегда. Значение — `REDACTED`, а не `<redacted>`: query
+  перекодируется, и `%3Credacted%3E` в логе читается хуже. Обе ветки маскирования проверены мутацией.
+- Для `badResponse` поле `error` не пишется: сообщение `dio` — абзац шаблонного текста вокруг того же
+  статуса.
+- Перехватчик стоит в пути запроса, поэтому всё, что он делает, обёрнуто так, что бросивший фильтр
+  или `describeBody` стоит записи, но не вызова; `handler.next` вызывается всегда.
+- Тесты — на подставном `HttpClientAdapter`, без сокета; `example/main.dart` поднимает свой
+  `HttpServer` на loopback, чтобы прогон примера в CI не зависел от сети.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -893,6 +925,7 @@ dart run example/main.dart
 - `bloc-observer` — для `emb/structured_log_bloc/`: та же форма, что `http-sender`
   (`setup-dart`, свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze/тесты с
   покрытием), плюс прогон `dart run example/main.dart`. Чистый Dart — в Flutter-матрицу не входит.
+- `dio-interceptor` — для `emb/structured_log_dio/`, та же форма, что `bloc-observer`.
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -995,6 +1028,7 @@ dart run example/main.dart
    ([emb/structured_log/](emb/structured_log/README.md), [emb/structured_log_flutter/](emb/structured_log_flutter/README.md),
    [emb/structured_log_material/](emb/structured_log_material/README.md), [emb/structured_log_fluent/](emb/structured_log_fluent/README.md),
    [emb/structured_log_cupertino/](emb/structured_log_cupertino/README.md),
-   [emb/structured_log_bloc/](emb/structured_log_bloc/README.md))
+   [emb/structured_log_bloc/](emb/structured_log_bloc/README.md),
+   [emb/structured_log_dio/](emb/structured_log_dio/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

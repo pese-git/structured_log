@@ -28,8 +28,11 @@ Dart- или Flutter-приложение. Здесь ничто не обращ
 3. **Писать в лог, что делают блоки** —
    [`structured_log_bloc`](#4-опционально-логировать-блоки-structured_log_bloc),
    `BlocObserver` для приложений на `bloc`/`flutter_bloc`.
-4. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_http`](#5-опционально-доставлять-логи-и-на-сервер),
+4. **Писать в лог HTTP-вызовы** —
+   [`structured_log_dio`](#5-опционально-логировать-http-вызовы-structured_log_dio),
+   перехватчик для приложений, которые ходят на свой бэкенд через `dio`.
+5. **Ещё и доставлять эти логи на сервер** —
+   [`structured_log_http`](#6-опционально-доставлять-логи-и-на-сервер),
    тонкий add-on поверх `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -213,7 +216,34 @@ Bloc.observer = StructuredLogBlocObserver();
 [README](../../emb/structured_log_bloc/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета; там же перечислены все записи и настройка уровня на каждый хук.
 
-## 5. Опционально: доставлять логи и на сервер
+## 5. Опционально: логировать HTTP-вызовы: `structured_log_dio`
+
+Если приложение ходит на свой бэкенд через [`dio`](https://pub.dev/packages/dio),
+[`structured_log_dio`](../../emb/structured_log_dio/) пишет каждый запрос и
+то, чем он закончился, — ответ, ошибку, таймаут, отмену — с длительностью
+и уровнем по статусу ответа:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_dio:
+    path: ../structured_log_dio   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+```
+
+```dart
+final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
+  ..interceptors.add(StructuredLogDioInterceptor()); // добавлять последним
+```
+
+Записи несут `category: 'http'` — рядом с `bloc` от блоков, так что
+просмотрщик может показать любую из них отдельно. Заголовки и тела не
+пишутся, пока их не включить, а `Authorization`, cookie и query-параметры
+с токенами маскируются. Но включённое тело пишется как есть — прежде чем
+включать тела для вызовов входа или выдачи токенов, см.
+[README](../../emb/structured_log_dio/README.ru.md#как-не-пустить-секреты-в-лог)
+пакета.
+
+## 6. Опционально: доставлять логи и на сервер
 
 Всё выше — полностью локально: без сети, без сервера. Если нужно ещё и
 собирать эти логи централизованно (искать их между перезапусками,
@@ -257,6 +287,7 @@ StructlogConfiguration.configure(sinks: [
   [`structured_log_fluent`](../../emb/structured_log_fluent/README.ru.md),
   [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.ru.md),
   [`structured_log_bloc`](../../emb/structured_log_bloc/README.ru.md),
+  [`structured_log_dio`](../../emb/structured_log_dio/README.ru.md),
   [`structured_log_http`](../../emb/structured_log_http/README.ru.md).
 - [Руководство разработчика](developer-guide.ru.md) — когда в дело
   вступает сервер: эндпоинт приёма по HTTP напрямую, запрос логов

@@ -64,6 +64,13 @@ Monorepo на Melos + FVM для структурированного логир
   `package:bloc`, поэтому работает с `flutter_bloc` как есть и в чистом
   Dart. *Пока не опубликован.*
 
+- **[`structured_log_dio`](emb/structured_log_dio/)** —
+  `StructuredLogDioInterceptor`, перехватчик `dio`, который пишет каждый
+  запрос и его итог (ответ, ошибку, таймаут, отмену) с `category: 'http'` и
+  уровнем по статусу ответа. Заголовки и тела не пишутся, пока их не
+  включить; заголовки авторизации, cookie и query-параметры с токенами
+  маскируются. *Пока не опубликован.*
+
 - **[`structured_log_server`](backend/structured_log_server/)** —
   self-hosted мультитенантный сервер приёма, хранения, поиска и живой
   трансляции логов (`shelf`/`shelf_router` + `drift`, SQLite по умолчанию
@@ -104,7 +111,7 @@ Monorepo на Melos + FVM для структурированного логир
 Пакеты сгруппированы по категориям верхнего уровня, каждая перечислена по
 полному пути в [melos.yaml](melos.yaml): `emb/` — встраиваемые в чужое
 приложение библиотеки (`structured_log` и скины просмотрщика логов,
-`structured_log_http`, `structured_log_bloc`), `backend/` — самостоятельные серверные приложения
+`structured_log_http`, `structured_log_bloc`, `structured_log_dio`), `backend/` — самостоятельные серверные приложения
 (`structured_log_server`), `frontend/` — самостоятельные клиентские
 приложения с UI (`structured_log_admin_ui`, `structured_log_admin_client`),
 `packages/` — то, что не подпадает ни под одну из трёх категорий выше
