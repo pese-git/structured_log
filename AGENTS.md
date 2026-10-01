@@ -7,11 +7,12 @@
 Репозиторий — multi-package workspace на Melos + FVM, пакеты сгруппированы по категориям
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
-(`structured_log`, скины просмотрщика логов, `structured_log_http`), [backend/](backend/) —
+(`structured_log`, скины просмотрщика логов, `structured_log_http` и адаптеры к чужим библиотекам —
+`bloc`/`dio`/`http`/`go_router`/`cherrypick`), [backend/](backend/) —
 самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
 самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
-пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (пока пусто, без записи
-в `melos.yaml`). Первоначально раскладка была полностью плоской, без категорий — по образцу
+пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (сейчас там один
+`structured_log_e2e` — сквозные тесты через всю систему). Первоначально раскладка была полностью плоской, без категорий — по образцу
 [cherrypick](https://github.com/pese-git/cherrypick) того же автора; категории введены при
 добавлении сервера и admin-клиента
 ([openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/),
@@ -151,7 +152,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
   только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
   не является пакетом workspace и не перечислен в `packages:` в `melos.yaml`.
-- [openspec/](openspec/) — артефакты OpenSpec (proposal/design/specs/tasks) для change-заявок.
+- [openspec/](openspec/) — артефакты OpenSpec: `changes/` — открытые change-заявки
+  (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
+  архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
+  ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
+  оттуда, а не из `specs/`.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_http`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
@@ -951,7 +956,7 @@ dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) этому ограничению не подчиняются, но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`dart format .` перед завершением любого изменения).
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
@@ -978,7 +983,7 @@ dart run example/main.dart
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
-в `master`/`develop` и на `workflow_dispatch`, две джобы:
+в `master`/`develop` и на `workflow_dispatch`, четырнадцать джоб:
 
 - `test` — для `structured_log`: `dart format --set-exit-if-changed`, `dart analyze`,
   `dart test`, `dart run example/main.dart` — на `ubuntu-latest`/`macos-latest`/`windows-latest`
