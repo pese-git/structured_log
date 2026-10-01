@@ -86,6 +86,12 @@ Monorepo на Melos + FVM для структурированного логир
   маскирует query-параметры с токенами. Flutter-пакет. *Пока не
   опубликован.*
 
+- **[`structured_log_cherrypick`](emb/structured_log_cherrypick/)** —
+  `StructuredLogCherryPickObserver`, `CherryPickObserver`, который пишет,
+  что делает DI-контейнер `cherrypick`, — скоупы, модули, циклы, ошибки
+  разрешения — с `category: 'di'` и никогда не печатает экземпляр. Работает
+  с `cherrypick` 3.x и 4.x. *Пока не опубликован.*
+
 - **[`structured_log_server`](backend/structured_log_server/)** —
   self-hosted мультитенантный сервер приёма, хранения, поиска и живой
   трансляции логов (`shelf`/`shelf_router` + `drift`, SQLite по умолчанию
@@ -127,7 +133,8 @@ Monorepo на Melos + FVM для структурированного логир
 полному пути в [melos.yaml](melos.yaml): `emb/` — встраиваемые в чужое
 приложение библиотеки (`structured_log` и скины просмотрщика логов,
 `structured_log_http`, `structured_log_bloc`, `structured_log_dio`,
-`structured_log_http_client`, `structured_log_go_router`), `backend/` — самостоятельные серверные приложения
+`structured_log_http_client`, `structured_log_go_router`,
+`structured_log_cherrypick`), `backend/` — самостоятельные серверные приложения
 (`structured_log_server`), `frontend/` — самостоятельные клиентские
 приложения с UI (`structured_log_admin_ui`, `structured_log_admin_client`),
 `packages/` — то, что не подпадает ни под одну из трёх категорий выше

@@ -34,8 +34,11 @@ Dart- или Flutter-приложение. Здесь ничто не обращ
 5. **Писать в лог навигацию** —
    [`structured_log_go_router`](#6-опционально-логировать-навигацию-structured_log_go_router),
    для Flutter-приложений с маршрутизацией на `go_router`.
-6. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_http`](#7-опционально-доставлять-логи-и-на-сервер),
+6. **Писать в лог работу DI-контейнера** —
+   [`structured_log_cherrypick`](#7-опционально-логировать-di-контейнер-structured_log_cherrypick),
+   для приложений, собранных на `cherrypick`.
+7. **Ещё и доставлять эти логи на сервер** —
+   [`structured_log_http`](#8-опционально-доставлять-логи-и-на-сервер),
    тонкий add-on поверх `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -313,7 +316,34 @@ Query-параметры с токенами — включая `code` из call
 [README](../../emb/structured_log_go_router/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
 
-## 7. Опционально: доставлять логи и на сервер
+## 7. Опционально: логировать DI-контейнер: `structured_log_cherrypick`
+
+Если приложение собрано на [`cherrypick`](https://pub.dev/packages/cherrypick),
+[`structured_log_cherrypick`](../../emb/structured_log_cherrypick/) пишет,
+что делает контейнер, — открытие и закрытие скоупов, установку модулей,
+циклы зависимостей, ошибки разрешения, — и так становится видна проводка,
+которая молча не состоялась:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_cherrypick:
+    path: ../structured_log_cherrypick   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+```
+
+```dart
+// До первого скоупа: скоуп берёт глобального наблюдателя при создании.
+CherryPick.setGlobalObserver(StructuredLogCherryPickObserver());
+```
+
+Записи несут `category: 'di'`. Экземпляр не пишется никогда — только имя и
+тип, под которыми он связан, — так что наблюдать контейнер с клиентами и
+хранилищами токенов безопасно. Отчёты на каждое разрешение по умолчанию
+выключены; как их включить и что сам контейнер сообщает, а что нет, — в
+[README](../../emb/structured_log_cherrypick/README.ru.md#что-пишется-в-лог)
+пакета.
+
+## 8. Опционально: доставлять логи и на сервер
 
 Всё выше — полностью локально: без сети, без сервера. Если нужно ещё и
 собирать эти логи централизованно (искать их между перезапусками,
@@ -360,6 +390,7 @@ StructlogConfiguration.configure(sinks: [
   [`structured_log_dio`](../../emb/structured_log_dio/README.ru.md),
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.ru.md),
   [`structured_log_go_router`](../../emb/structured_log_go_router/README.ru.md),
+  [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/README.ru.md),
   [`structured_log_http`](../../emb/structured_log_http/README.ru.md).
 - [Руководство разработчика](developer-guide.ru.md) — когда в дело
   вступает сервер: эндпоинт приёма по HTTP напрямую, запрос логов

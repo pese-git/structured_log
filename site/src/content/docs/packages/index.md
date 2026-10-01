@@ -2,7 +2,7 @@
 title: "Packages"
 ---
 
-Ten libraries you embed directly in your own Dart or Flutter app —
+Eleven libraries you embed directly in your own Dart or Flutter app —
 install one, import it, and go. (For the self-hosted server and its
 admin client, see the [guides](/guides/) instead.)
 
@@ -18,6 +18,7 @@ admin client, see the [guides](/guides/) instead.)
 | [structured_log_dio](/packages/structured_log_dio/) | A `dio` interceptor that logs every request and its outcome, with the level following the status code and auth headers, cookies and token-like query parameters redacted. |
 | [structured_log_http_client](/packages/structured_log_http_client/) | The same for `package:http`: a client that wraps any `http.Client` and logs every call it passes through. Not to be confused with `structured_log_http`, which sends logs to the server. |
 | [structured_log_go_router](/packages/structured_log_go_router/) | Logs every `go_router` navigation — location, route pattern, previous location — plus redirects and routing errors, with token-like query parameters redacted. |
+| [structured_log_cherrypick](/packages/structured_log_cherrypick/) | A `CherryPickObserver` that logs what the `cherrypick` DI container does — scopes, modules, cycles, resolve errors — without ever printing an instance. |
 
 Each package's page below is its README verbatim: installation, a quick
 start, the full feature list, and an API reference table.

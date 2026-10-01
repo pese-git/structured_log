@@ -38,7 +38,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Десять пакетов в `emb/`:
+Одиннадцать пакетов в `emb/`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -82,6 +82,13 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `category: 'navigation'`. **Flutter-пакет** (в отличие от трёх соседей выше): `go_router` тянет Flutter,
   поэтому `flutter test` и строка во Flutter-матрице CI. Не опубликован (`0.1.0-dev.0`),
   [openspec/changes/archive/2026-10-01-add-structured-log-go-router/](openspec/changes/archive/2026-10-01-add-structured-log-go-router/), основная спека — [openspec/specs/go-router-logging/](openspec/specs/go-router-logging/spec.md).
+- [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — `StructuredLogCherryPickObserver`:
+  `CherryPickObserver`, пишущий работу DI-контейнера `cherrypick` (скоупы, модули, циклы, ошибки) с
+  `category: 'di'`, никогда не печатая экземпляр. Обобщение наблюдателя, который до сих пор жил двумя
+  дословными копиями — в сервере (`di/container_setup.dart`) и admin-клиенте
+  (`shared/di/structured_log_observer.dart`); **обе копии пока на месте**, перевод их на пакет —
+  отдельный шаг. Чистый Dart, `cherrypick` 3.x и 4.x, не опубликован (`0.1.0-dev.0`),
+  [openspec/changes/add-structured-log-cherrypick/](openspec/changes/add-structured-log-cherrypick/).
 
 Плюс один пакет в `backend/`:
 
@@ -134,6 +141,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_dio/](emb/structured_log_dio/) — перехватчик `dio` (см. ниже).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — логирующая обёртка `http.Client` (см. ниже).
 - [emb/structured_log_go_router/](emb/structured_log_go_router/) — логирование навигации `go_router` (см. ниже).
+- [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — наблюдатель DI-контейнера `cherrypick` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -361,6 +369,26 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   минимальный SDK; тесты проходят на 17.5.0 и 18.0.2. `sdk: ^3.10.0` — нижняя граница самого `go_router` 17.
 - `example/main.dart` — одиночный файл, как у `structured_log_flutter`: платформенных папок нет, CI его
   только анализирует.
+
+Внутри [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/):
+
+- [emb/structured_log_cherrypick/lib/src/cherrypick_observer.dart](emb/structured_log_cherrypick/lib/src/cherrypick_observer.dart) —
+  `StructuredLogCherryPickObserver`, `DiLogLevels` (уровень на хук, `null` выключает).
+- **Имена событий и поля — те же, что у копий в сервере и клиенте** (`di.scope_opened`,
+  `di.modules_installed`, …, `scope`/`modules`/`type`/`name`/`chain`/`message`/`error`), чтобы их можно было
+  заменить пакетом без изменения журнала и тестов (`test/bin/server_integration_test.dart` наблюдает
+  `di.modules_installed`/`di.scope_closed`). Добавлено: `category`, `stack_trace` у `di.error`, необязательные
+  per-instance записи; `scope: null` больше не пишется.
+- **Экземпляр не пишется никогда**, ошибка — по типу, `details` предупреждения/диагностики отбрасываются.
+  Мутацией проверены: текст ошибки, `details`, per-instance записи по умолчанию, защита от бросающего логгера.
+- **Что контейнер сообщает на самом деле — одинаково в 3.0.2, 4.0.0-dev.5 и dev.6** (проверено тестами на всех
+  трёх): скоуп называется сгенерированным id, а не именем; `onScopeClosed` — только для `closeSubScope`, не для
+  корня; `onInstanceDisposed`/`onCacheHit`/`onCacheMiss` не вызываются никогда (тесты зовут их напрямую);
+  неудачное разрешение сообщается дважды. Тесты на контейнер утверждают только это общее.
+- **`cherrypick: ">=3.0.0 <5.0.0"`** — интерфейс наблюдателя в 3.0.2 и 4.0.0-dev.5/6 совпадает дословно. pub по
+  умолчанию берёт стабильную 3.x, а потребители в репозитории сидят на 4.0-dev, поэтому CI-джоба
+  `cherrypick-observer` гоняет тесты второй раз с `cherrypick: ^4.0.0-dev.5` в `pubspec_overrides.yaml`
+  (последним шагом — после проверки покрытия, которой нужен `package_config.json` первого прогона).
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -993,6 +1021,8 @@ dart run example/main.dart
 - `dio-interceptor` — для `emb/structured_log_dio/`, та же форма, что `bloc-observer`.
 - `http-client` — для `emb/structured_log_http_client/`, та же форма (не путать с `http-sender`, джобой
   `structured_log_http`).
+- `cherrypick-observer` — для `emb/structured_log_cherrypick/`, та же форма плюс второй прогон тестов на
+  `cherrypick` 4.x.
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -1098,6 +1128,7 @@ dart run example/main.dart
    [emb/structured_log_bloc/](emb/structured_log_bloc/README.md),
    [emb/structured_log_dio/](emb/structured_log_dio/README.md),
    [emb/structured_log_http_client/](emb/structured_log_http_client/README.md),
-   [emb/structured_log_go_router/](emb/structured_log_go_router/README.md))
+   [emb/structured_log_go_router/](emb/structured_log_go_router/README.md),
+   [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.
