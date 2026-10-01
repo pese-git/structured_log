@@ -38,7 +38,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Шесть пакетов в `emb/`:
+Семь пакетов в `emb/`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -58,6 +58,12 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   backoff, ограниченный буфер с вытеснением самых старых записей, `flushed`). Единственная
   зависимость — `structured_log`; транспорт — `dart:io` `HttpClient`, без `dio`/`http`.
   Реализован (раздел 9 `tasks.md`), с билингвальным `README.md`/`README.ru.md`.
+- [emb/structured_log_bloc/](emb/structured_log_bloc/) — `StructuredLogBlocObserver`: `BlocObserver`,
+  пишущий создание/события/смену состояния/ошибки/закрытие каждого блока и кубита записями
+  `structured_log` с `category: 'bloc'`. Зависит от `package:bloc`, **не** от `flutter_bloc` —
+  `flutter_bloc` построен поверх него и выставляет тот же `Bloc.observer`, так что пакет работает в
+  Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Не опубликован
+  (`0.1.0-dev.0`), [openspec/changes/add-structured-log-bloc/](openspec/changes/add-structured-log-bloc/).
 
 Плюс один пакет в `backend/`:
 
@@ -106,6 +112,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_fluent/](emb/structured_log_fluent/) — Fluent-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
+- [emb/structured_log_bloc/](emb/structured_log_bloc/) — наблюдатель `bloc`/`flutter_bloc` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -234,6 +241,29 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_http/lib/src/http_output.dart](emb/structured_log_http/lib/src/http_output.dart) — `HttpLogOutput`: батчинг по размеру/таймауту, retry с backoff на сетевых ошибках/таймаутах/5xx (на 4xx — нет, кроме `408`/`429`), ограниченный буфер с вытеснением самых старых, публичный `flushed`. **Все неотправленные записи лежат в одной очереди, из которой насос забирает по `batchSize`** — первая версия выстраивала батчи цепочкой futures, и лимит буфера тогда не ограничивал память (см. 9.4 в `tasks.md`).
 - Транспорт — `dart:io`'s `HttpClient`, зависимость только `structured_log` (без `dio`/`http`). Шов `BatchSender` позволяет тестировать батчинг/retry/вытеснение без сокета; отдельная группа тестов работает против настоящего `HttpServer`.
 - `README.md`/`README.ru.md` — билингвальная пара, как у остальных пакетов.
+
+Внутри [emb/structured_log_bloc/](emb/structured_log_bloc/):
+
+- [emb/structured_log_bloc/lib/src/bloc_observer.dart](emb/structured_log_bloc/lib/src/bloc_observer.dart) —
+  `StructuredLogBlocObserver`, `BlocLogLevels` (уровень на хук, `null` выключает), `describeBlocValue`
+  (`toString()` с обрезкой до 1000 символов).
+- **Событие блока лежит в `bloc_event`, а не в `event`**: `event` — имя самой записи в `structured_log`,
+  и поле с тем же именем его перезаписало бы (так и было в первой редакции, поймано тестом). Имя записи
+  хука `onEvent` поэтому `bloc_event_added`.
+- **`onChange` пишется только для кубитов.** У блока смена состояния приходит наблюдателю дважды —
+  `onTransition`, затем `onChange`; переход несёт и событие, поэтому пишется он. Стережёт тест «one
+  transition per state change» (мутацией проверено: убрать проверку `bloc is Bloc` — красный).
+- **Логгер берётся на каждом хуке** (`getLogger(loggerName)`), если его не передали: `BoundLogger`
+  держит конфигурацию, с которой создан, а наблюдатель ставится один раз на старте и переживает
+  повторный `StructlogConfiguration.configure`.
+- **Наблюдатель не должен ломать блок**: хуки выполняются внутри `emit`/`add`, поэтому бросивший
+  `toString()` превращается в заглушку, а бросившая функция `describe` — в поле `describe_failed`.
+- **Значения пишутся через `toString()` по умолчанию** — секреты в состоянии уезжают в лог (и на
+  сервер через `structured_log_http`). Защита — `describe`, возвращающий `null` (поле убирается, тип
+  остаётся); это задокументировано в README, а не решено за пользователя.
+- В тестах `Bloc` **перебрасывает** исключение обработчика в зону после `onError`, поэтому сценарии с
+  падающим обработчиком идут через `runZonedGuarded` (`uncaughtErrorsOf`); `Bloc.observer` —
+  глобальный, тесты восстанавливают прежний в `tearDown`.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -860,6 +890,9 @@ dart run example/main.dart
   кодогенерации, и матрица тянула бы за собой шаг `build_runner` впустую.
   Как и джоба сервера, сама пишет `pubspec_overrides.yaml` на
   `emb/structured_log`.
+- `bloc-observer` — для `emb/structured_log_bloc/`: та же форма, что `http-sender`
+  (`setup-dart`, свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze/тесты с
+  покрытием), плюс прогон `dart run example/main.dart`. Чистый Dart — в Flutter-матрицу не входит.
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -961,6 +994,7 @@ dart run example/main.dart
 4. При изменении публичного поведения пакета обновлять его `README.md`/`README.ru.md`
    ([emb/structured_log/](emb/structured_log/README.md), [emb/structured_log_flutter/](emb/structured_log_flutter/README.md),
    [emb/structured_log_material/](emb/structured_log_material/README.md), [emb/structured_log_fluent/](emb/structured_log_fluent/README.md),
-   [emb/structured_log_cupertino/](emb/structured_log_cupertino/README.md))
+   [emb/structured_log_cupertino/](emb/structured_log_cupertino/README.md),
+   [emb/structured_log_bloc/](emb/structured_log_bloc/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

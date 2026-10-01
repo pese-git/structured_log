@@ -328,6 +328,67 @@ jobs:
           dart tool/coverage_floor.dart --package structured_log_http \
             --lcov emb/structured_log_http/coverage/lcov.info
 
+  bloc-observer:
+    name: Analyze & test (structured_log_bloc)
+    runs-on: ubuntu-latest
+    # Pure Dart — it depends on package:bloc, not flutter_bloc — so it gets
+    # setup-dart and dart test rather than a row in the Flutter matrix.
+    defaults:
+      run:
+        working-directory: emb/structured_log_bloc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log_bloc/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # Same reason as the http-sender job: without the override pub
+      # resolves the published structured_log.
+      - name: Link the workspace copy of structured_log
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../structured_log
+          EOF
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      - name: Run the example
+        run: dart run example/main.dart
+
+      - name: Run tests with coverage
+        run: dart test --coverage=coverage
+
+      - name: Check coverage against its floor
+        working-directory: .
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --lcov \
+            --in=emb/structured_log_bloc/coverage \
+            --out=emb/structured_log_bloc/coverage/lcov.info \
+            --report-on=emb/structured_log_bloc/lib \
+            --packages=emb/structured_log_bloc/.dart_tool/package_config.json
+          dart tool/coverage_floor.dart --package structured_log_bloc \
+            --lcov emb/structured_log_bloc/coverage/lcov.info
+
   browser-cookie:
     name: What the browser does with the refresh cookie
     runs-on: ubuntu-latest

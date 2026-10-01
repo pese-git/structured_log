@@ -11,7 +11,7 @@ them back out of one), see the [Developer Guide](developer-guide.md)
 instead — that guide picks up exactly where this one's optional last
 section points to it.
 
-Four packages, and you only need as many of them as your project does:
+Several packages, and you only need as many of them as your project does:
 
 1. **Just logging** — [`structured_log`](#1-structured-logging-structured_log)
    alone. Pure Dart, zero runtime dependencies beyond `meta`, works
@@ -23,8 +23,11 @@ Four packages, and you only need as many of them as your project does:
    [`structured_log_fluent`](#3-a-ready-made-skin), or
    [`structured_log_cupertino`](#3-a-ready-made-skin) — pick the one
    matching your app's design system.
-3. **Also ship those logs to a server** —
-   [`structured_log_http`](#4-optional-also-ship-logs-to-a-server), a
+3. **Log what your blocs do** —
+   [`structured_log_bloc`](#4-optional-log-your-blocs-structured_log_bloc),
+   a `BlocObserver` for apps built on `bloc`/`flutter_bloc`.
+4. **Also ship those logs to a server** —
+   [`structured_log_http`](#5-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -173,7 +176,42 @@ README covers the full widget API:
 [`structured_log_fluent`](../../emb/structured_log_fluent/README.md),
 [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.md).
 
-## 4. Optional: also ship logs to a server
+## 4. Optional: log your blocs: `structured_log_bloc`
+
+If the app keeps its logic in blocs and cubits
+([`bloc`](https://pub.dev/packages/bloc) /
+[`flutter_bloc`](https://pub.dev/packages/flutter_bloc)),
+[`structured_log_bloc`](../../emb/structured_log_bloc/) logs what every one
+of them does — creation, events, state changes, errors, closing — through
+the sinks configured above, the in-app viewer included:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_bloc:
+    path: ../structured_log_bloc   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+```
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'console', output: coloredConsoleOutput),
+]);
+Bloc.observer = StructuredLogBlocObserver();
+```
+
+Every entry carries `category: 'bloc'`, so the viewer's category filter
+separates bloc traffic from the rest, and a `LogSink` with
+`categories: {'bloc'}` can route it on its own. The package depends on
+`package:bloc` only — `flutter_bloc` re-exports the same `Bloc.observer` —
+so it needs nothing Flutter-specific.
+
+**States and events are logged through `toString()` by default.** If they
+can carry passwords, tokens or personal data, pass a `describe` that
+withholds them — see the package's
+[README](../../emb/structured_log_bloc/README.md#keeping-secrets-out-of-the-log),
+which also lists every entry it writes and how to tune levels per hook.
+
+## 5. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,
@@ -215,6 +253,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_material`](../../emb/structured_log_material/README.md),
   [`structured_log_fluent`](../../emb/structured_log_fluent/README.md),
   [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.md),
+  [`structured_log_bloc`](../../emb/structured_log_bloc/README.md),
   [`structured_log_http`](../../emb/structured_log_http/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:
   the ingestion HTTP endpoint directly, querying logs back out,
