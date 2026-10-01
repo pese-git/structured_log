@@ -3,31 +3,43 @@
 ## Purpose
 Раскладка репозитория как multi-package workspace на Melos: пакеты перечислены по полному пути в `melos.yaml`, общие скрипты analyze/format/test запускаются по всем пакетам, каждый пакет версионируется и публикуется независимо.
 ## Requirements
-### Requirement: Репозиторий организован как multi-package workspace на Melos с плоской раскладкой
-Корневой `melos.yaml` SHALL объявлять пакеты явным списком по имени (`packages: [structured_log, structured_log_flutter, structured_log_material]`, по образцу [cherrypick](https://github.com/pese-git/cherrypick)), и каждый пакет репозитория SHALL располагаться в собственной директории прямо в корне репозитория (не вложенной под `packages/`), со своим `pubspec.yaml`.
-
-#### Scenario: Melos видит все пакеты репозитория
-- **WHEN** выполняется `melos bootstrap` из корня репозитория
-- **THEN** Melos обнаруживает и линкует `structured_log`, `structured_log_flutter` и `structured_log_material`
-
-### Requirement: Перенос structured_log не меняет его поведение и версию
-Перенос существующего пакета в `structured_log/` (плоско, в корень репозитория) SHALL не изменять его публичный API, текущую версию в `pubspec.yaml` или содержимое `CHANGELOG.md`.
-
-#### Scenario: Тесты structured_log проходят без изменений после переноса
-- **WHEN** выполняется `dart test` внутри `structured_log/` после переноса
-- **THEN** все тесты, ранее проходившие в плоской структуре репозитория, проходят без изменений в самих тестах
-
 ### Requirement: Каждый пакет версионируется независимо
-Каждый пакет репозитория SHALL иметь собственную линию git-тегов вида `<package>-v<version>` и собственный `CHANGELOG.md` в формате Keep a Changelog, независимые от версий и changelog других пакетов репозитория.
+Каждый пакет репозитория SHALL версионироваться независимо: собственная линия git-тегов вида `<package>-v<version>` и собственный `CHANGELOG.md`. `CHANGELOG.md` и поле `version` SHALL изменяться только командой `melos version`, по истории коммитов в формате Conventional Commits после последнего тега пакета; `CHANGELOG.md` SHALL NOT редактироваться вручную.
 
 #### Scenario: Релиз одного пакета не требует бампа версии другого
 - **WHEN** выходит новая версия `structured_log_material`
 - **THEN** версия `structured_log` и `structured_log_flutter` в их `pubspec.yaml` остаётся неизменной, если в них не было содержательных изменений
 
+#### Scenario: Запись в CHANGELOG появляется из истории коммитов
+- **WHEN** в пакет после его последнего тега влиты коммиты `feat:`/`fix:` и выполняется `melos version`
+- **THEN** `melos version` сам пишет новую секцию `CHANGELOG.md` из этих коммитов и бампает `version`; ни одна из этих правок не делается руками
+
 ### Requirement: Общие скрипты качества кода работают на все пакеты через Melos
-Скрипты `melos run analyze`, `melos run format:check` и `melos run test` (и их агрегат `melos run lint`) SHALL выполняться на все пакеты workspace через один вызов из корня репозитория, независимо от того, является пакет чистым Dart-пакетом или Flutter-пакетом.
+Скрипты `melos run analyze`, `melos run format:check` и их агрегат `melos run lint` SHALL выполняться на все пакеты workspace одним вызовом из корня репозитория. `melos run test` SHALL выполнять тесты всех пакетов workspace — Dart-пакетов через `dart test`, Flutter-пакетов через `flutter test` — кроме `structured_log_e2e`, который SHALL запускаться отдельным скриптом `melos run test:e2e`: каждый его кейс поднимает сервер настоящим процессом и требует сгенерированного кода.
 
 #### Scenario: Один вызов lint проверяет все пакеты
 - **WHEN** из корня репозитория выполняется `melos run lint`
-- **THEN** `dart analyze`/`dart format --set-exit-if-changed` (или их Flutter-эквиваленты) выполняются для `structured_log`, `structured_log_flutter` и `structured_log_material`, и команда завершается ошибкой, если хотя бы один пакет не проходит проверку
+- **THEN** `dart analyze` и `dart format --set-exit-if-changed` выполняются для каждого пакета workspace, и команда завершается ошибкой, если хотя бы один пакет не проходит проверку
+
+#### Scenario: Сквозной набор не входит в общий прогон тестов
+- **WHEN** из корня репозитория выполняется `melos run test`
+- **THEN** тесты всех пакетов, кроме `structured_log_e2e`, выполняются, а сервер процессом не поднимается; `melos run test:e2e` выполняет только `structured_log_e2e`
+
+### Requirement: Репозиторий организован как multi-package workspace на Melos с раскладкой по категориям
+Каждый пакет репозитория SHALL располагаться в собственной директории `<категория>/<name>/` со своим `pubspec.yaml`, где категория — одна из: `emb/` (библиотеки, встраиваемые в стороннее приложение), `backend/` (самостоятельные серверные приложения), `frontend/` (самостоятельные клиентские приложения с UI), `packages/` (пакеты, не подпадающие однозначно ни под одну из трёх категорий). Пример пакета (`example/`) MAY лежать внутри своего пакета и быть отдельным пакетом workspace. Корневой `melos.yaml` SHALL перечислять пакеты явным списком полных путей от корня репозитория, без глобов. Корневой `pubspec.yaml` SHALL существовать только для того, чтобы `dart run melos` резолвил Melos, и SHALL NOT быть пакетом workspace.
+
+#### Scenario: Melos видит все пакеты репозитория
+- **WHEN** выполняется `dart run melos bootstrap` из корня репозитория
+- **THEN** Melos обнаруживает и линкует каждый пакет, перечисленный в `melos.yaml`, и ни один из них не лежит прямо в корне репозитория
+
+#### Scenario: Новый пакет попадает в workspace только явной записью
+- **WHEN** в `emb/` появляется директория нового пакета, но в `melos.yaml` её пути нет
+- **THEN** Melos этот пакет не видит, а после добавления полного пути в `packages:` — видит
+
+### Requirement: Перенос пакета между директориями не меняет его API, версию и CHANGELOG
+Перенос существующего пакета в другую директорию репозитория (смена раскладки или категории) SHALL не изменять его публичный API, версию в `pubspec.yaml` и содержимое `CHANGELOG.md`. Опубликованный на pub.dev артефакт перенос SHALL не затрагивать: меняется только путь в репозитории.
+
+#### Scenario: Тесты пакета проходят без изменений после переноса
+- **WHEN** пакет перенесён в другую директорию и выполняется его набор тестов (`dart test` или `flutter test`) из новой директории
+- **THEN** все тесты, проходившие до переноса, проходят без изменений в самих тестах, а `version` в `pubspec.yaml` и `CHANGELOG.md` совпадают с прежними
 

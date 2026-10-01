@@ -10,4 +10,4 @@
 
 ## 3. Архивация
 
-- [ ] 3.1 Архивировать изменение с синхронизацией спеки (`openspec archive align-monorepo-workspace-spec`) и проверить, что `openspec/specs/monorepo-workspace/spec.md` содержит четыре требования, без дубликатов от переименования.
+- [x] 3.1 Архивировать изменение с синхронизацией спеки (`openspec archive align-monorepo-workspace-spec`) и проверить, что `openspec/specs/monorepo-workspace/spec.md` содержит четыре требования, без дубликатов от переименования.
