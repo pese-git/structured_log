@@ -69,7 +69,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `structured_log` с `category: 'http'`, уровень — по статусу ответа. Заголовки и тела по умолчанию
   не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются. Чистый Dart,
   не опубликован (`0.1.0-dev.0`),
-  [openspec/changes/add-structured-log-dio/](openspec/changes/add-structured-log-dio/).
+  [openspec/changes/archive/2026-10-01-add-structured-log-dio/](openspec/changes/archive/2026-10-01-add-structured-log-dio/), основная спека — [openspec/specs/dio-log-interceptor/](openspec/specs/dio-log-interceptor/spec.md).
 
 Плюс один пакет в `backend/`:
 
