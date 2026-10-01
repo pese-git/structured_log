@@ -134,6 +134,7 @@ class ChangePasswordRoutes {
           : await revokeRefreshTokensExcept(
               _db,
               identity.userId,
+              reason: RevocationReason.passwordChanged,
               exceptTokenHash: spared == null ? null : hashToken(spared),
             );
       // Neither password appears, here or anywhere, and neither does the token

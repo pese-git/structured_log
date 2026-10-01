@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/claims.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/auth/session.dart';
 import 'package:structured_log_server/src/auth/token_service.dart';
 import 'package:structured_log_server/src/rbac/authorizer.dart';
 import 'package:structured_log_server/src/storage/database.dart';
@@ -286,6 +287,165 @@ void main() {
         );
       },
     );
+
+    group('a revoked token presented again', () {
+      Future<TokenPair> signIn() async => (await service.passwordGrant(
+        clientIp: testClientIp,
+        username: 'alice',
+        password: 's3cret',
+      )).getRight().toNullable()!;
+
+      Future<RefreshToken> rowOf(String plain) => (db.select(
+        db.refreshTokens,
+      )..where((t) => t.tokenHash.equals(hashToken(plain)))).getSingle();
+
+      test('rotation records the token as rotated', () async {
+        await insertUser();
+        final first = await signIn();
+        await service.refreshTokenGrant(first.refreshToken);
+
+        expect(
+          (await rowOf(first.refreshToken)).revokedReason,
+          RevocationReason.rotated.wire,
+        );
+      });
+
+      test('swept by a password change, it is refused without signing out the '
+          'session that changed it', () async {
+        final userId = await insertUser();
+        final changer = await signIn();
+        final stale = await signIn();
+        await revokeRefreshTokensExcept(
+          db,
+          userId,
+          reason: RevocationReason.passwordChanged,
+          exceptTokenHash: hashToken(changer.refreshToken),
+        );
+
+        // The other device renews on its own schedule, with what it holds.
+        final refused = await service.refreshTokenGrant(stale.refreshToken);
+        expect(
+          refused.getLeft().toNullable()?.code,
+          TokenErrorCode.invalidGrant,
+        );
+
+        final renewed = await service.refreshTokenGrant(changer.refreshToken);
+        expect(
+          renewed.isRight(),
+          isTrue,
+          reason:
+              'a stale client is not a thief: the session the change '
+              'deliberately spared must survive it',
+        );
+      });
+
+      test('signed out, it is refused without ending other sessions', () async {
+        await insertUser();
+        final signedOut = await signIn();
+        final other = await signIn();
+        await service.revoke(signedOut.refreshToken, clientIp: testClientIp);
+        expect(
+          (await rowOf(signedOut.refreshToken)).revokedReason,
+          RevocationReason.signedOut.wire,
+        );
+
+        final refused = await service.refreshTokenGrant(signedOut.refreshToken);
+        expect(
+          refused.getLeft().toNullable()?.code,
+          TokenErrorCode.invalidGrant,
+        );
+        expect(
+          (await service.refreshTokenGrant(other.refreshToken)).isRight(),
+          isTrue,
+        );
+      });
+
+      for (final reason in [
+        RevocationReason.passwordReset,
+        RevocationReason.blocked,
+        RevocationReason.deleted,
+      ]) {
+        test('swept as ${reason.wire}, it ends nothing else', () async {
+          final userId = await insertUser();
+          final stale = await signIn();
+          await revokeAllRefreshTokens(db, userId, reason: reason);
+          // Signing in again after the sweep, as the account's owner would
+          // once an administrator has reset or unblocked it.
+          final fresh = await signIn();
+
+          await service.refreshTokenGrant(stale.refreshToken);
+
+          expect(
+            (await rowOf(fresh.refreshToken)).revokedAt,
+            isNull,
+            reason: 'an administrator ending a session is not a theft signal',
+          );
+        });
+      }
+
+      test('rotated, it still ends every session of the account', () async {
+        await insertUser();
+        final first = await signIn();
+        final elsewhere = await signIn();
+        await service.refreshTokenGrant(first.refreshToken);
+
+        await service.refreshTokenGrant(first.refreshToken);
+
+        final row = await rowOf(elsewhere.refreshToken);
+        expect(row.revokedAt, isNotNull);
+        expect(row.revokedReason, RevocationReason.reuseDetected.wire);
+      });
+
+      test(
+        'swept by reuse detection, it does not sweep a fresh sign-in',
+        () async {
+          await insertUser();
+          final first = await signIn();
+          final successor = (await service.refreshTokenGrant(
+            first.refreshToken,
+          )).getRight().toNullable()!;
+          await service.refreshTokenGrant(
+            first.refreshToken,
+          ); // the theft signal
+          final fresh = await signIn();
+
+          // The successor's holder has not heard yet and renews.
+          await service.refreshTokenGrant(successor.refreshToken);
+
+          expect(
+            (await rowOf(fresh.refreshToken)).revokedAt,
+            isNull,
+            reason:
+                'the theft was answered once; answering it again would only '
+                'sign out whoever signed in since',
+          );
+        },
+      );
+
+      test(
+        'revoked before the reason was recorded, it is still treated as reuse',
+        () async {
+          await insertUser();
+          final legacy = await signIn();
+          final other = await signIn();
+          // What a pre-version-3 revocation left behind.
+          await (db.update(db.refreshTokens)..where(
+                (t) => t.tokenHash.equals(hashToken(legacy.refreshToken)),
+              ))
+              .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
+
+          await service.refreshTokenGrant(legacy.refreshToken);
+
+          expect(
+            (await rowOf(other.refreshToken)).revokedAt,
+            isNotNull,
+            reason:
+                'nobody knows why it died, and a rotated token that is no '
+                'longer detected is the worse of the two mistakes',
+          );
+        },
+      );
+    });
 
     test('an unknown refresh token is rejected', () async {
       final result = await service.refreshTokenGrant('not-a-real-token');

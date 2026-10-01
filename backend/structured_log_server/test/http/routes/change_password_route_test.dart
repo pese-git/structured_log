@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/auth/session.dart';
 import 'package:structured_log_server/src/http/refresh_cookie.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/change_password_route.dart';
@@ -319,6 +320,24 @@ void main() {
         expect(await isLive(laptop), isFalse);
       },
     );
+
+    test('the swept sessions are recorded as swept, not rotated', () async {
+      final mine = await issueToken();
+      final phone = await issueToken();
+
+      await change(extra: {'current_refresh_token': mine});
+
+      final row = await (db.select(
+        db.refreshTokens,
+      )..where((t) => t.tokenHash.equals(hashToken(phone)))).getSingle();
+      expect(
+        row.revokedReason,
+        RevocationReason.passwordChanged.wire,
+        reason:
+            'the phone renewing later is a stale client, not a thief; a '
+            'rotated reason here would have it sign this session out',
+      );
+    });
 
     test('a caller that names no token of its own is signed out along with the '
         'rest', () async {

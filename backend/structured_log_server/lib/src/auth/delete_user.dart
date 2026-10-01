@@ -66,7 +66,7 @@ Future<DeleteUserOutcome> deleteUser(
       isActive: const Value(false),
     ),
   );
-  await revokeAllRefreshTokens(db, target.id);
+  await revokeAllRefreshTokens(db, target.id, reason: RevocationReason.deleted);
   await incrementTokenVersion(db, target.id);
   await (db.delete(db.roleAssignments)..where(
         (t) => t.subjectType.equals('user') & t.subjectId.equals(target.id),

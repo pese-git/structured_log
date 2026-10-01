@@ -7,6 +7,7 @@ import '../audit/audit_writer.dart';
 import '../storage/database.dart';
 import 'claims.dart';
 import 'hashing.dart';
+import 'session.dart';
 
 enum TokenErrorCode { invalidGrant, invalidRequest, unsupportedGrantType }
 
@@ -174,9 +175,15 @@ class TokenService {
     }
 
     if (stored.revokedAt != null) {
-      // Reuse of an already-revoked refresh token: treat as a compromise
-      // signal and revoke the whole chain, not just this one token.
-      await _revokeAllForUser(stored.userId);
+      // Reuse of a rotated-away refresh token is a compromise signal: its
+      // successor is live somewhere, so revoke the whole chain, not just this
+      // one token. A token ended any other way — signed out, swept by a
+      // password change, by an administrator — is only a client that has not
+      // heard yet, and sweeping on it would sign out the sessions that were
+      // deliberately left alive (`RevocationReason`).
+      if (RevocationReason.signalsReuse(stored.revokedReason)) {
+        await _revokeAllForUser(stored.userId);
+      }
       return left(const TokenError(TokenErrorCode.invalidGrant));
     }
 
@@ -200,16 +207,28 @@ class TokenService {
     // written after the loser's sweep below.
     final pair = await _db.transaction(() async {
       final claimed =
-          await (_db.update(_db.refreshTokens)
-                ..where((t) => t.id.equals(stored.id) & t.revokedAt.isNull()))
-              .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
+          await (_db.update(
+            _db.refreshTokens,
+          )..where((t) => t.id.equals(stored.id) & t.revokedAt.isNull())).write(
+            RefreshTokensCompanion(
+              revokedAt: Value(DateTime.now()),
+              revokedReason: Value(RevocationReason.rotated.wire),
+            ),
+          );
       if (claimed == 0) return null;
       return _issuePair(user.id, user.username);
     });
     if (pair == null) {
-      // Somebody else presented this token first: the same signal as
-      // presenting one already revoked.
-      await _revokeAllForUser(stored.userId);
+      // The token was revoked between the read above and the claim. If
+      // somebody else presented it first, that is the same signal as
+      // presenting one already rotated; if a sweep got there first, it is the
+      // same stale client as above — so ask the row which it was.
+      final lost = await (_db.select(
+        _db.refreshTokens,
+      )..where((t) => t.id.equals(stored.id))).getSingle();
+      if (RevocationReason.signalsReuse(lost.revokedReason)) {
+        await _revokeAllForUser(stored.userId);
+      }
       return left(const TokenError(TokenErrorCode.invalidGrant));
     }
     return right(pair);
@@ -235,8 +254,14 @@ class TokenService {
             .getSingleOrNull();
     if (stored == null) return;
 
-    await (_db.update(_db.refreshTokens)..where((t) => t.id.equals(stored.id)))
-        .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
+    await (_db.update(
+      _db.refreshTokens,
+    )..where((t) => t.id.equals(stored.id))).write(
+      RefreshTokensCompanion(
+        revokedAt: Value(DateTime.now()),
+        revokedReason: Value(RevocationReason.signedOut.wire),
+      ),
+    );
 
     await _audit.write(
       action: AuditAction.authLoggedOut,
@@ -247,11 +272,11 @@ class TokenService {
     );
   }
 
-  Future<void> _revokeAllForUser(int userId) {
-    return (_db.update(_db.refreshTokens)
-          ..where((t) => t.userId.equals(userId) & t.revokedAt.isNull()))
-        .write(RefreshTokensCompanion(revokedAt: Value(DateTime.now())));
-  }
+  Future<void> _revokeAllForUser(int userId) => revokeAllRefreshTokens(
+    _db,
+    userId,
+    reason: RevocationReason.reuseDetected,
+  );
 
   Future<TokenPair> _issuePair(int userId, String username) async {
     final claims = await _claims.resolve(userId);

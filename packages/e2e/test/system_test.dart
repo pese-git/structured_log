@@ -161,19 +161,12 @@ void main() {
       ),
     );
 
-    // This one first, and the order is not incidental: presenting a revoked
-    // refresh token is a reuse signal, and the server answers it by revoking
-    // the whole chain (`TokenService.refreshTokenGrant`). Asking about the
-    // other device first would therefore kill this session before the
-    // question below could be asked, and the test would blame the change for
-    // it.
-    final renewed = await api.auth.refresh('refresh_token', mine);
-    expect(
-      renewed.accessToken,
-      isNotEmpty,
-      reason: 'the device that asked for the change is still signed in',
-    );
-
+    // The other device first — it renews on its own schedule, with the token
+    // the change swept, and has not heard. That is a stale client, not a
+    // thief: only a token spent by rotation is a reuse signal
+    // (`RevocationReason`). Until that distinction existed, this question
+    // revoked every session of the account, and the device that had just
+    // changed the password was signed out on its next renewal.
     await expectLater(
       api.auth.refresh('refresh_token', otherDevice.refreshToken),
       throwsA(anything),
@@ -182,8 +175,25 @@ void main() {
           'changes a password they think was learned',
     );
 
-    // That last question spent the chain, this session included. Sign in
-    // again and leave the deployment on the password the later tests expect.
+    final renewed = await api.auth.refresh('refresh_token', mine);
+    expect(
+      renewed.accessToken,
+      isNotEmpty,
+      reason:
+          'the device that asked for the change is still signed in, even '
+          'after the swept one came back',
+    );
+    final renewedAgain = await api.auth.refresh(
+      'refresh_token',
+      renewed.refreshToken,
+    );
+    expect(
+      renewedAgain.accessToken,
+      isNotEmpty,
+      reason: 'and it keeps renewing: its chain was never swept',
+    );
+
+    // Leave the deployment on the password the later tests expect.
     await signIn(nextPassword);
     await api.auth.changePassword(
       ChangePasswordRequestDto(
@@ -193,6 +203,33 @@ void main() {
         currentRefreshToken: (await storage.read())!.refreshToken,
       ),
     );
+  });
+
+  test('a rotated-away token presented again still ends the account\'s '
+      'sessions', () async {
+    // The counterpart to the test above: reuse detection must survive the
+    // distinction, or telling stale clients from thieves bought nothing.
+    final first = await api.auth.signIn('password', 'admin', newPassword);
+    final successor = await api.auth.refresh(
+      'refresh_token',
+      first.refreshToken,
+    );
+
+    await expectLater(
+      api.auth.refresh('refresh_token', first.refreshToken),
+      throwsA(anything),
+    );
+
+    await expectLater(
+      api.auth.refresh('refresh_token', successor.refreshToken),
+      throwsA(anything),
+      reason:
+          'the rotated token came back, so two parties held the session; '
+          'its successor goes with it',
+    );
+
+    // `storage`'s session went with the chain too; the later tests need one.
+    await signIn(newPassword);
   });
 
   late int projectId;

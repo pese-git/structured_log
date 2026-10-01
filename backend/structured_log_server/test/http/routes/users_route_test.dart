@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:structured_log_server/src/audit/audit_writer.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/auth/session.dart';
 import 'package:structured_log_server/src/auth/identity_provider.dart';
 import 'package:structured_log_server/src/errors.dart';
 import 'package:structured_log_server/src/http/routes/users_route.dart';
@@ -589,6 +590,11 @@ void main() {
           db.refreshTokens,
         )..where((t) => t.userId.equals(target.id))).getSingle();
         expect(token.revokedAt, isNotNull);
+        expect(
+          token.revokedReason,
+          RevocationReason.passwordReset.wire,
+          reason: 'a swept token must not read as a rotated one',
+        );
       },
     );
 
@@ -712,6 +718,7 @@ void main() {
         db.refreshTokens,
       )..where((t) => t.userId.equals(target.id))).getSingle();
       expect(token.revokedAt, isNotNull);
+      expect(token.revokedReason, RevocationReason.blocked.wire);
 
       final unblocked = await decodeJson(
         await routes.router.call(

@@ -2,6 +2,64 @@ import 'package:drift/drift.dart';
 
 import '../storage/database.dart';
 
+/// Why a refresh token was revoked — stored in `refresh_tokens.revoked_reason`
+/// as [wire].
+///
+/// The distinction exists for one decision: whether presenting the token again
+/// is a theft signal (`TokenService.refreshTokenGrant`). Only [rotated] is.
+/// A rotated token has a live successor, so a second presentation means two
+/// parties hold the same session. Every other reason ended the session
+/// deliberately, and the client presenting it afterwards is simply one that
+/// has not heard yet — a device swept by somebody's password change renewing
+/// on its own schedule. Treating that as theft revoked the whole account,
+/// including the session that had just changed the password.
+///
+/// The others are distinguished from each other only for whoever reads the
+/// table after an incident; nothing branches on which one it was.
+enum RevocationReason {
+  /// Spent by `grant_type=refresh_token`, which issued its successor.
+  rotated('rotated'),
+
+  /// `DELETE /v1/auth/token`.
+  signedOut('signed_out'),
+
+  /// Swept by the account's own `POST /v1/auth/change-password`.
+  passwordChanged('password_changed'),
+
+  /// Swept by a password an administrator set (`PATCH /v1/users/:id`).
+  passwordReset('password_reset'),
+
+  /// Swept by `POST /v1/users/:id/block`.
+  blocked('blocked'),
+
+  /// Swept by account deletion (`delete_user.dart`).
+  deleted('deleted'),
+
+  /// Swept by reuse detection itself. Not a theft signal on a second
+  /// presentation either: the theft was already answered, and answering it
+  /// again would only sign out whoever logged in afresh since.
+  reuseDetected('reuse_detected');
+
+  const RevocationReason(this.wire);
+
+  final String wire;
+
+  /// Whether presenting a token revoked with [wire] again means someone else
+  /// holds the session.
+  ///
+  /// `null` — revoked before schema version 3 — answers yes, as every revoked
+  /// token did then. The alternative would quietly drop reuse detection for
+  /// tokens rotated shortly before an upgrade; keeping it costs, for at most
+  /// one refresh-token lifetime, the old behaviour this enum exists to end.
+  /// An unrecognised value also answers yes: this build refuses a database
+  /// from a newer schema, so one can only be a writer that got it wrong, and
+  /// the mistake should fail towards detection.
+  static bool signalsReuse(String? wire) =>
+      wire == null ||
+      wire == rotated.wire ||
+      !values.any((reason) => reason.wire == wire);
+}
+
 /// Revokes every currently-valid refresh token belonging to [userId], except
 /// the one whose hash is [exceptTokenHash], and answers how many it revoked.
 ///
@@ -16,10 +74,11 @@ import '../storage/database.dart';
 ///
 /// Already-revoked rows are left exactly as they are — `revoked_at` is the
 /// moment a token died, and a later sweep has no business rewriting it — and
-/// are not counted.
+/// are not counted. [reason] is recorded on each row it revokes.
 Future<int> revokeRefreshTokensExcept(
   StructuredLogDatabase db,
   int userId, {
+  required RevocationReason reason,
   String? exceptTokenHash,
 }) {
   final statement = db.update(db.refreshTokens)
@@ -36,7 +95,10 @@ Future<int> revokeRefreshTokensExcept(
           : live & t.tokenHash.equals(exceptTokenHash).not();
     });
   return statement.write(
-    RefreshTokensCompanion(revokedAt: Value(DateTime.now())),
+    RefreshTokensCompanion(
+      revokedAt: Value(DateTime.now()),
+      revokedReason: Value(reason.wire),
+    ),
   );
 }
 
@@ -50,9 +112,12 @@ Future<int> revokeRefreshTokensExcept(
 /// because that is what these three callers mean: none of them is the device
 /// being spared, and none of them has a token to spare it by.
 ///
-/// Mirrors `TokenService._revokeAllForUser`, which stays private to that
-/// file (it is reached only from `grant_type=refresh_token` reuse
-/// detection) — this is the copy the rest of the server calls.
-Future<void> revokeAllRefreshTokens(StructuredLogDatabase db, int userId) {
-  return revokeRefreshTokensExcept(db, userId);
+/// Reuse detection (`TokenService.refreshTokenGrant`) sweeps through here
+/// too, as [RevocationReason.reuseDetected].
+Future<void> revokeAllRefreshTokens(
+  StructuredLogDatabase db,
+  int userId, {
+  required RevocationReason reason,
+}) {
+  return revokeRefreshTokensExcept(db, userId, reason: reason);
 }

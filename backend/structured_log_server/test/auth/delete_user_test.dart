@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:structured_log_server/src/auth/delete_user.dart';
 import 'package:structured_log_server/src/auth/hashing.dart';
+import 'package:structured_log_server/src/auth/session.dart';
 import 'package:structured_log_server/src/storage/database.dart';
 import 'package:test/test.dart';
 
@@ -235,6 +236,7 @@ void main() {
         db.refreshTokens,
       )..where((t) => t.userId.equals(target.id))).getSingle();
       expect(token.revokedAt, isNotNull);
+      expect(token.revokedReason, RevocationReason.deleted.wire);
     });
 
     test('increments token_version, invalidating already-issued access '

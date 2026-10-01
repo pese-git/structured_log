@@ -268,7 +268,11 @@ class UserRoutes {
         ),
       );
       if (newPassword != null) {
-        await revokeAllRefreshTokens(_db, userId);
+        await revokeAllRefreshTokens(
+          _db,
+          userId,
+          reason: RevocationReason.passwordReset,
+        );
         await incrementTokenVersion(_db, userId);
       }
       if (changedFields.isNotEmpty) {
@@ -301,7 +305,11 @@ class UserRoutes {
       await (_db.update(_db.users)..where((t) => t.id.equals(userId))).write(
         const UsersCompanion(isActive: Value(false)),
       );
-      await revokeAllRefreshTokens(_db, userId);
+      await revokeAllRefreshTokens(
+        _db,
+        userId,
+        reason: RevocationReason.blocked,
+      );
       await incrementTokenVersion(_db, userId);
       await _audit.write(
         action: AuditAction.userBlocked,

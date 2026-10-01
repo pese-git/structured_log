@@ -100,6 +100,7 @@ void main() {
     final revoked = await revokeRefreshTokensExcept(
       db,
       userId,
+      reason: RevocationReason.passwordChanged,
       exceptTokenHash: hashToken(kept),
     );
 
@@ -113,7 +114,14 @@ void main() {
     final phone = await issueToken();
     final laptop = await issueToken();
 
-    expect(await revokeRefreshTokensExcept(db, userId), 2);
+    expect(
+      await revokeRefreshTokensExcept(
+        db,
+        userId,
+        reason: RevocationReason.passwordChanged,
+      ),
+      2,
+    );
     expect(await revokedAtOf(phone), isNot(null));
     expect(await revokedAtOf(laptop), isNot(null));
   });
@@ -124,6 +132,7 @@ void main() {
     final revoked = await revokeRefreshTokensExcept(
       db,
       userId,
+      reason: RevocationReason.passwordChanged,
       exceptTokenHash: hashToken('never-issued'),
     );
 

@@ -580,12 +580,58 @@ void main() {
       for (final name in wanted) {
         await fresh.customStatement('DROP INDEX $name');
       }
+      // Version 1 predates `revoked_reason` (version 3) too; leaving it in
+      // place would have the upgrade add it a second time.
+      await fresh.customStatement(
+        'ALTER TABLE refresh_tokens DROP COLUMN revoked_reason',
+      );
       await fresh.customStatement('PRAGMA user_version = 1');
       await fresh.close();
 
       final upgraded = StructuredLogDatabase.open(path);
       addTearDown(upgraded.close);
       expect(await indexNames(upgraded), containsAll(wanted));
+    });
+  });
+
+  group('refresh token revocation reason', () {
+    test('a version 2 database gains the column on open', () async {
+      final dir = Directory.systemTemp.createTempSync('sl_migrate_v3');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/db.sqlite';
+
+      final fresh = StructuredLogDatabase.open(path);
+      await fresh.customStatement(
+        'ALTER TABLE refresh_tokens DROP COLUMN revoked_reason',
+      );
+      final userId = await fresh
+          .into(fresh.users)
+          .insert(UsersCompanion.insert(username: 'alice', passwordHash: 'h'));
+      // A token revoked under version 2: `revoked_at` set, nothing saying why.
+      // Only the columns named here are written, so the insert works against
+      // the table as version 2 had it.
+      await fresh
+          .into(fresh.refreshTokens)
+          .insert(
+            RefreshTokensCompanion.insert(
+              userId: userId,
+              tokenHash: 'old-hash',
+              expiresAt: DateTime.now().add(const Duration(days: 1)),
+              revokedAt: Value(DateTime.now()),
+            ),
+          );
+      await fresh.customStatement('PRAGMA user_version = 2');
+      await fresh.close();
+
+      final upgraded = StructuredLogDatabase.open(path);
+      addTearDown(upgraded.close);
+      final row = await upgraded.select(upgraded.refreshTokens).getSingle();
+      expect(row.revokedAt, isNotNull);
+      expect(
+        row.revokedReason,
+        isNull,
+        reason: 'why it died was never recorded, and is not invented now',
+      );
     });
   });
 
