@@ -9,7 +9,7 @@
 
 Раньше публиковался как
 [`structured_log_http`](https://pub.dev/packages/structured_log_http) —
-переименован в 0.1.0; переход — одна строка зависимости, один импорт и одно имя
+переименован в 0.2.0; переход — одна строка зависимости, один импорт и одно имя
 класса (`HttpLogOutput` → `RemoteSyncLogOutput`), поведение не меняется.
 
 `RemoteSyncLogOutput` — обычный `OutputFunction`, поэтому подключается как
@@ -30,7 +30,7 @@
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_remote_sync: ^0.1.0
+  structured_log_remote_sync: ^0.2.0
 ```
 
 ## Быстрый старт
