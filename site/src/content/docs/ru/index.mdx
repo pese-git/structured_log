@@ -78,11 +78,11 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 
    ```dart
    import 'package:structured_log/structured_log.dart';
-   import 'package:structured_log_http/structured_log_http.dart';
+   import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
 
    void main() {
      StructlogConfiguration.configure(sinks: [
-       LogSink(name: 'server', output: HttpLogOutput(
+       LogSink(name: 'server', output: RemoteSyncLogOutput(
          serverUrl: 'https://logs.example.com',
          projectSecretKey: 'slk_...', // из шага 2
        )),
@@ -156,10 +156,10 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 ### Self-hosted сервис — подключайте, когда понадобится
 
 <CardGrid stagger>
-	<Card title="structured_log_http" icon="rocket">
+	<Card title="structured_log_remote_sync" icon="rocket">
 		Отправляет записи на `structured_log_server` по HTTP — батчинг,
 		retry с backoff, ограниченный буфер. Использован в быстром старте
-		выше. [Использование и API](/ru/packages/structured_log_http/).
+		выше. [Использование и API](/ru/packages/structured_log_remote_sync/).
 		Пока не опубликован.
 	</Card>
 	<Card title="structured_log_server" icon="setting">

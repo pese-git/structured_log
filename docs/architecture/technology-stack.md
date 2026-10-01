@@ -43,14 +43,14 @@ unclosed connection pool, and Postgres-tagged test files needing
 `--concurrency=1`) — lives in
 [openspec/changes/archive/2026-10-01-add-postgres-backend/](../../openspec/changes/archive/2026-10-01-add-postgres-backend/).
 
-## `structured_log_http`
+## `structured_log_remote_sync`
 
 | Choice | Rejected alternative | Why |
 |---|---|---|
 | Separate package, `structured_log` as its only dependency | Extend `structured_log` core, or fold into `structured_log_server` | The wire contract evolves with the *server*, not the logging core — coupling it to the independently-versioned, already-published core package isn't justified. It also can't live in `structured_log_server`: an app that only sends logs shouldn't need `shelf`/`drift`/etc. as transitive dependencies. (decision 5) |
 | `_SerializedAsyncOutput` pattern (from `AsyncFileOutput`) + batching + retry/backoff | A new queuing design | Reuses an already-proven pattern in the workspace instead of inventing a second one for the same problem shape (serialized delivery, per-step error isolation). |
 
-`structured_log_http` is not part of the decisions 32–38 tech-stack expansion below — it stays a small, dependency-free client package, unaffected by `structured_log_server`'s or `structured_log_admin_client`'s internal choices.
+`structured_log_remote_sync` is not part of the decisions 32–38 tech-stack expansion below — it stays a small, dependency-free client package, unaffected by `structured_log_server`'s or `structured_log_admin_client`'s internal choices.
 
 ## `structured_log_admin_client`
 

@@ -44,14 +44,14 @@
 тестовых файлов) — лежит в
 [openspec/changes/archive/2026-10-01-add-postgres-backend/](../../openspec/changes/archive/2026-10-01-add-postgres-backend/).
 
-## `structured_log_http`
+## `structured_log_remote_sync`
 
 | Выбор | Отклонённая альтернатива | Почему |
 |---|---|---|
 | Отдельный пакет, `structured_log` — единственная зависимость | Расширение core `structured_log`, или часть `structured_log_server` | Wire-контракт эволюционирует вместе с *сервером*, не с ядром логирования — привязывать к этому независимо версионируемый, уже опубликованный core-пакет не оправдано. Также не может жить в `structured_log_server`: приложению, которое только отправляет логи, не должны быть нужны `shelf`/`drift`/и т.п. как транзитивные зависимости. (decision 5) |
 | Паттерн `_SerializedAsyncOutput` (из `AsyncFileOutput`) + батчинг + retry/backoff | Новый дизайн очереди | Переиспользует уже проверенный в воркспейсе паттерн вместо изобретения второго для той же формы проблемы (сериализованная доставка, изоляция ошибок на каждом шаге). |
 
-`structured_log_http` не входит в расширение технологического стека decisions 32–38 ниже — остаётся маленьким пакетом без сторонних зависимостей, не затронутым внутренними решениями `structured_log_server`/`structured_log_admin_client`.
+`structured_log_remote_sync` не входит в расширение технологического стека decisions 32–38 ниже — остаётся маленьким пакетом без сторонних зависимостей, не затронутым внутренними решениями `structured_log_server`/`structured_log_admin_client`.
 
 ## `structured_log_admin_client`
 

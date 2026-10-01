@@ -25,7 +25,7 @@
 
 | Категория | Что там лежит |
 |---|---|
-| `emb/` | Библиотеки, предназначенные для **встраивания** в чужое приложение: `structured_log` (ядро логирования), его Flutter-скины просмотрщика логов (`structured_log_flutter`/`_material`/`_fluent`/`_cupertino`) и `structured_log_http` (отправляет логи на сервер) |
+| `emb/` | Библиотеки, предназначенные для **встраивания** в чужое приложение: `structured_log` (ядро логирования), его Flutter-скины просмотрщика логов (`structured_log_flutter`/`_material`/`_fluent`/`_cupertino`) и `structured_log_remote_sync` (отправляет логи на сервер) |
 | `backend/` | Самостоятельные серверные процессы: `structured_log_server` |
 | `frontend/` | Самостоятельные клиентские приложения с UI: `structured_log_admin_client` и его библиотека презентационных компонентов `structured_log_admin_ui` |
 | `packages/` | Всё, что не подпадает ни под одну из трёх категорий выше: `structured_log_e2e`, сквозные тесты через всю систему |
@@ -34,7 +34,7 @@
 ещё `doc/ARCHITECTURE.md` — внутренний дизайн для контрибьюторов
 (`emb/structured_log/doc/ARCHITECTURE.md` — эталонный пример).
 [docs/architecture/](../architecture/) покрывает дизайн, общий для
-`structured_log_server`/`structured_log_http`/`structured_log_admin_client`
+`structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`
 вместе, — потому что для кросс-пакетного протокольного решения
 собственная документация ни одного отдельного пакета не подходящее
 место.

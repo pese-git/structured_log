@@ -35,7 +35,7 @@ self-hosted сервис сбора логов: приложения отпра�
 flowchart LR
     subgraph App["Приложение с логированием"]
         SL["structured_log\n(существующий, не меняется)"]
-        HTTP["structured_log_http\nHttpLogOutput"]
+        HTTP["structured_log_remote_sync\nHttpLogOutput"]
         SL --> HTTP
     end
 
@@ -62,9 +62,9 @@ flowchart LR
   [rbac-and-lifecycle.md](rbac-and-lifecycle.md),
   [live-streaming.md](live-streaming.md) и
   [quotas-and-audit.md](quotas-and-audit.md).
-- **`structured_log_http`** (`emb/`) — тонкий клиентский пакет. Его
+- **`structured_log_remote_sync`** (`emb/`) — тонкий клиентский пакет. Его
   единственная зависимость — `structured_log` (decision 5); добавляет
-  `HttpLogOutput` — `OutputFunction`, батчирующий и отправляющий записи
+  `RemoteSyncLogOutput` — `OutputFunction`, батчирующий и отправляющий записи
   лога на сервер через `POST /v1/logs`, аутентифицируясь секретным
   ключом проекта. Любое приложение, уже использующее `structured_log`,
   подключает этот output в `LogSink` — больше ничего в `structured_log`
@@ -85,7 +85,7 @@ flowchart LR
 `structured_log`, за исключением `structured_log_admin_client` →
 `structured_log_admin_ui` (односторонне) — `structured_log_server` и
 `structured_log_admin_client` общаются только по задокументированному
-HTTP/JSON-контракту (decision 19), а `structured_log_http` знает только
+HTTP/JSON-контракту (decision 19), а `structured_log_remote_sync` знает только
 wire-формат `POST /v1/logs`, не внутренности сервера.
 
 ## Поток запроса целиком
@@ -93,7 +93,7 @@ wire-формат `POST /v1/logs`, не внутренности сервера.
 ```mermaid
 sequenceDiagram
     participant App as Приложение
-    participant HTTP as HttpLogOutput
+    participant HTTP as RemoteSyncLogOutput
     participant Srv as structured_log_server
     participant DB as SQLite/PostgreSQL (drift)
     participant Admin as structured_log_admin_client
@@ -207,7 +207,7 @@ preflight-`OPTIONS` отвечается сразу, раньше любой ц�
   прецедент для остального воркспейса, который остаётся без codegen:
   `structured_log`, `structured_log_flutter`, `structured_log_material`,
   `structured_log_fluent`, `structured_log_cupertino` и
-  `structured_log_http`. Полный стек —
+  `structured_log_remote_sync`. Полный стек —
   [technology-stack.md](technology-stack.ru.md).
 - **Один процесс, никакого преждевременного масштабирования — но больше не одно соединение.**
   Всё по-прежнему работает в одном процессе, и кросс-isolate *обработка запросов* —

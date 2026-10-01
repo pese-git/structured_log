@@ -12,7 +12,7 @@
 `StructuredLogGoRouter` слушает `GoRouter` и пишет запись каждый раз, когда
 тот переходит на новое расположение, в уже настроенные выводы — консоль,
 файл, встроенный просмотрщик логов (`structured_log_flutter`) или
-`structured_log_server` через `structured_log_http`. Рядом с записями `bloc`
+`structured_log_server` через `structured_log_remote_sync`. Рядом с записями `bloc`
 от `structured_log_bloc` и `http` от `structured_log_dio` /
 `structured_log_http_client` он отвечает на первый вопрос большинства
 баг-репортов: *на каком экране был пользователь?*

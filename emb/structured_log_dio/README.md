@@ -12,7 +12,7 @@ how it ended — response, error, timeout, cancellation — as
 `dio.interceptors`, and every call reports through the sinks you have
 already configured — the console, a file, the in-app log viewer
 (`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_http`.
+`structured_log_remote_sync`.
 
 ## Features
 

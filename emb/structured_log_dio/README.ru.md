@@ -12,7 +12,7 @@
 добавить его в `dio.interceptors`, и каждый вызов пишет в уже настроенные
 выводы — консоль, файл, встроенный просмотрщик логов
 (`structured_log_flutter`) или `structured_log_server` через
-`structured_log_http`.
+`structured_log_remote_sync`.
 
 ## Возможности
 

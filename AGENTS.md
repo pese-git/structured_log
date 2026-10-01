@@ -7,7 +7,7 @@
 Репозиторий — multi-package workspace на Melos + FVM, пакеты сгруппированы по категориям
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
-(`structured_log`, скины просмотрщика логов, `structured_log_http` и адаптеры к чужим библиотекам —
+(`structured_log`, скины просмотрщика логов, `structured_log_remote_sync` и адаптеры к чужим библиотекам —
 `bloc`/`dio`/`http`/`go_router`/`cherrypick`), [backend/](backend/) —
 самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
 самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
@@ -39,7 +39,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Одиннадцать пакетов в `emb/`:
+Двенадцать пакетов в `emb/` — одиннадцать живых и прослойка `structured_log_http`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -54,11 +54,21 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino (iOS-style) виджет
   просмотрщика логов поверх `structured_log_flutter` (pushed-экран деталей на узких экранах,
   master-detail split на широких/iPad). Разрешена публикация на pub.dev (`publish_to: none` снят).
-- [emb/structured_log_http/](emb/structured_log_http/) — `HttpLogOutput`: `LogSink`-вывод,
+- [emb/structured_log_remote_sync/](emb/structured_log_remote_sync/) — `RemoteSyncLogOutput`: `LogSink`-вывод,
   отправляющий записи на `structured_log_server` по HTTP (батчинг по размеру/таймауту, retry с
   backoff, ограниченный буфер с вытеснением самых старых записей, `flushed`). Единственная
   зависимость — `structured_log`; транспорт — `dart:io` `HttpClient`, без `dio`/`http`.
-  Реализован (раздел 9 `tasks.md`), с билингвальным `README.md`/`README.ru.md`.
+  Реализован (раздел 9 `tasks.md`), с билингвальным `README.md`/`README.ru.md`. **Раньше назывался
+  `structured_log_http`** (опубликован под этим именем как `0.1.0`) — переименован вместе с классом
+  (`HttpLogOutput` → `RemoteSyncLogOutput`), поведение не менялось
+  ([openspec/changes/rename-structured-log-http-to-remote-sync/](openspec/changes/rename-structured-log-http-to-remote-sync/)).
+  Под новым именем начинает с `0.1.0`.
+- [emb/structured_log_http/](emb/structured_log_http/) — **устаревшая прослойка**, а не пакет: последняя
+  версия `structured_log_http` без собственного кода. Библиотека помечена `@Deprecated`, реэкспортирует
+  `BatchSender`/`BatchResult` из `structured_log_remote_sync` и объявляет `HttpLogOutput` устаревшим
+  `typedef` на `RemoteSyncLogOutput` — код зависящих собирается, анализатор называет новое имя. После её
+  публикации пакет помечается на pub.dev discontinued с «Replaced by: `structured_log_remote_sync`».
+  Новых версий не будет, развивать — `structured_log_remote_sync`.
 - [emb/structured_log_bloc/](emb/structured_log_bloc/) — `StructuredLogBlocObserver`: `BlocObserver`,
   пишущий создание/события/смену состояния/ошибки/закрытие каждого блока и кубита записями
   `structured_log` с `category: 'bloc'`. Зависит от `package:bloc`, **не** от `flutter_bloc` —
@@ -73,8 +83,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   [openspec/changes/archive/2026-10-01-add-structured-log-dio/](openspec/changes/archive/2026-10-01-add-structured-log-dio/), основная спека — [openspec/specs/dio-log-interceptor/](openspec/specs/dio-log-interceptor/spec.md).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — `StructuredLogHttpClient`: то же для
   `package:http` — клиент-обёртка над любым `http.Client` с теми же записями, уровнями и маскированием,
-  что у `structured_log_dio`. **Не путать с `structured_log_http`**: тот *отправляет* логи на сервер, этот
-  *логирует* HTTP-вызовы приложения (имя `structured_log_http` было уже занято). Чистый Dart, не
+  что у `structured_log_dio`. Пока отправщик назывался `structured_log_http`, этот пакет приходилось
+  сопровождать пометкой «не путать»; с переименованием отправщика в `structured_log_remote_sync` она снята. Чистый Dart, не
   опубликован (`0.1.0-dev.0`),
   [openspec/changes/archive/2026-10-01-add-structured-log-http-client/](openspec/changes/archive/2026-10-01-add-structured-log-http-client/), основная спека — [openspec/specs/http-client-logging/](openspec/specs/http-client-logging/spec.md).
 - [emb/structured_log_go_router/](emb/structured_log_go_router/) — `StructuredLogGoRouter`: пишет каждую
@@ -138,7 +148,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_material/](emb/structured_log_material/) — Material-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_fluent/](emb/structured_log_fluent/) — Fluent-скин просмотрщика логов (см. ниже).
 - [emb/structured_log_cupertino/](emb/structured_log_cupertino/) — Cupertino-скин просмотрщика логов (см. ниже).
-- [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
+- [emb/structured_log_remote_sync/](emb/structured_log_remote_sync/) — клиентский HTTP-sender логов (см. ниже).
+- [emb/structured_log_http/](emb/structured_log_http/) — устаревшая прослойка к `structured_log_remote_sync` (см. ниже).
 - [emb/structured_log_bloc/](emb/structured_log_bloc/) — наблюдатель `bloc`/`flutter_bloc` (см. ниже).
 - [emb/structured_log_dio/](emb/structured_log_dio/) — перехватчик `dio` (см. ниже).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — логирующая обёртка `http.Client` (см. ниже).
@@ -158,7 +169,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
   оттуда, а не из `specs/`.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
-  `structured_log_server`/`structured_log_http`/`structured_log_admin_client`, спроектированную в
+  `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
   читаемое по темам изложение поверх `design.md`/`specs/*.md`, а не замена им (при расхождении
   приоритет у OpenSpec-артефактов). Билингвальные пары файлов (`*.md`/`*.ru.md`), по той же
@@ -172,7 +183,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   репозиторий»), и [guides/embedding-guide.md](docs/guides/embedding-guide.md) — единственное
   руководство в первой группе — как добавить `structured_log` и, по желанию, in-app просмотрщик
   (`structured_log_flutter` + один из трёх скинов) в собственное приложение вообще без сервера;
-  `structured_log_http` там тоже упомянут, но кратко, с отсылкой на `developer-guide.md` за
+  `structured_log_remote_sync` там тоже упомянут, но кратко, с отсылкой на `developer-guide.md` за
   деталями серверной стороны. Добавлено, когда выяснилось, что у `emb/`-пакетов не было отдельной
   инструкции по внедрению внутри `docs/` (decision, 22.09.2026) и затем явно усилено по прямому
   запросу — донести дуальность «сам по себе / вместе с сервером» лаконично на главной странице
@@ -270,12 +281,28 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
 - `cupertino_icons` — обычная зависимость (иконки `CupertinoIcons` не бандлятся во Flutter SDK сами по себе); `uses-material-design: false` — пакет не тянет Material-иконки/шрифты.
 
-Внутри [emb/structured_log_http/](emb/structured_log_http/):
+Внутри [emb/structured_log_remote_sync/](emb/structured_log_remote_sync/):
 
-- [emb/structured_log_http/lib/structured_log_http.dart](emb/structured_log_http/lib/structured_log_http.dart) — barrel-файл экспорта.
-- [emb/structured_log_http/lib/src/http_output.dart](emb/structured_log_http/lib/src/http_output.dart) — `HttpLogOutput`: батчинг по размеру/таймауту, retry с backoff на сетевых ошибках/таймаутах/5xx (на 4xx — нет, кроме `408`/`429`), ограниченный буфер с вытеснением самых старых, публичный `flushed`. **Все неотправленные записи лежат в одной очереди, из которой насос забирает по `batchSize`** — первая версия выстраивала батчи цепочкой futures, и лимит буфера тогда не ограничивал память (см. 9.4 в `tasks.md`).
+- [emb/structured_log_remote_sync/lib/structured_log_remote_sync.dart](emb/structured_log_remote_sync/lib/structured_log_remote_sync.dart) — barrel-файл экспорта.
+- [emb/structured_log_remote_sync/lib/src/http_output.dart](emb/structured_log_remote_sync/lib/src/http_output.dart) — `RemoteSyncLogOutput`: батчинг по размеру/таймауту, retry с backoff на сетевых ошибках/таймаутах/5xx (на 4xx — нет, кроме `408`/`429`), ограниченный буфер с вытеснением самых старых, публичный `flushed`. **Все неотправленные записи лежат в одной очереди, из которой насос забирает по `batchSize`** — первая версия выстраивала батчи цепочкой futures, и лимит буфера тогда не ограничивал память (см. 9.4 в `tasks.md`).
 - Транспорт — `dart:io`'s `HttpClient`, зависимость только `structured_log` (без `dio`/`http`). Шов `BatchSender` позволяет тестировать батчинг/retry/вытеснение без сокета; отдельная группа тестов работает против настоящего `HttpServer`.
 - `README.md`/`README.ru.md` — билингвальная пара, как у остальных пакетов.
+- `CHANGELOG.md` перенесён из `structured_log_http` без правок: история кода общая, а пишет файл только
+  `melos version`. Тега `structured_log_remote_sync-v*` до первой публикации нет — без него `melos version`
+  посчитал бы всю историю каталога, поэтому после публикации `0.1.0` тег ставится на опубликованный коммит.
+
+Внутри [emb/structured_log_http/](emb/structured_log_http/):
+
+- Прослойка из одного файла `lib/structured_log_http.dart` и одного теста: `HttpLogOutput` — это
+  `RemoteSyncLogOutput`, создаётся и доставляет. Тест гасит `deprecated_member_use` — устаревшие имена здесь
+  и есть предмет проверки.
+- Зависит от `structured_log_remote_sync` как hosted-пакета (`^0.1.0`), поэтому публикуется **после** него,
+  отдельным шагом (`melos publish` по уровням, как у скинов поверх `structured_log_flutter`). Пометка discontinued
+  на pub.dev — последним шагом, когда прослойка уже опубликована: иначе баннер встал бы над README без
+  уведомления. Пометку ставит владелец пакета в админке pub.dev; CLI этого не умеет.
+- `CHANGELOG.md` — прежний файл пакета, без правок; версию `0.1.1` и запись в нём пишет `melos version`.
+- Порога покрытия нет: исполняемых строк в прослойке нет. В CI она проверяется последними шагами джобы
+  `remote-sync` (analyze + test против рабочей копии нового пакета).
 
 Внутри [emb/structured_log_bloc/](emb/structured_log_bloc/):
 
@@ -294,7 +321,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - **Наблюдатель не должен ломать блок**: хуки выполняются внутри `emit`/`add`, поэтому бросивший
   `toString()` превращается в заглушку, а бросившая функция `describe` — в поле `describe_failed`.
 - **Значения пишутся через `toString()` по умолчанию** — секреты в состоянии уезжают в лог (и на
-  сервер через `structured_log_http`). Защита — `describe`, возвращающий `null` (поле убирается, тип
+  сервер через `structured_log_remote_sync`). Защита — `describe`, возвращающий `null` (поле убирается, тип
   остаётся); это задокументировано в README, а не решено за пользователя.
 - В тестах `Bloc` **перебрасывает** исключение обработчика в зону после `onError`, поэтому сценарии с
   падающим обработчиком идут через `runZonedGuarded` (`uncaughtErrorsOf`); `Bloc.observer` —
@@ -863,7 +890,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 Внутри [packages/e2e/](packages/e2e/):
 
 - `structured_log_e2e` (`publish_to: none`) — поднимает `bin/server.dart` **настоящим процессом** и
-  гоняет через него всю цепочку: `structured_log` → `HttpLogOutput` → сервер → `ApiClient` и
+  гоняет через него всю цепочку: `structured_log` → `RemoteSyncLogOutput` → сервер → `ApiClient` и
   репозитории admin-клиента → SSE. Существует потому, что все остальные наборы останавливаются на
   шве: серверные тесты собирают хендлер, клиентские отвечают подставным адаптером, тесты отправщика
   говорят с заглушкой — а оба дефекта 15.09.2026 жили ровно в швах.
@@ -1020,18 +1047,18 @@ dart run example/main.dart
   настоящим процессом. Покрытием не инструментируется — сервер работает
   отдельным процессом, чьё покрытие сборщик не видит (см. `site`-абзац ниже
   и `tool/coverage_floors.json`).
-- `http-sender` — для `emb/structured_log_http/`: `dart pub get`,
+- `remote-sync` (до переименования пакета — `http-sender`) — для `emb/structured_log_remote_sync/`: `dart pub get`,
   `dart format --set-exit-if-changed`, `dart analyze`, `dart test` — отдельной
   джобой, а не матричной записью рядом с сервером: пакет чистый Dart без
   кодогенерации, и матрица тянула бы за собой шаг `build_runner` впустую.
   Как и джоба сервера, сама пишет `pubspec_overrides.yaml` на
-  `emb/structured_log`.
-- `bloc-observer` — для `emb/structured_log_bloc/`: та же форма, что `http-sender`
+  `emb/structured_log`. Последними шагами проверяет прослойку `emb/structured_log_http/`
+  (format/analyze/test, без порога покрытия) с overrides на оба пакета рабочей копии.
+- `bloc-observer` — для `emb/structured_log_bloc/`: та же форма, что `remote-sync`
   (`setup-dart`, свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze/тесты с
   покрытием), плюс прогон `dart run example/main.dart`. Чистый Dart — в Flutter-матрицу не входит.
 - `dio-interceptor` — для `emb/structured_log_dio/`, та же форма, что `bloc-observer`.
-- `http-client` — для `emb/structured_log_http_client/`, та же форма (не путать с `http-sender`, джобой
-  `structured_log_http`).
+- `http-client` — для `emb/structured_log_http_client/`, та же форма.
 - `cherrypick-observer` — для `emb/structured_log_cherrypick/`, та же форма плюс второй прогон тестов на
   `cherrypick` 4.x.
 - `browser-cookie` — единственная джоба, которая видит, что делает с

@@ -41,7 +41,7 @@ class LogFeedBloc extends Bloc<LogFeedEvent, LogFeedState> {
   /// Ten pages' worth. Large enough that an ordinary pause — read an entry,
   /// resume — never overflows on a busy project, small enough that a feed left
   /// paused overnight cannot grow without bound, which is the same reason
-  /// `HttpLogOutput` caps its own buffer.
+  /// `RemoteSyncLogOutput` caps its own buffer.
   final int pauseBufferLimit;
 
   /// The most entries held while following the live edge — see

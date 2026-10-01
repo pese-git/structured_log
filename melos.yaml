@@ -9,6 +9,7 @@ packages:
   - emb/structured_log_fluent/example
   - emb/structured_log_cupertino
   - emb/structured_log_cupertino/example
+  - emb/structured_log_remote_sync
   - emb/structured_log_http
   - emb/structured_log_bloc
   - emb/structured_log_dio
@@ -51,7 +52,7 @@ scripts:
   test:dart:
     exec: dart test
     packageFilters:
-      scope: ["structured_log", "structured_log_server", "structured_log_http", "structured_log_bloc", "structured_log_dio", "structured_log_http_client", "structured_log_cherrypick"]
+      scope: ["structured_log", "structured_log_server", "structured_log_remote_sync", "structured_log_http", "structured_log_bloc", "structured_log_dio", "structured_log_http_client", "structured_log_cherrypick"]
     description: Run tests for Dart-only packages
 
   test:flutter:

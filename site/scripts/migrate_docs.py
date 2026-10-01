@@ -82,7 +82,7 @@ for pkg in emb_pkg_names:
 
 def emb_slug_for(rel):
     """Compute the Starlight slug for an emb/-relative README path, e.g.
-    "structured_log_http/README.ru.md" -> ("packages/structured_log_http", True)."""
+    "structured_log_remote_sync/README.ru.md" -> ("packages/structured_log_remote_sync", True)."""
     is_ru = rel.endswith(".ru.md")
     pkg = rel.split("/", 1)[0]
     return f"packages/{pkg}", is_ru
@@ -194,7 +194,7 @@ def rewrite_links(text, resolver):
 # --- header stripping (shared) --------------------------------------------
 
 # Every docs/ and emb/ README follows the same convention: an H1 title,
-# then (only in emb/'s structured_log and structured_log_http) an optional
+# then (only in emb/'s structured_log and structured_log_remote_sync) an optional
 # CI badge, then the language-switch line ("*Read in [English](...)*" /
 # "*Читать на [русском](...)*", sometimes "*Read this in [English](...)*").
 # Starlight renders the title from frontmatter and provides its own

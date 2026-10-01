@@ -154,7 +154,7 @@ curl -s "$BASE/v1/logs?project_id=$PROJECT" -H "Authorization: Bearer $TOKEN"
 ```
 
 From an application, use
-[`structured_log_http`](../../emb/structured_log_http) rather than `curl`:
+[`structured_log_remote_sync`](../../emb/structured_log_remote_sync) rather than `curl`:
 it batches, retries and never blocks the code that logged.
 
 ## Reading the audit log

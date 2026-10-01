@@ -56,7 +56,7 @@ class BatchResult {
 /// or unreachable server never blocks the code that logged:
 ///
 /// ```dart
-/// final output = HttpLogOutput(
+/// final output = RemoteSyncLogOutput(
 ///   serverUrl: 'https://logs.example.com',
 ///   projectSecretKey: 'slk_...',
 /// );
@@ -73,7 +73,7 @@ class BatchResult {
 /// `POST /v1/logs`. Sends are serialized through a single chained future the
 /// way `AsyncFileOutput` serializes writes, so two batches are never in
 /// flight at once and their order is the order they were logged in.
-class HttpLogOutput {
+class RemoteSyncLogOutput {
   /// Base URL of the server; `/v1/logs` is appended.
   final String serverUrl;
 
@@ -161,7 +161,7 @@ class HttpLogOutput {
   /// A [sender] replaces the HTTP transport entirely — it exists so the
   /// batching, retry and eviction behaviour can be driven in tests without a
   /// socket, and a caller who supplies one owns its lifetime.
-  factory HttpLogOutput({
+  factory RemoteSyncLogOutput({
     required String serverUrl,
     required String projectSecretKey,
     int batchSize = 50,
@@ -178,7 +178,7 @@ class HttpLogOutput {
     // documented as the server's base URL, and a test seam is not a reason
     // for it to hold something that is not one.
     final endpoint = _logsEndpoint(serverUrl);
-    return HttpLogOutput._(
+    return RemoteSyncLogOutput._(
       serverUrl: serverUrl,
       projectSecretKey: projectSecretKey,
       batchSize: batchSize,
@@ -200,7 +200,7 @@ class HttpLogOutput {
     );
   }
 
-  HttpLogOutput._({
+  RemoteSyncLogOutput._({
     required this.serverUrl,
     required this.projectSecretKey,
     required this.batchSize,
@@ -304,7 +304,7 @@ class HttpLogOutput {
   }
 
   static void _reportToStderr(String message) {
-    stderr.writeln('structured_log_http: $message');
+    stderr.writeln('structured_log_remote_sync: $message');
   }
 
   /// Enqueues [entry]. Returns immediately — this is the whole point of the

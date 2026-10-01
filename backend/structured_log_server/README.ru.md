@@ -154,7 +154,7 @@ curl -s "$BASE/v1/logs?project_id=$PROJECT" -H "Authorization: Bearer $TOKEN"
 ```
 
 Из приложения вместо `curl` используйте
-[`structured_log_http`](../../emb/structured_log_http): он батчит, повторяет
+[`structured_log_remote_sync`](../../emb/structured_log_remote_sync): он батчит, повторяет
 и не блокирует того, кто логировал.
 
 ## Как читать аудит

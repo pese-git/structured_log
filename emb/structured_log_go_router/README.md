@@ -12,7 +12,7 @@ every navigation, redirect and routing error — as
 time it settles on a new location, through the sinks you have already
 configured — the console, a file, the in-app log viewer
 (`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_http`. Next to the `bloc` entries from
+`structured_log_remote_sync`. Next to the `bloc` entries from
 `structured_log_bloc` and the `http` ones from `structured_log_dio` /
 `structured_log_http_client`, it answers the first question of most bug
 reports: *which screen was the user on?*

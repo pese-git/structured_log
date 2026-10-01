@@ -268,15 +268,15 @@ jobs:
       - name: Run end-to-end tests
         run: flutter test
 
-  http-sender:
-    name: Analyze & test (structured_log_http)
+  remote-sync:
+    name: Analyze & test (structured_log_remote_sync)
     runs-on: ubuntu-latest
     # Pure Dart, no code generation and no OS-sensitive behaviour: its own
     # job rather than a matrix entry beside structured_log_server, which
     # would drag the build_runner step along for nothing.
     defaults:
       run:
-        working-directory: emb/structured_log_http
+        working-directory: emb/structured_log_remote_sync
 
     steps:
       - uses: actions/checkout@v4
@@ -289,7 +289,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log_http/pubspec.lock') }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log_remote_sync/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
 
@@ -321,12 +321,35 @@ jobs:
         run: |
           dart pub global activate coverage
           dart pub global run coverage:format_coverage --lcov \
-            --in=emb/structured_log_http/coverage \
-            --out=emb/structured_log_http/coverage/lcov.info \
-            --report-on=emb/structured_log_http/lib \
-            --packages=emb/structured_log_http/.dart_tool/package_config.json
-          dart tool/coverage_floor.dart --package structured_log_http \
-            --lcov emb/structured_log_http/coverage/lcov.info
+            --in=emb/structured_log_remote_sync/coverage \
+            --out=emb/structured_log_remote_sync/coverage/lcov.info \
+            --report-on=emb/structured_log_remote_sync/lib \
+            --packages=emb/structured_log_remote_sync/.dart_tool/package_config.json
+          dart tool/coverage_floor.dart --package structured_log_remote_sync \
+            --lcov emb/structured_log_remote_sync/coverage/lcov.info
+
+      # structured_log_http is now only a deprecated forward to this package
+      # (rename-structured-log-http-to-remote-sync). No coverage floor: it
+      # has no executable lines. Both of its dependencies are pointed at the
+      # workspace — the forward it makes is the thing under test.
+      - name: Link the workspace packages into the structured_log_http shim
+        working-directory: emb/structured_log_http
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../structured_log
+            structured_log_remote_sync:
+              path: ../structured_log_remote_sync
+          EOF
+
+      - name: Check the structured_log_http shim
+        working-directory: emb/structured_log_http
+        run: |
+          dart pub get
+          dart format --set-exit-if-changed .
+          dart analyze
+          dart test
 
   bloc-observer:
     name: Analyze & test (structured_log_bloc)
@@ -352,7 +375,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      # Same reason as the http-sender job: without the override pub
+      # Same reason as the remote-sync job: without the override pub
       # resolves the published structured_log.
       - name: Link the workspace copy of structured_log
         run: |
@@ -413,7 +436,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      # Same reason as the http-sender job: without the override pub
+      # Same reason as the remote-sync job: without the override pub
       # resolves the published structured_log.
       - name: Link the workspace copy of structured_log
         run: |
@@ -474,7 +497,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      # Same reason as the http-sender job: without the override pub
+      # Same reason as the remote-sync job: without the override pub
       # resolves the published structured_log.
       - name: Link the workspace copy of structured_log
         run: |
@@ -536,7 +559,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      # Same reason as the http-sender job: without the override pub
+      # Same reason as the remote-sync job: without the override pub
       # resolves the published structured_log.
       - name: Link the workspace copy of structured_log
         run: |

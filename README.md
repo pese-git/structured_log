@@ -45,11 +45,13 @@ self-hosted server for shipping logs off the device and reading them back.
   example app (`emb/structured_log_cupertino/example/`, web-capable).
   Published on [pub.dev](https://pub.dev/packages/structured_log_cupertino).
 
-- **[`structured_log_http`](emb/structured_log_http/)** — an `HttpLogOutput`
+- **[`structured_log_remote_sync`](emb/structured_log_remote_sync/)** — a `RemoteSyncLogOutput`
   sink that ships log entries to a `structured_log_server` instance over
   HTTP: batching by size or timeout, retry with backoff, a bounded buffer,
   and `flushed` to await delivery before exit. Never blocks the code that
-  logged. Only dependency is `structured_log` itself. *Not yet published.*
+  logged. Only dependency is `structured_log` itself. Formerly
+  `structured_log_http` (`HttpLogOutput`), published under that name as
+  `0.1.0`; that package is discontinued.
 
 - **[`structured_log_bloc`](emb/structured_log_bloc/)** —
   `StructuredLogBlocObserver`, a `BlocObserver` that logs what every bloc
@@ -69,9 +71,7 @@ self-hosted server for shipping logs off the device and reading them back.
   `StructuredLogHttpClient`, the same for `package:http`: a client that
   wraps any `http.Client` and logs every call it passes through, with the
   same entries, levels and redaction as `structured_log_dio`. Response
-  bodies are logged without buffering them. (Not to be confused with
-  `structured_log_http`, which *sends* logs to the server.) *Not yet
-  published.*
+  bodies are logged without buffering them. *Not yet published.*
 
 - **[`structured_log_go_router`](emb/structured_log_go_router/)** —
   `StructuredLogGoRouter`, which logs every `go_router` navigation (location
@@ -112,7 +112,7 @@ self-hosted server for shipping logs off the device and reading them back.
 
 - **[`structured_log_e2e`](packages/e2e/)** — end-to-end tests that run
   the real server as a subprocess and drive it through
-  `structured_log`/`HttpLogOutput` on the way in and the admin client's
+  `structured_log`/`RemoteSyncLogOutput` on the way in and the admin client's
   own repositories/`ApiClient` on the way out, covering the seams unit
   and integration tests each stop short of. Not published — a test
   harness, not a library.
@@ -121,7 +121,7 @@ self-hosted server for shipping logs off the device and reading them back.
 
 Packages are grouped by top-level category, each listed by its full path
 in [melos.yaml](melos.yaml): `emb/` for libraries meant to be embedded in
-another app (`structured_log` and its log-viewer skins, `structured_log_http`,
+another app (`structured_log` and its log-viewer skins, `structured_log_remote_sync`,
 `structured_log_bloc`, `structured_log_dio`, `structured_log_http_client`,
 `structured_log_go_router`, `structured_log_cherrypick`),
 `backend/` for standalone server apps (`structured_log_server`), `frontend/`
@@ -178,7 +178,7 @@ void main() {
 Shipping those entries to a server instead of (or alongside) the console:
 
 ```dart
-final output = HttpLogOutput(
+final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',
 );

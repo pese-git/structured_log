@@ -34,7 +34,7 @@ platform or ELK).
 flowchart LR
     subgraph App["Logging application"]
         SL["structured_log\n(existing, unchanged)"]
-        HTTP["structured_log_http\nHttpLogOutput"]
+        HTTP["structured_log_remote_sync\nHttpLogOutput"]
         SL --> HTTP
     end
 
@@ -61,8 +61,8 @@ flowchart LR
   [rbac-and-lifecycle.md](rbac-and-lifecycle.md),
   [live-streaming.md](live-streaming.md), and
   [quotas-and-audit.md](quotas-and-audit.md) for its sub-areas.
-- **`structured_log_http`** (`emb/`) — a thin client package. Its only
-  dependency is `structured_log` (decision 5); it adds `HttpLogOutput`,
+- **`structured_log_remote_sync`** (`emb/`) — a thin client package. Its only
+  dependency is `structured_log` (decision 5); it adds `RemoteSyncLogOutput`,
   an `OutputFunction` that batches and ships log entries to the server
   over `POST /v1/logs`, authenticated by a project's secret key. Any
   application already using `structured_log` opts in by plugging this
@@ -83,7 +83,7 @@ None of the four share Dart code with each other beyond `structured_log`
 itself, except `structured_log_admin_client` → `structured_log_admin_ui`
 (one-way) — `structured_log_server` and `structured_log_admin_client`
 communicate only over the documented HTTP/JSON contract (decision 19),
-and `structured_log_http` only knows the wire format of `POST /v1/logs`,
+and `structured_log_remote_sync` only knows the wire format of `POST /v1/logs`,
 not the server's internals.
 
 ## Request flow, end to end
@@ -91,7 +91,7 @@ not the server's internals.
 ```mermaid
 sequenceDiagram
     participant App as Logging app
-    participant HTTP as HttpLogOutput
+    participant HTTP as RemoteSyncLogOutput
     participant Srv as structured_log_server
     participant DB as SQLite/PostgreSQL (drift)
     participant Admin as structured_log_admin_client
@@ -199,7 +199,7 @@ These aren't specific to one capability — they show up repeatedly in
   for the rest of the workspace, which stays codegen-free:
   `structured_log`, `structured_log_flutter`, `structured_log_material`,
   `structured_log_fluent`, `structured_log_cupertino`, and
-  `structured_log_http`. See [technology-stack.md](technology-stack.md)
+  `structured_log_remote_sync`. See [technology-stack.md](technology-stack.md)
   for the full stack.
 - **One process, no premature scaling — but not one connection anymore.**
   Everything still runs in a single process, and cross-isolate *request

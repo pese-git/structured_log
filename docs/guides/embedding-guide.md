@@ -36,7 +36,7 @@ Several packages, and you only need as many of them as your project does:
    [`structured_log_cherrypick`](#7-optional-log-the-di-container-structured_log_cherrypick),
    for apps wired with `cherrypick`.
 7. **Also ship those logs to a server** —
-   [`structured_log_http`](#8-optional-also-ship-logs-to-a-server), a
+   [`structured_log_remote_sync`](#8-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -278,8 +278,6 @@ await client.get(Uri.parse('https://api.example.com/items'));
 buffered — it reaches your code as it arrives — and the response entry is
 written once the body has been read; see the package's
 [README](../../emb/structured_log_http_client/README.md#what-gets-logged).
-Not to be confused with `structured_log_http` in the next section, which
-*sends* logs to a server.
 
 ## 6. Optional: log navigation: `structured_log_go_router`
 
@@ -345,19 +343,19 @@ report.
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,
 shared across a team, retained on a schedule),
-[`structured_log_http`](../../emb/structured_log_http/) is a `LogSink`
+[`structured_log_remote_sync`](../../emb/structured_log_remote_sync/) is a `LogSink`
 output that ships entries to a `structured_log_server` instance over
-HTTP, batched with retry and a bounded buffer:
+HTTP, batched with retry and a bounded buffer (formerly `structured_log_http`
+with `HttpLogOutput` — same behaviour under the new names):
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.0
-  structured_log_http:
-    path: ../structured_log_http   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+  structured_log: ^0.2.1
+  structured_log_remote_sync: ^0.1.0
 ```
 
 ```dart
-final output = HttpLogOutput(
+final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',
 );
@@ -387,7 +385,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.md),
   [`structured_log_go_router`](../../emb/structured_log_go_router/README.md),
   [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/README.md),
-  [`structured_log_http`](../../emb/structured_log_http/README.md).
+  [`structured_log_remote_sync`](../../emb/structured_log_remote_sync/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:
   the ingestion HTTP endpoint directly, querying logs back out,
   live-tailing programmatically, and authenticating as a person.
