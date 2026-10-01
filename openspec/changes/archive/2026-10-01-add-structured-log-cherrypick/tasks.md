@@ -10,7 +10,7 @@
 - [x] 2.1 `melos.yaml`: пакет в `packages:` и в scope `test:dart`
 - [x] 2.2 CI-джоба `cherrypick-observer` (форма `http-client` + второй прогон на `cherrypick` 4.x, decision 5)
 - [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — 97 при измеренных 100 % (53/53)
-- [ ] 2.4 CI зелёный на GitHub Actions
+- [x] 2.4 CI зелёный на GitHub Actions — все проверки [#91](https://github.com/pese-git/structured_log/pull/91), включая новую джобу `cherrypick-observer` с прогоном на `cherrypick` 4.x; влит squash'ем в `7b92d45`
 
 ## 3. Документация
 

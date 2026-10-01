@@ -88,7 +88,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   дословными копиями — в сервере (`di/container_setup.dart`) и admin-клиенте
   (`shared/di/structured_log_observer.dart`); **обе копии пока на месте**, перевод их на пакет —
   отдельный шаг. Чистый Dart, `cherrypick` 3.x и 4.x, не опубликован (`0.1.0-dev.0`),
-  [openspec/changes/add-structured-log-cherrypick/](openspec/changes/add-structured-log-cherrypick/).
+  [openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/](openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/), основная спека — [openspec/specs/cherrypick-log-observer/](openspec/specs/cherrypick-log-observer/spec.md).
 
 Плюс один пакет в `backend/`:
 
