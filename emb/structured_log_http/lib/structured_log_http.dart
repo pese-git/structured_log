@@ -5,7 +5,7 @@
 ///
 /// ```yaml
 /// dependencies:
-///   structured_log_remote_sync: ^0.1.0
+///   structured_log_remote_sync: ^0.2.0
 /// ```
 ///
 /// ```dart

@@ -17,7 +17,7 @@
 
    ```yaml
    dependencies:
-     structured_log_remote_sync: ^0.1.0   # было: structured_log_http
+     structured_log_remote_sync: ^0.2.0   # было: structured_log_http
    ```
 
 2. В коде:
