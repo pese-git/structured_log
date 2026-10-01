@@ -29,8 +29,8 @@ Dart- или Flutter-приложение. Здесь ничто не обращ
    [`structured_log_bloc`](#4-опционально-логировать-блоки-structured_log_bloc),
    `BlocObserver` для приложений на `bloc`/`flutter_bloc`.
 4. **Писать в лог HTTP-вызовы** —
-   [`structured_log_dio`](#5-опционально-логировать-http-вызовы-structured_log_dio),
-   перехватчик для приложений, которые ходят на свой бэкенд через `dio`.
+   [`structured_log_dio` или `structured_log_http_client`](#5-опционально-логировать-http-вызовы),
+   для приложений, которые ходят на свой бэкенд через `dio` или `package:http`.
 5. **Ещё и доставлять эти логи на сервер** —
    [`structured_log_http`](#6-опционально-доставлять-логи-и-на-сервер),
    тонкий add-on поверх `LogSink`; кратко описан здесь, подробно — в
@@ -216,7 +216,14 @@ Bloc.observer = StructuredLogBlocObserver();
 [README](../../emb/structured_log_bloc/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета; там же перечислены все записи и настройка уровня на каждый хук.
 
-## 5. Опционально: логировать HTTP-вызовы: `structured_log_dio`
+## 5. Опционально: логировать HTTP-вызовы
+
+Два пакета, по одному на HTTP-клиент, с одинаковыми записями
+(`http_request`, затем `http_response` или `http_error`, связанные
+`http_request_id`), одинаковыми уровнями по статусу и одинаковым
+маскированием. Выбирайте тот, что подходит к клиенту приложения.
+
+### `dio`: `structured_log_dio`
 
 Если приложение ходит на свой бэкенд через [`dio`](https://pub.dev/packages/dio),
 [`structured_log_dio`](../../emb/structured_log_dio/) пишет каждый запрос и
@@ -242,6 +249,34 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
 включать тела для вызовов входа или выдачи токенов, см.
 [README](../../emb/structured_log_dio/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
+
+### `package:http`: `structured_log_http_client`
+
+Перехватчиков у `package:http` нет, поэтому
+[`structured_log_http_client`](../../emb/structured_log_http_client/) — это
+клиент-обёртка над тем, которым вы уже пользуетесь (`IOClient`,
+`BrowserClient`, `cupertino_http`, `RetryClient`), и он пишет каждый
+проходящий через него вызов:
+
+```yaml
+dependencies:
+  structured_log: ^0.2.1
+  structured_log_http_client:
+    path: ../structured_log_http_client   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+```
+
+```dart
+final client = StructuredLogHttpClient(http.Client());
+await client.get(Uri.parse('https://api.example.com/items'));
+```
+
+`package:http` не бросает исключений из-за статуса, поэтому 404 — это
+`http_response` на уровне `warning`. При включённом `logResponseBody` тело
+не буферизуется — оно доходит до вашего кода по мере поступления, — а
+запись об ответе пишется, когда тело прочитано; см.
+[README](../../emb/structured_log_http_client/README.ru.md#что-пишется-в-лог)
+пакета. Не путать с `structured_log_http` из следующего раздела — тот
+*отправляет* логи на сервер.
 
 ## 6. Опционально: доставлять логи и на сервер
 
@@ -288,6 +323,7 @@ StructlogConfiguration.configure(sinks: [
   [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.ru.md),
   [`structured_log_bloc`](../../emb/structured_log_bloc/README.ru.md),
   [`structured_log_dio`](../../emb/structured_log_dio/README.ru.md),
+  [`structured_log_http_client`](../../emb/structured_log_http_client/README.ru.md),
   [`structured_log_http`](../../emb/structured_log_http/README.ru.md).
 - [Руководство разработчика](developer-guide.ru.md) — когда в дело
   вступает сервер: эндпоинт приёма по HTTP напрямую, запрос логов

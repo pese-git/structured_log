@@ -38,7 +38,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Восемь пакетов в `emb/`:
+Девять пакетов в `emb/`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -70,6 +70,12 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются. Чистый Dart,
   не опубликован (`0.1.0-dev.0`),
   [openspec/changes/archive/2026-10-01-add-structured-log-dio/](openspec/changes/archive/2026-10-01-add-structured-log-dio/), основная спека — [openspec/specs/dio-log-interceptor/](openspec/specs/dio-log-interceptor/spec.md).
+- [emb/structured_log_http_client/](emb/structured_log_http_client/) — `StructuredLogHttpClient`: то же для
+  `package:http` — клиент-обёртка над любым `http.Client` с теми же записями, уровнями и маскированием,
+  что у `structured_log_dio`. **Не путать с `structured_log_http`**: тот *отправляет* логи на сервер, этот
+  *логирует* HTTP-вызовы приложения (имя `structured_log_http` было уже занято). Чистый Dart, не
+  опубликован (`0.1.0-dev.0`),
+  [openspec/changes/add-structured-log-http-client/](openspec/changes/add-structured-log-http-client/).
 
 Плюс один пакет в `backend/`:
 
@@ -120,6 +126,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_http/](emb/structured_log_http/) — клиентский HTTP-sender логов (см. ниже).
 - [emb/structured_log_bloc/](emb/structured_log_bloc/) — наблюдатель `bloc`/`flutter_bloc` (см. ниже).
 - [emb/structured_log_dio/](emb/structured_log_dio/) — перехватчик `dio` (см. ниже).
+- [emb/structured_log_http_client/](emb/structured_log_http_client/) — логирующая обёртка `http.Client` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -296,6 +303,30 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   или `describeBody` стоит записи, но не вызова; `handler.next` вызывается всегда.
 - Тесты — на подставном `HttpClientAdapter`, без сокета; `example/main.dart` поднимает свой
   `HttpServer` на loopback, чтобы прогон примера в CI не зависел от сети.
+
+Внутри [emb/structured_log_http_client/](emb/structured_log_http_client/):
+
+- [emb/structured_log_http_client/lib/src/http_client.dart](emb/structured_log_http_client/lib/src/http_client.dart) —
+  `StructuredLogHttpClient extends http.BaseClient`, `HttpLogLevels`, `describeHttpBody`, наборы
+  маскирования — те же значения, что в `structured_log_dio`, **своей копией**: общего пакета у двух
+  обёрток нет, и ни одна не тянет клиент другой. Правка правил маскирования — в обоих местах.
+- **Перехватчиков у `package:http` нет — отсюда обёртка.** Любой статус приходит ответом, а не
+  исключением, поэтому 4xx/5xx — это `http_response` с уровнем по статусу; `http_error` — только когда
+  внутренний клиент бросил, тело оборвалось или запрос прерван (`RequestAbortedException` → уровень
+  `cancel`; поэтому `http: ^1.5.0`).
+- **Тело ответа не буферизуется.** При `logResponseBody` ответ отдаётся новым `StreamedResponse` поверх
+  `StreamController`, который пропускает куски читателю и копит начало (до `4 × 1000` байт — UTF-8
+  до четырёх байт на символ); запись `http_response` пишется на конце потока, на ошибке или когда
+  читатель отписался. Следствие: незачитанный ответ (открытый SSE) пишется только при отписке, а подтип
+  клиента (`IOStreamedResponse.detachSocket`) теряется. `BaseResponseWithUrl.url` сохраняется своим
+  приватным классом — `StreamedResponseV2` из `http` не экспортируется. **`MockClient` сам перепаковывает
+  ответ и теряет `url`**, поэтому тест на `url` идёт через свой `BaseClient`.
+- **Тело описывается внутри защищённого построителя записи**, а не до него: в первой редакции бросающий
+  `describeBody` при `logResponseBody` терял всю запись `http_response`, а не только тело — поймано тестом.
+- Мутацией проверены пять мест: маскирование query и заголовков, уровень `cancel` для прерывания, запись
+  при досрочной отписке, захват тела.
+- Тесты — на `MockClient` из `package:http/testing.dart`; `example/main.dart` — на настоящем `IOClient`
+  против своего `HttpServer` на loopback.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -926,6 +957,8 @@ dart run example/main.dart
   (`setup-dart`, свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze/тесты с
   покрытием), плюс прогон `dart run example/main.dart`. Чистый Dart — в Flutter-матрицу не входит.
 - `dio-interceptor` — для `emb/structured_log_dio/`, та же форма, что `bloc-observer`.
+- `http-client` — для `emb/structured_log_http_client/`, та же форма (не путать с `http-sender`, джобой
+  `structured_log_http`).
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -1029,6 +1062,7 @@ dart run example/main.dart
    [emb/structured_log_material/](emb/structured_log_material/README.md), [emb/structured_log_fluent/](emb/structured_log_fluent/README.md),
    [emb/structured_log_cupertino/](emb/structured_log_cupertino/README.md),
    [emb/structured_log_bloc/](emb/structured_log_bloc/README.md),
-   [emb/structured_log_dio/](emb/structured_log_dio/README.md))
+   [emb/structured_log_dio/](emb/structured_log_dio/README.md),
+   [emb/structured_log_http_client/](emb/structured_log_http_client/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.
