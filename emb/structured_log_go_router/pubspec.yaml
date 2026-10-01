@@ -4,6 +4,7 @@ description: >-
   routing error as structured_log entries, with token-like query parameters
   in the location redacted.
 version: 0.1.0-dev.0
+homepage: https://structured-log.openidealab.com
 repository: https://github.com/pese-git/structured_log.git
 topics:
   - logging
