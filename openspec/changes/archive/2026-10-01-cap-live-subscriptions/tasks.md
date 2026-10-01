@@ -27,4 +27,4 @@
 - [x] 5.1 `dart analyze`, `dart format --set-exit-if-changed`, `dart test --exclude-tags postgres` for `structured_log_server`.
 - [x] 5.2 Exercise it against a running server: two subscriptions fill an account's ceiling of two, the third is `429 too_many_subscriptions` with `details` naming both limits, and a disconnect returns the place.
 - [x] 5.2a Chase down what that run first looked like. With the default heartbeat the place did not come back within a second, which reads exactly like the counter leak this design is built to avoid. It is not: TCP does not tell the server a client is gone, so the server finds out on its next write to the socket. Re-run with a one-second heartbeat — the place came back in 1.0 s. Written down in the limiter's doc comment, the spec and the configuration reference, because the number alone promises more than it delivers.
-- [ ] 5.3 CI green on every job.
+- [x] 5.3 CI green on every job. Green 18/18 on #62 (merged 24.09.2026).

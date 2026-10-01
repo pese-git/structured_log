@@ -46,4 +46,4 @@
 - [x] 7.1 `packages/e2e`: обход списков страницами через настоящий сервер и репозитории клиента.
 - [x] 7.2 `docs/api/http-api.md`/`.ru.md`: общий раздел про пагинацию (`limit`, предел, `next_cursor`, ошибки), пометка о ломающем изменении `GET /v1/groups`/`/v1/projects`.
 - [x] 7.3 `AGENTS.md`: абзац о контракте пагинации и о том, что небольшие списки намеренно не пагинируются, с условиями пересмотра из `design.md`.
-- [ ] 7.4 `dart analyze`, `dart format --set-exit-if-changed`, `dart test`/`flutter test` по затронутым пакетам; CI зелёный на всех джобах.
+- [x] 7.4 `dart analyze`, `dart format --set-exit-if-changed`, `dart test`/`flutter test` по затронутым пакетам; CI зелёный на всех джобах. Зелёный 17/17 на #12 (смержен 19.09.2026).
