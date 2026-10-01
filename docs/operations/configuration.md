@@ -133,7 +133,7 @@ pass today.
 |---|---|---|---|
 | HTTP host | `--http-host` | `0.0.0.0` | |
 | HTTP port | `--http-port` | `8080` | |
-| Storage backend | `--db-backend` | `sqlite` | `sqlite` or `postgres`, operator's choice at deploy time — never switched at runtime ([add-postgres-backend](../../openspec/changes/add-postgres-backend/design.md)) |
+| Storage backend | `--db-backend` | `sqlite` | `sqlite` or `postgres`, operator's choice at deploy time — never switched at runtime ([add-postgres-backend](../../openspec/changes/archive/2026-10-01-add-postgres-backend/design.md)) |
 | Database file | `--db-path` | — | Required for every command, `create-admin` included, only when `--db-backend=sqlite` (the default) |
 | PostgreSQL host | `--db-postgres-host` | — | Required for every command when `--db-backend=postgres` |
 | PostgreSQL port | `--db-postgres-port` | `5432` | |
@@ -161,7 +161,7 @@ pass today.
 | Bucket capacity / refill | `--rate-limit-bucket-capacity`, `--rate-limit-refill-per-minute` | `10` / `10` | One capacity, shared by the IP bucket (spent on every request) and the subject bucket (spent on failures only, refilled on success) — there is no separate per-kind setting |
 | Limiter key ceiling | `--rate-limit-max-keys` | `10000` | LRU eviction above it |
 | Trusted proxy hops | `--trusted-proxy-hops` | `0` | `0` = ignore `X-Forwarded-For` entirely |
-| CORS allowed origins | `--cors-allowed-origins` | unset | Comma-separated exact origins; unset/empty = no CORS headers at all ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
+| CORS allowed origins | `--cors-allowed-origins` | unset | Comma-separated exact origins; unset/empty = no CORS headers at all ([log-server-api](../../openspec/changes/archive/2026-10-01-add-server-cors/specs/log-server-api/spec.md)) |
 | Refresh token in a cookie | `--refresh-token-cookie` | `auto` | `auto` sets an `HttpOnly; Secure; SameSite=Strict` cookie unless the request `Origin` is listed above; `on` always sets it (for a client on another origin of the same site, e.g. `admin.example.com` beside `api.example.com`); `off` never does. **Needs HTTPS for anything but `localhost`** — a browser drops a `Secure` cookie over plain HTTP without saying so, and the symptom is a session that returns to the sign-in screen about fifteen minutes after a successful login ([log-server-config](../../openspec/changes/archive/2026-09-29-add-refresh-token-cookie/specs/log-server-config/spec.md)) |
 | Audit retention | `--audit-retention-days` | unset | Unset = keep forever ([quotas-and-audit.md](../architecture/quotas-and-audit.md)) |
 | Auth-event retention | `--auth-event-retention-days` | unset | Separate from the above on purpose |
@@ -194,7 +194,7 @@ Fixed, not configurable — recorded here because they decide what a crash or a 
 PostgreSQL server — an opt-in alternative to the default SQLite file, not
 a replacement for it. Nothing observable through the HTTP API changes
 between the two; the choice is purely operational (design rationale:
-[add-postgres-backend](../../openspec/changes/add-postgres-backend/design.md)).
+[add-postgres-backend](../../openspec/changes/archive/2026-10-01-add-postgres-backend/design.md)).
 
 - **Connection**, not a file path: `--db-postgres-host`/`-port`/`-database`/`-username`
   plus the `STRUCTURED_LOG_DB_POSTGRES_PASSWORD`/`…_FILE` secret (same

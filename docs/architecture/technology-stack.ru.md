@@ -42,7 +42,7 @@
 настоящего Postgres (зависание при остановке из-за незакрытого пула
 соединений, и необходимость `--concurrency=1` для Postgres-тегированных
 тестовых файлов) — лежит в
-[openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/).
+[openspec/changes/archive/2026-10-01-add-postgres-backend/](../../openspec/changes/archive/2026-10-01-add-postgres-backend/).
 
 ## `structured_log_http`
 

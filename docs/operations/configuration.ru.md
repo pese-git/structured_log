@@ -133,7 +133,7 @@ dart run bin/server.dart --print-config
 |---|---|---|---|
 | HTTP host | `--http-host` | `0.0.0.0` | |
 | HTTP порт | `--http-port` | `8080` | |
-| Backend хранилища | `--db-backend` | `sqlite` | `sqlite` или `postgres`, выбор оператора на момент развёртывания — никогда не переключается на лету ([add-postgres-backend](../../openspec/changes/add-postgres-backend/design.md)) |
+| Backend хранилища | `--db-backend` | `sqlite` | `sqlite` или `postgres`, выбор оператора на момент развёртывания — никогда не переключается на лету ([add-postgres-backend](../../openspec/changes/archive/2026-10-01-add-postgres-backend/design.md)) |
 | Файл базы | `--db-path` | — | Обязателен для любой команды, включая `create-admin`, только при `--db-backend=sqlite` (по умолчанию) |
 | Хост PostgreSQL | `--db-postgres-host` | — | Обязателен для любой команды при `--db-backend=postgres` |
 | Порт PostgreSQL | `--db-postgres-port` | `5432` | |
@@ -161,7 +161,7 @@ dart run bin/server.dart --print-config
 | Ёмкость ведра / пополнение | `--rate-limit-bucket-capacity`, `--rate-limit-refill-per-minute` | `10` / `10` | Одна ёмкость, общая для ведра IP (списывается на каждом запросе) и ведра субъекта (списывается только на неудачах, восстанавливается успехом) — отдельной настройки на каждый вид нет |
 | Предел числа ключей | `--rate-limit-max-keys` | `10000` | Сверх него — LRU-вытеснение |
 | Доверенных прокси | `--trusted-proxy-hops` | `0` | `0` = `X-Forwarded-For` игнорируется полностью |
-| Разрешённые CORS-origin | `--cors-allowed-origins` | не задано | Список точных origin через запятую; не задано/пусто = CORS-заголовков нет вообще ([log-server-api](../../openspec/changes/add-server-cors/specs/log-server-api/spec.md)) |
+| Разрешённые CORS-origin | `--cors-allowed-origins` | не задано | Список точных origin через запятую; не задано/пусто = CORS-заголовков нет вообще ([log-server-api](../../openspec/changes/archive/2026-10-01-add-server-cors/specs/log-server-api/spec.md)) |
 | Refresh-токен в cookie | `--refresh-token-cookie` | `auto` | `auto` ставит cookie `HttpOnly; Secure; SameSite=Strict`, если `Origin` запроса не перечислен строкой выше; `on` ставит всегда (для клиента на другом origin того же site — например, `admin.example.com` рядом с `api.example.com`); `off` не ставит никогда. **Требует HTTPS для всего, кроме `localhost`** — `Secure`-cookie браузер отбрасывает по обычному HTTP молча, и симптом выглядит так: вход прошёл, а минут через пятнадцать снова экран входа ([log-server-config](../../openspec/changes/archive/2026-09-29-add-refresh-token-cookie/specs/log-server-config/spec.md)) |
 | Хранение аудита | `--audit-retention-days` | не задано | Не задано = хранить вечно ([quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | Хранение auth-событий | `--auth-event-retention-days` | не задано | Отделено от предыдущего намеренно |
@@ -194,7 +194,7 @@ dart run bin/server.dart --print-config
 оператором сервер PostgreSQL — осознанная альтернатива дефолтному
 SQLite-файлу, а не его замена. Ничего наблюдаемого через HTTP API между
 двумя вариантами не меняется; выбор чисто эксплуатационный (обоснование
-решения — [add-postgres-backend](../../openspec/changes/add-postgres-backend/design.md)).
+решения — [add-postgres-backend](../../openspec/changes/archive/2026-10-01-add-postgres-backend/design.md)).
 
 - **Подключение, а не путь к файлу**: `--db-postgres-host`/`-port`/`-database`/`-username`
   плюс секрет `STRUCTURED_LOG_DB_POSTGRES_PASSWORD`/`…_FILE` (та же

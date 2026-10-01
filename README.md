@@ -153,10 +153,10 @@ cd site && npm install && npm run dev
 ```
 
 Design and planning history for the Flutter log-viewer packages lives in
-[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
-[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/),
+[openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/),
+[openspec/changes/archive/2026-10-01-add-structured-log-fluent/](openspec/changes/archive/2026-10-01-add-structured-log-fluent/),
 and
-[openspec/changes/add-structured-log-cupertino/](openspec/changes/add-structured-log-cupertino/);
+[openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](openspec/changes/archive/2026-10-01-add-structured-log-cupertino/);
 for the server, its HTTP sender, and the admin client, see
 [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/)
 (why, technical decisions, requirements, task-by-task progress, including the

@@ -23,7 +23,7 @@ apps behave on iPad.
 
 > **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_cupertino)
 > (`0.1.0`). Design/decision history:
-> [openspec/changes/add-structured-log-cupertino/](../../openspec/changes/add-structured-log-cupertino/).
+> [openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](../../openspec/changes/archive/2026-10-01-add-structured-log-cupertino/).
 
 ## Features
 

@@ -180,7 +180,7 @@ Implemented — `--db-backend=postgres` (`StructuredLogDatabase.openPostgres`,
 default SQLite path, not a plan. The full decision record (context,
 alternatives, risks, and every dialect-specific fix found along the way)
 lives in
-[openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/)
+[openspec/changes/archive/2026-10-01-add-postgres-backend/](../../openspec/changes/archive/2026-10-01-add-postgres-backend/)
 (`proposal.md`/`design.md`/`specs/`); this is a summary for readers of
 the architecture, not a replacement for it.
 

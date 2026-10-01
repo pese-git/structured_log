@@ -194,7 +194,7 @@ CI гоняет этот же тег против сервис-контейне�
   `openspec-new-change` разворачивает его каркас; `openspec-apply-change`
   проводит по `tasks.md` раздел за разделом по мере реализации;
   `openspec-archive-change` закрывает его после мёржа.
-  [add-postgres-backend](../../openspec/changes/add-postgres-backend/) —
+  [add-postgres-backend](../../openspec/changes/archive/2026-10-01-add-postgres-backend/) —
   полный, недавний пример, стоящий прочтения от начала до конца — от
   proposal до полностью отмеченного `tasks.md`, включая места, где
   исходный план оказался неверным и был пересмотрен против реальных

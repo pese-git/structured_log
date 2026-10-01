@@ -97,7 +97,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [backend/structured_log_server/](backend/structured_log_server/) — self-hosted сервер приёма/
   хранения/поиска/живой трансляции логов (`shelf`+`shelf_router`, `drift`/SQLite по умолчанию,
   либо PostgreSQL как выбираемая оператором альтернатива — `--db-backend=postgres`,
-  [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/)). Реализованы
+  [openspec/changes/archive/2026-10-01-add-postgres-backend/](openspec/changes/archive/2026-10-01-add-postgres-backend/)). Реализованы
   приём и запрос логов, живой поток (SSE), группы/проекты/секретные ключи, аутентификация и RBAC,
   ограничение частоты, очистка по retention, собственное логирование и аудит (Этап 2), управление
   пользователями — создание/блокировка/удаление, без `email` — команды (группа/участники) и полная
@@ -106,7 +106,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   регистрация, восстановление пароля и подтверждение email — `tasks.md` в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/).
   Отдельно от этих этапов — опциональный, по умолчанию выключенный CORS
-  (`--cors-allowed-origins`, [openspec/changes/add-server-cors/](openspec/changes/add-server-cors/)).
+  (`--cors-allowed-origins`, [openspec/changes/archive/2026-10-01-add-server-cors/](openspec/changes/archive/2026-10-01-add-server-cors/)).
   `publish_to: none` — самостоятельный сервис, не библиотека для встраивания.
 
 В `frontend/` два пакета — `structured_log_admin_ui` (раздел 23; Этап 2 добавил в кит `AdminTable` и
@@ -123,9 +123,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 разработке подставляет `melos bootstrap` через `pubspec_overrides.yaml` (генерируется, не
 коммитится — см. `.gitignore`). Их `example/` остаются `publish_to: none` — демо-приложения
 не публикуются. История и обоснование решений — в
-[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
-[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/) и
-[openspec/changes/add-structured-log-cupertino/](openspec/changes/add-structured-log-cupertino/)
+[openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/),
+[openspec/changes/archive/2026-10-01-add-structured-log-fluent/](openspec/changes/archive/2026-10-01-add-structured-log-fluent/) и
+[openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](openspec/changes/archive/2026-10-01-add-structured-log-cupertino/)
 (`proposal.md`/`design.md`/`specs/`/`tasks.md` — по `tasks.md` можно свериться, что уже сделано).
 
 ## Структура
@@ -760,7 +760,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `close()` — без фикса процесс не завершался по `SIGTERM` (`StructuredLogDatabase._ownedPool` + переопределённый
   `close()`, мутацией подтверждено). Тесты — тег `postgres` (`dart_test.yaml`), обязательно с `--concurrency=1`:
   файлы делят одну физическую базу без пер-файловой изоляции, в отличие от SQLite'шного `NativeDatabase.memory()`.
-  Полная запись решения — [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/).
+  Полная запись решения — [openspec/changes/archive/2026-10-01-add-postgres-backend/](openspec/changes/archive/2026-10-01-add-postgres-backend/).
 - **Типизированный билдер drift тоже расходится по диалектам, и зелёный CI об этом не скажет.** Пункт выше
   перечисляет расхождения там, где SQL написан руками; но их порождает и билдер. `isNotValue` рендерит
   null-safe `IS NOT <value>` — SQLite принимает, PostgreSQL отвергает вовсе (`IS NOT` там берёт только
@@ -956,7 +956,7 @@ dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`dart format .` перед завершением любого изменения).
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
@@ -1003,7 +1003,7 @@ dart run example/main.dart
   диалект-чувствителен, `--concurrency=1` обязателен — Postgres-тегированные
   файлы делят одну физическую базу без пер-файловой изоляции и портят друг
   другу фикстуры на дефолтной параллельности, см.
-  [openspec/changes/add-postgres-backend/](openspec/changes/add-postgres-backend/)) —
+  [openspec/changes/archive/2026-10-01-add-postgres-backend/](openspec/changes/archive/2026-10-01-add-postgres-backend/)) —
   только
   `ubuntu-latest` (сервис самохостится на Linux, ОС-чувствительной ротации
   файлов у него нет). `dart-lang/setup-dart` (канал `stable`), без FVM.

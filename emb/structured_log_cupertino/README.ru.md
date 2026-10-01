@@ -23,7 +23,7 @@ iOS-паттерн «переход в детали» (как в Почте/На
 
 > **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_cupertino)
 > (`0.1.0`). История дизайна и решений:
-> [openspec/changes/add-structured-log-cupertino/](../../openspec/changes/add-structured-log-cupertino/).
+> [openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](../../openspec/changes/archive/2026-10-01-add-structured-log-cupertino/).
 
 ## Возможности
 

@@ -27,6 +27,8 @@
 - **WHEN** список разрешённых origin непуст, но не содержит origin запроса
 - **THEN** ответ не содержит `Access-Control-Allow-Origin`, а `OPTIONS` на реальный маршрут по-прежнему отвечает так, будто маршрута для этого метода нет
 
+## ADDED Requirements
+
 ### Requirement: Развёртывание отдаёт браузеру security-заголовки
 Развёртывание из `deploy/` SHALL отдавать браузерному клиенту `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` и `Permissions-Policy` на каждом ответе, включая ответы с кодом ошибки. Ответы API SHALL нести по меньшей мере `X-Content-Type-Options` и `Referrer-Policy`.
 

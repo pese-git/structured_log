@@ -163,10 +163,10 @@ cd site && npm install && npm run dev
 ```
 
 История дизайна и планирования Flutter-пакетов просмотра логов — в
-[openspec/changes/add-structured-log-flutter/](openspec/changes/add-structured-log-flutter/),
-[openspec/changes/add-structured-log-fluent/](openspec/changes/add-structured-log-fluent/)
+[openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/),
+[openspec/changes/archive/2026-10-01-add-structured-log-fluent/](openspec/changes/archive/2026-10-01-add-structured-log-fluent/)
 и
-[openspec/changes/add-structured-log-cupertino/](openspec/changes/add-structured-log-cupertino/);
+[openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](openspec/changes/archive/2026-10-01-add-structured-log-cupertino/);
 для сервера, его HTTP-sender'а и admin-клиента — в
 [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/)
 (почему, технические решения, требования, прогресс по задачам, включая

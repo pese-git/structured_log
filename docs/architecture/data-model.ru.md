@@ -185,7 +185,7 @@ erDiagram
 дефолтному SQLite-пути, а не план. Полная запись решения (контекст,
 альтернативы, риски и все найденные по ходу дела диалект-специфичные
 фиксы) — в
-[openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/)
+[openspec/changes/archive/2026-10-01-add-postgres-backend/](../../openspec/changes/archive/2026-10-01-add-postgres-backend/)
 (`proposal.md`/`design.md`/`specs/`); это краткое изложение для читателя
 архитектуры, не замена тем документам.
 

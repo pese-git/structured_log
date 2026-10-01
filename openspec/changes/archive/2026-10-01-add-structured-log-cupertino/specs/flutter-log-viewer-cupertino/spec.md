@@ -77,8 +77,6 @@
 - **WHEN** виджет встроен в приложение с `CupertinoThemeData(brightness: Brightness.dark)`
 - **THEN** фон, текст и поверхности виджета соответствуют тёмной теме, а индикаторы уровня лога остаются читаемыми
 
-## MODIFIED Requirements
-
 ### Requirement: Цвет индикатора уровня — единая функция для всех скинов
 `structured_log_flutter` SHALL предоставлять публичную функцию `logLevelColor(LogLevel level, Brightness brightness)`, возвращающую canonical-цвет индикатора для заданного уровня и яркости темы. Каждый UI-скин (`structured_log_material`, `structured_log_fluent`, `structured_log_cupertino`) SHALL использовать эту функцию (напрямую или через реэкспорт из своего barrel-файла) вместо собственной копии палитры, так что цвет одного и того же `LogLevel` одинаков во всех скинах при одинаковой яркости темы.
 

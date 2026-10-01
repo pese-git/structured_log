@@ -186,7 +186,7 @@ first thing to work out, not an afterthought:
   The `openspec-new-change` skill scaffolds it; `openspec-apply-change`
   walks `tasks.md` section by section as you implement;
   `openspec-archive-change` closes it out once merged.
-  [add-postgres-backend](../../openspec/changes/add-postgres-backend/)
+  [add-postgres-backend](../../openspec/changes/archive/2026-10-01-add-postgres-backend/)
   is a complete, recent example worth reading end to end — proposal
   through a fully checked-off `tasks.md`, including places the original
   plan turned out to be wrong and was revised against real evidence.

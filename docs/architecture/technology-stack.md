@@ -41,7 +41,7 @@ database. The full decision record — including two bugs found only by
 running a real server against real Postgres (a shutdown hang from an
 unclosed connection pool, and Postgres-tagged test files needing
 `--concurrency=1`) — lives in
-[openspec/changes/add-postgres-backend/](../../openspec/changes/add-postgres-backend/).
+[openspec/changes/archive/2026-10-01-add-postgres-backend/](../../openspec/changes/archive/2026-10-01-add-postgres-backend/).
 
 ## `structured_log_http`
 
