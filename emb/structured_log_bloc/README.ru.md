@@ -11,7 +11,7 @@
 `StructuredLogBlocObserver` — обычный `BlocObserver`: достаточно поставить его
 в `Bloc.observer`, и каждый блок приложения пишет в уже настроенные выводы —
 консоль, файл, встроенный просмотрщик логов (`structured_log_flutter`) или
-`structured_log_server` через `structured_log_http`.
+`structured_log_server` через `structured_log_remote_sync`.
 
 ## Возможности
 
@@ -98,7 +98,7 @@ DEBUG: bloc_transition  {"category":"bloc","bloc":"CounterBloc","bloc_instance":
 
 **По умолчанию состояния и события пишутся через `toString()`** (с обрезкой
 до 1000 символов). Если в них бывают пароли, токены или персональные данные —
-тем более если лог уходит с устройства через `structured_log_http`, —
+тем более если лог уходит с устройства через `structured_log_remote_sync`, —
 передайте `describe`, который их скрывает. Возврат `null` убирает значение,
 но оставляет его тип:
 

@@ -17,7 +17,7 @@ need to know:
 
 1. **Ship logs to the server** — a Dart app uses
    [`structured_log`](#logging-with-structured_log) plus
-   [`structured_log_http`](#sending-logs-to-the-server); anything else
+   [`structured_log_remote_sync`](#sending-logs-to-the-server); anything else
    speaks the [ingestion HTTP endpoint](#from-any-other-language)
    directly.
 2. **Read logs back out programmatically** — [query](#querying-logs)
@@ -62,18 +62,20 @@ routing, file/rotating-file output — in
 
 ## Sending logs to the server
 
-### From a Dart app: `structured_log_http`
+### From a Dart app: `structured_log_remote_sync`
 
-[`structured_log_http`](../../emb/structured_log_http/) is an ordinary
+[`structured_log_remote_sync`](../../emb/structured_log_remote_sync/) is an ordinary
 `OutputFunction` — it plugs into a `LogSink` with no change to how you
 call `structured_log` above, and it never blocks the calling code:
-entries are queued and shipped on a background future.
+entries are queued and shipped on a background future. It was published as
+`structured_log_http` (with `HttpLogOutput`) before the rename; that package is
+discontinued and only forwards here.
 
 ```dart
 import 'package:structured_log/structured_log.dart';
-import 'package:structured_log_http/structured_log_http.dart';
+import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
 
-final output = HttpLogOutput(
+final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',    // from an owner/admin, see below
 );
@@ -116,7 +118,7 @@ What you get for free:
   itself fail.
 
 Full parameter reference:
-[`emb/structured_log_http/README.md`](../../emb/structured_log_http/README.md).
+[`emb/structured_log_remote_sync/README.md`](../../emb/structured_log_remote_sync/README.md).
 
 Keep a console sink alongside the server sink during development — each
 filters independently, so you see everything locally while only
@@ -183,7 +185,7 @@ configured size limit (`413`, whole batch).
 floor on batch size, but each request has fixed overhead independent of
 how many entries it carries — an application generating more than a
 handful of log lines a second should accumulate and send them together,
-which is exactly what `structured_log_http` does automatically if
+which is exactly what `structured_log_remote_sync` does automatically if
 you're in Dart.
 
 ## Querying logs
@@ -398,7 +400,7 @@ Full catalog, every status/code pair and where each can occur:
 
 ## Embedding a live viewer in a Flutter app
 
-Unrelated to `structured_log_http` above and entirely local, no server
+Unrelated to `structured_log_remote_sync` above and entirely local, no server
 involved — see the [Embedding Guide](embedding-guide.md#2-a-headless-viewer-core-structured_log_flutter)
 for the three ready-made viewer skins. You can use one, the other, both
 together (mirror the same entries to a local in-app viewer *and* ship

@@ -16,7 +16,7 @@ import 'package:structured_log_admin_client/shared/api/dto/auth_dto.dart';
 import 'package:structured_log_admin_client/shared/auth/token_pair.dart';
 import 'package:structured_log_admin_client/shared/auth/token_storage.dart';
 import 'package:structured_log_admin_client/shared/config/app_config.dart';
-import 'package:structured_log_http/structured_log_http.dart';
+import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
 
 import 'harness.dart';
 
@@ -282,7 +282,7 @@ void main() {
   );
 
   test('an entry logged by the library is read back by the client', () async {
-    final output = HttpLogOutput(
+    final output = RemoteSyncLogOutput(
       serverUrl: server.baseUrl,
       projectSecretKey: secretKey,
       // Small, so the test does not wait out a batching window.
@@ -349,7 +349,7 @@ void main() {
     // instead and prove nothing about the live path.
     await Future<void>.delayed(const Duration(milliseconds: 500));
 
-    final output = HttpLogOutput(
+    final output = RemoteSyncLogOutput(
       serverUrl: server.baseUrl,
       projectSecretKey: secretKey,
       batchSize: 1,
@@ -405,7 +405,7 @@ void main() {
     expect(revoked.isRight(), isTrue);
 
     final rejected = <String>[];
-    final output = HttpLogOutput(
+    final output = RemoteSyncLogOutput(
       serverUrl: server.baseUrl,
       projectSecretKey: secretKey,
       batchSize: 1,

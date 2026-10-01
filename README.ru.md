@@ -50,12 +50,13 @@ Monorepo на Melos + FVM для структурированного логир
   (`emb/structured_log_cupertino/example/`, умеет в web). Опубликован на
   [pub.dev](https://pub.dev/packages/structured_log_cupertino).
 
-- **[`structured_log_http`](emb/structured_log_http/)** — синк
-  `HttpLogOutput`, отправляющий записи лога на сервер `structured_log_server`
+- **[`structured_log_remote_sync`](emb/structured_log_remote_sync/)** — синк
+  `RemoteSyncLogOutput`, отправляющий записи лога на сервер `structured_log_server`
   по HTTP: батчинг по размеру или таймауту, retry с backoff, ограниченный
   буфер и `flushed`, чтобы дождаться доставки перед выходом. Никогда не
   блокирует вызывающий код. Единственная зависимость —
-  `structured_log`. *Пока не опубликован.*
+  `structured_log`. Раньше назывался `structured_log_http` (`HttpLogOutput`)
+  и под этим именем опубликован как `0.1.0`; тот пакет больше не развивается.
 
 - **[`structured_log_bloc`](emb/structured_log_bloc/)** —
   `StructuredLogBlocObserver`, `BlocObserver`, который пишет всё, что делают
@@ -75,9 +76,7 @@ Monorepo на Melos + FVM для структурированного логир
   `StructuredLogHttpClient`, то же для `package:http`: клиент-обёртка над
   любым `http.Client`, который пишет каждый проходящий через него вызов с
   теми же записями, уровнями и маскированием, что `structured_log_dio`.
-  Тело ответа пишется без буферизации. (Не путать с
-  `structured_log_http`, который *отправляет* логи на сервер.) *Пока не
-  опубликован.*
+  Тело ответа пишется без буферизации. *Пока не опубликован.*
 
 - **[`structured_log_go_router`](emb/structured_log_go_router/)** —
   `StructuredLogGoRouter`, который пишет каждую навигацию `go_router`
@@ -122,7 +121,7 @@ Monorepo на Melos + FVM для структурированного логир
 
 - **[`structured_log_e2e`](packages/e2e/)** — сквозные тесты, которые
   поднимают настоящий сервер отдельным процессом и гоняют через него всю
-  цепочку: `structured_log`/`HttpLogOutput` на входе,
+  цепочку: `structured_log`/`RemoteSyncLogOutput` на входе,
   репозитории/`ApiClient` admin-клиента на выходе — покрывают швы, до
   которых не достают ни юнит-, ни интеграционные тесты по отдельности.
   Не публикуется — тестовый харнесс, а не библиотека.
@@ -132,7 +131,7 @@ Monorepo на Melos + FVM для структурированного логир
 Пакеты сгруппированы по категориям верхнего уровня, каждая перечислена по
 полному пути в [melos.yaml](melos.yaml): `emb/` — встраиваемые в чужое
 приложение библиотеки (`structured_log` и скины просмотрщика логов,
-`structured_log_http`, `structured_log_bloc`, `structured_log_dio`,
+`structured_log_remote_sync`, `structured_log_bloc`, `structured_log_dio`,
 `structured_log_http_client`, `structured_log_go_router`,
 `structured_log_cherrypick`), `backend/` — самостоятельные серверные приложения
 (`structured_log_server`), `frontend/` — самостоятельные клиентские
@@ -188,7 +187,7 @@ void main() {
 Отправка этих записей на сервер — вместо консоли или вместе с ней:
 
 ```dart
-final output = HttpLogOutput(
+final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',
 );

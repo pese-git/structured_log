@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:structured_log/structured_log.dart';
-import 'package:structured_log_http/structured_log_http.dart';
+import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
 import 'package:test/test.dart';
 
 /// Records what it was asked to send and answers however the test says.
@@ -55,7 +55,7 @@ void main() {
   group('OutputFunction contract', () {
     test('plugs into a LogSink and queues what the logger produces', () async {
       final sender = FakeSender();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -79,7 +79,7 @@ void main() {
   group('non-blocking delivery', () {
     test('logging returns before a slow send completes', () async {
       final release = Completer<void>();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -111,7 +111,7 @@ void main() {
   group('batching', () {
     test('sends as soon as batchSize entries are waiting', () async {
       final sender = FakeSender();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 3,
@@ -130,7 +130,7 @@ void main() {
 
     test('a partial batch goes out when the timeout elapses', () async {
       final sender = FakeSender();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 100,
@@ -146,7 +146,7 @@ void main() {
 
     test('an idle output sends nothing', () async {
       final sender = FakeSender();
-      HttpLogOutput(
+      RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchTimeout: const Duration(milliseconds: 20),
@@ -161,7 +161,7 @@ void main() {
       var inFlight = 0;
       var overlapped = false;
       final seen = <String>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -190,7 +190,7 @@ void main() {
       final sender = FakeSender(
         scripted: [const BatchResult.retryable('connection refused')],
       );
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -211,7 +211,7 @@ void main() {
 
     test('a delivered batch is not sent again', () async {
       final sender = FakeSender();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -228,7 +228,7 @@ void main() {
     test('attempts stop at maxAttempts and the failure is reported', () async {
       final reports = <String>[];
       final sender = FakeSender(fallback: const BatchResult.retryable('down'));
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -247,7 +247,7 @@ void main() {
 
     test('the delay grows between attempts', () async {
       final at = <DateTime>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -277,7 +277,7 @@ void main() {
   group('Retry-After', () {
     test('the named delay replaces the backoff for that attempt', () async {
       final at = <DateTime>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -312,7 +312,7 @@ void main() {
       // point of the header: a limiter saying "not before T" is talking
       // about the connection, not about one batch.
       final at = <DateTime>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -345,7 +345,7 @@ void main() {
     test('a delay past maxRetryAfter is clamped, and said out loud', () async {
       final reports = <String>[];
       final at = <DateTime>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -382,7 +382,7 @@ void main() {
 
     test('a zero ceiling turns honouring off rather than to zero', () async {
       final at = <DateTime>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -415,7 +415,7 @@ void main() {
     test('close() does not sit out a wait the process will not see', () async {
       final reports = <String>[];
       var attempts = 0;
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -456,7 +456,7 @@ void main() {
       final sender = FakeSender(
         fallback: const BatchResult.rejected('HTTP 401'),
       );
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_revoked',
         batchSize: 1,
@@ -477,7 +477,7 @@ void main() {
       // batch must not silently kill the queue.
       var call = 0;
       final delivered = <String>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -501,7 +501,7 @@ void main() {
       final reports = <String>[];
       var call = 0;
       final delivered = <String>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -528,7 +528,7 @@ void main() {
         () async {
       final reports = <String>[];
       final sender = FakeSender(fallback: const BatchResult.retryable('down'));
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         // Large enough that no batch leaves on its own while the test fills
@@ -558,7 +558,7 @@ void main() {
 
     test('the oldest entries are the ones dropped', () async {
       final sender = FakeSender();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 3,
@@ -588,7 +588,7 @@ void main() {
       // Otherwise a full batch could never be assembled and the output would
       // quietly never send anything.
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'http://example.invalid',
           projectSecretKey: 'slk_test',
           batchSize: 10,
@@ -600,7 +600,7 @@ void main() {
   });
 
   group('serverUrl refused at construction', () {
-    HttpLogOutput build(String url) => HttpLogOutput(
+    RemoteSyncLogOutput build(String url) => RemoteSyncLogOutput(
           serverUrl: url,
           projectSecretKey: 'slk_test',
         );
@@ -657,7 +657,7 @@ void main() {
       // The field is documented as the server's base URL, and a test seam
       // is not a reason for it to hold something that is not one.
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'ftp://logs.example.com',
           projectSecretKey: 'slk_test',
           sender: (_) async => const BatchResult.delivered(),
@@ -677,7 +677,7 @@ void main() {
       // Negative reaches the same branch by accident, which is exactly why
       // it must not be allowed to arrive there silently.
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'http://example.invalid',
           projectSecretKey: 'slk_test',
           maxRetryAfter: const Duration(minutes: -5),
@@ -685,7 +685,7 @@ void main() {
         throwsArgumentError,
       );
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'http://example.invalid',
           projectSecretKey: 'slk_test',
           maxRetryAfter: Duration.zero,
@@ -696,7 +696,7 @@ void main() {
 
     test('a negative retryBackoff is refused, zero is not', () {
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'http://example.invalid',
           projectSecretKey: 'slk_test',
           retryBackoff: const Duration(milliseconds: -1),
@@ -704,7 +704,7 @@ void main() {
         throwsArgumentError,
       );
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'http://example.invalid',
           projectSecretKey: 'slk_test',
           // "Retry at once" is a real thing to ask for, and the tests
@@ -721,7 +721,7 @@ void main() {
       // delivered.
       for (final timeout in const [Duration.zero, Duration(seconds: -1)]) {
         expect(
-          () => HttpLogOutput(
+          () => RemoteSyncLogOutput(
             serverUrl: 'http://example.invalid',
             projectSecretKey: 'slk_test',
             requestTimeout: timeout,
@@ -734,7 +734,7 @@ void main() {
 
     test('a negative batchTimeout is refused', () {
       expect(
-        () => HttpLogOutput(
+        () => RemoteSyncLogOutput(
           serverUrl: 'http://example.invalid',
           projectSecretKey: 'slk_test',
           batchTimeout: const Duration(seconds: -1),
@@ -748,7 +748,7 @@ void main() {
     test('sends what is still buffered rather than waiting for the timeout',
         () async {
       final sender = FakeSender();
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 100,
@@ -763,7 +763,7 @@ void main() {
     });
 
     test('completes even when every attempt failed', () async {
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         batchSize: 1,
@@ -781,7 +781,7 @@ void main() {
     });
 
     test('on an empty output it completes immediately', () async {
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://example.invalid',
         projectSecretKey: 'slk_test',
         sender: (_) async => const BatchResult.delivered(),
@@ -827,7 +827,7 @@ void main() {
     tearDown(() => server.close(force: true));
 
     test('posts the batch to /v1/logs with the project key', () async {
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 2,
@@ -853,7 +853,7 @@ void main() {
     });
 
     test('a base URL with a trailing slash still hits /v1/logs', () async {
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}/',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -869,7 +869,7 @@ void main() {
     test('a 5xx is retried', () async {
       status = 503;
       final reports = <String>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -889,7 +889,7 @@ void main() {
     test('a 401 is not retried', () async {
       status = 401;
       final reports = <String>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_revoked',
         batchSize: 1,
@@ -908,7 +908,7 @@ void main() {
 
     test('429 is treated as "later", not "never"', () async {
       status = 429;
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -927,7 +927,7 @@ void main() {
     test('a Retry-After in seconds is read off the wire', () async {
       status = 429;
       retryAfter = '1';
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -957,7 +957,7 @@ void main() {
       retryAfter = HttpDate.format(
         DateTime.now().add(const Duration(seconds: 2)),
       );
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -979,7 +979,7 @@ void main() {
     test('a header that is not a delay leaves the backoff alone', () async {
       status = 429;
       retryAfter = 'soon';
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -1003,7 +1003,7 @@ void main() {
     test('a header naming now or the past leaves the backoff alone', () async {
       status = 429;
       retryAfter = '0';
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:${server.port}',
         projectSecretKey: 'slk_secret',
         batchSize: 1,
@@ -1032,7 +1032,7 @@ void main() {
       final port = server.port;
       await server.close(force: true);
       final reports = <String>[];
-      final output = HttpLogOutput(
+      final output = RemoteSyncLogOutput(
         serverUrl: 'http://localhost:$port',
         projectSecretKey: 'slk_secret',
         batchSize: 1,

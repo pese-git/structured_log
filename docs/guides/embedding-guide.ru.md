@@ -38,7 +38,7 @@ Dart- или Flutter-приложение. Здесь ничто не обращ
    [`structured_log_cherrypick`](#7-опционально-логировать-di-контейнер-structured_log_cherrypick),
    для приложений, собранных на `cherrypick`.
 7. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_http`](#8-опционально-доставлять-логи-и-на-сервер),
+   [`structured_log_remote_sync`](#8-опционально-доставлять-логи-и-на-сервер),
    тонкий add-on поверх `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -281,8 +281,7 @@ await client.get(Uri.parse('https://api.example.com/items'));
 не буферизуется — оно доходит до вашего кода по мере поступления, — а
 запись об ответе пишется, когда тело прочитано; см.
 [README](../../emb/structured_log_http_client/README.ru.md#что-пишется-в-лог)
-пакета. Не путать с `structured_log_http` из следующего раздела — тот
-*отправляет* логи на сервер.
+пакета.
 
 ## 6. Опционально: логировать навигацию: `structured_log_go_router`
 
@@ -348,19 +347,19 @@ CherryPick.setGlobalObserver(StructuredLogCherryPickObserver());
 Всё выше — полностью локально: без сети, без сервера. Если нужно ещё и
 собирать эти логи централизованно (искать их между перезапусками,
 делиться ими внутри команды, хранить по расписанию),
-[`structured_log_http`](../../emb/structured_log_http/) — это
+[`structured_log_remote_sync`](../../emb/structured_log_remote_sync/) — это
 `LogSink`-вывод, доставляющий записи на экземпляр `structured_log_server`
-по HTTP, с батчингом, повтором и ограниченным буфером:
+по HTTP, с батчингом, повтором и ограниченным буфером (раньше —
+`structured_log_http` с `HttpLogOutput`; поведение то же, изменились имена):
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.0
-  structured_log_http:
-    path: ../structured_log_http   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+  structured_log: ^0.2.1
+  structured_log_remote_sync: ^0.1.0
 ```
 
 ```dart
-final output = HttpLogOutput(
+final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',
 );
@@ -391,7 +390,7 @@ StructlogConfiguration.configure(sinks: [
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.ru.md),
   [`structured_log_go_router`](../../emb/structured_log_go_router/README.ru.md),
   [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/README.ru.md),
-  [`structured_log_http`](../../emb/structured_log_http/README.ru.md).
+  [`structured_log_remote_sync`](../../emb/structured_log_remote_sync/README.ru.md).
 - [Руководство разработчика](developer-guide.ru.md) — когда в дело
   вступает сервер: эндпоинт приёма по HTTP напрямую, запрос логов
   обратно, живая лента программно и аутентификация от лица человека, а

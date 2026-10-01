@@ -15,7 +15,7 @@ const int defaultBlocValueMaxLength = 1000;
 /// [defaultBlocValueMaxLength] characters.
 ///
 /// A string rather than the object itself, because an entry travels on to
-/// sinks that encode it as JSON (a file, `HttpLogOutput`), and an arbitrary
+/// sinks that encode it as JSON (a file, `RemoteSyncLogOutput`), and an arbitrary
 /// state object is not something `jsonEncode` can take. A `toString()` that
 /// throws yields a placeholder instead of the exception: the observer runs
 /// inside the bloc's own `emit`/`add`, and logging must never break them.

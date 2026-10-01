@@ -656,7 +656,7 @@ never end up with a corrupted file.
 | Postgres backend: "connection refused" / timeout at startup | The server checks connectivity as part of startup validation and exits `78` rather than crashing on the first request — verify host/port/network reachability from *inside* the container if you're using Compose |
 | Admin client shows "Server unreachable" | Usually a CORS or same-origin problem if the client is served from a different host than the API — see [above](#what-youre-running) — or the server process is genuinely down; check `/healthz` directly |
 | Everyone suddenly signed out | The JWT secret changed (a restart with a different value/file), or every session's `token_version` was bumped by something (a password change cascades this only to that one account, so a mass sign-out points at the secret specifically) |
-| An upload/ingest batch is rejected outright with `413` | The batch exceeds `--max-ingest-body-bytes` — raise the limit, or have the sending application split into smaller batches (`structured_log_http`, the reference client, already batches by size — see the [Developer Guide](developer-guide.md)) |
+| An upload/ingest batch is rejected outright with `413` | The batch exceeds `--max-ingest-body-bytes` — raise the limit, or have the sending application split into smaller batches (`structured_log_remote_sync`, the reference client, already batches by size — see the [Developer Guide](developer-guide.md)) |
 
 For anything not covered here, `--print-config` plus the server's own
 diagnostic log (`--log-level=debug` temporarily) is the fastest way to

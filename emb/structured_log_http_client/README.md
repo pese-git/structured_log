@@ -13,11 +13,7 @@ client that wraps another: hand it the `http.Client` you would have used,
 and use it in its place. Every call then reports through the sinks you have
 already configured — the console, a file, the in-app log viewer
 (`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_http`.
-
-> Not to be confused with [`structured_log_http`](../structured_log_http/),
-> which *sends* log entries to a server over HTTP. This package *logs* the
-> HTTP calls your app makes.
+`structured_log_remote_sync`.
 
 ## Features
 

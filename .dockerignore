@@ -25,6 +25,7 @@ emb/structured_log_fluent/example/build/
 emb/structured_log_cupertino/build/
 emb/structured_log_cupertino/example/build/
 emb/structured_log_http/build/
+emb/structured_log_remote_sync/build/
 frontend/structured_log_admin_ui/build/
 frontend/structured_log_admin_ui/example/build/
 

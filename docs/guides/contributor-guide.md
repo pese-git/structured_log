@@ -23,7 +23,7 @@ path in [melos.yaml](../../melos.yaml):
 
 | Category | What lives there |
 |---|---|
-| `emb/` | Libraries meant to be **embedded** in someone else's app: `structured_log` (the core logging library), its Flutter log-viewer skins (`structured_log_flutter`/`_material`/`_fluent`/`_cupertino`), and `structured_log_http` (ships logs to the server) |
+| `emb/` | Libraries meant to be **embedded** in someone else's app: `structured_log` (the core logging library), its Flutter log-viewer skins (`structured_log_flutter`/`_material`/`_fluent`/`_cupertino`), and `structured_log_remote_sync` (ships logs to the server) |
 | `backend/` | Standalone server processes: `structured_log_server` |
 | `frontend/` | Standalone client apps with a UI: `structured_log_admin_client`, and its presentation-only component library `structured_log_admin_ui` |
 | `packages/` | Anything that doesn't fit the three categories above: `structured_log_e2e`, cross-system end-to-end tests |
@@ -32,7 +32,7 @@ Each package has its own `README.md`/`README.ru.md`; several also have a
 `doc/ARCHITECTURE.md` for internal design aimed at contributors
 (`emb/structured_log/doc/ARCHITECTURE.md` is the reference example).
 [docs/architecture/](../architecture/) covers the design that spans
-`structured_log_server`/`structured_log_http`/`structured_log_admin_client`
+`structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`
 together, since no single package's own doc is the right place for a
 cross-package protocol decision.
 

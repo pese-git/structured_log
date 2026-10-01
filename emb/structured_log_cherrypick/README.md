@@ -13,7 +13,7 @@ cycles, resolve errors — as
 install it as the container's global observer, and the container reports
 through the sinks you have already configured — the console, a file, the
 in-app log viewer (`structured_log_flutter`), or a `structured_log_server`
-via `structured_log_http`. It is how a wiring that silently did not happen
+via `structured_log_remote_sync`. It is how a wiring that silently did not happen
 shows up: a scope that never opened, a module that was never installed.
 
 ## Features

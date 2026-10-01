@@ -1236,7 +1236,7 @@ extension MockIngest on MockServer {
   /// client entirely.
   ///
   /// Deliberately a method rather than a `POST /v1/logs` route: the admin
-  /// client never ships logs — `structured_log_http` does, from someone
+  /// client never ships logs — `structured_log_remote_sync` does, from someone
   /// else's process — and a route the code under test cannot reach would be
   /// fiction dressed as coverage. The key is still checked, so a flow that
   /// takes the value out of the reveal dialog and hands it here keeps the two

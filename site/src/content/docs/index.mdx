@@ -79,11 +79,11 @@ team.
 
    ```dart
    import 'package:structured_log/structured_log.dart';
-   import 'package:structured_log_http/structured_log_http.dart';
+   import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
 
    void main() {
      StructlogConfiguration.configure(sinks: [
-       LogSink(name: 'server', output: HttpLogOutput(
+       LogSink(name: 'server', output: RemoteSyncLogOutput(
          serverUrl: 'https://logs.example.com',
          projectSecretKey: 'slk_...', // from step 2
        )),
@@ -153,10 +153,10 @@ team.
 ### The self-hosted service — opt in when you need it
 
 <CardGrid stagger>
-	<Card title="structured_log_http" icon="rocket">
+	<Card title="structured_log_remote_sync" icon="rocket">
 		Ships log entries to `structured_log_server` over HTTP — batching,
 		retry with backoff, a bounded buffer. Used in the quick start above.
-		[Usage & API](/packages/structured_log_http/). Not yet published.
+		[Usage & API](/packages/structured_log_remote_sync/). Not yet published.
 	</Card>
 	<Card title="structured_log_server" icon="setting">
 		The self-hosted, multi-tenant server — ingests and stores your apps'

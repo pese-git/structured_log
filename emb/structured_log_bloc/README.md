@@ -12,7 +12,7 @@ entries.
 `Bloc.observer` and every bloc in the app reports through the sinks you have
 already configured — the console, a file, the in-app log viewer
 (`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_http`.
+`structured_log_remote_sync`.
 
 ## Features
 
@@ -99,7 +99,7 @@ the volume. Lower a sink's `minLevel` to see it.
 
 **States and events are logged through `toString()` by default** (cut to
 1000 characters). If they can carry passwords, tokens or personal data —
-and especially if the log leaves the device through `structured_log_http` —
+and especially if the log leaves the device through `structured_log_remote_sync` —
 pass a `describe` that withholds them. Returning `null` drops the value and
 keeps its type:
 

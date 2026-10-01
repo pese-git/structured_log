@@ -6,7 +6,7 @@
 an in-app log viewer — works entirely on its own, inside your app, with
 no server involved at all: see the [Embedding
 Guide](guides/embedding-guide.md). Add the self-hosted, multi-tenant
-`structured_log_server` (plus `structured_log_http`, its client-side
+`structured_log_server` (plus `structured_log_remote_sync`, its client-side
 sender, and `structured_log_admin_client`, its web UI) only once you
 want those logs collected centrally, searchable, and shared across a
 team — that system is what the rest of this directory documents the

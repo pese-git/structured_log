@@ -55,7 +55,7 @@ dependencies:
 
   # The client logs its own work through the workspace's own logger
   # (decision 48). No dependency on structured_log_server or
-  # structured_log_http: this client talks to the server over HTTP like any
+  # structured_log_remote_sync: this client talks to the server over HTTP like any
   # other consumer (decision 19).
   structured_log: ^0.2.1
   # The container's observer, shared with the server; a path like

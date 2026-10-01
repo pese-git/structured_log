@@ -590,10 +590,10 @@ packages:
       relative: true
     source: path
     version: "0.1.0-dev.0"
-  structured_log_http:
+  structured_log_remote_sync:
     dependency: "direct main"
     description:
-      path: "../../emb/structured_log_http"
+      path: "../../emb/structured_log_remote_sync"
       relative: true
     source: path
     version: "0.1.0"

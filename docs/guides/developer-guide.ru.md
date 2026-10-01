@@ -17,7 +17,7 @@
 
 1. **Доставить логи на сервер** — Dart-приложение использует
    [`structured_log`](#логирование-с-structured_log) плюс
-   [`structured_log_http`](#отправка-логов-на-сервер); всё остальное
+   [`structured_log_remote_sync`](#отправка-логов-на-сервер); всё остальное
    говорит напрямую с
    [эндпоинтом приёма по HTTP](#из-любого-другого-языка).
 2. **Читать логи обратно программно** —
@@ -64,18 +64,20 @@ log.error('request_failed', context: {'status': 500});
 
 ## Отправка логов на сервер
 
-### Из Dart-приложения: `structured_log_http`
+### Из Dart-приложения: `structured_log_remote_sync`
 
-[`structured_log_http`](../../emb/structured_log_http/) — обычная
+[`structured_log_remote_sync`](../../emb/structured_log_remote_sync/) — обычная
 `OutputFunction` — подключается к `LogSink` без изменения того, как вы
 вызываете `structured_log` выше, и никогда не блокирует вызывающий
-код: записи ставятся в очередь и отправляются фоновым future.
+код: записи ставятся в очередь и отправляются фоновым future. До
+переименования он публиковался как `structured_log_http` (с `HttpLogOutput`);
+тот пакет больше не развивается и только перенаправляет сюда.
 
 ```dart
 import 'package:structured_log/structured_log.dart';
-import 'package:structured_log_http/structured_log_http.dart';
+import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
 
-final output = HttpLogOutput(
+final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',    // от owner/admin, см. ниже
 );
@@ -119,7 +121,7 @@ await output.flushed;
   `log.info(...)` упасть.
 
 Полный справочник параметров:
-[`emb/structured_log_http/README.md`](../../emb/structured_log_http/README.md).
+[`emb/structured_log_remote_sync/README.md`](../../emb/structured_log_remote_sync/README.md).
 
 Держите консольный sink рядом с серверным во время разработки — каждый
 фильтрует независимо, так что вы видите всё локально, отправляя на
@@ -186,7 +188,7 @@ curl -X POST https://logs.example.com/v1/logs \
 фиксированные накладные расходы независимо от того, сколько записей он
 несёт — приложение, генерирующее больше нескольких строк лога в
 секунду, должно накапливать их и отправлять вместе — именно это
-`structured_log_http` делает автоматически, если вы на Dart.
+`structured_log_remote_sync` делает автоматически, если вы на Dart.
 
 ## Запрос логов
 
@@ -404,7 +406,7 @@ curl -X POST https://logs.example.com/v1/role-assignments \
 
 ## Встраивание живого просмотрщика во Flutter-приложение
 
-Не связано с `structured_log_http` выше и полностью локально, без
+Не связано с `structured_log_remote_sync` выше и полностью локально, без
 сервера — три готовых скина см. в
 [Руководстве по внедрению](embedding-guide.ru.md#2-headless-ядро-просмотрщика-structured_log_flutter).
 Можно использовать один, другой, оба вместе (дублировать те же записи
