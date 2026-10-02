@@ -152,7 +152,7 @@ erDiagram
 постоянную метку. Полную диаграмму состояний и то, кто может вызвать
 какой переход — см. [rbac-and-lifecycle.md](rbac-and-lifecycle.ru.md).
 
-## Значимые индексы
+## Важные индексы
 
 - `log_entries`: `project_id`, `timestamp`, `level`, `category`,
   `session_id`, `request_id`, плюс составной `(project_id, level,

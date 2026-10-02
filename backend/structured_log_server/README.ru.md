@@ -48,7 +48,7 @@ Dart SDK 3.0 или новее. По умолчанию больше ничег�
 SQLite, никаких брокеров, кэшей и отдельных инструментов миграции запускать
 не надо. Для `--db-backend=postgres` нужен уже работающий у оператора сервер
 PostgreSQL — см.
-[Запуск против PostgreSQL](#запуск-против-postgresql) ниже.
+[Запуск против PostgreSQL](#запуск-с-postgresql) ниже.
 
 ## Запуск
 
@@ -87,7 +87,7 @@ Generated a temporary password for bootstrap administrator "admin": <...>
 эндпоинты, кроме смены пароля, отвечают `403 must_change_password`, пока
 флаг не снят.
 
-### Запуск против PostgreSQL
+### Запуск с PostgreSQL
 
 Всё сказанное выше точно так же работает и с PostgreSQL — вместо `--db-path`
 задайте `--db-backend=postgres` и настройки подключения, остальной текст

@@ -51,7 +51,7 @@
 Начните с
 [руководства по встраиванию](https://structured-log.openidealab.com/ru/guides/embedding-guide/).
 
-### Вместе с self-hosted сервером — собрано, с поиском, для всей команды
+### Вместе с self-hosted сервером — логи в одном месте, с поиском, для всей команды
 
 - **[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync)**
   — ещё один синк: отправляет записи на сервер по HTTP батчами, повторяет

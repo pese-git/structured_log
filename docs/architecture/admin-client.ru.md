@@ -10,7 +10,7 @@
 [specs/admin-client-log-browser/spec.md](../../openspec/changes/add-structured-log-server/specs/admin-client-log-browser/spec.md),
 [specs/admin-client-audit-log/spec.md](../../openspec/changes/add-structured-log-server/specs/admin-client-audit-log/spec.md).
 
-## Одно приложение, не core + скин
+## Одно приложение, а не ядро со скином
 
 Воркспейс не ограничивается этим клиентом: отдельно от него в нём есть
 ещё три пакета виджетов для *просмотра* логов во Flutter-приложениях

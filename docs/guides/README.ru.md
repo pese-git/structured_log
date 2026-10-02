@@ -40,7 +40,7 @@
 [api/models.md](../api/models.md), [api/errors.md](../api/errors.md),
 [operations/configuration.md](../operations/configuration.md).
 
-## Что реально, а чего нет
+## Что уже работает, а что нет
 
 Каждая возможность, описанная в этих руководствах, существует в
 работающей системе на момент написания — сверено с настоящей
