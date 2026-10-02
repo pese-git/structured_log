@@ -10,13 +10,13 @@
 
 ## 2. Ядро: API
 
-- [ ] 2.1 `BoundLogger.isEnabled(level, {category})` и ранний выход по уровню в начале `tryLog` (decision 6); оговорка про процессоры с побочными эффектами в доке `Processor`
-- [ ] 2.2 Параметры `error`/`stackTrace` у `tryLog` и всех методов уровня → `error`/`error_type`/`stack_trace` (decision 7)
-- [ ] 2.3 Ленивая конфигурация: `BoundLogger` без явной конфигурации читает `StructlogConfiguration.current` и `initialContext` на каждой записи (decision 8); `bind`/`unbind`/`withCorrelation` сохраняют режим родителя; обновить доку `getLogger`/`configure`, убрать фразу «call getLogger again»
-- [ ] 2.4 `jsonLineOutput`, `logfmtOutput`; экранирование logfmt по decision 10 в общем помощнике, им же пользуется `logfmtRenderer`
-- [ ] 2.5 `@Deprecated` на `jsonRenderer`, `logfmtRenderer`, `addLogLevel`, `addTimestamp`; рендереры переходят на `encodeLogEntry`
-- [ ] 2.6 Тесты на сценарии раздела: `trace` без принимающего sink'а (процессор-счётчик), `isEnabled` с категорией, ошибка параметрами и перекрытие ключа `context`, логгер в `static final` до `configure`, явная конфигурация не следует за `current`, logfmt-инъекция (кавычка, `\n`, `=`, управляющий символ, ключ с пробелом). Мутацией проверить ранний выход и экранирование `\n`
-- [ ] 2.7 Прогнать тесты всех пакетов, зависящих от ядра по пути (`melos bootstrap` + `melos run test`): ленивая конфигурация и UTC меняют поведение без ошибки компиляции
+- [x] 2.1 `BoundLogger.isEnabled(level, {category})` и ранний выход по уровню в начале `tryLog` (decision 6); оговорка про процессоры с побочными эффектами в доке `Processor` — ранний выход смотрит только `enabled`/`minLevel`; `isEnabled` с категорией спрашивает `accepts`, и бросивший `accepts` считается принимающим
+- [x] 2.2 Параметры `error`/`stackTrace` у `tryLog` и всех методов уровня → `error`/`error_type`/`stack_trace` (decision 7)
+- [x] 2.3 Ленивая конфигурация: `BoundLogger` без явной конфигурации читает `StructlogConfiguration.current` и `initialContext` на каждой записи (decision 8); `bind`/`unbind`/`withCorrelation` сохраняют режим родителя; обновить доку `getLogger`/`configure`, убрать фразу «call getLogger again» — публичный конструктор `BoundLogger(config)` по-прежнему закрепляет конфигурацию (и, как раньше, не подмешивает `initialContext`); следующий режим — у приватного `BoundLogger._(null, …)`, его отдаёт `getLogger`
+- [x] 2.4 `jsonLineOutput`, `logfmtOutput`; экранирование logfmt по decision 10 в общем помощнике, им же пользуется `logfmtRenderer` — `formatLogfmt` публичный: им же будет пользоваться `debugPrintOutput` (раздел 6)
+- [x] 2.5 `@Deprecated` на `jsonRenderer`, `logfmtRenderer`, `addLogLevel`, `addTimestamp`; рендереры переходят на `encodeLogEntry`
+- [x] 2.6 Тесты на сценарии раздела: `trace` без принимающего sink'а (процессор-счётчик), `isEnabled` с категорией, ошибка параметрами и перекрытие ключа `context`, логгер в `static final` до `configure`, явная конфигурация не следует за `current`, logfmt-инъекция (кавычка, `\n`, `=`, управляющий символ, ключ с пробелом). Мутацией проверить ранний выход и экранирование `\n` — `test/api_test.dart`, 23 теста; `structlog_test.dart` гасит `deprecated_member_use_from_same_package` — устаревшие процессоры там и проверяются. Мутациями убиты: ранний выход, экранирование `\n`, ленивое чтение `initialContext`. Покрытие ядра — 100 % (320 строк)
+- [x] 2.7 Прогнать тесты всех пакетов, зависящих от ядра по пути (`melos bootstrap` + `melos run test`): ленивая конфигурация и UTC меняют поведение без ошибки компиляции — против локальной копии: `remote_sync` 43, `bloc` 16, `dio` 22, `http_client` 31, `cherrypick` 17, `flutter` 22, `go_router` 23, сервер 1072 (без `postgres`), admin-клиент 449 — все зелёные
 
 ## 3. Ядро: платформы
 
