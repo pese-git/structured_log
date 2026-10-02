@@ -11,7 +11,8 @@ import 'package:structured_log/structured_log.dart';
 /// entries older than [capacity] captures are gone for good, and nothing is
 /// written to disk. For that reason, [LogBuffer] is meant for interactive,
 /// in-app inspection (e.g. a debug log viewer), not as a substitute for
-/// [fileOutput]/[rotatingFileOutput] or another durable [OutputFunction].
+/// the file outputs of `package:structured_log/io.dart` or another durable
+/// [OutputFunction].
 ///
 /// [entries] is a [ValueListenable] that updates every time a new entry is
 /// captured or the buffer is [clear]ed, so a widget can rebuild live via
