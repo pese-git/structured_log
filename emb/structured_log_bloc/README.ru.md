@@ -111,6 +111,22 @@ Bloc.observer = StructuredLogBlocObserver(
 
 Чтобы везде писать только типы: `describe: (_) => null`.
 
+`describe` может вернуть и **карту** вместо строки. Карта остаётся в записи
+структурой, поэтому процессор `redactKeys` видит её поля, как и любые другие.
+Строку из `toString()` он разобрать не может:
+
+```dart
+StructlogConfiguration.configure(processors: [redactKeys(), dropNullValues]);
+
+Bloc.observer = StructuredLogBlocObserver(
+  describe: (value) => switch (value) {
+    AuthState(:final user, :final token) => {'user': user, 'token': token},
+    _ => describeBlocValue(value),
+  },
+);
+// next_state: {"user": "u", "token": "***"}
+```
+
 ## Настройка
 
 ```dart

@@ -256,6 +256,18 @@ void main() {
       expect(jsonEncode(entries), isNot(contains('hunter2')));
     });
 
+    test('a map it returns is redacted by redactKeys like any field', () {
+      StructlogConfiguration.configure(processors: [redactKeys()]);
+      Bloc.observer = StructuredLogBlocObserver(
+        describe: (value) => value is Map ? value : describeBlocValue(value),
+      );
+      SecretCubit('signed out').set({'user': 'u', 'token': 'hunter2'});
+
+      final change = entries.singleWhere((e) => e['event'] == 'bloc_change');
+      expect(change['next_state'], {'user': 'u', 'token': '***'});
+      expect(jsonEncode(entries), isNot(contains('hunter2')));
+    });
+
     test('the default cuts long values short', () {
       final long = 'x' * (defaultBlocValueMaxLength + 50);
       final described = describeBlocValue(long) as String;

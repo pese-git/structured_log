@@ -112,6 +112,22 @@ Bloc.observer = StructuredLogBlocObserver(
 
 To log types only, everywhere: `describe: (_) => null`.
 
+A `describe` can also return a **map** instead of a string. A map stays a
+structure in the entry, so a `redactKeys` processor reaches its fields, as it
+reaches any other field. A string from `toString()` is opaque to it:
+
+```dart
+StructlogConfiguration.configure(processors: [redactKeys(), dropNullValues]);
+
+Bloc.observer = StructuredLogBlocObserver(
+  describe: (value) => switch (value) {
+    AuthState(:final user, :final token) => {'user': user, 'token': token},
+    _ => describeBlocValue(value),
+  },
+);
+// next_state: {"user": "u", "token": "***"}
+```
+
 ## Configuration
 
 ```dart
