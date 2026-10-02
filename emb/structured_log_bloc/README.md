@@ -37,7 +37,7 @@ Published on pub.dev as a pre-release (`0.1.0-dev.1`):
 ```yaml
 dependencies:
   flutter_bloc: ^9.0.0 # or bloc: ^9.0.0
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_bloc: ^0.1.0-dev.1
 ```
 
