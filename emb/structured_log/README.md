@@ -506,6 +506,29 @@ Future<void> asyncTask() async {
 | Async support        | Yes              | Sync I/O       |
 | Wrapper classes      | Yes              | No (simple)    |
 
+## Related packages
+
+The rest of the `structured_log` family:
+
+**In-app log viewer**
+
+- [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter) — headless viewer core: `LogBuffer` and `LogViewerController`
+- [`structured_log_material`](https://pub.dev/packages/structured_log_material) — Material 3 log viewer
+- [`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) — Fluent UI (WinUI-style) log viewer
+- [`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino) — Cupertino (iOS-style) log viewer
+
+**Shipping logs to a server**
+
+- [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync) — batching, retrying sink for a self-hosted `structured_log_server`
+
+**Integrations**
+
+- [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc) — `BlocObserver` for `bloc`/`flutter_bloc`
+- [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) — `dio` interceptor that logs HTTP calls
+- [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) — `package:http` client wrapper that logs HTTP calls
+- [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) — logs `go_router` navigation
+- [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) — observer for the `cherrypick` DI container
+
 ## License
 
 MIT

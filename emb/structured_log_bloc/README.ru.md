@@ -141,6 +141,32 @@ Bloc.observer = StructuredLogBlocObserver(
 | `BlocValueDescriber` | `Object? Function(Object? value)` — превращает состояние, событие или ошибку в значение записи; `null` убирает поле. |
 | `describeBlocValue(value)` | Описание по умолчанию: `toString()` с обрезкой до `defaultBlocValueMaxLength` (1000) символов; бросивший `toString()` превращается в заглушку. |
 
+## Связанные пакеты
+
+Остальные пакеты семейства `structured_log`:
+
+**Ядро**
+
+- [`structured_log`](https://pub.dev/packages/structured_log) — структурированное JSON-логирование с привязкой контекста, процессорами и маршрутизацией по синкам
+
+**Просмотрщик логов в приложении**
+
+- [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter) — headless-ядро просмотрщика: `LogBuffer` и `LogViewerController`
+- [`structured_log_material`](https://pub.dev/packages/structured_log_material) — просмотрщик на Material 3
+- [`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) — просмотрщик на Fluent UI (в стиле WinUI)
+- [`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino) — просмотрщик на Cupertino (в стиле iOS)
+
+**Доставка логов на сервер**
+
+- [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync) — синк с батчингом и повторами для self-hosted `structured_log_server`
+
+**Интеграции**
+
+- [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) — перехватчик `dio`, логирующий HTTP-вызовы
+- [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) — обёртка клиента `package:http`, логирующая HTTP-вызовы
+- [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) — логирует навигацию `go_router`
+- [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) — наблюдатель DI-контейнера `cherrypick`
+
 ## Лицензия
 
 См. [LICENSE](LICENSE).

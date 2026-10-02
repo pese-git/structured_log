@@ -139,6 +139,29 @@ to `stderr`, the same channel `structured_log`'s own async outputs use.
 **Batches never overlap.** Delivery is serialized, so entries reach the
 server in the order they were logged.
 
+## Related packages
+
+The rest of the `structured_log` family:
+
+**Core**
+
+- [`structured_log`](https://pub.dev/packages/structured_log) — structured JSON logging with context binding, processors and multi-sink routing
+
+**In-app log viewer**
+
+- [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter) — headless viewer core: `LogBuffer` and `LogViewerController`
+- [`structured_log_material`](https://pub.dev/packages/structured_log_material) — Material 3 log viewer
+- [`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) — Fluent UI (WinUI-style) log viewer
+- [`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino) — Cupertino (iOS-style) log viewer
+
+**Integrations**
+
+- [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc) — `BlocObserver` for `bloc`/`flutter_bloc`
+- [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) — `dio` interceptor that logs HTTP calls
+- [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) — `package:http` client wrapper that logs HTTP calls
+- [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) — logs `go_router` navigation
+- [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) — observer for the `cherrypick` DI container
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
