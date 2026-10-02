@@ -1,202 +1,225 @@
 [![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+[![pub package](https://img.shields.io/pub/v/structured_log.svg)](https://pub.dev/packages/structured_log)
 
 *Читать на [русском](README.ru.md).*
 
-# structured_log Workspace
+# structured_log
 
-A Melos + FVM monorepo for structured logging in Dart, inspired by
-[Python's structlog](https://www.structlog.org/) — the core library, an
-in-app log viewer ecosystem for Flutter built on top of it, and a
-self-hosted server for shipping logs off the device and reading them back.
+**Structured logging for Dart and Flutter — from a line in your app's
+console to a searchable, shared log store for your whole team.**
 
-## Packages
+Inspired by [Python's structlog](https://www.structlog.org/). Documentation:
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
-- **[`structured_log`](emb/structured_log/)** — the core library: structured
-  JSON logging with context binding, typed correlation fields, processors,
-  and multi-sink output routing. Zero runtime dependencies beyond `meta`.
-  Published on [pub.dev](https://pub.dev/packages/structured_log).
+## Why
 
-- **[`structured_log_flutter`](emb/structured_log_flutter/)** — a headless
-  log-viewer core for Flutter apps: a bounded `LogBuffer` that plugs
-  directly into `structured_log` as a sink, and a filterable
-  `LogViewerController`. No dependency on any specific design system —
-  the foundation any UI skin builds on. Published on
-  [pub.dev](https://pub.dev/packages/structured_log_flutter).
+A log line like `"User 42 logged in from 127.0.0.1"` is easy to write and
+hard to use: you can't filter it by user, count it by IP, or follow one
+request through it without regular expressions. `structured_log` records
+**events with data** instead — `user_login {user_id: 42, ip: 127.0.0.1}` —
+so the same entry reads well in a terminal, parses as JSON, and can be
+searched by any field.
 
-- **[`structured_log_material`](emb/structured_log_material/)** — a
-  ready-to-use Material 3 in-app log viewer built on
-  `structured_log_flutter`: live list, search and level filtering,
-  expanded-entry detail with copy, and empty states. Includes a runnable
-  example app (`emb/structured_log_material/example/`, web-capable).
-  Published on [pub.dev](https://pub.dev/packages/structured_log_material).
+The project covers the whole path such an entry travels:
 
-- **[`structured_log_fluent`](emb/structured_log_fluent/)** — a ready-to-use
-  Fluent UI (WinUI-style) in-app log viewer built on
-  `structured_log_flutter`: master-detail split view, search and level
-  filtering, a detail pane with copy, and empty states. Includes a
-  runnable example app (`emb/structured_log_fluent/example/`, web-capable).
-  Published on [pub.dev](https://pub.dev/packages/structured_log_fluent).
+1. **Write it** — a small, dependency-free core library for Dart and Flutter.
+2. **Get it for free** — adapters that log what `bloc`, `dio`, `http`,
+   `go_router` and `cherrypick` already do in your app.
+3. **See it on the device** — a drop-in log viewer screen in Material,
+   Fluent or Cupertino style.
+4. **Collect it** — a self-hosted server that receives logs from every
+   install of your app, stores them, and lets your team search and tail
+   them live in a web admin.
 
-- **[`structured_log_cupertino`](emb/structured_log_cupertino/)** — a
-  ready-to-use Cupertino (iOS-style) in-app log viewer built on
-  `structured_log_flutter`: search, category and level filtering, a
-  pushed detail screen on narrow screens (list + master-detail split on
-  wide/iPad-size ones instead), and empty states. Includes a runnable
-  example app (`emb/structured_log_cupertino/example/`, web-capable).
-  Published on [pub.dev](https://pub.dev/packages/structured_log_cupertino).
+Steps 1–3 work entirely inside your app, with no server at all. Step 4 is
+optional, and adding it doesn't change a single logging call.
 
-- **[`structured_log_remote_sync`](emb/structured_log_remote_sync/)** — a `RemoteSyncLogOutput`
-  sink that ships log entries to a `structured_log_server` instance over
-  HTTP: batching by size or timeout, retry with backoff, a bounded buffer,
-  and `flushed` to await delivery before exit. Never blocks the code that
-  logged. Only dependency is `structured_log` itself. Formerly
-  `structured_log_http` (`HttpLogOutput`), published under that name as
-  `0.1.0`; that package is discontinued.
+## Features
 
-- **[`structured_log_bloc`](emb/structured_log_bloc/)** —
-  `StructuredLogBlocObserver`, a `BlocObserver` that logs what every bloc
-  and cubit does (creation, events, state changes, errors, closing) as
-  `structured_log` entries under `category: 'bloc'`. Depends on
-  `package:bloc` only, so it works with `flutter_bloc` as is and in pure
-  Dart. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_bloc) (`0.1.0-dev.1`).
+### Structured logging core
 
-- **[`structured_log_dio`](emb/structured_log_dio/)** —
-  `StructuredLogDioInterceptor`, a `dio` interceptor that logs every request
-  and its outcome (response, error, timeout, cancellation) under
-  `category: 'http'`, with the level following the status code. Headers
-  and bodies stay out unless asked for; auth headers, cookies and
-  token-like query parameters are redacted. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_dio) (`0.1.0-dev.1`).
+- **Events with context** — `log.info('user_login', context: {...})`;
+  `bind()` attaches fields to a logger (immutably), `withCorrelation()`
+  adds typed session/request/operation ids.
+- **Processors** — enrich, transform or drop entries before output.
+- **Secret redaction** — passwords, tokens and keys masked by field name,
+  JWTs and card numbers by value.
+- **Many outputs at once** — pretty JSON, JSON lines, logfmt, colored
+  console, file, rotating file, async file, or your own function; each sink
+  with its own level and category filter, switchable at runtime.
+- **Safe by design** — a log call never throws, and an unencodable value
+  (`DateTime`, an exception) costs one field, not the entry.
+- **Everywhere Dart runs** — VM, Flutter, and the web; no runtime
+  dependencies beyond `meta`.
 
-- **[`structured_log_http_client`](emb/structured_log_http_client/)** —
-  `StructuredLogHttpClient`, the same for `package:http`: a client that
-  wraps any `http.Client` and logs every call it passes through, with the
-  same entries, levels and redaction as `structured_log_dio`. Response
-  bodies are logged without buffering them. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_http_client) (`0.1.0-dev.1`).
+### In-app log viewer for Flutter
 
-- **[`structured_log_go_router`](emb/structured_log_go_router/)** —
-  `StructuredLogGoRouter`, which logs every `go_router` navigation (location
-  with its route pattern and the previous location), redirect and routing
-  error under `category: 'navigation'`, with token-like query parameters
-  redacted. A Flutter package. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_go_router) (`0.1.0-dev.1`).
+- A ready-made screen or embeddable widget: live list, search, level and
+  category filters, pause, clear, entry details with copy.
+- Three design systems — **Material 3**, **Fluent UI** (WinUI-style) and
+  **Cupertino** (iOS-style) — each adaptive: bottom sheet or pushed screen
+  on phones, master-detail on tablets and desktop.
+- A headless core (`LogBuffer`, `LogViewerController`) to build your own UI.
 
-- **[`structured_log_cherrypick`](emb/structured_log_cherrypick/)** —
-  `StructuredLogCherryPickObserver`, a `CherryPickObserver` that logs what
-  the `cherrypick` DI container does — scopes, modules, cycles, resolve
-  errors — under `category: 'di'`, without ever printing an instance.
-  Works with `cherrypick` 3.x and 4.x. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_cherrypick) (`0.1.0-dev.1`).
+### Integrations
 
-- **[`structured_log_server`](backend/structured_log_server/)** — a
-  self-hosted, multi-tenant server for log ingestion, storage, query and
-  live streaming (`shelf`/`shelf_router` + `drift`, SQLite by default or
-  PostgreSQL as an operator-chosen alternative). Ingestion, querying, SSE
-  live streaming, groups/projects/secret keys/teams, authentication,
-  RBAC, quotas, retention, rate limiting, user management, and the audit
-  log all work today; self-service registration, password recovery, and
-  email verification are specified but not built yet. Not published — it
-  is a service you run, not a library you depend on.
+| Library | What gets logged | Category |
+|---|---|---|
+| `bloc` / `flutter_bloc` | creation, events, transitions, errors, closing of every bloc and cubit | `bloc` |
+| `dio` | every request and its outcome, level by status code | `http` |
+| `package:http` | the same, as a wrapping `http.Client`, without buffering bodies | `http` |
+| `go_router` | navigation with route pattern, redirects, routing errors | `navigation` |
+| `cherrypick` | DI scopes, modules, cycles, resolve errors — never an instance | `di` |
 
-- **[`structured_log_admin_ui`](frontend/structured_log_admin_ui/)** — the
-  Flutter UI component library the admin client is built from (Atomic
-  Design: tokens/atoms/molecules/organisms, Fluent UI–based). Depends
-  only on `flutter` and `fluent_ui` — no knowledge of the client's data
-  layer or navigation. Includes a runnable component gallery
-  (`frontend/structured_log_admin_ui/example/`, web-capable). Not
-  published — styled specifically for this client, not a general-purpose kit.
+HTTP and navigation adapters redact auth headers, cookies, and token-like
+query parameters by default; bodies are off unless enabled, and masked by
+field name when they are.
 
-- **[`structured_log_admin_client`](frontend/structured_log_admin_client/)**
-  — the web app operators and their teams actually use: sign-in and
-  forced password change, a role-scoped admin dashboard, groups/
-  projects/teams/secret keys, log search with live tailing, user
-  management, and the audit log. Localized (English/Russian). Not
-  published — a standalone application, not a library.
+### Self-hosted log server and admin client
 
-- **[`structured_log_e2e`](packages/e2e/)** — end-to-end tests that run
-  the real server as a subprocess and drive it through
-  `structured_log`/`RemoteSyncLogOutput` on the way in and the admin client's
-  own repositories/`ApiClient` on the way out, covering the seams unit
-  and integration tests each stop short of. Not published — a test
-  harness, not a library.
+- **Shipping** — `RemoteSyncLogOutput` batches entries, retries with
+  backoff, caps its buffer, and never blocks the code that logged.
+- **Ingest, search, live tail** — a full-text and per-field query API, and
+  a Server-Sent Events stream with catch-up after reconnects.
+- **Multi-tenancy** — groups own projects; each project has its own secret
+  keys, quotas and retention window.
+- **Access control** — users, teams, and per-scope roles
+  (`admin`/`owner`/`user`); JWT sessions with an `HttpOnly` refresh cookie
+  in the browser; rate limiting on the auth endpoints; an audit log of who
+  changed what.
+- **Simple to run** — one Dart process with an embedded SQLite file by
+  default, PostgreSQL when you need it; docker-compose and Kubernetes
+  manifests included.
+- **Web admin** — a Fluent UI app (English/Russian) for managing groups,
+  projects, keys, users and teams, and for searching and live-tailing logs.
 
-## Repository Layout
+## How it fits together
 
-Packages are grouped by top-level category, each listed by its full path
-in [melos.yaml](melos.yaml): `emb/` for libraries meant to be embedded in
-another app (`structured_log` and its log-viewer skins, `structured_log_remote_sync`,
-`structured_log_bloc`, `structured_log_dio`, `structured_log_http_client`,
-`structured_log_go_router`, `structured_log_cherrypick`),
-`backend/` for standalone server apps (`structured_log_server`), `frontend/`
-for standalone client apps with a UI (`structured_log_admin_ui`,
-`structured_log_admin_client`), and `packages/` for anything that doesn't
-fit the three categories above (`structured_log_e2e`, end-to-end tests
-across the whole system). See [AGENTS.md](AGENTS.md) for the full
-toolchain reference (commands, conventions, versioning, CI) if you're
-contributing.
-
-**New to the server system?** Start with
-[docs/guides/](docs/guides/README.md) — a User Guide, an
-Administrator/DevOps Guide, a Developer Guide, and a Contributor Guide,
-each answering "how do I actually do this" for its audience. [docs/](docs/)
-also holds the cross-package *design* documentation for the server system — HTTP API
-and JSON models, authentication and RBAC, storage, live streaming,
-quotas, and operational configuration — in bilingual pairs; see
-[docs/README.md](docs/README.md) for the full table of contents.
-
-**[`site/`](site/)** publishes that same [docs/](docs/) content as a
-browsable, searchable website (English/Russian) — an
-[Astro](https://astro.build)+[Starlight](https://starlight.astro.build)
-project, outside the Dart/Flutter Melos workspace. It's generated from
-`docs/` by a script, not hand-authored; see [site/README.md](site/README.md).
-Run it locally with:
-
-```bash
-cd site && npm install && npm run dev
+```mermaid
+flowchart LR
+  subgraph app["Your Dart / Flutter app"]
+    A["Adapters<br/>bloc · dio · http · go_router · cherrypick"] --> C["structured_log"]
+    Y["Your code"] --> C
+    C --> O["Console / file"]
+    C --> V["In-app log viewer"]
+    C --> R["RemoteSyncLogOutput"]
+  end
+  R -- "HTTP, batched" --> S["structured_log_server<br/>SQLite or PostgreSQL"]
+  S -- "query API · SSE" --> W["Admin client (web)"]
 ```
 
-Design and planning history for the Flutter log-viewer packages lives in
-[openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/),
-[openspec/changes/archive/2026-10-01-add-structured-log-fluent/](openspec/changes/archive/2026-10-01-add-structured-log-fluent/),
-and
-[openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](openspec/changes/archive/2026-10-01-add-structured-log-cupertino/);
-for the server, its HTTP sender, and the admin client, see
-[openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/)
-(why, technical decisions, requirements, task-by-task progress, including the
-staged Stage 0/Stage 1/... delivery plan).
+Everything inside the box works on its own; the server side is added only
+when you want logs collected centrally.
 
-## Quick Start
+## Quick start
 
-Logging, with the core library alone:
+Add the core library:
+
+```bash
+dart pub add structured_log
+```
+
+Log events with data:
 
 ```dart
 import 'package:structured_log/structured_log.dart';
 
 void main() {
-  final log = getLogger();
+  final log = getLogger().bind({'service': 'checkout'});
   log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
 }
 ```
 
-Shipping those entries to a server instead of (or alongside) the console:
+Ship the same entries to your server — alongside the console, without
+touching any logging call:
 
 ```dart
+import 'package:structured_log/structured_log.dart';
+import 'package:structured_log_remote_sync/structured_log_remote_sync.dart';
+
 final output = RemoteSyncLogOutput(
   serverUrl: 'https://logs.example.com',
   projectSecretKey: 'slk_...',
 );
-StructlogConfiguration.configure(
-  sinks: [LogSink(name: 'server', output: output)],
-);
+
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'console', output: coloredConsoleOutput),
+  LogSink(name: 'server', output: output, minLevel: LogLevel.info),
+]);
 ```
 
-Running that server — see
-[backend/structured_log_server/README.md](backend/structured_log_server/README.md)
-for the path from an empty database to a queried log entry:
+Run the server and the admin client with docker-compose, then open
+`http://localhost:8080`:
 
 ```bash
-export STRUCTURED_LOG_JWT_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
-dart run bin/server.dart serve --db-path=./logs.sqlite
+cd deploy && ./deploy.sh
 ```
 
-See each package's own README for installation and full API reference.
+Next steps: the [Embedding Guide](docs/guides/embedding-guide.md) for the
+in-app viewer and adapters, the [Administrator Guide](docs/guides/admin-guide.md)
+for running the server, the [User Guide](docs/guides/user-guide.md) for
+the admin client.
+
+## Packages
+
+| Package | Purpose | |
+|---|---|---|
+| [`structured_log`](emb/structured_log/) | Core library | [![pub](https://img.shields.io/pub/v/structured_log.svg)](https://pub.dev/packages/structured_log) |
+| [`structured_log_flutter`](emb/structured_log_flutter/) | Headless log-viewer core for Flutter | [![pub](https://img.shields.io/pub/v/structured_log_flutter.svg)](https://pub.dev/packages/structured_log_flutter) |
+| [`structured_log_material`](emb/structured_log_material/) | Material 3 log viewer | [![pub](https://img.shields.io/pub/v/structured_log_material.svg)](https://pub.dev/packages/structured_log_material) |
+| [`structured_log_fluent`](emb/structured_log_fluent/) | Fluent UI log viewer | [![pub](https://img.shields.io/pub/v/structured_log_fluent.svg)](https://pub.dev/packages/structured_log_fluent) |
+| [`structured_log_cupertino`](emb/structured_log_cupertino/) | Cupertino log viewer | [![pub](https://img.shields.io/pub/v/structured_log_cupertino.svg)](https://pub.dev/packages/structured_log_cupertino) |
+| [`structured_log_remote_sync`](emb/structured_log_remote_sync/) | Ships logs to the server | [![pub](https://img.shields.io/pub/v/structured_log_remote_sync.svg)](https://pub.dev/packages/structured_log_remote_sync) |
+| [`structured_log_bloc`](emb/structured_log_bloc/) | `bloc` / `flutter_bloc` observer | [![pub](https://img.shields.io/pub/v/structured_log_bloc.svg?include_prereleases)](https://pub.dev/packages/structured_log_bloc) |
+| [`structured_log_dio`](emb/structured_log_dio/) | `dio` interceptor | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
+| [`structured_log_http_client`](emb/structured_log_http_client/) | `package:http` client wrapper | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
+| [`structured_log_go_router`](emb/structured_log_go_router/) | `go_router` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
+| [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | `cherrypick` DI observer | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
+| [`structured_log_server`](backend/structured_log_server/) | Self-hosted log server | service, not published |
+| [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Web admin for the server | app, not published |
+
+The adapters are pre-releases. `structured_log_http` is the former name of
+`structured_log_remote_sync` and is discontinued. The repository also holds
+the admin client's component library
+([`structured_log_admin_ui`](frontend/structured_log_admin_ui/)) and
+end-to-end tests across the whole system ([`packages/e2e`](packages/e2e/)).
+
+## Status
+
+The libraries are published and in use. The server and the admin client
+are working software — ingestion, search, live streaming, multi-tenancy,
+access control and auditing are all there — but not feature-complete:
+self-service registration, password recovery and email verification are
+specified and not built yet. Progress is tracked in
+[openspec/changes/add-structured-log-server/tasks.md](openspec/changes/add-structured-log-server/tasks.md).
+
+## Documentation
+
+- [structured-log.openidealab.com](https://structured-log.openidealab.com) —
+  the documentation site, English and Russian.
+- [docs/guides/](docs/guides/README.md) — task-oriented guides: embedding
+  (no server), user, administrator/DevOps, developer, contributor.
+- [docs/](docs/README.md) — how the server system is designed: API, auth
+  and RBAC, storage, live streaming, operations.
+- Each package's README — installation and full API reference.
+
+## Contributing
+
+This is a [Melos](https://melos.invertase.dev) + [FVM](https://fvm.app)
+workspace. Packages are grouped by kind: `emb/` for libraries embedded in
+apps, `backend/` for the server, `frontend/` for the admin client, and
+`packages/` for the end-to-end tests.
+
+```bash
+dart run melos bootstrap
+dart run melos run lint
+dart run melos run test
+```
+
+Start with the [Contributor Guide](docs/guides/contributor-guide.md);
+[AGENTS.md](AGENTS.md) is the full reference for commands, conventions,
+versioning and CI. Design decisions and requirements live in
+[openspec/](openspec/).
 
 ## License
 
