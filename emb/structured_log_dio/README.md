@@ -4,48 +4,92 @@
 
 *Читать на [русском](README.ru.md).*
 
-Logs every request a [`dio`](https://pub.dev/packages/dio) client sends and
-how it ended — response, error, timeout, cancellation — as
-[`structured_log`](https://pub.dev/packages/structured_log) entries.
+**Every request your [`dio`](https://pub.dev/packages/dio) client sends,
+and how it ended, as a [`structured_log`](https://pub.dev/packages/structured_log)
+entry — with tokens and passwords kept out of it.**
 
-`StructuredLogDioInterceptor` is an ordinary dio `Interceptor`: add it to
-`dio.interceptors`, and every call reports through the sinks you have
-already configured — the console, a file, the in-app log viewer
-(`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_remote_sync`.
+## Why
+
+A bug report says "loading failed". Which call was it, what did the server
+answer, how long did it take? A request log answers that — but a naive one
+also writes down the user's access token, session cookie and password, and
+sends them wherever your logs go.
+
+`StructuredLogDioInterceptor` is an ordinary dio `Interceptor`. Add it to
+`dio.interceptors`, and every call becomes two entries — the request and
+its outcome, tied together by an id, with the status code and duration, at
+a level that follows the status. Headers and bodies stay out until you ask
+for them, and even then credentials are masked before anything is written.
 
 ## Features
 
-- **One line to install** — `dio.interceptors.add(StructuredLogDioInterceptor())`
+### What you see
+
 - **Request and outcome, paired** — `http_request_id` ties a call's two
-  entries together; the outcome carries `status_code` and `duration_ms`
+  entries together; the outcome carries `status_code` and `duration_ms`.
+- **Every way a call can end** — a response, a rejected status, a timeout,
+  a refused connection, a cancellation: each gets an outcome entry, with
+  dio's `error_type` when it is not a plain response.
 - **Levels by status** — 2xx/3xx at `debug`, 4xx at `warning`, 5xx and
   failures without a response at `error`, cancellations at `debug`; each
-  adjustable or off
-- **Secrets stay out by default** — headers and bodies are not logged
-  unless asked for; `Authorization`, cookies and API-key headers are
-  redacted even then, and so are password- and token-like fields in a
-  body; token-like query parameters and URL user info are always redacted
+  adjustable or off. A 404 is a `warning` whether `validateStatus` let it
+  through or not.
 - **Its own category** — every entry carries `category: 'http'`, for a
-  `LogSink` to route and the log viewer to filter on
+  `LogSink` to route and the log viewer to filter on.
+
+### What stays out
+
+- **Headers and bodies off by default** — nothing but the method, URL,
+  status and timing is written until you turn them on.
+- **Credentials masked when they are on** — `Authorization`, cookies and
+  API-key headers become `REDACTED`, and so do password- and token-like
+  fields in a body, at any depth, by the same list `structured_log` itself
+  uses.
+- **URLs cleaned always** — token-like query parameters and user info
+  (`https://user:pass@host`) never reach the log.
+
+### What doesn't get in the way
+
+- **One line to install** — `dio.interceptors.add(StructuredLogDioInterceptor())`.
 - **Never breaks a call** — a describer or filter that throws costs the
-  entry, not the request
+  entry, not the request; the interceptor always passes the call on.
+- **Follows reconfiguration** — without an explicit logger it picks up a
+  later `StructlogConfiguration.configure`, so a `Dio` built at startup
+  needs no rebuilding.
+
+## Where it fits
+
+`structured_log_dio` is one of the integrations around
+[`structured_log`](https://pub.dev/packages/structured_log): it depends on
+nothing but the core and `dio`, and writes through the sinks you have
+already configured. Its sibling
+[`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client)
+writes the same entries — same names, fields, levels and redaction — for
+`package:http`, so an app that uses both clients gets one consistent log.
+No server is needed: the entries go to the console, a file, or the in-app
+log viewer ([`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+with a Material, Fluent or Cupertino skin), and — if you run the
+self-hosted `structured_log_server` — to it through
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+where your team can search them by status, URL or request id. More at
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.2`):
+Published on pub.dev as a pre-release (`0.1.0-dev.3`):
 
 ```yaml
 dependencies:
   dio: ^5.4.0
   structured_log: ^0.3.0
-  structured_log_dio: ^0.1.0-dev.2
+  structured_log_dio: ^0.1.0-dev.3
 ```
 
-**Breaking change after `0.1.0-dev.2`:** with a body turned on, a string body
-whose content type is neither JSON nor a form is now written only by its
-size, `<N chars>`, instead of as it is. `logUnrecognizedBodies: true` brings
-the old behaviour back. See [Keeping secrets out of the log](#keeping-secrets-out-of-the-log).
+**Breaking change in `0.1.0-dev.3`** (for those upgrading from `0.1.0-dev.2`):
+with a body turned on, a string body whose content type is neither JSON nor
+a form is now written only by its size, `<N chars>`, instead of as it is.
+`logUnrecognizedBodies: true` brings the old behaviour back. See
+[Keeping secrets out of the log](#keeping-secrets-out-of-the-log).
 
 ## Quick Start
 

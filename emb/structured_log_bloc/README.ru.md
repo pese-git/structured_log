@@ -4,40 +4,83 @@
 
 *Read in [English](README.md).*
 
-Пишет в лог всё, что делают блоки и кубиты — создание, события, смену
-состояния, ошибки, закрытие — записями
-[`structured_log`](https://pub.dev/packages/structured_log).
+**Всё, что делали блоки и кубиты приложения, — каждое событие, смена
+состояния и ошибка — структурированными записями лога, после настройки в
+одну строку.**
 
-`StructuredLogBlocObserver` — обычный `BlocObserver`: достаточно поставить его
-в `Bloc.observer`, и каждый блок приложения пишет в уже настроенные выводы —
-консоль, файл, встроенный просмотрщик логов (`structured_log_flutter`) или
-`structured_log_server` через `structured_log_remote_sync`.
+Документация: [structured-log.openidealab.com](https://structured-log.openidealab.com/ru/).
+
+## Зачем
+
+«Почему экран показал *это*?» — вопрос, который в приложении на bloc
+возникает постоянно, и чтобы ответить, приходится восстанавливать
+случившееся: какое событие пришло, к какому состоянию оно привело, какой
+обработчик упал. Без записей остаётся расставлять `print`, воспроизводить
+ошибку и убирать их обратно, а на устройстве пользователя нельзя и этого.
+
+`StructuredLogBlocObserver` ведёт эти записи за вас. Его ставят один раз в
+`Bloc.observer`, и он пишет создание, события, переходы, ошибки и закрытие
+каждого блока и кубита записями `structured_log`. Тип блока, экземпляр и
+задействованные значения лежат в отдельных полях, так что историю одного
+блока легко отфильтровать из всего остального.
 
 ## Возможности
 
-- **Подключение одной строкой** — `Bloc.observer = StructuredLogBlocObserver()`
-- **Работает с `flutter_bloc` как есть** — зависит только от `package:bloc`,
-  на котором `flutter_bloc` построен, поэтому работает и в чистом Dart
-- **Своя категория** — каждая запись несёт `category: 'bloc'`, так что
-  `LogSink` может направить трафик блоков отдельно, а просмотрщик логов
-  предлагает её как фильтр
+### Охват
+
+- **Подключение одной строкой** — `Bloc.observer = StructuredLogBlocObserver()`.
+- **Все хуки** — создание, события, переходы, изменения кубитов, ошибки со
+  стеком, завершение обработчика, закрытие.
 - **Каждая смена состояния — один раз** — у блока она пишется как переход
-  (вместе с событием), у кубита — как изменение; никогда не обе сразу
-- **Свой уровень на каждый хук** — или `null`, чтобы хук выключить
+  (вместе с событием), у кубита — как изменение; никогда не обе сразу.
+- **Экземпляры различимы** — по `bloc_instance` различаются два блока одного
+  типа.
+- **Работает с `flutter_bloc` как есть** — зависит только от `package:bloc`,
+  на котором `flutter_bloc` построен, поэтому работает и в чистом Dart.
+
+### Управление
+
+- **Своя категория** — каждая запись несёт `category: 'bloc'`, так что
+  `LogSink` может направить трафик блоков отдельно, а встроенный просмотрщик
+  логов предлагает её как фильтр.
+- **Свой уровень на каждый хук** — или `null`, чтобы хук выключить.
+- **Фильтр** — шумные блоки можно вовсе не пускать в лог.
 - **Значения под вашим контролем** — состояния и события проходят через
-  заменяемую функцию описания, чтобы секреты не попадали в лог
+  заменяемую функцию описания: так секреты не попадут в лог, а `redactKeys`
+  получит карту вместо строки.
+
+### Надёжность
+
 - **Никогда не ломает блок** — если `toString()` или функция описания бросят
-  исключение, запись лишится значений, а блок свой `emit` не потеряет
+  исключение, запись лишится значений, а блок свой `emit` не потеряет.
+- **Выключенное ничего не стоит** — для выключенного хука или
+  отфильтрованного блока состояние не описывается вовсе.
+
+## Место в проекте
+
+Наблюдателю не нужно ничего, кроме
+[`structured_log`](https://pub.dev/packages/structured_log), — ни сервера,
+ни Flutter. Его записи уходят в те выводы, которые вы настроили: в консоль,
+в файл, во встроенный просмотрщик логов
+([`structured_log_material`](https://pub.dev/packages/structured_log_material),
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) или
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino)),
+где категория `bloc` становится фильтром, или на self-hosted
+`structured_log_server` через
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync).
+Это один из пяти адаптеров, которые пишут в лог то, что библиотеки
+приложения и так делают; проект целиком — на
+[structured-log.openidealab.com](https://structured-log.openidealab.com/ru/).
 
 ## Установка
 
-Опубликован на pub.dev как пре-релиз (`0.1.0-dev.1`):
+Опубликован на pub.dev как пре-релиз (`0.1.0-dev.3`):
 
 ```yaml
 dependencies:
   flutter_bloc: ^9.0.0 # или bloc: ^9.0.0
   structured_log: ^0.3.0
-  structured_log_bloc: ^0.1.0-dev.1
+  structured_log_bloc: ^0.1.0-dev.3
 ```
 
 ## Быстрый старт
@@ -61,9 +104,9 @@ void main() {
 `CounterBloc`, получивший одно событие `Incremented`, пишет:
 
 ```text
-DEBUG: bloc_created     {"category":"bloc","bloc":"CounterBloc","bloc_instance":621700500,"state":"0","state_type":"int"}
-DEBUG: bloc_event_added {"category":"bloc","bloc":"CounterBloc","bloc_instance":621700500,"bloc_event":"Incremented()","bloc_event_type":"Incremented"}
-DEBUG: bloc_transition  {"category":"bloc","bloc":"CounterBloc","bloc_instance":621700500,"bloc_event":"Incremented()","bloc_event_type":"Incremented","current_state":"0","next_state":"1","state_type":"int"}
+[2026-10-02T16:04:41.519257Z] DEBUG: bloc_created {"logger":"bloc","category":"bloc","bloc":"CounterBloc","bloc_instance":787006492,"state":"0","state_type":"int"}
+[2026-10-02T16:04:41.527204Z] DEBUG: bloc_event_added {"logger":"bloc","category":"bloc","bloc":"CounterBloc","bloc_instance":787006492,"bloc_event":"Incremented()","bloc_event_type":"Incremented"}
+[2026-10-02T16:04:41.531119Z] DEBUG: bloc_transition {"logger":"bloc","category":"bloc","bloc":"CounterBloc","bloc_instance":787006492,"bloc_event":"Incremented()","bloc_event_type":"Incremented","current_state":"0","next_state":"1","state_type":"int"}
 ```
 
 Запускаемая версия — [example/main.dart](example/main.dart)
@@ -144,7 +187,7 @@ Bloc.observer = StructuredLogBlocObserver(
 ```
 
 Несколько наблюдателей сразу — этот и, скажем, отправщик крэшей —
-объединяются собственным `MultiBlocObserver` из `bloc`.
+объединяются собственным `MultiBlocObserver` из `bloc` (начиная с `bloc` 9.2.0).
 
 ## Справочник API
 
@@ -183,4 +226,4 @@ Bloc.observer = StructuredLogBlocObserver(
 
 ## Лицензия
 
-См. [LICENSE](LICENSE).
+MIT — см. [LICENSE](LICENSE).

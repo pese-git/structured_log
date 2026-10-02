@@ -4,26 +4,87 @@
 
 *Читать на [русском](README.ru.md).*
 
-Ships [`structured_log`](https://pub.dev/packages/structured_log) entries to a
-[`structured_log_server`](../../backend/structured_log_server) over HTTP.
+**Get the logs from every install of your app onto your own server —
+batched, retried, and without ever slowing down the code that logged.**
+
+Documentation: [structured-log.openidealab.com](https://structured-log.openidealab.com).
+
+## Why
+
+A log that stays on the device is a log you never read. When a user reports
+"it broke yesterday", the console output that would explain it is on their
+phone, in a desktop install on the other side of the world, or gone with the
+process that wrote it. Collecting it means sending it somewhere — and doing
+that from inside an app is easy to get wrong: a slow network that stalls a
+`log.info(...)`, a queue that grows without limit while the server is down,
+a batch lost to one value that would not encode.
+
+`RemoteSyncLogOutput` is a `structured_log` output that does this properly.
+Each entry is queued the moment it is logged and returns at once; a
+background pump ships entries in batches to a self-hosted
+[`structured_log_server`](https://github.com/pese-git/structured_log/tree/master/backend/structured_log_server),
+retries what may yet succeed, and keeps memory bounded however long the
+server is unreachable.
 
 Formerly published as
-[`structured_log_http`](https://pub.dev/packages/structured_log_http) — renamed
-in 0.2.0; moving over is one dependency line, one import and one class name
-(`HttpLogOutput` → `RemoteSyncLogOutput`), with no change in behaviour.
-
-`RemoteSyncLogOutput` is an ordinary `OutputFunction`, so it plugs into a
-`LogSink` with no change to the core package — and it never blocks the code that
-logged: entries are queued and shipped in batches on a background future.
+[`structured_log_http`](https://pub.dev/packages/structured_log_http), now
+discontinued — renamed in 0.2.0; moving over is one dependency line, one
+import and one class name (`HttpLogOutput` → `RemoteSyncLogOutput`), with no
+change in behaviour. Ask for `^0.2.0`: under `0.x`, `^0.1.0` means `<0.2.0`
+and matches no release published under this name.
 
 ## Features
 
-- **Non-blocking** — a slow or unreachable server never delays `log.info(...)`
-- **Batching** — entries travel together, by size or by timeout, whichever comes first
-- **Retry with backoff** — network failures, timeouts and 5xx are retried; 4xx is not
-- **Bounded memory** — a configurable ceiling on unsent entries, oldest dropped first
-- **`flushed`** — await delivery before the process exits
-- **One dependency** — `structured_log`, and `dart:io` for the transport
+### Delivery
+
+- **Never blocks the caller** — logging enqueues and returns; a slow or
+  unreachable server never delays `log.info(...)`.
+- **Batching** — entries travel together in one `POST /v1/logs`, by size or
+  by timeout, whichever comes first.
+- **In order** — batches never overlap, so entries reach the server in the
+  order they were logged.
+- **`flushed` and `close()`** — await delivery before the process exits.
+
+### Resilience
+
+- **Retry with backoff** — network failures, timeouts and 5xx are retried
+  with a doubling delay; a 4xx is not, except `408` and `429`.
+- **`Retry-After` honoured** — both the seconds and the HTTP-date form, up to
+  a ceiling you set, and the wait holds the whole sender, not one batch.
+- **Bounded memory** — a configurable ceiling on unsent entries; past it the
+  oldest are dropped, and the episode is reported once, not per entry.
+- **Encoded at log time** — each entry becomes a JSON string the moment it
+  is logged, with `structured_log`'s `encodeLogEntry`. A `DateTime` or an
+  exception in the context is encoded rather than costing the batch, a map
+  changed after the call doesn't change what is sent, and an entry that
+  cannot be read at all is dropped alone.
+- **Failures reported, never thrown** — to `stderr` by default, or to a
+  callback of your own.
+
+### Fit
+
+- **Just another output** — `RemoteSyncLogOutput` *is* an `OutputFunction`,
+  so it goes into a `LogSink` next to the console or a file, with its own
+  level and category filter.
+- **One dependency** — `structured_log`; the transport is `dart:io`'s
+  `HttpClient`, so it runs on the Dart VM and in Flutter on mobile and
+  desktop, but not on the web.
+
+## Where it fits
+
+This package is the bridge between `structured_log` in your app and the
+self-hosted
+[`structured_log_server`](https://github.com/pese-git/structured_log/tree/master/backend/structured_log_server),
+where your team searches and live-tails the logs in a web admin. It is the
+only package in the family that needs the server — the core library, the
+in-app viewers and the adapters all work without one — and adding it changes
+no logging call: entries from your own code and from the adapters
+(`bloc`, `dio`, `http`, `go_router`, `cherrypick`) flow to it like to any
+other sink. Setting up the server side — projects, secret keys, what the API
+accepts — is covered in the
+[Developer Guide](https://structured-log.openidealab.com/guides/developer-guide/);
+the whole project is at
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
 ## Installation
 
@@ -94,6 +155,8 @@ console keeps `debug` costs nothing extra.
 | `retryBackoff` | `500ms` | Delay before the second attempt; doubles thereafter |
 | `maxRetryAfter` | `5m` | Longest `Retry-After` honoured; `Duration.zero` ignores the header |
 | `requestTimeout` | `30s` | How long one attempt may take |
+| `report` | writes to `stderr` | Where failures, evictions and clamped waits are reported |
+| `sender` | HTTP transport | A `BatchSender` that replaces the transport — a seam for tests; you own its lifetime |
 
 A value that cannot mean anything is refused with an `ArgumentError` at
 construction rather than absorbed: a buffer smaller than a batch, fewer than
@@ -137,7 +200,9 @@ with a total when it ends.
 
 **Failures are reported, never thrown.** Nothing this package does can make
 a `log.info(...)` call fail. Batches that cannot be delivered are reported
-to `stderr`, the same channel `structured_log`'s own async outputs use.
+to `stderr` — the same channel `structured_log`'s own async outputs use — or
+to the `report` callback, when you pass one. An entry logged after `close()`
+is reported and discarded.
 
 **An entry is encoded when it is logged, not when its batch is sent.** The
 sink turns each entry into JSON the moment it is called, with
@@ -155,6 +220,16 @@ less memory than it did.
 
 **Batches never overlap.** Delivery is serialized, so entries reach the
 server in the order they were logged.
+
+## API Reference
+
+| Symbol | Description |
+|---|---|
+| `RemoteSyncLogOutput({serverUrl, projectSecretKey, batchSize, batchTimeout, maxBufferedEntries, maxAttempts, retryBackoff, maxRetryAfter, requestTimeout, sender, report})` | The output. Pass the instance as a `LogSink`'s `output`; calling it enqueues one entry and returns. |
+| `flushed` | Completes once everything enqueued before the call has been delivered or given up on. |
+| `close()` | Stops accepting entries, sends what is buffered, and releases the HTTP client. |
+| `BatchSender` | `Future<BatchResult> Function(List<Map<String, dynamic>> entries)` — the transport seam; entries arrive decoded from the JSON they were queued as. |
+| `BatchResult` | One attempt's outcome: `.delivered()`, `.retryable(error, {retryAfter})` or `.rejected(error)`. |
 
 ## Related packages
 

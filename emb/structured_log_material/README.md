@@ -1,67 +1,106 @@
 # structured_log_material
 
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
 *Читать на [русском](README.ru.md).*
 
-A ready-to-use Material 3 in-app log viewer for
-[`structured_log`](../structured_log), built on
-[`structured_log_flutter`](../structured_log_flutter)'s
-`LogViewerController`: a live, newest-first list with search, category, and
-level filtering, a bottom-sheet detail view with full context and copy, and
-an empty state that distinguishes "no logs yet" from "no logs match the
-current filter". Available both as a full screen (`MaterialLogViewerPage`)
-and as a plain embeddable widget (`MaterialLogViewer`) for dropping into
-existing page chrome — a tab, a side panel, a dialog, ...
+**A ready-made Material 3 log viewer for your Flutter app: open a screen — or
+dock a panel — and see what the app just logged, with search, filters and
+every entry's full context.**
 
-> **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_material)
-> (`0.1.0`). Design reference: the
-> [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
-> canvas (Material section — [`structured_log_fluent`](../structured_log_fluent)
-> and [`structured_log_cupertino`](../structured_log_cupertino) are
-> implemented too, from the Fluent/Cupertino sections of the same canvas).
+## Why
+
+Something goes wrong while you're testing on a phone, and the explanation
+is in logs printed to a console you can't see from there. This package puts
+those logs on a screen inside the app: every
+[`structured_log`](https://pub.dev/packages/structured_log) entry, newest
+first, searchable and filterable by level and category, with a tap to see
+an entry's full context and copy it into a bug report. Wiring it up is one
+extra sink and one widget.
+
+Pick it for apps built with Material (`MaterialApp`) — Android-first or
+cross-platform. For a Windows-style desktop app built on `fluent_ui`, take
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent);
+for an app with an iOS look,
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino).
+If none of the three matches your design system, build your own on
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter) —
+the skins share it, so filtering and pausing behave the same everywhere.
 
 ## Features
 
-- **`MaterialLogViewer`** — the log viewer as a plain embeddable widget: a
-  toolbar (search field, pause/resume, clear-all) above category- and
-  level-filter chips and a live newest-first list — no page chrome of its
-  own, so it can be dropped anywhere in an existing layout
-- **`MaterialLogViewerPage`** — a thin `Scaffold`/`AppBar` wrapper around
-  `MaterialLogViewer` for the full-screen case: adds a title ("Logs") and,
-  when pushed via `Navigator`, a back button (`AppBar`'s own)
-- **Adaptive** — how the selected entry's context is shown reacts to the
-  width *this widget* is actually given (its own constraints, not the
-  window's): below the master-detail breakpoint (the mobile-style default)
-  tapping a row opens `LogEntryDetailSheet` as a modal bottom sheet; at or
-  above it, the list and a non-modal `LogEntryDetailPanel` show side by
-  side instead — Material's own list-detail layout guidance for tablet and
-  desktop
-- **`LogCategoryChips`** — a `category`-filter chip row whose options are
-  derived from the distinct `category` values currently in the buffer;
-  hidden automatically when fewer than two are present
-- **`LogEntryTile`** — one row: level-colored dot, `event`, formatted time,
-  and a category tag if the entry has one; tinted when it's the entry shown
-  in an adjacent `LogEntryDetailPanel`
-- **`LogEntryDetailSheet`** — tap a row (on narrow screens) to see its full
-  context as formatted key/value pairs in a modal bottom sheet, with a
-  "Copy context" action
-- **`LogEntryDetailPanel`** — the same context/copy content as
-  `LogEntryDetailSheet`, but as a non-modal panel for the wide-screen
-  master-detail split — no drag handle or "Close" button
-- **`LogViewerEmptyState`** — "No logs yet" (nothing captured at all) vs.
-  "No logs match the current filter" (with a "Clear filters" action)
-- **Theme-aware** — colors and typography come from `Theme.of(context)`
-  (light/dark both supported); only the level-indicator palette is fixed
-  (`logLevelColor`), kept in one place so it can't drift between widgets
+### Drop-in
+
+- **A screen or a panel** — `MaterialLogViewerPage` is a complete screen
+  with an app bar (and a back button when pushed); `MaterialLogViewer` is
+  the same viewer with no page chrome, for a tab, a side panel or a dialog.
+- **Adapts to the space it gets** — it measures its own width, not the
+  window's: below 700 logical pixels a tap opens the entry in a modal bottom
+  sheet; from 700 up, the list and a detail panel sit side by side, with the
+  newest entry selected.
+
+### Finding the entry
+
+- **A live list, newest first** — new entries appear as the app logs them.
+- **Search** — across event names and every context value.
+- **Level filter** — chips for All, Debug+, Info+, Warning+ and Error+.
+- **Category filter** — chips built from the categories actually in the
+  buffer, hidden while there are fewer than two; entries from adapters such
+  as [`structured_log_dio`](https://pub.dev/packages/structured_log_dio)
+  (`http`) or [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc)
+  (`bloc`) become a filter on their own.
+- **Pause and clear** — freeze the list while you read; clear it to start a
+  fresh reproduction.
+
+### Reading it
+
+- **Full context** — level, time and event on top, then every other field
+  as a key/value pair.
+- **Copy context** — one tap puts the fields on the clipboard as
+  `key: value` lines.
+- **Clear empty states** — "No logs yet" when nothing was captured, "No
+  logs match the current filter" with a "Clear filters" action when the
+  filters hid everything.
+
+### Looks like your app
+
+- **Follows your theme** — colors and typography come from
+  `Theme.of(context)`, light and dark; only the level colors are fixed, and
+  they are the same in every skin.
+- **Parts to compose your own layout** — `LogEntryTile`,
+  `LogCategoryChips`, `LogEntryDetailSheet`, `LogEntryDetailPanel` and
+  `LogViewerEmptyState` are public.
+
+## Where it fits
+
+[`structured_log`](https://pub.dev/packages/structured_log) writes the
+entries;
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+keeps the recent ones in memory and handles filtering and pausing; this
+package is the Material face on top, a sibling of
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) and
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino).
+It works entirely inside your app, with no server; if you also ship logs to
+a self-hosted server with
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+the viewer keeps showing them locally. More in the documentation at
+[structured-log.openidealab.com](https://structured-log.openidealab.com) and
+in the [Embedding Guide](https://structured-log.openidealab.com/guides/embedding-guide/).
+Design reference: the
+[Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
+canvas (Material section).
 
 ## Installation
 
 ```yaml
 dependencies:
-  structured_log_material: ^0.1.0
+  structured_log: ^0.3.0
+  structured_log_flutter: ^0.1.2
+  structured_log_material: ^0.1.1
 ```
 
-Within this monorepo, `melos bootstrap` resolves both to path dependencies
-instead:
+Within this monorepo, `melos bootstrap` resolves both internal packages to
+path dependencies instead:
 
 ```yaml
 dependencies:
@@ -106,7 +145,7 @@ void main() {
 }
 ```
 
-See [`example/`](example/) for a full runnable app (including web) — run it
+See [`example/`](https://github.com/pese-git/structured_log/tree/master/emb/structured_log_material/example) for a full runnable app (including web) — run it
 with `flutter run -d chrome` from that directory.
 
 To embed the viewer inside existing page chrome instead of giving it the

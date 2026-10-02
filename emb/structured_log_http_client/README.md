@@ -4,50 +4,99 @@
 
 *Читать на [русском](README.ru.md).*
 
-Logs every request a [`package:http`](https://pub.dev/packages/http) client
-sends and how it ended — response, failure, abort — as
-[`structured_log`](https://pub.dev/packages/structured_log) entries.
+**Every request your [`package:http`](https://pub.dev/packages/http) client
+sends, and how it ended, as a [`structured_log`](https://pub.dev/packages/structured_log)
+entry — with tokens and passwords kept out of it, and without buffering a
+single response.**
 
-`package:http` has no interceptors, so `StructuredLogHttpClient` is a
-client that wraps another: hand it the `http.Client` you would have used,
-and use it in its place. Every call then reports through the sinks you have
-already configured — the console, a file, the in-app log viewer
-(`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_remote_sync`.
+## Why
+
+A bug report says "sync failed". Which call was it, what did the server
+answer, how long did it take? A request log answers that — but
+`package:http` has no interceptors to hang one on, and a naive log also
+writes down the user's access token, session cookie and password and sends
+them wherever your logs go.
+
+`StructuredLogHttpClient` is a client that wraps another: hand it the
+`http.Client` you would have used, and use it in its place. Every call then
+becomes two entries — the request and its outcome, tied together by an id,
+with the status code and duration, at a level that follows the status.
+Headers and bodies stay out until you ask for them, and even then
+credentials are masked before anything is written; your code still gets
+every response exactly as the server sent it.
 
 ## Features
 
-- **Wraps any client** — `IOClient`, `BrowserClient`, `cupertino_http`,
-  `cronet_http`, a `RetryClient`: whatever `http.Client` you already use
+### What you see
+
 - **Request and outcome, paired** — `http_request_id` ties a call's two
-  entries together; the outcome carries `status_code` and `duration_ms`
+  entries together; the outcome carries `status_code` and `duration_ms`.
 - **Levels by status** — 2xx/3xx at `debug`, 4xx at `warning`, 5xx and
-  failures at `error`, aborts at `debug`; each adjustable or off
-- **Secrets stay out by default** — headers and bodies are not logged
-  unless asked for; `Authorization`, cookies and API-key headers are
-  redacted even then, and so are password- and token-like fields in a
-  body; token-like query parameters and URL user info are always redacted
-- **Response bodies without buffering** — the body reaches your code as it
-  arrives; only its start is kept for the log
+  failures at `error`, aborts at `debug`; each adjustable or off.
+- **Failures and aborts too** — when the inner client throws, or a request
+  is aborted through its `abortTrigger`, the outcome is an `http_error`
+  with the exception's type and message.
+- **Its own category** — every entry carries `category: 'http'`, for a
+  `LogSink` to route and the log viewer to filter on.
+
+### What stays out
+
+- **Headers and bodies off by default** — nothing but the method, URL,
+  status and timing is written until you turn them on.
+- **Credentials masked when they are on** — `Authorization`, cookies and
+  API-key headers become `REDACTED`, and so do password- and token-like
+  fields in a JSON or form body, at any depth, by the same list
+  `structured_log` itself uses.
+- **URLs cleaned always** — token-like query parameters and user info
+  (`https://user:pass@host`) never reach the log.
+
+### What doesn't get in the way
+
+- **Wraps any client** — `IOClient`, `BrowserClient`, `cupertino_http`,
+  `cronet_http`, a `RetryClient`: whatever `http.Client` you already use.
+- **Response bodies without buffering** — with response bodies logged, the
+  body still reaches your code as it arrives; only its start is kept for
+  the log.
 - **Never breaks a call** — a describer or filter that throws costs the
   entry, not the request; the inner client's exceptions reach you
-  unchanged
+  unchanged.
+- **Follows reconfiguration** — without an explicit logger it picks up a
+  later `StructlogConfiguration.configure`, so a client built at startup
+  needs no rebuilding.
+
+## Where it fits
+
+`structured_log_http_client` is one of the integrations around
+[`structured_log`](https://pub.dev/packages/structured_log): it depends on
+nothing but the core and `http`, and writes through the sinks you have
+already configured. Its sibling
+[`structured_log_dio`](https://pub.dev/packages/structured_log_dio) writes
+the same entries — same names, fields, levels and redaction — for `dio`,
+so an app that uses both clients gets one consistent log. No server is
+needed: the entries go to the console, a file, or the in-app log viewer
+([`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+with a Material, Fluent or Cupertino skin), and — if you run the
+self-hosted `structured_log_server` — to it through
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+where your team can search them by status, URL or request id. More at
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.2`):
+Published on pub.dev as a pre-release (`0.1.0-dev.3`):
 
 ```yaml
 dependencies:
   http: ^1.5.0
   structured_log: ^0.3.0
-  structured_log_http_client: ^0.1.0-dev.2
+  structured_log_http_client: ^0.1.0-dev.3
 ```
 
-**Breaking change after `0.1.0-dev.2`:** with a body turned on, a textual body
-whose content type is neither JSON nor a form is now written only by its
-size, `<N bytes>`, instead of as it is. `logUnrecognizedBodies: true` brings
-the old behaviour back. See [Keeping secrets out of the log](#keeping-secrets-out-of-the-log).
+**Breaking change in `0.1.0-dev.3`** (for those upgrading from `0.1.0-dev.2`):
+with a body turned on, a textual body whose content type is neither JSON
+nor a form is now written only by its size, `<N bytes>`, instead of as it
+is. `logUnrecognizedBodies: true` brings the old behaviour back. See
+[Keeping secrets out of the log](#keeping-secrets-out-of-the-log).
 
 ## Quick Start
 
@@ -81,7 +130,7 @@ starts itself (`dart run example/main.dart`).
 |-----------------|---------------------------------------|--------|
 | `http_request`  | the request is about to be sent       | `http_request_id`, `method`, `url`; `request_headers`, `request_body` if enabled |
 | `http_response` | a response arrived — **any status**   | the above, `status_code`, `duration_ms`; `response_headers`, `response_body` if enabled |
-| `http_error`    | no response: the inner client threw, the body failed half-way, or the request was aborted | the above, `status_code` if the headers had arrived, `error_type` (the exception's type), `error` |
+| `http_error`    | no response: the inner client threw, or the request was aborted; with `logResponseBody`, also a body that failed or was aborted half-way | the above, `status_code` if the headers had arrived, `error_type` (the exception's type), `error` |
 
 `package:http` does not throw on a status code, so a 404 is an
 `http_response` at `warning`, not an error. `http_request_id` counts calls

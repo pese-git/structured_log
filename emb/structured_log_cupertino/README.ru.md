@@ -1,75 +1,117 @@
 # structured_log_cupertino
 
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
 *Read in [English](README.md).*
 
-Готовый к использованию in-app просмотрщик логов на Cupertino (iOS-style)
-для [`structured_log`](../structured_log), построенный поверх
-`LogViewerController` из
-[`structured_log_flutter`](../structured_log_flutter): живой список (новые
-сверху) с поиском, фильтрами по категории и уровню, вид деталей записи с
-полным контекстом и копированием, empty-состояние, различающее «логов ещё
-нет» и «нет записей по текущему фильтру». Доступен и как полный экран
-(`CupertinoLogViewerPage`), и как обычный встраиваемый виджет
-(`CupertinoLogViewer`) — чтобы вставить его в уже существующую хрому
-страницы: вкладку, боковую панель и т.п.
+**Готовый просмотрщик логов на Cupertino (в стиле iOS) для
+Flutter-приложения: откройте экран или боковую панель — и увидите, что
+приложение только что записало в лог, с поиском, фильтрами и полным
+контекстом каждой записи, так, как это принято на iPhone и iPad.**
 
-Детали выбранной записи показываются адаптивно — по соглашениям iOS для
-каждого размера экрана, а не по одному образцу для всех: ниже брейкпоинта по ширине (мобильный сценарий по умолчанию) тап по
-строке **пушит** новый экран через `CupertinoPageRoute` — стандартный
-iOS-паттерн «переход в детали» (как в Почте/Настройках на iPhone); на и
-выше него список и немодальная панель деталей показываются рядом — так
-ведут себя те же приложения на iPad.
+## Зачем
 
-> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_cupertino)
-> (`0.1.0`). История дизайна и решений:
-> [openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](../../openspec/changes/archive/2026-10-01-add-structured-log-cupertino/).
+Во время проверки на iPhone что-то идёт не так, а объяснение лежит в логах,
+которые печатаются в консоль Xcode, — а к ней вы не подключены. Этот пакет
+выводит логи на экран прямо в приложении: все записи
+[`structured_log`](https://pub.dev/packages/structured_log), новые сверху, с
+поиском и фильтрами по уровню и категории; тап по записи открывает её
+полный контекст, который можно скопировать в отчёт об ошибке. Подключение —
+один дополнительный синк и один виджет.
+
+Этот скин — для приложений в стиле iOS (`CupertinoApp` или
+Cupertino-экраны внутри большого приложения). Для приложения на Material
+берите
+[`structured_log_material`](https://pub.dev/packages/structured_log_material),
+для десктопного приложения в стиле Windows на `fluent_ui` —
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent).
+Если ни один из трёх не подходит к вашей дизайн-системе, соберите свой на
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter):
+скины построены на нём, поэтому фильтры и пауза везде ведут себя одинаково.
 
 ## Возможности
 
-- **`CupertinoLogViewer`** — просмотрщик логов как обычный встраиваемый
-  виджет: панель управления (`CupertinoSearchTextField`,
-  пауза/возобновление, очистка) над рядом чипов фильтра по категории и
-  `CupertinoSlidingSegmentedControl` фильтра по уровню, над живым списком
-  (новые сверху) — без собственной хромы страницы, поэтому его можно
-  вставить в любую раскладку
-- **`CupertinoLogViewerPage`** — тонкая обёртка `CupertinoPageScaffold`
-  вокруг `CupertinoLogViewer` для полноэкранного сценария: добавляет
-  navigation bar с заголовком «Logs» и, при пуше через `Navigator`, кнопку
-  «назад» (штатную для `CupertinoNavigationBar`)
-- **Адаптивность** — узкие экраны: список + пушенный экран
-  `LogEntryDetailPanel` по тапу (паттерн iPhone); широкие экраны: список и
-  немодальная `LogEntryDetailPanel` рядом (паттерн iPad) — зависит от
-  ширины, которую получил *сам виджет*, а не окно
-- **`LogCategoryFilterBar`** — горизонтально прокручиваемый ряд
-  pill-кнопок фильтра по `category`, варианты которого берутся из
-  уникальных значений, реально присутствующих в буфере; скрывается
-  автоматически, если их меньше двух (`CupertinoSlidingSegmentedControl`
-  не годится для динамического открытого набора опций — он используется
-  для фильтра уровня, у которого набор маленький и фиксированный)
-- **`LogEntryTile`** — одна строка: цветная точка уровня, `event`,
-  отформатированное время и тег категории, если он задан; шеврон справа на
-  узких экранах (переход на пушенный экран деталей), вместо него —
-  подсветка, когда запись показана в соседней панели на широких экранах
-- **`LogEntryDetailPanel`** — полный контекст выбранной записи как пары
-  ключ-значение с действием «Copy» — обычный немодальный виджет (без ручки
-  для свайпа, без кнопки «Close»), переиспользуется и при пуше отдельным
-  экраном, и внутри master-detail split
-- **`LogViewerEmptyState`** — «No logs yet» либо «No logs match the
-  current filter» (с действием «Clear filters»)
-- **Следует теме** — цвета и типографика берутся из `CupertinoTheme.of`/
-  `CupertinoColors` (светлая/тёмная поддержаны через `resolveFrom`);
-  фиксирована только палитра индикаторов уровня (`logLevelColor`), общая
-  для всех скинов через `structured_log_flutter`
+### Готов к встраиванию
+
+- **Экран или панель** — `CupertinoLogViewerPage` — готовый
+  `CupertinoPageScaffold` с навигационной панелью «Logs» (и штатной кнопкой
+  «назад», если его открыли через `Navigator`); `CupertinoLogViewer` — тот
+  же просмотрщик без хромы страницы, для вкладки или боковой панели.
+- **Как на iPhone и как на iPad** — ориентируется на собственную ширину, а
+  не на ширину окна: если она меньше 700 логических пикселей, тап
+  **открывает** запись отдельным экраном через `CupertinoPageRoute`, как
+  Почта и Настройки на iPhone; начиная с 700 список и панель деталей стоят
+  рядом, как на iPad, и выбрана самая новая запись.
+
+### Поиск нужной записи
+
+- **Живой список, новые сверху** — записи появляются по мере того, как
+  приложение их пишет.
+- **Поиск** — `CupertinoSearchTextField` по именам событий и всем
+  значениям контекста.
+- **Фильтр по уровню** — `CupertinoSlidingSegmentedControl`: All, Debug+,
+  Info+, Warning+, Error+.
+- **Фильтр по категории** — прокручиваемый ряд кнопок-«таблеток» из
+  категорий, которые реально есть в буфере; пока их меньше двух, ряд скрыт.
+  Записи адаптеров вроде
+  [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) (`http`)
+  или [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc)
+  (`bloc`) сами собой становятся фильтром.
+- **Пауза и очистка** — заморозьте список, пока читаете; очистите его
+  перед новым воспроизведением.
+- **Привычные строки** — цветная точка уровня, событие, время и тег
+  категории; шеврон там, где тап открывает новый экран, и подсветка там,
+  где он выбирает запись.
+
+### Чтение записи
+
+- **Полный контекст** — сверху уровень, время и событие, ниже все
+  остальные поля парами ключ-значение; на отдельном экране имя события
+  стоит в заголовке.
+- **Копирование** — один тап кладёт поля в буфер обмена строками
+  `key: value`.
+- **Понятные пустые состояния** — «No logs yet», если ничего не захвачено,
+  и «No logs match the current filter» с действием «Clear filters», если
+  всё скрыли фильтры.
+
+### Выглядит как ваше приложение
+
+- **Следует теме** — цвета и типографика берутся из `CupertinoTheme` и
+  `CupertinoColors`, светлая и тёмная темы поддержаны; фиксированы только
+  цвета уровней, и они одинаковы во всех скинах.
+- **Без Material** — пакет использует только виджеты Cupertino и
+  `cupertino_icons`.
+- **Детали для своей раскладки** — `LogEntryTile`, `LogCategoryFilterBar`,
+  `LogEntryDetailPanel` и `LogViewerEmptyState` публичны.
+
+## Место в проекте
+
+[`structured_log`](https://pub.dev/packages/structured_log) пишет записи;
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+держит последние из них в памяти и отвечает за фильтры и паузу; этот пакет —
+Cupertino-оболочка поверх, рядом с
+[`structured_log_material`](https://pub.dev/packages/structured_log_material)
+и [`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent).
+Он работает целиком внутри приложения, без сервера; если вы вдобавок
+отправляете логи на self-hosted сервер через
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+просмотрщик по-прежнему показывает их на месте. Подробнее — в документации на
+[structured-log.openidealab.com](https://structured-log.openidealab.com/ru/)
+и в [руководстве по встраиванию](https://structured-log.openidealab.com/ru/guides/embedding-guide/).
+История дизайна и решений —
+[openspec/changes/archive/2026-10-01-add-structured-log-cupertino/](https://github.com/pese-git/structured_log/tree/master/openspec/changes/archive/2026-10-01-add-structured-log-cupertino).
 
 ## Установка
 
 ```yaml
 dependencies:
-  structured_log_cupertino: ^0.1.0
+  structured_log: ^0.3.0
+  structured_log_flutter: ^0.1.2
+  structured_log_cupertino: ^0.1.1
 ```
 
-Внутри этого monorepo `melos bootstrap` подставляет вместо обеих
-path-зависимости:
+Внутри этого monorepo `melos bootstrap` подставляет вместо обоих
+внутренних пакетов path-зависимости:
 
 ```yaml
 dependencies:
@@ -101,7 +143,7 @@ void main() {
 }
 ```
 
-Полноценное запускаемое приложение (включая web) — в [`example/`](example/),
+Полноценное запускаемое приложение (включая web) — в [`example/`](https://github.com/pese-git/structured_log/tree/master/emb/structured_log_cupertino/example),
 запуск через `flutter run -d chrome` из этой директории.
 
 Чтобы встроить просмотрщик в уже существующую хрому страницы, а не

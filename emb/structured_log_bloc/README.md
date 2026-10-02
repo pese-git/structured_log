@@ -4,41 +4,81 @@
 
 *Читать на [русском](README.ru.md).*
 
-Logs what every bloc and cubit does — creation, events, state changes,
-errors, closing — as [`structured_log`](https://pub.dev/packages/structured_log)
-entries.
+**See what every bloc and cubit in your app did — each event, state change
+and error as a structured log entry — with one line of setup.**
 
-`StructuredLogBlocObserver` is an ordinary `BlocObserver`: install it as
-`Bloc.observer` and every bloc in the app reports through the sinks you have
-already configured — the console, a file, the in-app log viewer
-(`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_remote_sync`.
+Documentation: [structured-log.openidealab.com](https://structured-log.openidealab.com).
+
+## Why
+
+"Why did the screen show *that*?" is the question a bloc app keeps asking,
+and answering it means reconstructing what happened: which event arrived,
+what state it led to, which handler threw. Without a record you add `print`
+calls, reproduce the bug, and remove them again — and on a user's device you
+can't do even that.
+
+`StructuredLogBlocObserver` keeps the record for you. Installed once as
+`Bloc.observer`, it writes the creation, events, transitions, errors and
+closing of every bloc and cubit as `structured_log` entries — with the
+bloc's type, its instance and the values involved as separate fields, so you
+can filter the story of one bloc out of everything else.
 
 ## Features
 
-- **One line to install** — `Bloc.observer = StructuredLogBlocObserver()`
-- **Works with `flutter_bloc` as is** — depends on `package:bloc` only, which
-  `flutter_bloc` is built on, so it also runs in pure Dart
-- **Its own category** — every entry carries `category: 'bloc'`, so a
-  `LogSink` can route bloc traffic separately and the log viewer offers it as
-  a filter
+### Coverage
+
+- **One line to install** — `Bloc.observer = StructuredLogBlocObserver()`.
+- **Every hook** — creation, events, transitions, cubit changes, errors with
+  stack traces, handler completion, closing.
 - **Each state change once** — a bloc's change is logged as a transition
-  (with its event), a cubit's as a change; never both
-- **A level per hook** — or `null` to turn a hook off
+  (with its event), a cubit's as a change; never both.
+- **Instances told apart** — `bloc_instance` separates two blocs of the same
+  type.
+- **Works with `flutter_bloc` as is** — depends on `package:bloc` only, which
+  `flutter_bloc` is built on, so it also runs in pure Dart.
+
+### Control
+
+- **Its own category** — every entry carries `category: 'bloc'`, so a
+  `LogSink` can route bloc traffic separately and the in-app log viewer
+  offers it as a filter.
+- **A level per hook** — or `null` to turn a hook off.
+- **A filter** — leave noisy blocs out of the log entirely.
 - **Values under your control** — states and events go through a describer
-  you can replace, to keep secrets out of the log
+  you can replace, to keep secrets out of the log or hand `redactKeys` a map.
+
+### Safety
+
 - **Never breaks a bloc** — a `toString()` or describer that throws costs the
-  entry its values, not the bloc its `emit`
+  entry its values, not the bloc its `emit`.
+- **Costs nothing when off** — a hook that is off or a bloc that is filtered
+  out never has its state described.
+
+## Where it fits
+
+The observer needs nothing but
+[`structured_log`](https://pub.dev/packages/structured_log) — no server, no
+Flutter. Its entries flow to whatever sinks you have configured: the
+console, a file, an in-app log viewer
+([`structured_log_material`](https://pub.dev/packages/structured_log_material),
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) or
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino)),
+where the `bloc` category becomes a filter, or a self-hosted
+`structured_log_server` through
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync).
+It is one of five adapters that log what your app's libraries already do;
+the whole project is at
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.1`):
+Published on pub.dev as a pre-release (`0.1.0-dev.3`):
 
 ```yaml
 dependencies:
   flutter_bloc: ^9.0.0 # or bloc: ^9.0.0
   structured_log: ^0.3.0
-  structured_log_bloc: ^0.1.0-dev.1
+  structured_log_bloc: ^0.1.0-dev.3
 ```
 
 ## Quick Start
@@ -62,9 +102,9 @@ void main() {
 A `CounterBloc` receiving one `Incremented` event then logs:
 
 ```text
-DEBUG: bloc_created     {"category":"bloc","bloc":"CounterBloc","bloc_instance":621700500,"state":"0","state_type":"int"}
-DEBUG: bloc_event_added {"category":"bloc","bloc":"CounterBloc","bloc_instance":621700500,"bloc_event":"Incremented()","bloc_event_type":"Incremented"}
-DEBUG: bloc_transition  {"category":"bloc","bloc":"CounterBloc","bloc_instance":621700500,"bloc_event":"Incremented()","bloc_event_type":"Incremented","current_state":"0","next_state":"1","state_type":"int"}
+[2026-10-02T16:04:41.519257Z] DEBUG: bloc_created {"logger":"bloc","category":"bloc","bloc":"CounterBloc","bloc_instance":787006492,"state":"0","state_type":"int"}
+[2026-10-02T16:04:41.527204Z] DEBUG: bloc_event_added {"logger":"bloc","category":"bloc","bloc":"CounterBloc","bloc_instance":787006492,"bloc_event":"Incremented()","bloc_event_type":"Incremented"}
+[2026-10-02T16:04:41.531119Z] DEBUG: bloc_transition {"logger":"bloc","category":"bloc","bloc":"CounterBloc","bloc_instance":787006492,"bloc_event":"Incremented()","bloc_event_type":"Incremented","current_state":"0","next_state":"1","state_type":"int"}
 ```
 
 See [example/main.dart](example/main.dart) for a runnable version
@@ -145,7 +185,7 @@ Bloc.observer = StructuredLogBlocObserver(
 ```
 
 Several observers at once — this one and, say, a crash reporter — combine
-through `bloc`'s own `MultiBlocObserver`.
+through `bloc`'s own `MultiBlocObserver` (`bloc` 9.2.0 or later).
 
 ## API Reference
 
@@ -184,4 +224,4 @@ The rest of the `structured_log` family:
 
 ## License
 
-See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
