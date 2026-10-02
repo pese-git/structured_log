@@ -2,6 +2,7 @@ import 'configuration.dart';
 import 'correlation.dart';
 import 'encoding.dart';
 import 'report.dart';
+import 'timestamp.dart';
 
 /// Log levels, from least to most severe. `trace` sits below `debug` and is
 /// filtered out by a sink's default `minLevel` (`LogLevel.debug`) unless a
@@ -220,7 +221,7 @@ class BoundLogger {
     LogLevel level,
   ) {
     entry['level'] = level.name;
-    entry['timestamp'] = DateTime.now().toIso8601String();
+    entry['timestamp'] = formatTimestamp(DateTime.now(), _config.timestampMode);
 
     for (final processor in _config.processors) {
       final Map<String, dynamic>? result;

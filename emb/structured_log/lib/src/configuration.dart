@@ -1,6 +1,7 @@
 import 'processors.dart';
 import 'formatters.dart';
 import 'sink.dart';
+import 'timestamp.dart';
 
 /// Global, mutable configuration for the whole `structured_log` package:
 /// which [Processor]s run on every entry, which [LogSink]s receive it, and
@@ -42,11 +43,16 @@ class StructlogConfiguration {
   /// override an `initialContext` key of the same name). Defaults to `{}`.
   final Map<String, dynamic> initialContext;
 
+  /// How every entry's `timestamp` is written. Defaults to
+  /// [TimestampMode.utc]; see [TimestampMode].
+  final TimestampMode timestampMode;
+
   StructlogConfiguration({
     this.processors = const [dropNullValues],
     List<LogSink>? sinks,
     OutputFunction? output,
     this.initialContext = const {},
+    this.timestampMode = TimestampMode.utc,
   }) : sinks = sinks ??
             [LogSink(name: 'default', output: output ?? defaultOutput)];
 
@@ -90,6 +96,7 @@ class StructlogConfiguration {
     List<LogSink>? sinks,
     OutputFunction? output,
     Map<String, dynamic>? initialContext,
+    TimestampMode? timestampMode,
   }) {
     final nextSinks = sinks ??
         (output != null
@@ -99,6 +106,7 @@ class StructlogConfiguration {
       processors: processors ?? _current.processors,
       sinks: nextSinks,
       initialContext: initialContext ?? _current.initialContext,
+      timestampMode: timestampMode ?? _current.timestampMode,
     );
   }
 

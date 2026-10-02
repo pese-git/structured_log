@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:structured_log/src/report_print.dart';
+import 'package:structured_log/src/timestamp.dart';
 import 'package:structured_log/structured_log.dart';
 import 'package:test/test.dart';
 
@@ -370,6 +371,70 @@ void main() {
       final entry = <String, dynamic>{'x': shared, 'y': shared};
 
       expect(redactKeys()(entry), same(entry));
+    });
+  });
+
+  group('Timestamps', () {
+    Map<String, dynamic> logOne() {
+      final delivered = <Map<String, dynamic>>[];
+      StructlogConfiguration.configure(output: (e, l) => delivered.add(e));
+      getLogger().info('x');
+      return delivered.single;
+    }
+
+    test('are UTC by default', () {
+      final timestamp = logOne()['timestamp'] as String;
+
+      expect(timestamp, endsWith('Z'));
+      expect(DateTime.parse(timestamp).isUtc, isTrue);
+    });
+
+    test('carry their offset in local mode', () {
+      StructlogConfiguration.configure(
+        timestampMode: TimestampMode.localWithOffset,
+      );
+      final before = DateTime.now();
+
+      final timestamp = logOne()['timestamp'] as String;
+
+      expect(timestamp, matches(RegExp(r'[+-]\d\d:\d\d$')));
+      expect(timestamp, endsWith(formatOffset(before.timeZoneOffset)));
+      expect(
+        DateTime.parse(timestamp).difference(before).inSeconds.abs(),
+        lessThan(5),
+        reason: 'the offset makes it the same instant, read anywhere',
+      );
+    });
+
+    test('a local time reads back as the same instant', () {
+      final local = DateTime(2026, 10, 2, 12, 30, 15, 250);
+
+      final formatted = formatTimestamp(local, TimestampMode.localWithOffset);
+
+      expect(DateTime.parse(formatted).isAtSameMomentAs(local), isTrue);
+      expect(
+        formatTimestamp(local, TimestampMode.utc),
+        local.toUtc().toIso8601String(),
+      );
+    });
+
+    test('offsets are written sign, hours and minutes', () {
+      expect(formatOffset(Duration.zero), '+00:00');
+      expect(formatOffset(const Duration(hours: 3)), '+03:00');
+      expect(formatOffset(const Duration(hours: 5, minutes: 45)), '+05:45');
+      expect(formatOffset(const Duration(hours: -3, minutes: -30)), '-03:30');
+    });
+
+    test('configure keeps the mode when it is not given again', () {
+      StructlogConfiguration.configure(
+        timestampMode: TimestampMode.localWithOffset,
+      );
+      StructlogConfiguration.configure(initialContext: {'app': 'a'});
+
+      expect(
+        StructlogConfiguration.current.timestampMode,
+        TimestampMode.localWithOffset,
+      );
     });
   });
 
