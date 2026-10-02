@@ -45,9 +45,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
   Главная библиотека не импортирует `dart:io` и собирается под web; файловые выходы — в отдельной
   `package:structured_log/io.dart`. Это и ещё две ломающие правки (UTC в `timestamp` по умолчанию,
-  ленивая конфигурация логгеров `getLogger()`) — открытая заявка
-  [openspec/changes/harden-structured-log-core/](openspec/changes/harden-structured-log-core/), выйдет как
-  `0.3.0`; зависимые пакеты переходят на `structured_log: ^0.3.0` тем же релизом.
+  ленивая конфигурация логгеров `getLogger()`) вышли как `0.3.0` (02.10.2026) — заявка
+  [openspec/changes/archive/2026-10-02-harden-structured-log-core/](openspec/changes/archive/2026-10-02-harden-structured-log-core/),
+  основные спеки — [openspec/specs/structured-log-core/](openspec/specs/structured-log-core/spec.md) и
+  [openspec/specs/remote-sync-entry-encoding/](openspec/specs/remote-sync-entry-encoding/spec.md); зависимые
+  пакеты перешли на `structured_log: ^0.3.0` тем же релизом.
 - [emb/structured_log_flutter/](emb/structured_log_flutter/) — headless-ядро для in-app просмотра логов
   во Flutter (`LogBuffer`, `LogViewerController`, `logLevelColor()`, однострочный выход
   `debugPrintOutput`); не зависит ни от какой конкретной дизайн-системы. Опубликован на pub.dev.
@@ -172,10 +174,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас две: `add-structured-log-server` и
-  `harden-structured-log-core` (надёжность ядра `structured_log`, маскирование тел в `_dio`/`_http_client`,
-  кодирование записей в `_remote_sync`, `LogBuffer`; код готов, остались документация и выпуск —
-  раздел 7 `tasks.md` — и прогон 3.4 на CI).
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`;
+  `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
+  записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
