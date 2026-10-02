@@ -2,7 +2,7 @@ name: structured_log_http
 description: >-
   Discontinued — renamed to structured_log_remote_sync. This last release only
   re-exports structured_log_remote_sync and marks HttpLogOutput deprecated.
-version: 0.2.0+1
+version: 0.2.0+2
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_http/
 repository: https://github.com/pese-git/structured_log.git
@@ -15,9 +15,9 @@ environment:
   sdk: ^3.0.0
 
 dependencies:
-  structured_log_remote_sync: ^0.2.0+1
+  structured_log_remote_sync: ^0.2.0+2
 
 dev_dependencies:
-  structured_log: ^0.2.2
+  structured_log: ^0.2.2+1
   lints: ^3.0.0
   test: ^1.24.0

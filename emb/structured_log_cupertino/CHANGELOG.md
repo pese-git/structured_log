@@ -1,3 +1,8 @@
+## 0.1.1+2
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
 ## 0.1.1+1
 
  - **DOCS**(openspec): archive eight finished changes.

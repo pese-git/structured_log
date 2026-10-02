@@ -1,3 +1,8 @@
+## 0.2.0+2
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
 ## 0.2.0+1
 
  - **FIX**(structured_log_remote_sync): name ^0.2.0 in the install instructions.

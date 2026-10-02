@@ -15,6 +15,102 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`structured_log` - `v0.2.2+1`](#structured_log---v0221)
+ - [`structured_log_bloc` - `v0.1.0-dev.2`](#structured_log_bloc---v010-dev2)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.2`](#structured_log_cherrypick---v010-dev2)
+ - [`structured_log_cupertino` - `v0.1.1+2`](#structured_log_cupertino---v0112)
+ - [`structured_log_dio` - `v0.1.0-dev.2`](#structured_log_dio---v010-dev2)
+ - [`structured_log_fluent` - `v0.1.1+2`](#structured_log_fluent---v0112)
+ - [`structured_log_flutter` - `v0.1.1+2`](#structured_log_flutter---v0112)
+ - [`structured_log_go_router` - `v0.1.0-dev.2`](#structured_log_go_router---v010-dev2)
+ - [`structured_log_http_client` - `v0.1.0-dev.2`](#structured_log_http_client---v010-dev2)
+ - [`structured_log_material` - `v0.1.1+2`](#structured_log_material---v0112)
+ - [`structured_log_remote_sync` - `v0.2.0+2`](#structured_log_remote_sync---v0202)
+ - [`structured_log_http` - `v0.2.0+2`](#structured_log_http---v0202)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_http` - `v0.2.0+2`
+
+---
+
+#### `structured_log` - `v0.2.2+1`
+
+ - **DOCS**(ru): rename the headings that were calques, with their anchors.
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**(structured_log): describe the whole project in the core package's README.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_bloc` - `v0.1.0-dev.2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: describe the adapters as published pre-releases.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: describe the adapters as published pre-releases.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_cupertino` - `v0.1.1+2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_dio` - `v0.1.0-dev.2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: describe the adapters as published pre-releases.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_fluent` - `v0.1.1+2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_flutter` - `v0.1.1+2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_go_router` - `v0.1.0-dev.2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: describe the adapters as published pre-releases.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_http_client` - `v0.1.0-dev.2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: describe the adapters as published pre-releases.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_material` - `v0.1.1+2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+#### `structured_log_remote_sync` - `v0.2.0+2`
+
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
+
+## 2026-10-02
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`structured_log_http` - `v0.2.0+1`](#structured_log_http---v0201)
  - [`structured_log_remote_sync` - `v0.2.0+1`](#structured_log_remote_sync---v0201)
 

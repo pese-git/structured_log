@@ -1,3 +1,10 @@
+## 0.2.2+1
+
+ - **DOCS**(ru): rename the headings that were calques, with their anchors.
+ - **DOCS**(ru): rewrite literal translations across the Russian docs.
+ - **DOCS**(structured_log): describe the whole project in the core package's README.
+ - **DOCS**: cross-link the emb/ packages from each other's READMEs.
+
 ## 0.2.2
 
  - **FEAT**(structured_log): redact sensitive values, at any depth (#70).
