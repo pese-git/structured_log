@@ -887,6 +887,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
+      # The same link the Dart jobs write, for the same reason, and for every
+      # package here that depends on the core or on structured_log_flutter:
+      # without it pub resolves the published packages, and a package built
+      # on API its core gained in the same PR does not compile here at all.
+      # Paths are relative to the package, which sits one to three levels down.
+      - name: Link the workspace copies of structured_log and structured_log_flutter
+        run: |
+          root=$(realpath --relative-to=. "$GITHUB_WORKSPACE")
+          overrides=''
+          for dep in structured_log structured_log_flutter; do
+            if grep -q "^  $dep:" pubspec.yaml; then
+              overrides="$overrides  $dep:\n    path: $root/emb/$dep\n"
+            fi
+          done
+          if [ -n "$overrides" ]; then
+            printf 'dependency_overrides:\n%b' "$overrides" > pubspec_overrides.yaml
+            cat pubspec_overrides.yaml
+          fi
+
       - name: Install dependencies
         run: flutter pub get
 
