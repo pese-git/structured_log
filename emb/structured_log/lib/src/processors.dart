@@ -51,8 +51,9 @@ typedef Processor = Map<String, dynamic>? Function(Map<String, dynamic> entry);
 /// variable, anything.
 ///
 /// This is the type every built-in output in this library
-/// ([defaultOutput], [fileOutput], [rotatingFileOutput],
-/// [coloredConsoleOutput]) and [LogSink.output] share; write your own to
+/// ([defaultOutput], [coloredConsoleOutput], [jsonLineOutput],
+/// [logfmtOutput], and the file outputs in `package:structured_log/io.dart`)
+/// and [LogSink.output] share; write your own to
 /// integrate with a destination this package doesn't cover directly:
 ///
 /// ```dart
