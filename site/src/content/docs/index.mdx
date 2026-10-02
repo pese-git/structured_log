@@ -3,7 +3,7 @@ title: structured_log
 tableOfContents: false
 template: splash
 hero:
-  tagline: Structured logging for Dart and Flutter, inspired by Python's structlog.
+  tagline: Structured logging for Dart and Flutter — from a line in your app's console to a searchable, shared log store for your whole team.
   actions:
     - text: Read the docs
       link: /overview/
@@ -17,11 +17,27 @@ hero:
 
 import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-A core library, an in-app log-viewer ecosystem, and — optionally — a
-self-hosted server. Everything below works entirely on its own, with
-no server involved at all; add `structured_log_server` only once you
-want those logs collected centrally, searchable, and shared across a
-team.
+A log line like `"User 42 logged in from 127.0.0.1"` is easy to write and
+hard to use: you can't filter it by user, count it by IP, or follow one
+request through it without regular expressions. `structured_log` records
+**events with data** instead — `user_login {user_id: 42, ip: 127.0.0.1}` —
+so the same entry reads well in a terminal, parses as JSON, and can be
+searched by any field. Inspired by Python's
+[structlog](https://www.structlog.org/).
+
+The project covers the whole path such an entry travels:
+
+1. **Write it** — a small, dependency-free core library for Dart and Flutter.
+2. **Get it for free** — adapters that log what `bloc`, `dio`, `http`,
+   `go_router` and `cherrypick` already do in your app.
+3. **See it on the device** — a drop-in log viewer screen in Material,
+   Fluent or Cupertino style.
+4. **Collect it** — a self-hosted server that receives logs from every
+   install of your app, stores them, and lets your team search and tail
+   them live in a web admin.
+
+Steps 1–3 work entirely inside your app, with no server at all. Step 4 is
+optional, and adding it doesn't change a single logging call.
 
 ## Quick start
 
@@ -101,6 +117,82 @@ team.
 
 </TabItem>
 </Tabs>
+
+## Features
+
+### Structured logging core
+
+- **Events with context** — `log.info('user_login', context: {...})`;
+  `bind()` attaches fields to a logger (immutably), `withCorrelation()`
+  adds typed session/request/operation ids.
+- **Processors** — enrich, transform or drop entries before output.
+- **Secret redaction** — passwords, tokens and keys masked by field name,
+  JWTs and card numbers by value.
+- **Many outputs at once** — pretty JSON, JSON lines, logfmt, colored
+  console, file, rotating file, async file, or your own function; each sink
+  with its own level and category filter, switchable at runtime.
+- **Safe by design** — a log call never throws, and an unencodable value
+  (`DateTime`, an exception) costs one field, not the entry.
+- **Everywhere Dart runs** — VM, Flutter, and the web; no runtime
+  dependencies beyond `meta`.
+
+### In-app log viewer for Flutter
+
+- A ready-made screen or embeddable widget: live list, search, level and
+  category filters, pause, clear, entry details with copy.
+- Three design systems — **Material 3**, **Fluent UI** (WinUI-style) and
+  **Cupertino** (iOS-style) — each adaptive: bottom sheet or pushed screen
+  on phones, master-detail on tablets and desktop.
+- A headless core (`LogBuffer`, `LogViewerController`) to build your own UI.
+
+### Integrations
+
+| Library | What gets logged | Category |
+|---|---|---|
+| `bloc` / `flutter_bloc` | creation, events, transitions, errors, closing of every bloc and cubit | `bloc` |
+| `dio` | every request and its outcome, level by status code | `http` |
+| `package:http` | the same, as a wrapping `http.Client`, without buffering bodies | `http` |
+| `go_router` | navigation with route pattern, redirects, routing errors | `navigation` |
+| `cherrypick` | DI scopes, modules, cycles, resolve errors — never an instance | `di` |
+
+HTTP and navigation adapters redact auth headers, cookies, and token-like
+query parameters by default; bodies are off unless enabled, and masked by
+field name when they are.
+
+### Self-hosted log server and admin client
+
+- **Shipping** — `RemoteSyncLogOutput` batches entries, retries with
+  backoff, caps its buffer, and never blocks the code that logged.
+- **Ingest, search, live tail** — a full-text and per-field query API, and
+  a Server-Sent Events stream with catch-up after reconnects.
+- **Multi-tenancy** — groups own projects; each project has its own secret
+  keys, quotas and retention window.
+- **Access control** — users, teams, and per-scope roles
+  (`admin`/`owner`/`user`); JWT sessions with an `HttpOnly` refresh cookie
+  in the browser; rate limiting on the auth endpoints; an audit log of who
+  changed what.
+- **Simple to run** — one Dart process with an embedded SQLite file by
+  default, PostgreSQL when you need it; docker-compose and Kubernetes
+  manifests included.
+- **Web admin** — a Fluent UI app (English/Russian) for managing groups,
+  projects, keys, users and teams, and for searching and live-tailing logs.
+
+## How it fits together
+
+<pre class="mermaid">{`flowchart LR
+  subgraph app["Your Dart / Flutter app"]
+    A["Adapters<br/>bloc · dio · http · go_router · cherrypick"] --> C["structured_log"]
+    Y["Your code"] --> C
+    C --> O["Console / file"]
+    C --> V["In-app log viewer"]
+    C --> R["RemoteSyncLogOutput"]
+  end
+  R -- "HTTP, batched" --> S["structured_log_server<br/>SQLite or PostgreSQL"]
+  S -- "query API · SSE" --> W["Admin client (web)"]
+`}</pre>
+
+Everything inside the box works on its own; the server side is added only
+when you want logs collected centrally.
 
 ## Two ways to use it
 
