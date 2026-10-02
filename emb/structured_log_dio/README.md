@@ -24,8 +24,8 @@ already configured — the console, a file, the in-app log viewer
   adjustable or off
 - **Secrets stay out by default** — headers and bodies are not logged
   unless asked for; `Authorization`, cookies and API-key headers are
-  redacted even then; token-like query parameters and URL user info are
-  always redacted
+  redacted even then, and so are password- and token-like fields in a
+  body; token-like query parameters and URL user info are always redacted
 - **Its own category** — every entry carries `category: 'http'`, for a
   `LogSink` to route and the log viewer to filter on
 - **Never breaks a call** — a describer or filter that throws costs the
@@ -33,14 +33,19 @@ already configured — the console, a file, the in-app log viewer
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.1`):
+Published on pub.dev as a pre-release (`0.1.0-dev.2`):
 
 ```yaml
 dependencies:
   dio: ^5.4.0
-  structured_log: ^0.2.1
-  structured_log_dio: ^0.1.0-dev.1
+  structured_log: ^0.3.0
+  structured_log_dio: ^0.1.0-dev.2
 ```
+
+**Breaking change after `0.1.0-dev.2`:** with a body turned on, a string body
+whose content type is neither JSON nor a form is now written only by its
+size, `<N chars>`, instead of as it is. `logUnrecognizedBodies: true` brings
+the old behaviour back. See [Keeping secrets out of the log](#keeping-secrets-out-of-the-log).
 
 ## Quick Start
 
@@ -102,18 +107,33 @@ status code.
   `password`, `client_secret` — are always redacted; pass
   `redactedQueryParameters` to change the set. User info in the URL
   (`https://user:pass@host`) is always dropped.
-- **Bodies, once on, are logged as they are** (JSON-encoded, cut to 1000
-  characters). A login form or a token response would land in the log
-  verbatim, so either keep them off for such calls with `filter`, or pass a
-  `describeBody` that withholds them — returning `null` leaves the field
-  out:
+- **Bodies, once on, are redacted before they are written.** Fields named
+  in `redactedBodyFields` become `REDACTED`, at any depth and regardless of
+  case. The default, `defaultRedactedBodyFields`, is `structured_log`'s own
+  `defaultSensitiveKeys` — `password`, `token`, `access_token`,
+  `client_secret`, `api_key`, `authorization` and their spelling variants —
+  so a body and a log entry are redacted by one list. What gets
+  redacted depends on the body:
+  - a map or a list — redacted as it is;
+  - a string whose content type is JSON (`application/json`, `*+json`) or a
+    form (`application/x-www-form-urlencoded`) — parsed, redacted and
+    written back; one that does not parse is written as
+    `<unparseable body>`, since what cannot be parsed cannot be redacted;
+  - a string of any other type — only its length, `<N chars>`: there is no
+    knowing where a secret sits in text of unknown shape.
+    `logUnrecognizedBodies: true` writes such strings as they are.
+
+  The result is then JSON-encoded and cut to 1000 characters. A
+  `describeBody` of your own receives the body already redacted; returning
+  `null` from it leaves the field out. To redact more than the defaults,
+  spread them into your own set — passing a set replaces the defaults
+  rather than adding to them:
 
 ```dart
 StructuredLogDioInterceptor(
   logRequestBody: true,
   logResponseBody: true,
-  describeBody: (body) =>
-      body is Map && body.containsKey('password') ? null : describeHttpBody(body),
+  redactedBodyFields: {...defaultRedactedBodyFields, 'otp', 'pin'},
 );
 ```
 
@@ -136,11 +156,13 @@ Raw bytes and streams are summarised rather than dumped
 
 | Symbol | Description |
 |---|---|
-| `StructuredLogDioInterceptor({logger, loggerName, category, levels, logHeaders, logRequestBody, logResponseBody, redactedHeaders, redactedQueryParameters, describeBody, filter})` | The interceptor. Without `logger` it calls `getLogger(loggerName)` (`dio`) on every entry, so a later `StructlogConfiguration.configure` reaches it too. `category: null` binds no category. |
+| `StructuredLogDioInterceptor({logger, loggerName, category, levels, logHeaders, logRequestBody, logResponseBody, redactedHeaders, redactedQueryParameters, describeBody, filter, redactedBodyFields, logUnrecognizedBodies})` | The interceptor. Without `logger` it calls `getLogger(loggerName)` (`dio`) on every entry, so a later `StructlogConfiguration.configure` reaches it too. `category: null` binds no category. |
 | `HttpLogLevels({request, success, clientError, serverError, failure, cancel})` | A `LogLevel?` per outcome; `null` turns it off. |
-| `HttpBodyDescriber` | `Object? Function(Object? body)` — turns a body into an entry value; `null` omits the field. |
+| `HttpBodyDescriber` | `Object? Function(Object? body)` — turns a body, already redacted, into an entry value; `null` omits the field. |
 | `describeHttpBody(body)` | The default describer: strings as they are, maps and lists JSON-encoded, bytes/streams/`FormData` summarised, cut to `defaultHttpBodyMaxLength` (1000) characters. |
-| `defaultRedactedHeaders`, `defaultRedactedQueryParameters`, `redactedValue` | The default redaction sets and the value (`REDACTED`) that replaces what they match. |
+| `redactedBodyFields` | Body field names whose values become `REDACTED`, case-insensitively, at any depth. Defaults to `defaultRedactedBodyFields`; a set passed here replaces it. |
+| `logUnrecognizedBodies` | Whether a string body that is neither JSON nor a form is written as it is. `false` by default: it is written as `<N chars>`. |
+| `defaultRedactedHeaders`, `defaultRedactedQueryParameters`, `defaultRedactedBodyFields`, `redactedValue` | The default redaction sets and the value (`REDACTED`) that replaces what they match. `defaultRedactedBodyFields` is `structured_log`'s `defaultSensitiveKeys`. |
 
 ## Related packages
 
