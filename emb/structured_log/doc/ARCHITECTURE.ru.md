@@ -23,21 +23,35 @@
   замыкание. Async-выводы (см. [Асинхронные выводы](#асинхронные-выводы))
   — единственное исключение: им нужно хранить состояние (future завершения)
   помимо самой функции.
+- **Вызов лога никогда не бросает.** Что бы ни сделали процессор, синк или
+  сериализация, `tryLog()` перехватит исключение, сообщит о нём и вернёт
+  управление — логирование не бывает причиной падения вызывающего кода.
+- **Ядро работает везде.** Основная библиотека не импортирует `dart:io`; то,
+  чему он нужен (файловые выводы, `stderr`), спрятано за
+  [`io.dart`](../lib/io.dart) или за условным импортом — см.
+  [Разделение по платформам](#разделение-по-платформам-iodart-и-отчёт-об-ошибках).
 - **Аддитивная эволюция.** Correlation, multi-sink маршрутизацию и
   async-выводы добавили, не меняя сигнатур существующих методов
-  (см. [CHANGELOG.md](../CHANGELOG.md)).
+  (см. [CHANGELOG.md](../CHANGELOG.md)). Осознанное исключение — 0.3.0 с
+  тремя ломающими изменениями: метки времени в UTC, логгеры, следящие за
+  конфигурацией, и переезд файловых выводов в `io.dart` (что делать —
+  в разделе README «Переход на 0.3.0»).
 
 ## Компоненты
 
 | Файл | Ответственность |
 |------|----------------|
-| [lib/src/logger.dart](../lib/src/logger.dart) | `LogLevel`, `BoundLogger` — привязывает context/correlation, прогоняет конвейер процессоров, доставляет в синки |
-| [lib/src/configuration.dart](../lib/src/configuration.dart) | `StructlogConfiguration` — глобальные processors/sinks/initialContext, `configure()`/`reset()`/`setSinkEnabled()` |
+| [lib/src/logger.dart](../lib/src/logger.dart) | `LogLevel`, `BoundLogger` — привязывает context/correlation, заранее проверяет уровень, прогоняет конвейер процессоров (изолируя их сбои), доставляет в синки |
+| [lib/src/configuration.dart](../lib/src/configuration.dart) | `StructlogConfiguration` — глобальные processors/sinks/initialContext/timestampMode, `configure()`/`reset()`/`setSinkEnabled()` |
+| [lib/src/timestamp.dart](../lib/src/timestamp.dart) | `TimestampMode` и то, как записывается `timestamp` (UTC с `Z` или местное время со смещением) |
 | [lib/src/correlation.dart](../lib/src/correlation.dart) | `LogCorrelation` — типизированные, объединяемые correlation-поля |
 | [lib/src/sink.dart](../lib/src/sink.dart) | `LogSink` — один приёмник вывода с фильтрацией по уровню/категории и выключателем в рантайме |
-| [lib/src/processors.dart](../lib/src/processors.dart) | typedef `Processor` + встроенные (`dropNullValues`, `addTimestamp`, `addLogLevel`, `jsonRenderer`, `logfmtRenderer`, `redactKeys()`) |
-| [lib/src/formatters.dart](../lib/src/formatters.dart) | typedef `OutputFunction` + встроенные выводы (консоль, цветная консоль, файл, ротируемый файл) |
-| [lib/src/async_file_output.dart](../lib/src/async_file_output.dart) | `AsyncFileOutput`, `AsyncRotatingFileOutput` — неблокирующие аналоги синхронных файловых выводов |
+| [lib/src/processors.dart](../lib/src/processors.dart) | typedef `Processor` + встроенные (`dropNullValues`, `redactKeys()`; устаревшие: `addTimestamp`, `addLogLevel`, `jsonRenderer`, `logfmtRenderer`) |
+| [lib/src/encoding.dart](../lib/src/encoding.dart) | `encodeLogEntry` — сериализация в JSON, общая для всех встроенных выводов, с преобразованием значений, от которых отказывается `jsonEncode`; поля, которые сохраняет заглушка |
+| [lib/src/formatters.dart](../lib/src/formatters.dart) | typedef `OutputFunction` + встроенные выводы, которым не нужен `dart:io` (консоль, цветная консоль, `jsonLineOutput`, `logfmtOutput`), и `formatLogfmt` |
+| [lib/src/file_output.dart](../lib/src/file_output.dart) | `fileOutput`, `rotatingFileOutput` — синхронные файловые выводы; экспортируются только из `io.dart` |
+| [lib/src/async_file_output.dart](../lib/src/async_file_output.dart) | `AsyncFileOutput`, `AsyncRotatingFileOutput` — неблокирующие аналоги синхронных файловых выводов; экспортируются только из `io.dart` |
+| [lib/src/report.dart](../lib/src/report.dart) (+ `report_io.dart`, `report_print.dart`) | `reportInternalError` — куда уходят сообщения о внутренних сбоях: в `stderr`, а в вебе — через `print` |
 
 ### Связи компонентов
 
@@ -46,23 +60,25 @@ classDiagram
     class BoundLogger {
         -Map~String,dynamic~ _context
         -LogCorrelation? _correlation
-        -StructlogConfiguration _config
+        -StructlogConfiguration? _config
         +bind(context) BoundLogger
         +unbind(keys) BoundLogger
         +withCorrelation(...) BoundLogger
-        +debug(event, context)
-        +info(event, context)
-        +warning(event, context)
-        +error(event, context)
-        +critical(event, context)
-        -tryLog(level, event, context)
-        -_processEntry(entry, level) Map?
+        +isEnabled(level, category) bool
+        +debug(event, context, error, stackTrace)
+        +info(event, context, error, stackTrace)
+        +warning(event, context, error, stackTrace)
+        +error(event, context, error, stackTrace)
+        +critical(event, context, error, stackTrace)
+        +tryLog(level, event, context, error, stackTrace)
+        -_processEntry(config, entry, level) Map?
     }
 
     class StructlogConfiguration {
         +List~Processor~ processors
         +List~LogSink~ sinks
         +Map initialContext
+        +TimestampMode timestampMode
         +configure(...)$
         +reset()$
         +setSinkEnabled(name, enabled)$
@@ -99,52 +115,70 @@ classDiagram
         void Function(Map entry, LogLevel level)
     }
 
-    BoundLogger --> StructlogConfiguration : читает при создании
+    BoundLogger --> StructlogConfiguration : читает на каждой записи (или закреплена)
     BoundLogger --> LogCorrelation : хранит 0..1
     StructlogConfiguration --> "0..*" LogSink : хранит
     StructlogConfiguration --> "0..*" Processor : хранит
     LogSink --> OutputFunction : оборачивает один
 ```
 
-`getLogger()` читает `StructlogConfiguration.current` **один раз**, в момент
-вызова, и сохраняет эту ссылку в новом `BoundLogger`. Логгер, полученный до
-более позднего вызова `configure()`, продолжает видеть *старый* объект
-конфигурации — если только этот вызов не переиспользует тот же список
-`sinks`/`processors` — см. [Переключение в рантайме и снапшот конфигурации](#переключение-в-рантайме-и-снапшот-конфигурации).
+Логгер из `getLogger()` **не хранит** конфигурацию: его `_config` равен
+`null`, и каждая запись заново читает `StructlogConfiguration.current` —
+синки, процессоры, `initialContext`, `timestampMode`. Логгер в поле
+`static final`, созданный раньше, чем приложение вызвало `configure()`,
+подхватывает и этот вызов, и все последующие; то же верно для всего, что
+получено из него через `bind()`/`unbind()`/`withCorrelation()` (они
+копируют тот же `null`). Явно созданный `BoundLogger(config)` — обратный
+случай: он навсегда остаётся с `config` и не подмешивает `initialContext` —
+см. [Переключение в рантайме и снапшот конфигурации](#переключение-в-рантайме-и-снапшот-конфигурации).
 
 ## Жизненный цикл вызова лога
 
 Вызов, например, `log.info('event', context: {...})` проходит через
-`tryLog()` → `_processEntry()` → доставку по синкам:
+`tryLog()` → проверку уровня → слияние → `_processEntry()` → доставку по
+синкам. Весь этот путь обёрнут в один `try/catch` в `tryLog()` — поверх
+более узких, показанных ниже:
 
 ```mermaid
 sequenceDiagram
     participant Caller as вызывающий код
     participant BoundLogger
+    participant Config as StructlogConfiguration
     participant Processors as конвейер процессоров
     participant Sink as LogSink (для каждого)
 
-    Caller->>BoundLogger: info(event, context: {...})
-    BoundLogger->>BoundLogger: tryLog(level, event, context)
-    Note over BoundLogger: порядок слияния:<br/>bound _context<br/>→ inline context<br/>→ correlation.toContext() (побеждает при конфликте)<br/>→ event
-    BoundLogger->>Processors: _processEntry(mergedContext, level)
-    Note over Processors: добавляет level + timestamp,<br/>затем прогоняет каждый Processor по очереди
-    alt процессор вернул null
-        Processors-->>BoundLogger: null (запись отброшена)
-        BoundLogger-->>Caller: return (ничего не доставлено)
-    else запись прошла весь конвейер
-        Processors-->>BoundLogger: итоговый Map записи
-        loop для каждого sink в config.sinks
-            BoundLogger->>Sink: accepts(level, entry['category'])?
-            alt выключен, ниже minLevel, или категория не совпала
-                Sink-->>BoundLogger: false (пропустить)
-            else принято
-                BoundLogger->>Sink: output(entry, level)
-                alt output бросил исключение
-                    Sink-->>BoundLogger: исключение перехвачено
-                    BoundLogger->>BoundLogger: stderr.writeln(диагностика)
-                else
-                    Sink-->>BoundLogger: доставлено
+    Caller->>BoundLogger: info(event, context, error, stackTrace)
+    BoundLogger->>BoundLogger: tryLog(level, event, ...)
+    BoundLogger->>Config: current (или закреплённая конфигурация)
+    alt ни у одного включённого синка minLevel не пропускает level
+        BoundLogger-->>Caller: return (ничего не слито, процессоры не запускались)
+    else какой-то синк принимает уровень
+        Note over BoundLogger: порядок слияния:<br/>initialContext (только у логгеров из getLogger())<br/>→ bound _context<br/>→ inline context<br/>→ error / error_type / stack_trace<br/>→ correlation.toContext() (побеждает при конфликте)<br/>→ event
+        BoundLogger->>Processors: _processEntry(config, mergedContext, level)
+        Note over Processors: добавляет level + timestamp (по timestampMode),<br/>затем прогоняет каждый Processor по очереди
+        alt процессор бросил исключение
+            Processors->>Processors: reportInternalError (только тип исключения)
+            Processors-->>BoundLogger: заглушка: опознающие поля + processor_failed
+        else процессор вернул null
+            Processors-->>BoundLogger: null (запись отброшена)
+            BoundLogger-->>Caller: return (ничего не доставлено)
+        else запись прошла весь конвейер
+            Processors-->>BoundLogger: итоговый Map записи
+        end
+        opt есть что доставить — запись или заглушка
+            loop для каждого sink в config.sinks
+                BoundLogger->>Sink: accepts(level, entry['category'])?
+                alt выключен, ниже minLevel, или категория не совпала
+                    Sink-->>BoundLogger: false (пропустить)
+                else принято
+                    BoundLogger->>Sink: output(entry, level)
+                    Note over Sink: встроенные выводы сериализуют<br/>через encodeLogEntry(entry)
+                    alt accepts или output бросил исключение
+                        Sink-->>BoundLogger: исключение перехвачено
+                        BoundLogger->>BoundLogger: reportInternalError(диагностика)
+                    else
+                        Sink-->>BoundLogger: доставлено
+                    end
                 end
             end
         end
@@ -153,6 +187,22 @@ sequenceDiagram
 
 Ключевые инварианты этого потока:
 
+- **Уровень проверяется раньше, чем что-либо собирается.** Если
+  `minLevel` ни одного включённого синка не пропускает этот уровень,
+  `tryLog()` возвращается, не сливая контекст и не запуская процессоров, —
+  отфильтрованный `trace()` стоит одного прохода по синкам. Категорию так
+  рано проверить нельзя (она известна только после слияния), поэтому её
+  по-прежнему проверяет каждый синк потом. `isEnabled()` задаёт тот же
+  вопрос для вызывающего кода, который хочет сам не собирать дорогой
+  `context`.
+- **Конфигурация читается на каждой записи.** Для логгера из `getLogger()`
+  `_configuration` — это `StructlogConfiguration.current` в момент вызова;
+  он читается один раз на запись и служит до конца её пути, так что одна
+  запись никогда не смешивает синки одной конфигурации с процессорами
+  другой.
+- **`error:`/`stackTrace:` перекрывают `context`.** Они примешиваются после
+  инлайн-`context` — как `error` (`toString()`), `error_type` (runtime-тип)
+  и `stack_trace`; correlation-поля идут уже после них.
 - **Типизированные correlation-поля побеждают.** Correlation-поля примешиваются
   *после* инлайн-`context`, поэтому одноимённый ключ из `context:` никогда
   не перекрывает привязанное correlation-поле.
@@ -160,10 +210,25 @@ sequenceDiagram
   видит ни один синк, и диагностика не печатается (это стандартный
   механизм фильтрации, например, для подавления по уровню через кастомный
   процессор).
-- **Сбои синков изолированы.** Каждый вызов `sink.output()` обёрнут в
-  собственный `try/catch`; один сломанный синк (например, с путём к файлу,
-  куда нельзя писать) никогда не останавливает доставку в остальные и никогда не
-  пробрасывает исключение из `tryLog()`.
+- **Сбой процессора закрывает доставку.** Каждый вызов процессора обёрнут
+  в собственный `try/catch`. Бросивший процессор обрывает конвейер:
+  следующие за ним не запускаются, а синки получают заглушку — `event`,
+  `level`, `timestamp`, `logger`, `category`, если это строки
+  (`identifyingFields` в [encoding.dart](../lib/src/encoding.dart)), плюс
+  `processor_failed` с типом исключения. Исходная запись не доставляется:
+  упавший процессор мог быть как раз затирателем секретов. По той же причине
+  в отчёте — тип исключения, а не его сообщение.
+- **Сбои синков изолированы.** `accepts()` + `output()` каждого синка
+  обёрнуты в собственный `try/catch`; один сломанный синк (например, с путём
+  к файлу, куда нельзя писать) никогда не останавливает доставку в остальные
+  и никогда не пробрасывает исключение из `tryLog()`.
+- **Сериализация — дело вывода, а не конвейера.** Процессоры и синки,
+  хранящие записи в памяти, видят исходные объекты; встроенные выводы
+  сериализуют через `encodeLogEntry`, который преобразует то, от чего
+  отказывается `jsonEncode` (`DateTime` → ISO-8601 в UTC, enum → `name`,
+  `Duration` → микросекунды, остальное → `toString()` или `'<TypeName>'`,
+  если тот бросил). Не сериализуется только запись, содержащая саму себя;
+  она превращается в заглушку с `encoding_failed`.
 
 ## Multi-sink маршрутизация
 
@@ -191,16 +256,52 @@ flowchart TD
 переключать его прямо в *существующем* объекте `LogSink` — для этого не
 нужно создавать новый `StructlogConfiguration` или `BoundLogger`.
 
-Это работает только потому, что `configure()` переиспользует тот же список
-`sinks` (а значит, те же экземпляры `LogSink`), если вызывающий код не
-передал новый аргумент `sinks:` — см. фолбэк `nextSinks` в
-[configuration.dart](../lib/src/configuration.dart). Если более поздний вызов
-`configure(sinks: [...])` *полностью заменяет* список, любой `BoundLogger`,
-всё ещё держащий старый экземпляр `StructlogConfiguration`, продолжает
-доставлять в старые синки — это то же поведение, что уже было у
-`processors`/`initialContext` (логгеры захватывают ссылку на
-`StructlogConfiguration` в момент создания, а не живой указатель на
-`StructlogConfiguration.current`).
+`configure()` переиспользует тот же список `sinks` (а значит, те же
+экземпляры `LogSink`), если вызывающий код не передал новый аргумент
+`sinks:` — см. фолбэк `nextSinks` в
+[configuration.dart](../lib/src/configuration.dart), — так что
+переключение переживает более поздний `configure()`, меняющий, скажем,
+только процессоры.
+
+Логгерам из `getLogger()` больше ничего и не нужно: они читают
+`StructlogConfiguration.current` на каждой записи, так что даже
+`configure(sinks: [...])`, *полностью заменяющий* список, доходит до них
+на следующей же записи. Снапшот остаётся только у явно созданного
+`BoundLogger(config)`: что бы ни делал `configure()` потом, такой логгер
+доставляет в синки `config` и с процессорами `config` — ради этого его и
+закрепляют. `setSinkEnabled()` доходит до него, только если в `config.sinks`
+лежат те же объекты `LogSink`, что и в `current`.
+
+## Разделение по платформам: io.dart и отчёт об ошибках
+
+Основная библиотека, `package:structured_log/structured_log.dart`, обязана
+компилироваться в вебе, поэтому ничто из того, что она экспортирует, не
+может импортировать `dart:io`. А нужен он в двух местах:
+
+- **Файловые выводы.** `fileOutput`/`rotatingFileOutput`
+  ([file_output.dart](../lib/src/file_output.dart)) и асинхронные выводы
+  экспортируются только из [`lib/io.dart`](../lib/io.dart) — второй
+  библиотеки, которую потребитель импортирует рядом с основной. В
+  `formatters.dart` остались только выводы, которые печатают.
+- **Отчёт о внутренних сбоях.** Каждый перехваченный сбой — синка,
+  процессора, асинхронной записи — проходит через `reportInternalError`
+  ([report.dart](../lib/src/report.dart)), а платформенную половину он
+  выбирает условным импортом:
+
+  ```dart
+  import 'report_print.dart' if (dart.library.io) 'report_io.dart' as platform;
+  ```
+
+  `report_io.dart` пишет в `stderr`; `report_print.dart`, который
+  подставляется там, где `dart:io` нет, пользуется `print` (в вебе `stderr`
+  бросает на каждой записи). Сам `reportInternalError` оборачивает вызов в
+  `try/catch` и молча отбрасывает отчёт, который не удалось доставить: он
+  работает внутри того самого кода, что не даёт вызову лога бросить, и
+  бросать не должен сам.
+
+Ротируемые файловые выводы к тому же считают размер файла в памяти — читают
+его один раз при создании и прибавляют записанные байты, — а не спрашивают
+файловую систему на каждой записи.
 
 ## Асинхронные выводы
 
