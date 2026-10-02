@@ -244,6 +244,20 @@ jobs:
       # Both halves generate code that is not committed, and both are needed
       # before anything here compiles or runs: the client because this package
       # imports it, the server because the harness starts it.
+      # The server is started from its own directory, so it resolves its own
+      # dependencies — the overrides in packages/e2e/pubspec.yaml do not reach
+      # it. Without this it runs on the published structured_log, and a
+      # breaking change to emb/structured_log in the same PR would either go
+      # unnoticed or, as with the move to io.dart, fail to compile here.
+      - name: Link the workspace copy of structured_log into the server
+        working-directory: backend/structured_log_server
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../../emb/structured_log
+          EOF
+
       - name: Generate the server's code
         working-directory: backend/structured_log_server
         run: |
