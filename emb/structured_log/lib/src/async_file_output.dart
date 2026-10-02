@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'dart:io';
 
+import 'encoding.dart';
 import 'logger.dart';
+import 'report.dart';
 
 /// Serializes writes through a chained [Future] so overlapping async calls
 /// never race on the same destination, and isolates each write's failure so
@@ -26,7 +27,7 @@ abstract class _SerializedAsyncOutput {
   void call(Map<String, dynamic> entry, LogLevel level) {
     _queue = _queue.then((_) => _write(entry, level)).catchError(
       (Object error, StackTrace stackTrace) {
-        stderr.writeln(
+        reportInternalError(
           'structured_log: $_diagnosticLabel threw: $error\n$stackTrace',
         );
       },
@@ -73,7 +74,7 @@ class AsyncFileOutput extends _SerializedAsyncOutput {
   @override
   Future<void> _write(Map<String, dynamic> entry, LogLevel level) {
     return _file.writeAsString(
-      '${jsonEncode(entry)}\n',
+      '${encodeLogEntry(entry)}\n',
       mode: FileMode.append,
     );
   }
@@ -143,7 +144,7 @@ class AsyncRotatingFileOutput extends _SerializedAsyncOutput {
       await _rotate();
     }
     await _file.writeAsString(
-      '${jsonEncode(entry)}\n',
+      '${encodeLogEntry(entry)}\n',
       mode: FileMode.append,
     );
   }

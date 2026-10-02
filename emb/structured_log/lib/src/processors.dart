@@ -253,8 +253,11 @@ const defaultSensitiveKeys = <String>{
 /// place would take the caller's own token away, and that is the mistake
 /// this function exists to stop anyone from writing again.
 ///
-/// The walk assumes the entry is acyclic — as [jsonRenderer] already does,
-/// since `jsonEncode` refuses a cycle outright.
+/// A map or list that contains itself — directly or further down — is
+/// replaced, where it recurs, by `'<cycle>'`: the walk would otherwise never
+/// end, and a processor that overflows the stack costs the whole entry. A
+/// container reached twice along *different* paths is not a cycle and is
+/// walked both times.
 Processor redactKeys({
   Set<String> keys = defaultSensitiveKeys,
   bool Function(String key)? matchesKey,
@@ -271,26 +274,43 @@ Processor redactKeys({
     return value is String && matchesValue != null && matchesValue(value);
   }
 
-  return (entry) =>
-      _redact(null, entry, matches, placeholder) as Map<String, dynamic>;
+  return (entry) => _redact(null, entry, matches, placeholder, Set.identity())
+      as Map<String, dynamic>;
 }
 
 /// Returns [value] redacted, or [value] itself when nothing in it matched.
 ///
 /// [key] is the name [value] was found under, or `null` when it has no name
-/// — the entry itself, or an element of a list.
+/// — the entry itself, or an element of a list. [ancestors] holds the
+/// containers on the path down to [value], compared by identity.
 Object? _redact(
   String? key,
   Object? value,
   bool Function(String?, Object?) matches,
   String placeholder,
+  Set<Object> ancestors,
 ) {
   if (matches(key, value)) return placeholder;
+  if (value is! Map && value is! List) return value;
+  if (!ancestors.add(value!)) return '<cycle>';
+  try {
+    return _redactContainer(value, matches, placeholder, ancestors);
+  } finally {
+    ancestors.remove(value);
+  }
+}
 
+Object _redactContainer(
+  Object value,
+  bool Function(String?, Object?) matches,
+  String placeholder,
+  Set<Object> ancestors,
+) {
   if (value is Map<String, dynamic>) {
     Map<String, dynamic>? copy;
     for (final field in value.entries) {
-      final next = _redact(field.key, field.value, matches, placeholder);
+      final next =
+          _redact(field.key, field.value, matches, placeholder, ancestors);
       if (identical(next, field.value)) continue;
       (copy ??= Map<String, dynamic>.of(value))[field.key] = next;
     }
@@ -301,7 +321,7 @@ Object? _redact(
     Map<Object?, Object?>? copy;
     for (final field in value.entries) {
       final name = field.key is String ? field.key as String : null;
-      final next = _redact(name, field.value, matches, placeholder);
+      final next = _redact(name, field.value, matches, placeholder, ancestors);
       if (identical(next, field.value)) continue;
       (copy ??= Map<Object?, Object?>.of(value))[field.key] = next;
     }
@@ -311,7 +331,7 @@ Object? _redact(
   if (value is List) {
     List<Object?>? copy;
     for (var i = 0; i < value.length; i++) {
-      final next = _redact(null, value[i], matches, placeholder);
+      final next = _redact(null, value[i], matches, placeholder, ancestors);
       if (identical(next, value[i])) continue;
       // Widened to `List<Object?>` rather than copied at its own type: a
       // placeholder does not fit a `List<int>`. Only a list holding strings
