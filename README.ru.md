@@ -30,14 +30,14 @@ Monorepo на Melos + FVM для структурированного логир
   `structured_log_flutter`: живой список, поиск и фильтр по уровню,
   детальный вид развёрнутой записи с копированием, empty-состояния.
   Включает запускаемое пример-приложение (`emb/structured_log_material/example/`,
-  умеет в web). Опубликован на
+  работает в web). Опубликован на
   [pub.dev](https://pub.dev/packages/structured_log_material).
 
 - **[`structured_log_fluent`](emb/structured_log_fluent/)** — готовый к
   использованию in-app просмотрщик логов на Fluent UI (WinUI-style) поверх
   `structured_log_flutter`: master-detail split view, поиск и фильтр по
   уровню, панель деталей с копированием, empty-состояния. Включает
-  запускаемое пример-приложение (`emb/structured_log_fluent/example/`, умеет в
+  запускаемое пример-приложение (`emb/structured_log_fluent/example/`, работает в
   web). Опубликован на
   [pub.dev](https://pub.dev/packages/structured_log_fluent).
 
@@ -47,7 +47,7 @@ Monorepo на Melos + FVM для структурированного логир
   экранах детали записи открываются отдельным экраном (пушится через
   навигацию), на широких/iPad-размерах — список и master-detail split
   рядом, empty-состояния. Включает запускаемое пример-приложение
-  (`emb/structured_log_cupertino/example/`, умеет в web). Опубликован на
+  (`emb/structured_log_cupertino/example/`, работает в web). Опубликован на
   [pub.dev](https://pub.dev/packages/structured_log_cupertino).
 
 - **[`structured_log_remote_sync`](emb/structured_log_remote_sync/)** — синк
@@ -106,12 +106,12 @@ Monorepo на Melos + FVM для структурированного логир
   Design: tokens/atoms/molecules/organisms, на базе Fluent UI). Зависит
   только от `flutter` и `fluent_ui` — ничего не знает о слое данных или
   навигации клиента. Включает запускаемую галерею компонентов
-  (`frontend/structured_log_admin_ui/example/`, умеет в web). Не
-  публикуется — заточена под эстетику этого конкретного клиента, а не
-  кит общего назначения.
+  (`frontend/structured_log_admin_ui/example/`, работает в web). Не
+  публикуется: заточена под эстетику этого конкретного клиента и не
+  задумана как кит общего назначения.
 
 - **[`structured_log_admin_client`](frontend/structured_log_admin_client/)**
-  — веб-приложение, которым реально пользуются операторы и их команды:
+  — веб-приложение, с которым на деле работают операторы и их команды:
   вход и принудительная смена пароля, ролевой admin-дашборд,
   группы/проекты/команды/секретные ключи, поиск логов с живой лентой,
   управление пользователями и журнал аудита. Локализовано
@@ -142,8 +142,8 @@ Monorepo на Melos + FVM для структурированного логир
 
 **Впервые здесь?** Начните с [docs/guides/](docs/guides/README.ru.md) —
 руководства пользователя, администратора/DevOps, разработчика и
-контрибьютора, каждое отвечает на «как это реально сделать» для своей
-аудитории. В
+контрибьютора, каждое отвечает на вопрос «как это сделать на практике» для
+своей аудитории. В
 [docs/](docs/) также лежит сквозная (не per-package) документация
 *дизайна* серверной системы — HTTP API и JSON-модели, аутентификация и
 RBAC, хранилище, живая трансляция, квоты и эксплуатационная

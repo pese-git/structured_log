@@ -21,14 +21,14 @@ Cupertino или любой другой дизайн-системы: пакет
 
 - **`LogBuffer`** — кольцевой буфер фиксированной ёмкости, подключается напрямую
   к `structured_log` как `OutputFunction`/`LogSink.output`
-- **Живые обновления** — `LogBuffer.entries` это `ValueListenable`, виджет может
-  перерисовываться на каждую новую запись без опроса
+- **Живые обновления** — `LogBuffer.entries` — это `ValueListenable`, так что
+  виджет может перерисовываться на каждую новую запись без опроса
 - **`LogViewerController`** — `ChangeNotifier` с фильтрацией по уровню/категории/
   тексту поиска, паузой/возобновлением и очисткой поверх `LogBuffer`
 - **`logLevelColor(LogLevel level, Brightness brightness)`** — канонический
   цвет индикатора `LogLevel`, общий для всех скинов, построенных на этом
   пакете, чтобы палитра не расходилась между ними
-- **Ноль зависимостей от дизайн-системы** — только `dart:ui`,
+- **Никаких зависимостей от дизайн-систем** — только `dart:ui`,
   `package:flutter/foundation.dart` и `structured_log`
 
 ## Установка
@@ -38,7 +38,7 @@ dependencies:
   structured_log_flutter: ^0.1.0
 ```
 
-Внутри этого monorepo `melos bootstrap` подставляет вместо этого
+Внутри этого monorepo `melos bootstrap` подставляет вместо неё
 path-зависимость:
 
 ```yaml
@@ -88,7 +88,7 @@ print(controller.visibleEntries);
 | `levelFilter` (`LogLevel?`) | Минимальный уровень видимой записи; `null` — без ограничения |
 | `categoryFilter` (`String?`) | Требуемое точное значение `category`; `null` — без ограничения |
 | `searchQuery` (`String`) | Регистронезависимое совпадение подстроки с `event` и остальными значениями контекста (`level`/`timestamp` исключены) |
-| `paused` (`bool`) | Пока `true`, `visibleEntries` зафиксированы на состоянии на момент паузы, даже если `buffer` продолжает захватывать записи |
+| `paused` (`bool`) | Пока `true`, `visibleEntries` остаются такими, какими были в момент паузы, даже если `buffer` продолжает захватывать записи |
 | `visibleEntries` | Записи буфера, отфильтрованные тремя свойствами выше |
 | `clear()` | Очищает `buffer` (и зафиксированный снимок, если есть) и уведомляет слушателей |
 | `dispose()` | Отписывается от `buffer.entries` — вызывать, когда контроллер больше не нужен |
@@ -97,23 +97,23 @@ print(controller.visibleEntries);
 
 Разбирает ключ контекста `level` записи обратно в `LogLevel` по совпадению
 имени — возвращает `null`, если ключа нет или он не распознан. Вынесена в
-отдельную функцию, чтобы UI-скин (как `structured_log_material`) не дублировал
+отдельную функцию, чтобы UI-скин (например, `structured_log_material`) не дублировал
 этот разбор.
 
 ### `logLevelColor(LogLevel level, Brightness brightness)`
 
-Единственный источник цветов индикатора `LogLevel`, используется строкой
-списка, видом деталей и бейджами каждого скина. Живёт здесь (а не в
+Единственный источник цветов индикатора `LogLevel`: им пользуются строка
+списка, вид деталей и бейджи каждого скина. Живёт здесь (а не в
 каком-то одном скине), потому что `Color`/`Brightness` не привязаны ни к
 Material, ни к Cupertino, ни к Fluent — эта таблица действительно
-design-system-нейтральна, в отличие от виджетов, построенных поверх неё.
+не зависит от дизайн-системы, в отличие от виджетов, построенных поверх неё.
 
 ## Построение UI-скина
 
 `structured_log_flutter` намеренно ничего не рисует — подключайте
 `LogViewerController` к любым виджетам, слушая его как обычный `ChangeNotifier`
 (`AnimatedBuilder`, `ListenableBuilder` и т.п.) и читая `visibleEntries` для
-отображения. Полные референс-реализации (список, детальный вид записи,
+отображения. Полные эталонные реализации (список, детали записи,
 empty-состояния) на Material 3, Fluent UI и Cupertino смотрите в
 [`structured_log_material`](../structured_log_material),
 [`structured_log_fluent`](../structured_log_fluent) и

@@ -128,7 +128,7 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 	</Card>
 	<Card title="structured_log_bloc" icon="list-format">
 		`BlocObserver`, который пишет события, смену состояния и ошибки
-		каждого блока и кубита — одна строка, работает с `flutter_bloc` как
+		каждого блока и кубита; подключается одной строкой, работает с `flutter_bloc` как
 		есть. [Использование и API](/ru/packages/structured_log_bloc/). Пре-релиз на pub.dev.
 	</Card>
 	<Card title="structured_log_dio, structured_log_http_client" icon="random">
@@ -154,12 +154,12 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 <CardGrid stagger>
 	<Card title="structured_log_remote_sync" icon="rocket">
 		Отправляет записи на `structured_log_server` по HTTP — батчинг,
-		retry с backoff, ограниченный буфер. Использован в быстром старте
+		retry с backoff, ограниченный буфер. Он и используется в быстром старте
 		выше. [Использование и API](/ru/packages/structured_log_remote_sync/).
 		Опубликован на pub.dev.
 	</Card>
 	<Card title="structured_log_server" icon="setting">
-		Self-hosted, multi-tenant сервер — принимает и хранит логи ваших
+		Self-hosted мультитенантный сервер — принимает и хранит логи ваших
 		приложений, позволяет искать их и следить за ними в реальном
 		времени. SQLite или PostgreSQL.
 	</Card>

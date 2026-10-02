@@ -10,7 +10,7 @@
 [design.md](../../openspec/changes/add-structured-log-server/design.md)
 и [data-model.md](../architecture/data-model.ru.md) там, где они уже
 фиксируют имена. Если будущая ревизия `specs/*.md` зафиксирует
-конфликтующую форму — приоритет у неё, и этот документ следует
+противоречащую ей форму — приоритет у неё, и этот документ следует
 поправить.
 
 ## Соглашения
@@ -71,7 +71,7 @@
 
 ## Project
 
-Возвращается `POST /v1/groups/:groupId/projects`, `PATCH /v1/projects/:id`, `GET /v1/projects/:id`, `POST /v1/projects/:id/block`/`unblock`. `GET /v1/projects/:id` дополнительно включает `entry_count`/`total_bytes` (decision 22, [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)); остальные эндпоинты выше их не включают (не поддерживаются/не запрашиваются вне пути чтения одного проекта).
+Возвращается `POST /v1/groups/:groupId/projects`, `PATCH /v1/projects/:id`, `GET /v1/projects/:id`, `POST /v1/projects/:id/block`/`unblock`. `GET /v1/projects/:id` дополнительно включает `entry_count`/`total_bytes` (decision 22, [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)); остальные эндпоинты выше их не возвращают (вне чтения одного проекта эти значения не ведутся и не запрашиваются).
 
 | Поле | Тип | Примечания |
 |---|---|---|
@@ -105,8 +105,8 @@
 
 Метаданные никогда не включают значение ключа в открытом виде,
 **кроме** ответа `POST /v1/projects/:id/secret-keys`, который несёт
-`secret` ровно один раз — впоследствии он не извлекаем ни одним
-эндпоинтом.
+`secret` ровно один раз — впоследствии его не отдаёт ни один
+эндпоинт.
 
 | Поле | Тип | Примечания |
 |---|---|---|
@@ -133,16 +133,15 @@
 
 Возвращается `GET /v1/logs` и доставляется потоком `GET /v1/logs/stream`
 ([live-streaming.md](../architecture/live-streaming.ru.md)). Отдельной
-«обёртки context» нет — ответ — это тот же самый JSON-объект, который
-клиент отправил в `POST /v1/logs` (см. ниже), объединённый с тремя
-полями, назначенными сервером, с сохранением любых произвольных полей
-(гарантия «полное исходное содержимое» `log-server-storage`, см.
+«обёртки context» нет: ответ — это тот же JSON-объект, который клиент
+отправил в `POST /v1/logs` (см. ниже), плюс три поля, назначенные
+сервером; все произвольные поля при этом сохраняются (гарантия «полное исходное содержимое» `log-server-storage`, см.
 [data-model.md](../architecture/data-model.ru.md)).
 
 | Поле | Тип | Примечания |
 |---|---|---|
 | `id` | integer | Назначается сервером; курсор keyset-пагинации |
-| `project_id` | integer | Назначается сервером, из ключа, аутентифицировавшего приём |
+| `project_id` | integer | Назначается сервером — берётся из ключа, которым был аутентифицирован приём |
 | `received_at` | string | Назначается сервером; ISO 8601, независимо от клиентского `timestamp` |
 | `event` | string | Как отправлено |
 | `level` | string | Как отправлено — одно из `trace`/`debug`/`info`/`warning`/`error`/`critical` |
@@ -183,7 +182,7 @@
 | Поле | Тип | Примечания |
 |---|---|---|
 | `id` | integer | |
-| `actor_user_id` | integer \| null | `null` для событий, действительно не имеющих аутентифицированного вызывающего — `auth.login_failed`/`auth.throttled` под именем, не соответствующим ни одной учётной записи, и `audit.purged`, которую сервер пишет сам о себе (см. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
+| `actor_user_id` | integer \| null | `null` у событий, у которых действительно нет аутентифицированного вызывающего — `auth.login_failed`/`auth.throttled` под именем, не соответствующим ни одной учётной записи, и `audit.purged`, которое сервер пишет сам о себе (см. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md)) |
 | `action` | string | Одно из закрытого набора — см. [quotas-and-audit.md](../architecture/quotas-and-audit.ru.md) |
 | `target_type` | string | например, `"user"`, `"project"`, `"role_assignment"` |
 | `target_id` | integer \| null | |
@@ -240,7 +239,7 @@
 
 | Claim | Тип | Примечания |
 |---|---|---|
-| `iss` | string | Настроенный идентификатор-издатель сервера |
+| `iss` | string | Идентификатор издателя (issuer), заданный в настройках сервера |
 | `sub` | string | `User.id` |
 | `iat` / `exp` | integer | Unix-таймстемпы |
 | `jti` | string | Уникальный id токена |
@@ -252,7 +251,7 @@
 
 Возвращается `POST /v1/logs`, HTTP `202` — **всегда**, даже если каждая
 запись в батче отклонена; сам запрос был принят и обработан
-запись-за-записью, так что `4xx`/`5xx` неверно отражал бы произошедшее
+запись за записью, так что `4xx`/`5xx` исказил бы то, что произошло
 (см. [errors.md](errors.ru.md#частичный-приём-батча-не-считается-ошибкой)).
 
 | Поле | Тип | Примечания |
@@ -273,7 +272,7 @@
 ## Конверт ошибки
 
 В этом API сосуществуют две формы, обе подробно задокументированы в
-[errors.md](errors.ru.md) — это указатель, не дубликат:
+[errors.md](errors.ru.md), — здесь только ссылка на них, а не копия:
 
-- Общий JSON-конверт (`log-server-api`), используемый всеми, кроме token-эндпоинта.
-- Форма RFC 6749 §5.2, используемая **только** `POST`/`DELETE /v1/auth/token`.
+- Общий JSON-конверт (`log-server-api`) — его используют все эндпоинты, кроме token-эндпоинта.
+- Форма RFC 6749 §5.2 — её используют **только** `POST`/`DELETE /v1/auth/token`.
