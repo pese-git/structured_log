@@ -20,11 +20,11 @@
 
 ## 3. Ядро: платформы
 
-- [ ] 3.1 `lib/io.dart`: `fileOutput`, `rotatingFileOutput`, `AsyncFileOutput`, `AsyncRotatingFileOutput`; убрать их из `structured_log.dart` (decision 12)
-- [ ] 3.2 Тест-страж: обход импортов от `lib/structured_log.dart` не встречает `dart:io`
-- [ ] 3.3 Размер файла в памяти для `rotatingFileOutput`/`AsyncRotatingFileOutput` (decision 13); тест «ротация по учтённому размеру» и тест, что на каждую запись нет `exists`/`length` (через счётчик в подставной `IOOverrides`)
-- [ ] 3.4 `test` в CI на трёх ОС проходит (ротация — ОС-чувствительна)
-- [ ] 3.5 Сервер: `import 'package:structured_log/io.dart'` в `lib/src/logging/setup.dart`; прогнать его тесты, включая `integration`
+- [x] 3.1 `lib/io.dart`: `fileOutput`, `rotatingFileOutput`, `AsyncFileOutput`, `AsyncRotatingFileOutput`; убрать их из `structured_log.dart` (decision 12) — `fileOutput`/`rotatingFileOutput` переехали из `formatters.dart` в `lib/src/file_output.dart`; `io.dart` экспортирует его и `async_file_output.dart`. dartdoc-ссылки на них из главной библиотеки и из `structured_log_flutter` (`LogBuffer`) переписаны текстом — иначе они висели бы
+- [x] 3.2 Тест-страж: обход импортов от `lib/structured_log.dart` не встречает `dart:io` — `test/io_test.dart`: обход `import`/`export` от `lib/structured_log.dart`, условный импорт — по ветке по умолчанию (её и берёт web); до переноса страж называл `formatters.dart` и `async_file_output.dart`
+- [x] 3.3 Размер файла в памяти для `rotatingFileOutput`/`AsyncRotatingFileOutput` (decision 13); тест «ротация по учтённому размеру» и тест, что на каждую запись нет `exists`/`length` (через счётчик в подставной `IOOverrides`) — запись теперь байтами (`utf8.encode` один раз, `writeAsBytes`), размер прибавляется после успешной записи. Подставная `File` через `IOOverrides.createFile` считает `exists`/`length`: ноль на 10 записей. Мутациями убиты: несброс счётчика после ротации (синхронно и асинхронно — для этого тестам понадобилась четвёртая запись), учёт до записи, неучёт существующего содержимого. Покрытие ядра — 100 %
+- [ ] 3.4 `test` в CI на трёх ОС проходит (ротация — ОС-чувствительна) — локально проверено только на macOS; ждёт прогона CI на PR
+- [x] 3.5 Сервер: `import 'package:structured_log/io.dart'` в `lib/src/logging/setup.dart`; прогнать его тесты, включая `integration` — плюс сервер собирается и в Docker: образ подставляет ядро по пути (`pubspec_overrides.yaml` в `Dockerfile`), так что импорт `io.dart` не ждёт публикации `0.3.0`. Сервер 1072 (без `postgres`), `flutter` 22, чистые Dart-пакеты — зелёные
 
 ## 4. structured_log_remote_sync
 
