@@ -1,5 +1,5 @@
-import 'dart:convert';
-
+import 'encoding.dart';
+import 'formatters.dart';
 import 'logger.dart';
 
 /// A function that transforms (or drops) a log entry before it reaches any
@@ -79,6 +79,10 @@ typedef OutputFunction = void Function(
 /// addTimestamp(entry);
 /// print(entry['timestamp']); // e.g. '2026-09-10T12:00:00.000'
 /// ```
+@Deprecated(
+  'Every entry already has a timestamp: BoundLogger.tryLog stamps it before '
+  'any processor runs, as StructlogConfiguration.timestampMode says.',
+)
 Map<String, dynamic>? addTimestamp(Map<String, dynamic> entry) {
   if (!entry.containsKey('timestamp')) {
     entry['timestamp'] = DateTime.now().toIso8601String();
@@ -96,37 +100,47 @@ Map<String, dynamic>? addTimestamp(Map<String, dynamic> entry) {
 ///   processors: [dropNullValues, addLogLevel], // addLogLevel is a no-op
 /// );
 /// ```
+@Deprecated('A no-op: BoundLogger.tryLog sets level before any processor runs.')
 Map<String, dynamic>? addLogLevel(Map<String, dynamic> entry) {
   return entry;
 }
 
-/// Prints [entry] as a single-line JSON string via [print] and returns it
-/// unchanged, so it can be chained with other processors or reach a sink
-/// afterwards.
+/// Prints [entry] as a single-line JSON string via [print] — encoded by
+/// [encodeLogEntry] — and returns it unchanged, so it can be chained with
+/// other processors or reach a sink afterwards.
+///
+/// Deprecated in favour of [jsonLineOutput], which does the same from a sink.
 ///
 /// ```dart
 /// jsonRenderer({'event': 'startup', 'pid': 123});
 /// // stdout: {"event":"startup","pid":123}
 /// ```
+@Deprecated(
+  'Print from a sink instead: LogSink(name: ..., output: jsonLineOutput). '
+  'A renderer prints from inside the processor chain, before the processors '
+  'after it — a redactor among them — have run.',
+)
 Map<String, dynamic>? jsonRenderer(Map<String, dynamic> entry) {
-  print(jsonEncode(entry));
+  print(encodeLogEntry(entry));
   return entry;
 }
 
-/// Prints [entry] as space-separated `key=value` pairs (logfmt style) via
-/// [print] and returns it unchanged. String values are wrapped in double
-/// quotes; other values use their `toString()`.
+/// Prints [entry] as one logfmt line via [print] — written, and escaped, as
+/// [formatLogfmt] describes — and returns it unchanged.
+///
+/// Deprecated in favour of [logfmtOutput], which does the same from a sink.
 ///
 /// ```dart
 /// logfmtRenderer({'event': 'startup', 'pid': 123});
 /// // stdout: event="startup" pid=123
 /// ```
+@Deprecated(
+  'Print from a sink instead: LogSink(name: ..., output: logfmtOutput). '
+  'A renderer prints from inside the processor chain, before the processors '
+  'after it — a redactor among them — have run.',
+)
 Map<String, dynamic>? logfmtRenderer(Map<String, dynamic> entry) {
-  final pairs = entry.entries.map((e) {
-    final value = e.value is String ? '"${e.value}"' : e.value.toString();
-    return '${e.key}=$value';
-  }).join(' ');
-  print(pairs);
+  print(formatLogfmt(entry));
   return entry;
 }
 
@@ -250,8 +264,10 @@ const defaultSensitiveKeys = <String>{
 /// );
 /// ```
 ///
-/// **Place it before any renderer.** [jsonRenderer] and [logfmtRenderer]
-/// print as they go, so a redactor after one of them has already lost.
+/// **Print from a sink, not from a renderer.** The deprecated [jsonRenderer]
+/// and [logfmtRenderer] print as they go, so a redactor after one of them
+/// has already lost; [jsonLineOutput] and [logfmtOutput] print after every
+/// processor has run.
 ///
 /// The entry is rebuilt rather than edited, and only along the path where
 /// something was replaced — an entry with nothing to redact comes back as

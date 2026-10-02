@@ -24,8 +24,8 @@ import 'dart:convert';
 /// ```
 String encodeLogEntry(Map<String, dynamic> entry, {String? indent}) {
   final encoder = indent == null
-      ? const JsonEncoder(_toEncodable)
-      : JsonEncoder.withIndent(indent, _toEncodable);
+      ? const JsonEncoder(toEncodableValue)
+      : JsonEncoder.withIndent(indent, toEncodableValue);
   try {
     return encoder.convert(entry);
   } catch (error) {
@@ -52,7 +52,18 @@ Map<String, String> identifyingFields(Map<String, dynamic> entry) => {
         if (entry[key] case final String value) key: value,
     };
 
-Object? _toEncodable(Object? value) => switch (value) {
+/// [value] as JSON, or `'<TypeName>'` when even the conversions of
+/// [encodeLogEntry] cannot make it encodable (a list that contains itself).
+String encodeValue(Object? value) {
+  try {
+    return const JsonEncoder(toEncodableValue).convert(value);
+  } catch (_) {
+    return '<${value.runtimeType}>';
+  }
+}
+
+/// What [encodeLogEntry] writes in place of a value `jsonEncode` refuses.
+Object? toEncodableValue(Object? value) => switch (value) {
       DateTime() => value.toUtc().toIso8601String(),
       Duration() => value.inMicroseconds,
       Enum() => value.name,
