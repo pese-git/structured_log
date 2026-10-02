@@ -58,32 +58,32 @@ self-hosted server for shipping logs off the device and reading them back.
   and cubit does (creation, events, state changes, errors, closing) as
   `structured_log` entries under `category: 'bloc'`. Depends on
   `package:bloc` only, so it works with `flutter_bloc` as is and in pure
-  Dart. *Not yet published.*
+  Dart. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_bloc) (`0.1.0-dev.1`).
 
 - **[`structured_log_dio`](emb/structured_log_dio/)** —
   `StructuredLogDioInterceptor`, a `dio` interceptor that logs every request
   and its outcome (response, error, timeout, cancellation) under
   `category: 'http'`, with the level following the status code. Headers
   and bodies stay out unless asked for; auth headers, cookies and
-  token-like query parameters are redacted. *Not yet published.*
+  token-like query parameters are redacted. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_dio) (`0.1.0-dev.1`).
 
 - **[`structured_log_http_client`](emb/structured_log_http_client/)** —
   `StructuredLogHttpClient`, the same for `package:http`: a client that
   wraps any `http.Client` and logs every call it passes through, with the
   same entries, levels and redaction as `structured_log_dio`. Response
-  bodies are logged without buffering them. *Not yet published.*
+  bodies are logged without buffering them. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_http_client) (`0.1.0-dev.1`).
 
 - **[`structured_log_go_router`](emb/structured_log_go_router/)** —
   `StructuredLogGoRouter`, which logs every `go_router` navigation (location
   with its route pattern and the previous location), redirect and routing
   error under `category: 'navigation'`, with token-like query parameters
-  redacted. A Flutter package. *Not yet published.*
+  redacted. A Flutter package. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_go_router) (`0.1.0-dev.1`).
 
 - **[`structured_log_cherrypick`](emb/structured_log_cherrypick/)** —
   `StructuredLogCherryPickObserver`, a `CherryPickObserver` that logs what
   the `cherrypick` DI container does — scopes, modules, cycles, resolve
   errors — under `category: 'di'`, without ever printing an instance.
-  Works with `cherrypick` 3.x and 4.x. *Not yet published.*
+  Works with `cherrypick` 3.x and 4.x. Pre-release on [pub.dev](https://pub.dev/packages/structured_log_cherrypick) (`0.1.0-dev.1`).
 
 - **[`structured_log_server`](backend/structured_log_server/)** — a
   self-hosted, multi-tenant server for log ingestion, storage, query and

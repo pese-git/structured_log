@@ -75,33 +75,30 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   пишущий создание/события/смену состояния/ошибки/закрытие каждого блока и кубита записями
   `structured_log` с `category: 'bloc'`. Зависит от `package:bloc`, **не** от `flutter_bloc` —
   `flutter_bloc` построен поверх него и выставляет тот же `Bloc.observer`, так что пакет работает в
-  Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Не опубликован
-  (`0.1.0-dev.0`), [openspec/changes/archive/2026-10-01-add-structured-log-bloc/](openspec/changes/archive/2026-10-01-add-structured-log-bloc/), основная спека — [openspec/specs/bloc-log-observer/](openspec/specs/bloc-log-observer/spec.md).
+  Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Опубликован как пре-релиз (`0.1.0-dev.1`), [openspec/changes/archive/2026-10-01-add-structured-log-bloc/](openspec/changes/archive/2026-10-01-add-structured-log-bloc/), основная спека — [openspec/specs/bloc-log-observer/](openspec/specs/bloc-log-observer/spec.md).
 - [emb/structured_log_dio/](emb/structured_log_dio/) — `StructuredLogDioInterceptor`: перехватчик `dio`,
   пишущий каждый запрос (`http_request`) и его итог (`http_response`/`http_error`) записями
   `structured_log` с `category: 'http'`, уровень — по статусу ответа. Заголовки и тела по умолчанию
   не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются. Чистый Dart,
-  не опубликован (`0.1.0-dev.0`),
+  опубликован как пре-релиз (`0.1.0-dev.1`),
   [openspec/changes/archive/2026-10-01-add-structured-log-dio/](openspec/changes/archive/2026-10-01-add-structured-log-dio/), основная спека — [openspec/specs/dio-log-interceptor/](openspec/specs/dio-log-interceptor/spec.md).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — `StructuredLogHttpClient`: то же для
   `package:http` — клиент-обёртка над любым `http.Client` с теми же записями, уровнями и маскированием,
   что у `structured_log_dio`. Пока отправщик назывался `structured_log_http`, этот пакет приходилось
-  сопровождать пометкой «не путать»; с переименованием отправщика в `structured_log_remote_sync` она снята. Чистый Dart, не
-  опубликован (`0.1.0-dev.0`),
+  сопровождать пометкой «не путать»; с переименованием отправщика в `structured_log_remote_sync` она снята. Чистый Dart, опубликован как пре-релиз (`0.1.0-dev.1`),
   [openspec/changes/archive/2026-10-01-add-structured-log-http-client/](openspec/changes/archive/2026-10-01-add-structured-log-http-client/), основная спека — [openspec/specs/http-client-logging/](openspec/specs/http-client-logging/spec.md).
 - [emb/structured_log_go_router/](emb/structured_log_go_router/) — `StructuredLogGoRouter`: пишет каждую
   навигацию `go_router` (`route_changed`: расположение, шаблон маршрута, предыдущее расположение),
   перенаправление (`route_redirected`, через обёртку `redirect`) и ошибку маршрутизации (`route_error`) с
   `category: 'navigation'`. **Flutter-пакет** (в отличие от трёх соседей выше): `go_router` тянет Flutter,
-  поэтому `flutter test` и строка во Flutter-матрице CI. Не опубликован (`0.1.0-dev.0`),
+  поэтому `flutter test` и строка во Flutter-матрице CI. Опубликован как пре-релиз (`0.1.0-dev.1`),
   [openspec/changes/archive/2026-10-01-add-structured-log-go-router/](openspec/changes/archive/2026-10-01-add-structured-log-go-router/), основная спека — [openspec/specs/go-router-logging/](openspec/specs/go-router-logging/spec.md).
 - [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — `StructuredLogCherryPickObserver`:
   `CherryPickObserver`, пишущий работу DI-контейнера `cherrypick` (скоупы, модули, циклы, ошибки) с
   `category: 'di'`, никогда не печатая экземпляр. Обобщение наблюдателя, который раньше жил двумя
   дословными копиями — в сервере и admin-клиенте; **оба теперь берут его из пакета** — зависимостью по
-  пути (`path: ../../emb/structured_log_cherrypick`), как клиент берёт `structured_log_admin_ui`: пакет не
-  опубликован, а оба потребителя — `publish_to: none`. Чистый Dart, `cherrypick` 3.x и 4.x, не опубликован
-  (`0.1.0-dev.0`),
+  пути (`path: ../../emb/structured_log_cherrypick`), как клиент берёт `structured_log_admin_ui`: пакет лежит
+  в том же репозитории, а оба потребителя — `publish_to: none`. Чистый Dart, `cherrypick` 3.x и 4.x, опубликован как пре-релиз (`0.1.0-dev.1`),
   [openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/](openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/), основная спека — [openspec/specs/cherrypick-log-observer/](openspec/specs/cherrypick-log-observer/spec.md).
 
 Плюс один пакет в `backend/`:

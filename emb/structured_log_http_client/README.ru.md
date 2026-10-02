@@ -36,15 +36,13 @@
 
 ## Установка
 
-На pub.dev пока не опубликован (`0.1.0-dev.0`) — подключайте как path- или
-git-зависимость:
+Опубликован на pub.dev как пре-релиз (`0.1.0-dev.1`):
 
 ```yaml
 dependencies:
   http: ^1.5.0
   structured_log: ^0.2.1
-  structured_log_http_client:
-    path: ../structured_log_http_client # внутри этого монорепозитория
+  structured_log_http_client: ^0.1.0-dev.1
 ```
 
 ## Быстрый старт

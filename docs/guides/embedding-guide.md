@@ -197,8 +197,7 @@ the sinks configured above, the in-app viewer included:
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_bloc:
-    path: ../structured_log_bloc   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+  structured_log_bloc: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -237,8 +236,7 @@ duration and a level that follows the status code:
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_dio:
-    path: ../structured_log_dio   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+  structured_log_dio: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -264,8 +262,7 @@ client that wraps the one you already use — `IOClient`, `BrowserClient`,
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_http_client:
-    path: ../structured_log_http_client   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+  structured_log_http_client: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -290,8 +287,7 @@ something went wrong:
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_go_router:
-    path: ../structured_log_go_router   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+  structured_log_go_router: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -321,8 +317,7 @@ not happen shows up:
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_cherrypick:
-    path: ../structured_log_cherrypick   # not yet on pub.dev (0.1.0-dev.0) — path or git dependency
+  structured_log_cherrypick: ^0.1.0-dev.1
 ```
 
 ```dart

@@ -33,15 +33,13 @@
 
 ## Установка
 
-На pub.dev пока не опубликован (`0.1.0-dev.0`) — подключайте как path- или
-git-зависимость:
+Опубликован на pub.dev как пре-релиз (`0.1.0-dev.1`):
 
 ```yaml
 dependencies:
   dio: ^5.4.0
   structured_log: ^0.2.1
-  structured_log_dio:
-    path: ../structured_log_dio # внутри этого монорепозитория
+  structured_log_dio: ^0.1.0-dev.1
 ```
 
 ## Быстрый старт

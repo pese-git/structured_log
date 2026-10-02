@@ -32,15 +32,13 @@ already configured — the console, a file, the in-app log viewer
 
 ## Installation
 
-Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it as a path or
-git dependency for now:
+Published on pub.dev as a pre-release (`0.1.0-dev.1`):
 
 ```yaml
 dependencies:
   flutter_bloc: ^9.0.0 # or bloc: ^9.0.0
   structured_log: ^0.2.1
-  structured_log_bloc:
-    path: ../structured_log_bloc # within this monorepo
+  structured_log_bloc: ^0.1.0-dev.1
 ```
 
 ## Quick Start

@@ -33,15 +33,13 @@
 
 ## Установка
 
-На pub.dev пока не опубликован (`0.1.0-dev.0`) — подключайте как path- или
-git-зависимость:
+Опубликован на pub.dev как пре-релиз (`0.1.0-dev.1`):
 
 ```yaml
 dependencies:
   cherrypick: ">=3.0.0 <5.0.0"
   structured_log: ^0.2.1
-  structured_log_cherrypick:
-    path: ../structured_log_cherrypick # внутри этого монорепозитория
+  structured_log_cherrypick: ^0.1.0-dev.1
 ```
 
 ## Быстрый старт

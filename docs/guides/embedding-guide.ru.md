@@ -199,8 +199,7 @@ MaterialLogViewer(controller: controller)
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_bloc:
-    path: ../structured_log_bloc   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+  structured_log_bloc: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -239,8 +238,7 @@ Bloc.observer = StructuredLogBlocObserver();
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_dio:
-    path: ../structured_log_dio   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+  structured_log_dio: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -267,8 +265,7 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_http_client:
-    path: ../structured_log_http_client   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+  structured_log_http_client: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -295,8 +292,7 @@ await client.get(Uri.parse('https://api.example.com/items'));
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_go_router:
-    path: ../structured_log_go_router   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+  structured_log_go_router: ^0.1.0-dev.1
 ```
 
 ```dart
@@ -326,8 +322,7 @@ Query-параметры с токенами — включая `code` из call
 ```yaml
 dependencies:
   structured_log: ^0.2.1
-  structured_log_cherrypick:
-    path: ../structured_log_cherrypick   # пока не на pub.dev (0.1.0-dev.0) — path- или git-зависимость
+  structured_log_cherrypick: ^0.1.0-dev.1
 ```
 
 ```dart

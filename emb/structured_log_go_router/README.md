@@ -35,15 +35,13 @@ reports: *which screen was the user on?*
 
 ## Installation
 
-Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it as a path or
-git dependency for now:
+Published on pub.dev as a pre-release (`0.1.0-dev.1`):
 
 ```yaml
 dependencies:
   go_router: ">=17.0.0 <19.0.0"
   structured_log: ^0.2.1
-  structured_log_go_router:
-    path: ../structured_log_go_router # within this monorepo
+  structured_log_go_router: ^0.1.0-dev.1
 ```
 
 ## Quick Start

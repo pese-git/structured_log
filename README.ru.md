@@ -63,33 +63,32 @@ Monorepo на Melos + FVM для структурированного логир
   блоки и кубиты (создание, события, смену состояния, ошибки, закрытие),
   записями `structured_log` с `category: 'bloc'`. Зависит только от
   `package:bloc`, поэтому работает с `flutter_bloc` как есть и в чистом
-  Dart. *Пока не опубликован.*
+  Dart. Пре-релиз на [pub.dev](https://pub.dev/packages/structured_log_bloc) (`0.1.0-dev.1`).
 
 - **[`structured_log_dio`](emb/structured_log_dio/)** —
   `StructuredLogDioInterceptor`, перехватчик `dio`, который пишет каждый
   запрос и его итог (ответ, ошибку, таймаут, отмену) с `category: 'http'` и
   уровнем по статусу ответа. Заголовки и тела не пишутся, пока их не
   включить; заголовки авторизации, cookie и query-параметры с токенами
-  маскируются. *Пока не опубликован.*
+  маскируются. Пре-релиз на [pub.dev](https://pub.dev/packages/structured_log_dio) (`0.1.0-dev.1`).
 
 - **[`structured_log_http_client`](emb/structured_log_http_client/)** —
   `StructuredLogHttpClient`, то же для `package:http`: клиент-обёртка над
   любым `http.Client`, который пишет каждый проходящий через него вызов с
   теми же записями, уровнями и маскированием, что `structured_log_dio`.
-  Тело ответа пишется без буферизации. *Пока не опубликован.*
+  Тело ответа пишется без буферизации. Пре-релиз на [pub.dev](https://pub.dev/packages/structured_log_http_client) (`0.1.0-dev.1`).
 
 - **[`structured_log_go_router`](emb/structured_log_go_router/)** —
   `StructuredLogGoRouter`, который пишет каждую навигацию `go_router`
   (расположение с шаблоном маршрута и предыдущим расположением),
   перенаправление и ошибку маршрутизации с `category: 'navigation'` и
-  маскирует query-параметры с токенами. Flutter-пакет. *Пока не
-  опубликован.*
+  маскирует query-параметры с токенами. Flutter-пакет. Пре-релиз на [pub.dev](https://pub.dev/packages/structured_log_go_router) (`0.1.0-dev.1`).
 
 - **[`structured_log_cherrypick`](emb/structured_log_cherrypick/)** —
   `StructuredLogCherryPickObserver`, `CherryPickObserver`, который пишет,
   что делает DI-контейнер `cherrypick`, — скоупы, модули, циклы, ошибки
   разрешения — с `category: 'di'` и никогда не печатает экземпляр. Работает
-  с `cherrypick` 3.x и 4.x. *Пока не опубликован.*
+  с `cherrypick` 3.x и 4.x. Пре-релиз на [pub.dev](https://pub.dev/packages/structured_log_cherrypick) (`0.1.0-dev.1`).
 
 - **[`structured_log_server`](backend/structured_log_server/)** —
   self-hosted мультитенантный сервер приёма, хранения, поиска и живой
