@@ -149,7 +149,9 @@ below them, every custom field the application attached when it logged
 that event — whatever an engineer chose to include (an order id, a
 user id, an error code, ...). Nothing is truncated or hidden; if a
 field was sent, it's here. A "Copy" action puts the whole entry on your
-clipboard as JSON, handy for pasting into a bug report or a chat thread.
+clipboard as plain text — the level and event on the first line, then one
+`field: value` line per field — handy for pasting into a bug report or a
+chat thread.
 
 ![An opened log entry: standard fields on top, the application's own fields (gateway, order_id, reason) below](assets/user-guide/07-log-entry-detail.png)
 
