@@ -34,10 +34,10 @@
 
 ## 5. Маскирование тел
 
-- [ ] 5.1 `structured_log_dio`: `redactedBodyFields` (по умолчанию `defaultSensitiveKeys`), маскирование `Map`/`List` через `redactKeys` ядра до `describeBody`, разбор JSON/form-строк по `Content-Type`, `'<unparseable body>'`, `logUnrecognizedBodies` (decision 11)
-- [ ] 5.2 `structured_log_http_client`: то же для строковых тел запроса и захваченного начала тела ответа; читатель получает тело без изменений
-- [ ] 5.3 Тесты на сценарии `specs/dio-log-interceptor/spec.md` и `specs/http-client-logging/spec.md`: тело запроса токена, form-строкой, JSON-строкой, `*+json`, вложенный секрет, неразбираемое тело, строка неизвестного типа, свой `describeBody` видит замаскированное, читатель получает исходное. Мутацией проверить обе ветки (структура и строка) в обоих пакетах
-- [ ] 5.4 `structured_log_bloc`: только документация — `describe`, возвращающий `Map`, проходит через `redactKeys`; пример в README (EN/RU)
+- [x] 5.1 `structured_log_dio`: `redactedBodyFields` (по умолчанию `defaultSensitiveKeys`), маскирование `Map`/`List` через `redactKeys` ядра до `describeBody`, разбор JSON/form-строк по `Content-Type`, `'<unparseable body>'`, `logUnrecognizedBodies` (decision 11) — `defaultRedactedBodyFields` (это и есть `defaultSensitiveKeys` ядра) экспортирован; пара формы без `=` остаётся как была, испорченная percent-последовательность — `<unparseable body>`
+- [x] 5.2 `structured_log_http_client`: то же для строковых тел запроса и захваченного начала тела ответа; читатель получает тело без изменений — с отличием, записанным как decision 17: заглушка `<N bytes>` (тело там — байты), а JSON и формы читаются целиком до 64 КиБ, иначе ответ токен-эндпоинта резался бы посередине прежним захватом в 4000 байт. Три прежних теста на обрезку и поток событий теперь явно включают `logUnrecognizedBodies`
+- [x] 5.3 Тесты на сценарии `specs/dio-log-interceptor/spec.md` и `specs/http-client-logging/spec.md`: тело запроса токена, form-строкой, JSON-строкой, `*+json`, вложенный секрет, неразбираемое тело, строка неизвестного типа, свой `describeBody` видит замаскированное, читатель получает исходное. Мутацией проверить обе ветки (структура и строка) в обоих пакетах — `test/body_redaction_test.dart` в обоих пакетах (`dio` 14, `http_client` 14). Мутациями убиты: в `dio` — структура и строка без маскирования, неизвестная строка как есть, `describeBody` до маскирования, непойманная испорченная форма; в `http_client` — JSON и форма без маскирования, неизвестный текст как есть, малый захват для JSON, ответ без маскирования. Покрытие обоих — 100 %; примеры запускаются
+- [x] 5.4 `structured_log_bloc`: только документация — `describe`, возвращающий `Map`, проходит через `redactKeys`; пример в README (EN/RU) — и тест на это утверждение (`a map it returns is redacted by redactKeys like any field`): прошёл сразу, поведение уже было таким, теперь оно закреплено
 
 ## 6. structured_log_flutter
 
