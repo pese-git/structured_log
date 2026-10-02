@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 
+import 'encoding.dart';
 import 'logger.dart';
 import 'processors.dart';
 
@@ -17,8 +17,7 @@ import 'processors.dart';
 /// // }
 /// ```
 void defaultOutput(Map<String, dynamic> entry, LogLevel level) {
-  final encoder = JsonEncoder.withIndent('  ');
-  print(encoder.convert(entry));
+  print(encodeLogEntry(entry, indent: '  '));
 }
 
 /// Returns an [OutputFunction] that appends each entry as a single-line
@@ -45,7 +44,7 @@ OutputFunction fileOutput(String filePath) {
   }
   return (Map<String, dynamic> entry, LogLevel level) {
     file.writeAsStringSync(
-      '${jsonEncode(entry)}\n',
+      '${encodeLogEntry(entry)}\n',
       mode: FileMode.append,
     );
   };
@@ -111,7 +110,7 @@ OutputFunction rotatingFileOutput(
       rotate();
     }
     file.writeAsStringSync(
-      '${jsonEncode(entry)}\n',
+      '${encodeLogEntry(entry)}\n',
       mode: FileMode.append,
     );
   };
@@ -161,7 +160,7 @@ void coloredConsoleOutput(Map<String, dynamic> entry, LogLevel level) {
 
   const reset = '\x1B[0m';
   final timestamp = entry['timestamp'] ?? '';
-  final contextStr = context.isNotEmpty ? ' ${jsonEncode(context)}' : '';
+  final contextStr = context.isNotEmpty ? ' ${encodeLogEntry(context)}' : '';
 
   print(
       '$colorCode[$timestamp] ${level.name.toUpperCase()}: $event$reset$contextStr');

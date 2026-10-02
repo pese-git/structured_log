@@ -1,7 +1,7 @@
-import 'dart:io';
-
 import 'configuration.dart';
 import 'correlation.dart';
+import 'encoding.dart';
+import 'report.dart';
 
 /// Log levels, from least to most severe. `trace` sits below `debug` and is
 /// filtered out by a sink's default `minLevel` (`LogLevel.debug`) unless a
@@ -158,15 +158,31 @@ class BoundLogger {
   /// [StructlogConfiguration.processors]; a processor returning `null`
   /// drops the entry and no sink is called. Otherwise the entry is
   /// delivered to every [LogSink] in [StructlogConfiguration.sinks] whose
-  /// [LogSink.accepts] matches. An exception thrown by one sink's output
-  /// function is caught and reported to `stderr` — it does not stop
-  /// delivery to the other sinks and never propagates to the caller, so a
-  /// broken sink can never crash the logging call site.
+  /// [LogSink.accepts] matches.
+  ///
+  /// Nothing thrown inside this call reaches the caller. An exception from
+  /// one sink's output is reported (to `stderr`, or through `print` on the
+  /// web) and does not stop delivery to the other sinks. An exception from
+  /// a processor replaces the entry with a stub — `event`, `level`,
+  /// `timestamp`, `logger` and `category`, where they are strings, plus
+  /// `processor_failed` naming the exception's type — and the processors
+  /// after it do not run. The stub, not the entry, is what the sinks get:
+  /// the processor that failed may have been the one meant to redact it.
   void tryLog(
     LogLevel level,
     String? event, {
     Map<String, dynamic>? context,
   }) {
+    try {
+      _log(level, event, context);
+    } catch (error, stackTrace) {
+      reportInternalError(
+        'structured_log: logging "$event" threw: $error\n$stackTrace',
+      );
+    }
+  }
+
+  void _log(LogLevel level, String? event, Map<String, dynamic>? context) {
     final mergedContext = Map<String, dynamic>.from(_context);
     if (context != null) {
       mergedContext.addAll(context);
@@ -181,17 +197,20 @@ class BoundLogger {
     }
 
     final entry = _processEntry(mergedContext, level);
-    if (entry != null) {
-      final category = entry['category'] as String?;
-      for (final sink in _config.sinks) {
+    if (entry == null) return;
+
+    final category = switch (entry['category']) {
+      final String category => category,
+      _ => null,
+    };
+    for (final sink in _config.sinks) {
+      try {
         if (!sink.accepts(level, category)) continue;
-        try {
-          sink.output(entry, level);
-        } catch (error, stackTrace) {
-          stderr.writeln(
-            'structured_log: sink "${sink.name}" threw: $error\n$stackTrace',
-          );
-        }
+        sink.output(entry, level);
+      } catch (error, stackTrace) {
+        reportInternalError(
+          'structured_log: sink "${sink.name}" threw: $error\n$stackTrace',
+        );
       }
     }
   }
@@ -204,7 +223,21 @@ class BoundLogger {
     entry['timestamp'] = DateTime.now().toIso8601String();
 
     for (final processor in _config.processors) {
-      final result = processor(entry);
+      final Map<String, dynamic>? result;
+      try {
+        result = processor(entry);
+      } catch (error, stackTrace) {
+        // The type only, here and in the stub: a processor's message may
+        // quote the very value it was meant to hide.
+        reportInternalError(
+          'structured_log: a processor threw ${error.runtimeType} '
+          'on "${entry['event']}"; delivering a stub instead\n$stackTrace',
+        );
+        return {
+          ...identifyingFields(entry),
+          'processor_failed': error.runtimeType.toString(),
+        };
+      }
       if (result == null) {
         return null;
       }
