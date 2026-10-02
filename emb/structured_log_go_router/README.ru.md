@@ -42,7 +42,7 @@
 ```yaml
 dependencies:
   go_router: ">=17.0.0 <19.0.0"
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_go_router: ^0.1.0-dev.1
 ```
 

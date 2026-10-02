@@ -38,7 +38,7 @@ Published on pub.dev as a pre-release (`0.1.0-dev.1`):
 ```yaml
 dependencies:
   cherrypick: ">=3.0.0 <5.0.0"
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_cherrypick: ^0.1.0-dev.1
 ```
 
