@@ -29,9 +29,12 @@ logged: entries are queued and shipped in batches on a background future.
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_remote_sync: ^0.2.0
 ```
+
+`structured_log_remote_sync` needs `structured_log` 0.3.0 or later — it encodes
+entries with that release's `encodeLogEntry`.
 
 ## Quick Start
 
@@ -135,6 +138,20 @@ with a total when it ends.
 **Failures are reported, never thrown.** Nothing this package does can make
 a `log.info(...)` call fail. Batches that cannot be delivered are reported
 to `stderr`, the same channel `structured_log`'s own async outputs use.
+
+**An entry is encoded when it is logged, not when its batch is sent.** The
+sink turns each entry into JSON the moment it is called, with
+`structured_log`'s `encodeLogEntry`, and the buffer holds those strings. Two
+things follow. A value `jsonEncode` would refuse — a `DateTime`, an exception,
+an enum — is written the way `encodeLogEntry` writes it instead of costing
+anything: before, one such value lost the whole batch it travelled in, up to
+`batchSize` entries. And an entry travels as it was at log time — a map
+changed after the call does not change what reaches the server. An entry that
+cannot be read at all is dropped on its own and reported on `stderr`; the
+batch it would have joined goes without it. A custom `BatchSender` still
+receives maps — the entries decoded back from that JSON. Strings are also
+several times smaller than the maps they came from, so a full buffer costs
+less memory than it did.
 
 **Batches never overlap.** Delivery is serialized, so entries reach the
 server in the order they were logged.
