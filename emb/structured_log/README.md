@@ -4,21 +4,96 @@
 
 *Читать на [русском](README.ru.md).*
 
-Structured logging for Dart, inspired by [Python's structlog](https://www.structlog.org/).
+Structured logging for Dart and Flutter, inspired by
+[Python's structlog](https://www.structlog.org/): JSON log entries with
+bound context, a processor pipeline, and routing to as many outputs as you
+need.
 
-Log JSON with context binding, processors, and flexible output destinations.
+This package is the core of the **structured_log project** — a family of
+packages around it and a self-hosted service for collecting logs centrally.
+The core works on its own, everywhere Dart runs; everything else is optional
+and builds on it.
+
+## The structured_log project
+
+There are two ways to use it, and you can start with the first and add the
+second later without changing how your code logs.
+
+### Standalone — inside your app, no server
+
+- **Structured logging** — this package: JSON entries, context binding,
+  typed correlation ids, processors (including secret redaction), console,
+  file, rotating and async file outputs, multi-sink routing with per-sink
+  level/category filters.
+- **An in-app log viewer for Flutter** — a live, filterable view of what your
+  app just logged, opened from inside the running app:
+  [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+  is the headless core (a bounded `LogBuffer` sink and a `LogViewerController`
+  with search, level/category filters, pause and clear), and three ready-made
+  skins sit on top of it —
+  [Material 3](https://pub.dev/packages/structured_log_material),
+  [Fluent UI](https://pub.dev/packages/structured_log_fluent) and
+  [Cupertino](https://pub.dev/packages/structured_log_cupertino), each
+  adaptive (list + detail on wide layouts, pushed detail on narrow ones).
+- **Integrations** — log what your libraries do as `structured_log` entries,
+  with no change to how you use them:
+
+  | Package | What it logs |
+  |---|---|
+  | [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc) | every bloc's and cubit's creation, events, state changes, errors and closing (`BlocObserver`; works with `flutter_bloc`) |
+  | [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) | every `dio` request and its outcome, levelled by status code, auth headers and tokens redacted |
+  | [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) | the same for `package:http`, response bodies logged without buffering |
+  | [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) | every `go_router` navigation, redirect and routing error |
+  | [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) | what the `cherrypick` DI container does — scopes, modules, cycles, resolve errors |
+
+Start with the
+[Embedding Guide](https://structured-log.openidealab.com/guides/embedding-guide/).
+
+### With the self-hosted server — collected, searchable, shared
+
+- **[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync)**
+  — one more sink: ships entries to the server over HTTP in batches, retries
+  with backoff, keeps a bounded buffer while the server is unreachable, and
+  never blocks the code that logged.
+- **[`structured_log_server`](https://github.com/pese-git/structured_log/tree/master/backend/structured_log_server)**
+  — a multi-tenant service you run yourself (SQLite by default, PostgreSQL
+  as an option): log ingestion, search by level, category, time range,
+  full text and any custom field, live tailing over SSE, groups, projects,
+  teams and per-project secret keys, roles, quotas, retention, rate limiting
+  and an audit log.
+- **[`structured_log_admin_client`](https://github.com/pese-git/structured_log/tree/master/frontend/structured_log_admin_client)**
+  — the web app for reading those logs and running the server: log search
+  with a live feed, groups, projects and keys, users and roles, the audit
+  log; English and Russian.
+
+The server and the admin client are applications, not libraries, so they
+are not on pub.dev; they deploy together with Docker Compose or to
+Kubernetes. See the
+[User](https://structured-log.openidealab.com/guides/user-guide/),
+[Administrator](https://structured-log.openidealab.com/guides/admin-guide/)
+and [Developer](https://structured-log.openidealab.com/guides/developer-guide/)
+guides, and the [HTTP API](https://structured-log.openidealab.com/api/http-api/)
+reference.
+
+Everything is documented at
+**[structured-log.openidealab.com](https://structured-log.openidealab.com)**;
+the source lives in one repository,
+[pese-git/structured_log](https://github.com/pese-git/structured_log).
 
 ## Features
+
+What this package — the core everything above builds on — gives you:
 
 - **Structured JSON output** — logs are machine-readable by default
 - **Context binding** — immutable `bind()` / `unbind()` for attaching metadata to loggers
 - **Typed correlation fields** — `withCorrelation()` for session/request/connection/tool-call/message/operation ids
 - **Processors** — transform log entries before output (filter, enrich, format)
-- **Multiple outputs** — stdout, file, rotating file, or custom
+- **Secret redaction** — `redactKeys()` masks passwords, tokens and keys by field name, and by value with the bundled `looksLikeJwtOrBearer` / `looksLikeCardNumber` matchers
+- **Multiple outputs** — stdout, colored console, file, rotating file, or custom
+- **Async file output** — `AsyncFileOutput` / `AsyncRotatingFileOutput` write without blocking the caller, with `flushed` to await delivery
 - **Multi-sink routing** — deliver one entry to several destinations with independent level/category filtering and runtime toggling
-- **Colored console** — human-readable development output
 - **Configurable** — global configuration with `StructlogConfiguration.configure()`
-- **Zero dependencies** — only Dart SDK
+- **No third-party runtime dependencies** — only the Dart SDK and `meta`
 
 ## How It Works
 
@@ -50,7 +125,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.0
+  structured_log: ^0.2.2
 ```
 
 ## Quick Start
@@ -503,7 +578,7 @@ Future<void> asyncTask() async {
 | File output          | Via stdlib       | Built-in       |
 | Rotating file        | Via handlers     | Built-in       |
 | Multi-destination routing | Via stdlib logging handlers | Built-in (`LogSink`) |
-| Async support        | Yes              | Sync I/O       |
+| Async file output    | Via handlers     | Built-in (`AsyncFileOutput`) |
 | Wrapper classes      | Yes              | No (simple)    |
 
 ## Related packages

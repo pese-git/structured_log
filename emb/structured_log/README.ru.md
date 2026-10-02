@@ -4,21 +4,97 @@
 
 *Read this in [English](README.md).*
 
-Структурированное логирование для Dart, вдохновлённое [Python structlog](https://www.structlog.org/).
+Структурированное логирование для Dart и Flutter, вдохновлённое
+[Python structlog](https://www.structlog.org/): записи лога в JSON с
+привязанным контекстом, конвейер процессоров и маршрутизация в сколько
+угодно выводов.
 
-Логируйте JSON с привязкой контекста, процессорами и гибкой настройкой вывода.
+Этот пакет — ядро **проекта structured_log**: вокруг него — семейство пакетов
+и self-hosted сервис для централизованного сбора логов. Ядро работает само по
+себе везде, где работает Dart; всё остальное необязательно и строится поверх
+него.
+
+## Проект structured_log
+
+Им можно пользоваться двумя способами, и начать с первого, а второй добавить
+позже, не меняя того, как ваш код пишет логи.
+
+### Самостоятельно — внутри приложения, без сервера
+
+- **Структурированное логирование** — этот пакет: записи в JSON, привязка
+  контекста, типизированные correlation-id, процессоры (включая маскирование
+  секретов), вывод в консоль, файл, ротируемый и асинхронный файл,
+  multi-sink маршрутизация с фильтрами по уровню/категории на каждый синк.
+- **Просмотрщик логов внутри Flutter-приложения** — живой, фильтруемый
+  список того, что приложение только что записало, открываемый прямо в
+  работающем приложении:
+  [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+  — headless-ядро (ограниченный синк `LogBuffer` и `LogViewerController` с
+  поиском, фильтрами по уровню/категории, паузой и очисткой), а поверх него —
+  три готовых скина:
+  [Material 3](https://pub.dev/packages/structured_log_material),
+  [Fluent UI](https://pub.dev/packages/structured_log_fluent) и
+  [Cupertino](https://pub.dev/packages/structured_log_cupertino), каждый
+  адаптивный (список и детали рядом на широком экране, детали отдельным
+  экраном на узком).
+- **Интеграции** — работа ваших библиотек пишется записями `structured_log`,
+  без изменений в том, как вы ими пользуетесь:
+
+  | Пакет | Что пишет |
+  |---|---|
+  | [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc) | создание, события, смену состояния, ошибки и закрытие каждого блока и кубита (`BlocObserver`; работает с `flutter_bloc`) |
+  | [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) | каждый запрос `dio` и его итог, с уровнем по статусу ответа и маскированием заголовков авторизации и токенов |
+  | [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) | то же для `package:http`, тело ответа — без буферизации |
+  | [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) | каждую навигацию, перенаправление и ошибку маршрутизации `go_router` |
+  | [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) | работу DI-контейнера `cherrypick` — скоупы, модули, циклы, ошибки разрешения |
+
+Начните с
+[руководства по встраиванию](https://structured-log.openidealab.com/ru/guides/embedding-guide/).
+
+### Вместе с self-hosted сервером — собрано, с поиском, для всей команды
+
+- **[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync)**
+  — ещё один синк: отправляет записи на сервер по HTTP батчами, повторяет с
+  backoff, держит ограниченный буфер, пока сервер недоступен, и никогда не
+  блокирует того, кто логировал.
+- **[`structured_log_server`](https://github.com/pese-git/structured_log/tree/master/backend/structured_log_server)**
+  — мультитенантный сервис, который вы запускаете сами (по умолчанию SQLite,
+  по выбору PostgreSQL): приём логов, поиск по уровню, категории, диапазону
+  времени, полному тексту и любому собственному полю, живая лента через SSE,
+  группы, проекты, команды и секретные ключи проектов, роли, квоты, срок
+  хранения, ограничение частоты и журнал аудита.
+- **[`structured_log_admin_client`](https://github.com/pese-git/structured_log/tree/master/frontend/structured_log_admin_client)**
+  — веб-приложение, чтобы читать эти логи и управлять сервером: поиск по логам
+  с живой лентой, группы, проекты и ключи, пользователи и роли, журнал аудита;
+  английский и русский языки.
+
+Сервер и admin-клиент — приложения, а не библиотеки, поэтому их нет на
+pub.dev; они разворачиваются вместе через Docker Compose или в Kubernetes.
+См. руководства
+[пользователя](https://structured-log.openidealab.com/ru/guides/user-guide/),
+[администратора](https://structured-log.openidealab.com/ru/guides/admin-guide/)
+и [разработчика](https://structured-log.openidealab.com/ru/guides/developer-guide/),
+а также справочник по [HTTP API](https://structured-log.openidealab.com/ru/api/http-api/).
+
+Вся документация — на
+**[structured-log.openidealab.com](https://structured-log.openidealab.com/ru/)**;
+исходный код — в одном репозитории,
+[pese-git/structured_log](https://github.com/pese-git/structured_log).
 
 ## Возможности
+
+Что даёт этот пакет — ядро, на котором строится всё перечисленное выше:
 
 - **Структурированный JSON** — логи машиночитаемы по умолчанию
 - **Привязка контекста** — иммутабельные `bind()` / `unbind()` для добавления метаданных
 - **Типизированные correlation-поля** — `withCorrelation()` для session/request/connection/tool-call/message/operation id
 - **Процессоры** — трансформация записей перед выводом (фильтрация, обогащение, форматирование)
-- **Несколько выводов** — stdout, файл, ротируемый файл или кастомный
+- **Маскирование секретов** — `redactKeys()` скрывает пароли, токены и ключи по имени поля, а по значению — с поставляемыми проверками `looksLikeJwtOrBearer` / `looksLikeCardNumber`
+- **Несколько выводов** — stdout, цветная консоль, файл, ротируемый файл или кастомный
+- **Асинхронный вывод в файл** — `AsyncFileOutput` / `AsyncRotatingFileOutput` пишут, не блокируя вызывающего, с `flushed`, чтобы дождаться записи
 - **Multi-sink маршрутизация** — доставка одной записи в несколько destinations с независимой фильтрацией по уровню/категории и переключением в рантайме
-- **Цветная консоль** — читаемый вывод для разработки
 - **Конфигурация** — глобальная настройка через `StructlogConfiguration.configure()`
-- **Без зависимостей** — только Dart SDK
+- **Без сторонних runtime-зависимостей** — только Dart SDK и `meta`
 
 ## Как это работает
 
@@ -51,7 +127,7 @@ flowchart LR
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.0
+  structured_log: ^0.2.2
 ```
 
 ## Быстрый старт
@@ -512,7 +588,7 @@ Future<void> asyncTask() async {
 | Файловый вывод       | Через stdlib     | Встроенный     |
 | Ротация файлов       | Через handlers   | Встроенная     |
 | Маршрутизация в несколько destinations | Через handlers stdlib logging | Встроенная (`LogSink`) |
-| Async поддержка      | Да               | Синхронный I/O |
+| Асинхронный вывод в файл | Через handlers | Встроен (`AsyncFileOutput`) |
 | Wrapper-классы       | Да               | Нет (простой)  |
 
 ## Связанные пакеты
