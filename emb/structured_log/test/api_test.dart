@@ -1,3 +1,10 @@
+// The deprecated renderers are still exercised here: they stay supported
+// until they are removed, and they must not lag the outputs that replace them.
+// ignore_for_file: deprecated_member_use_from_same_package
+
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:structured_log/structured_log.dart';
 import 'package:test/test.dart';
 
@@ -189,6 +196,99 @@ void main() {
       expect(log.isEnabled(LogLevel.info), isFalse);
     });
   });
+
+  group('jsonLineOutput', () {
+    test('prints the entry as one line of JSON', () {
+      final printed = _capturePrints(() => jsonLineOutput(
+            {'event': 'e', 'at': DateTime.utc(2026), 'n': 1},
+            LogLevel.info,
+          ));
+
+      expect(printed, [
+        '{"event":"e","at":"2026-01-01T00:00:00.000Z","n":1}',
+      ]);
+    });
+  });
+
+  group('logfmt', () {
+    test('a value cannot forge a field or a line', () {
+      final line = formatLogfmt({
+        'level': 'info',
+        'user': 'a" level=critical\nevent="forged',
+      });
+
+      expect(line, r'level="info" user="a\" level=critical\nevent=\"forged"');
+    });
+
+    test('escapes backslashes, tabs, returns and control characters', () {
+      expect(
+        formatLogfmt({'v': 'a\\b\tc\rd\u0001e\u007f\u2028'}),
+        r'v="a\\b\tc\rd\u0001e\u007f\u2028"',
+      );
+    });
+
+    test('keys keep only letters, digits, _ . and -', () {
+      expect(formatLogfmt({'bad key=x"\n': 1}), 'bad_key_x__=1');
+      expect(formatLogfmt({'': 1}), '_=1');
+    });
+
+    test('numbers, booleans and null stay bare; the rest is quoted', () {
+      expect(
+        formatLogfmt({
+          'n': 3,
+          'd': 1.5,
+          'b': true,
+          'z': null,
+          'took': const Duration(milliseconds: 2),
+          'at': DateTime.utc(2026),
+          'hint': LogLevel.warning,
+          'map': {'k': 'v "q"'},
+          'list': [1, 'two'],
+        }),
+        'n=3 d=1.5 b=true z=null took=2000 '
+        'at="2026-01-01T00:00:00.000Z" hint="warning" '
+        r'map="{\"k\":\"v \\\"q\\\"\"}" list="[1,\"two\"]"',
+      );
+    });
+
+    test('a value that cannot be encoded is named by its type', () {
+      final loop = <String, dynamic>{};
+      loop['self'] = loop;
+
+      expect(
+        formatLogfmt({'loop': loop, 'v': _ThrowingToString()}),
+        'loop="<${loop.runtimeType}>" v="<_ThrowingToString>"',
+      );
+    });
+
+    test('logfmtOutput prints one line', () {
+      final printed = _capturePrints(
+        () => logfmtOutput({'event': 'e', 'm': 'a\nb'}, LogLevel.info),
+      );
+
+      expect(printed, [r'event="e" m="a\nb"']);
+    });
+  });
+
+  group('The deprecated renderers', () {
+    test('jsonRenderer survives values jsonEncode refuses', () {
+      final printed = _capturePrints(
+        () => jsonRenderer({'event': 'e', 'at': DateTime.utc(2026)}),
+      );
+
+      expect(jsonDecode(printed.single)['at'], '2026-01-01T00:00:00.000Z');
+    });
+
+    test('logfmtRenderer escapes like logfmtOutput', () {
+      final entry = <String, dynamic>{'m': 'a\nb'};
+      late Map<String, dynamic>? result;
+
+      final printed = _capturePrints(() => result = logfmtRenderer(entry));
+
+      expect(printed, [r'm="a\nb"']);
+      expect(result, same(entry));
+    });
+  });
 }
 
 class _ThrowingAcceptsSink extends LogSink {
@@ -201,4 +301,15 @@ class _ThrowingAcceptsSink extends LogSink {
 class _ThrowingToString {
   @override
   String toString() => throw StateError('no');
+}
+
+List<String> _capturePrints(void Function() body) {
+  final printed = <String>[];
+  runZoned(
+    body,
+    zoneSpecification: ZoneSpecification(
+      print: (self, parent, zone, line) => printed.add(line),
+    ),
+  );
+  return printed;
 }
