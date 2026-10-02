@@ -4,44 +4,85 @@
 
 *Читать на [русском](README.ru.md).*
 
-Logs where a [`go_router`](https://pub.dev/packages/go_router) app goes —
-every navigation, redirect and routing error — as
-[`structured_log`](https://pub.dev/packages/structured_log) entries.
+**Where your [`go_router`](https://pub.dev/packages/go_router) app goes —
+every navigation, redirect and routing error — as a
+[`structured_log`](https://pub.dev/packages/structured_log) entry, with the
+route pattern next to the location.**
+
+## Why
+
+The first question about most bug reports is *which screen was the user
+on, and how did they get there?* The answer is usually missing: navigation
+happens inside the router, and a stack trace only shows the widget that
+crashed, not the path that led to it.
 
 `StructuredLogGoRouter` listens to a `GoRouter` and writes an entry each
-time it settles on a new location, through the sinks you have already
-configured — the console, a file, the in-app log viewer
-(`structured_log_flutter`), or a `structured_log_server` via
-`structured_log_remote_sync`. Next to the `bloc` entries from
-`structured_log_bloc` and the `http` ones from `structured_log_dio` /
-`structured_log_http_client`, it answers the first question of most bug
-reports: *which screen was the user on?*
+time it settles on a new location — `go`, `push`, `pop`, a deep link, the
+browser's back button — with the matched route pattern and where the user
+came from. Routing errors are logged too, and redirects once you wrap your
+`redirect`. Next to the `bloc` entries from `structured_log_bloc`
+and the `http` ones from `structured_log_dio` / `structured_log_http_client`,
+this gives a bug report its context: the screen, then the state, then the
+call that failed.
 
 ## Features
 
-- **Attach to any router** — `routeLog.attach(router)`; `go`, `push`,
-  `pop`, deep links and the browser's back button all count
+### What you see
+
+- **Every navigation** — `go`, `push`, `pop`, deep links and the browser's
+  back button all count; a notification that does not change the location
+  is not logged twice.
 - **Pattern next to location** — `/users/42` is logged with its route
-  `/users/:id` and route name, so screens group without parsing URLs
-- **Where the user came from** — `previous_location` on every entry
+  `/users/:id` and route name, so screens group without parsing URLs.
+- **Where the user came from** — `previous_location` and `previous_route`
+  on each navigation after the first.
 - **Redirects and routing errors** — wrap `redirect` and `onException` to
-  log them too; the not-found page is logged without any wrapping
-- **Tokens stay out** — token-like query parameters are redacted, in the
-  query and in an OAuth-style fragment (`#access_token=...`); `extra` is
-  never logged
-- **Its own category** — every entry carries `category: 'navigation'`
+  log them too; the not-found page is logged without any wrapping.
+- **Its own category** — every entry carries `category: 'navigation'`.
+
+### What stays out
+
+- **Tokens** — token-like query parameters, and the OAuth `code` a sign-in
+  callback carries, are redacted, in the query and in an OAuth-style
+  fragment (`#access_token=...`).
+- **Route state** — `extra` and other state objects are never logged.
+- **Screens you choose** — a `filter` leaves out the navigations to a route
+  whose path itself is sensitive.
+
+### What doesn't get in the way
+
+- **Attach to any router** — `routeLog.attach(router)`, and `detach()` to
+  stop.
 - **Never breaks navigation** — a filter that throws costs the entry; a
-  wrapped redirect's answer and exceptions reach the router unchanged
+  wrapped redirect's answer and exceptions reach the router unchanged, and
+  a synchronous redirect stays synchronous.
+- **Follows reconfiguration** — without an explicit logger it picks up a
+  later `StructlogConfiguration.configure`.
+
+## Where it fits
+
+`structured_log_go_router` is one of the integrations around
+[`structured_log`](https://pub.dev/packages/structured_log): a Flutter
+package that depends on nothing but the core and `go_router`, and writes
+through the sinks you have already configured. No server is needed: the
+entries go to the console, a file, or the in-app log viewer
+([`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+with a Material, Fluent or Cupertino skin), and — if you run the
+self-hosted `structured_log_server` — to it through
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+where your team can follow one user's path through the app next to the
+calls it made. More at
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.1`):
+Published on pub.dev as a pre-release (`0.1.0-dev.3`):
 
 ```yaml
 dependencies:
   go_router: ">=17.0.0 <19.0.0"
   structured_log: ^0.3.0
-  structured_log_go_router: ^0.1.0-dev.1
+  structured_log_go_router: ^0.1.0-dev.3
 ```
 
 ## Quick Start
@@ -83,7 +124,7 @@ this package.
 
 | Entry              | When | Default level | Fields |
 |--------------------|------|---------------|--------|
-| `route_changed`    | the router settled on a new location — `go`, `push`, `pop`, a deep link, the browser's back button | `info` | `location`, `route` (the pattern), `route_name` if the route has one, `previous_location`, `previous_route` |
+| `route_changed`    | the router settled on a new location — `go`, `push`, `pop`, a deep link, the browser's back button | `info` | `location`, `route` (the pattern), `route_name` if the route has one; `previous_location`, `previous_route` after the first navigation |
 | `route_redirected` | a redirect wrapped with `routeLog.redirect(...)` sent the navigation elsewhere | `debug` | `from`, `to` |
 | `route_error`      | a location matched no route, or routing failed | `warning` | `location`, `error` |
 

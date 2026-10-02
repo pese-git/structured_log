@@ -4,130 +4,122 @@
 
 *Читать на [русском](README.ru.md).*
 
-Structured logging for Dart and Flutter, inspired by
-[Python's structlog](https://www.structlog.org/): JSON log entries with
-bound context, a processor pipeline, and routing to as many outputs as you
-need.
+**Log events with data instead of strings — entries that read well in a
+terminal, parse as JSON, and can be filtered by any field, on every
+platform Dart runs on.**
 
-This package is the core of the **structured_log project** — a family of
-packages around it and a self-hosted service for collecting logs centrally.
-The core works on its own, everywhere Dart runs; everything else is optional
-and builds on it.
+Inspired by [Python's structlog](https://www.structlog.org/). Documentation:
+[structured-log.openidealab.com](https://structured-log.openidealab.com).
 
-## The structured_log project
+## Why
 
-There are two ways to use it, and you can start with the first and add the
-second later without changing how your code logs.
+`print('User 42 logged in from 127.0.0.1')` is quick to write and costly to
+use: to find every login of user 42, count logins per IP, or follow one
+request through the log, you are back to regular expressions over prose —
+and they break the day someone rewords the message.
 
-### Standalone — inside your app, no server
-
-- **Structured logging** — this package: JSON entries, context binding,
-  typed correlation ids, processors (including secret redaction), console,
-  file, rotating and async file outputs, multi-sink routing with per-sink
-  level/category filters.
-- **An in-app log viewer for Flutter** — a live, filterable view of what your
-  app just logged, opened from inside the running app:
-  [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
-  is the headless core (a bounded `LogBuffer` sink and a `LogViewerController`
-  with search, level/category filters, pause and clear), and three ready-made
-  skins sit on top of it —
-  [Material 3](https://pub.dev/packages/structured_log_material),
-  [Fluent UI](https://pub.dev/packages/structured_log_fluent) and
-  [Cupertino](https://pub.dev/packages/structured_log_cupertino), each
-  adaptive (list + detail on wide layouts, pushed detail on narrow ones).
-- **Integrations** — log what your libraries do as `structured_log` entries,
-  with no change to how you use them:
-
-  | Package | What it logs |
-  |---|---|
-  | [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc) | every bloc's and cubit's creation, events, state changes, errors and closing (`BlocObserver`; works with `flutter_bloc`) |
-  | [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) | every `dio` request and its outcome, levelled by status code, auth headers and tokens redacted |
-  | [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) | the same for `package:http`, response bodies logged without buffering |
-  | [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) | every `go_router` navigation, redirect and routing error |
-  | [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) | what the `cherrypick` DI container does — scopes, modules, cycles, resolve errors |
-
-Start with the
-[Embedding Guide](https://structured-log.openidealab.com/guides/embedding-guide/).
-
-### With the self-hosted server — collected, searchable, shared
-
-- **[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync)**
-  — one more sink: ships entries to the server over HTTP in batches, retries
-  with backoff, keeps a bounded buffer while the server is unreachable, and
-  never blocks the code that logged.
-- **[`structured_log_server`](https://github.com/pese-git/structured_log/tree/master/backend/structured_log_server)**
-  — a multi-tenant service you run yourself (SQLite by default, PostgreSQL
-  as an option): log ingestion, search by level, category, time range,
-  full text and any custom field, live tailing over SSE, groups, projects,
-  teams and per-project secret keys, roles, quotas, retention, rate limiting
-  and an audit log.
-- **[`structured_log_admin_client`](https://github.com/pese-git/structured_log/tree/master/frontend/structured_log_admin_client)**
-  — the web app for reading those logs and running the server: log search
-  with a live feed, groups, projects and keys, users and roles, the audit
-  log; English and Russian.
-
-The server and the admin client are applications, not libraries, so they
-are not on pub.dev; they deploy together with Docker Compose or to
-Kubernetes. See the
-[User](https://structured-log.openidealab.com/guides/user-guide/),
-[Administrator](https://structured-log.openidealab.com/guides/admin-guide/)
-and [Developer](https://structured-log.openidealab.com/guides/developer-guide/)
-guides, and the [HTTP API](https://structured-log.openidealab.com/api/http-api/)
-reference.
-
-Everything is documented at
-**[structured-log.openidealab.com](https://structured-log.openidealab.com)**;
-the source lives in one repository,
-[pese-git/structured_log](https://github.com/pese-git/structured_log).
+`structured_log` makes each log call an **event with data**:
+`log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'})`. The
+event name stays stable, the fields stay fields, and context you bind once —
+a request id, a user, a session — rides along on every entry after it.
+Processors redact secrets before anything is written, and sinks send the
+same entry to the console, a file, or anywhere else, each with its own
+filter.
 
 ## Features
 
-What this package — the core everything above builds on — gives you:
+### Writing entries
 
-- **Structured JSON output** — logs are machine-readable by default
-- **Context binding** — immutable `bind()` / `unbind()` for attaching metadata to loggers
-- **Typed correlation fields** — `withCorrelation()` for session/request/connection/tool-call/message/operation ids
-- **Processors** — transform log entries before output (filter, enrich, format)
-- **Secret redaction** — `redactKeys()` masks passwords, tokens and keys by field name, and by value with the bundled `looksLikeJwtOrBearer` / `looksLikeCardNumber` matchers
-- **Multiple outputs** — stdout (pretty JSON, JSON lines, logfmt), colored console, file, rotating file, or custom
-- **Safe encoding** — `encodeLogEntry` converts a `DateTime`, an exception or any other value `jsonEncode` refuses, so one such value no longer loses the whole entry
-- **Logging never throws** — a throwing sink or processor is reported, never propagated to the caller
-- **Async file output** — `AsyncFileOutput` / `AsyncRotatingFileOutput` write without blocking the caller, with `flushed` to await delivery
-- **Multi-sink routing** — deliver one entry to several destinations with independent level/category filtering and runtime toggling
-- **Configurable** — global configuration with `StructlogConfiguration.configure()`
-- **Works on the web** — the main library has no `dart:io`; the file outputs live in `package:structured_log/io.dart`
-- **No third-party runtime dependencies** — only the Dart SDK and `meta`
+- **Events, not sentences** — an event name plus a map of fields, six
+  levels from `trace` to `critical`; pass `error:` and `stackTrace:` and
+  they become the `error`, `error_type` and `stack_trace` fields.
+- **Context that travels with the logger** — `bind()`/`unbind()` return a
+  new logger and never change the old one, so a request-scoped logger can
+  be passed around and across `await`s; `initialContext` adds app-wide
+  fields to every entry.
+- **Typed correlation ids** — `withCorrelation()` binds session, request,
+  connection generation, tool call, message and operation ids under fixed
+  snake_case keys, so every part of an app spells them the same way.
 
-## How It Works
+### Shaping entries
 
-Every log call flows through the same pipeline: if no enabled sink takes
-the call's level, it stops right there; otherwise your bound context and
-correlation fields are merged into the entry, the entry passes through the
-configured processors (which can enrich, mask, or drop it), and what
-survives is delivered to every sink whose level/category filters accept it:
+- **Processors** — plain functions that enrich, rewrite or drop an entry
+  before any output sees it.
+- **Secret redaction** — `redactKeys()` masks passwords, tokens, cookies and
+  keys by field name (built-in multi-word names come in three spellings,
+  so `accessToken` is caught too), by a name predicate of yours, or by the
+  value itself (`looksLikeJwtOrBearer`, opt-in `looksLikeCardNumber`) — at
+  any depth, without touching the maps your code still holds.
 
-```mermaid
-flowchart LR
-    A["log.info('event', context: {...})"] --> L{"any enabled sink<br/>takes this level?"}
-    L -->|no| Y[return early]
-    L -->|yes| B["merge: bound context<br/>+ inline context<br/>+ correlation"]
-    B --> C["processors pipeline<br/>(dropNullValues, ...)"]
-    C -->|"dropped (returned null)"| X[discarded]
-    C -->|entry| D{"for each sink"}
-    D -->|"level/category match"| E["sink.output(entry, level)"]
-    D -->|"filtered out"| F[skipped]
-```
+### Delivering entries
 
-A single `output:` in `StructlogConfiguration.configure()` is shorthand for
-one sink — most apps never need more than that. See
-[Multi-Sink Routing](#multi-sink-routing) below for delivering to several
-destinations at once, and [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) for the
-full internal design (with sequence diagrams) if you're extending the
-package.
+- **The format you need** — pretty JSON by default, JSON lines, logfmt
+  (escaped so a value can never forge a field or a line), an ANSI-colored
+  console line, or your own function.
+- **Files** — append, rotate by size, or write without blocking the calling
+  isolate (`AsyncFileOutput`, with `flushed` to await delivery); these need
+  `dart:io` and live in `package:structured_log/io.dart`.
+- **Several destinations at once** — each `LogSink` has its own minimum
+  level, category filter and on/off switch, and can be toggled at runtime
+  with `setSinkEnabled()`.
+
+### Behaving well in production
+
+- **A log call never throws** — a failing sink is reported and the other
+  sinks still get the entry; a failing processor yields a stub instead of
+  the entry, because the processor that failed may be the one that redacts.
+- **One odd value costs one field, not the entry** — `DateTime`, enums,
+  `Duration`, exceptions and anything else `jsonEncode` refuses are
+  converted on output (`encodeLogEntry`, also available to your own
+  outputs).
+- **Cheap when nobody listens** — the level is checked before any context
+  is merged or processor runs, and `isEnabled()` lets you skip building an
+  expensive entry altogether.
+- **Unambiguous timestamps** — UTC by default, or local time with its
+  offset; never a local time that a reader would mistake for their own.
+- **Configure whenever** — loggers from `getLogger()` follow the current
+  configuration, so one kept in a `static final` created before
+  `configure()` still picks it up.
+- **Everywhere Dart runs** — VM, Flutter and the web; the main library has
+  no `dart:io`, and the only dependency is `meta`.
+
+## Where it fits
+
+This package is the core of the
+[structured_log project](https://structured-log.openidealab.com), and it is
+all you need to start. Everything else is optional and builds on the same
+entries, in one of two ways: **standalone** — keep logs inside the app, add
+an in-app viewer and adapters for libraries you already use, no server at
+all — or **with a self-hosted server** — add one more sink, and entries from
+every install land in a central store your team can search and tail live.
+Moving from the first to the second doesn't change a single logging call.
+
+| Package | Role |
+|---|---|
+| [`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter) | Headless in-app log viewer core: `LogBuffer` sink, `LogViewerController` |
+| [`structured_log_material`](https://pub.dev/packages/structured_log_material) · [`_fluent`](https://pub.dev/packages/structured_log_fluent) · [`_cupertino`](https://pub.dev/packages/structured_log_cupertino) | Ready-made viewer screens in Material 3, Fluent UI and Cupertino style |
+| [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc) · [`_dio`](https://pub.dev/packages/structured_log_dio) · [`_http_client`](https://pub.dev/packages/structured_log_http_client) · [`_go_router`](https://pub.dev/packages/structured_log_go_router) · [`_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) | Log what those libraries already do, with no change to how you use them |
+| [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync) | A sink that ships entries to the server in batches, with retries and a bounded buffer |
+| [`structured_log_server`](https://github.com/pese-git/structured_log/tree/master/backend/structured_log_server) | Self-hosted, multi-tenant log server: ingestion, search, live tail (an app, not on pub.dev) |
+| [`structured_log_admin_client`](https://github.com/pese-git/structured_log/tree/master/frontend/structured_log_admin_client) | Web admin for reading logs and running the server (an app, not on pub.dev) |
+
+Start with the
+[Embedding Guide](https://structured-log.openidealab.com/guides/embedding-guide/)
+for the standalone setup; the
+[User](https://structured-log.openidealab.com/guides/user-guide/),
+[Administrator](https://structured-log.openidealab.com/guides/admin-guide/)
+and [Developer](https://structured-log.openidealab.com/guides/developer-guide/)
+guides and the [HTTP API](https://structured-log.openidealab.com/api/http-api/)
+reference cover the server side. The source lives in one repository,
+[pese-git/structured_log](https://github.com/pese-git/structured_log).
 
 ## Installation
 
-Add to your `pubspec.yaml`:
+```bash
+dart pub add structured_log
+```
+
+or add it to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -159,6 +151,52 @@ Output:
 
 The `timestamp` is UTC, ISO-8601, ending in `Z` — see
 [Timestamps](#timestamps) for writing local time instead.
+
+A step further — one JSON line per entry, secrets masked, and context bound
+once for a whole request:
+
+```dart
+import 'package:structured_log/structured_log.dart';
+
+void main() {
+  StructlogConfiguration.configure(
+    processors: [redactKeys(), dropNullValues],
+    output: jsonLineOutput,
+  );
+
+  final log = getLogger('api').bind({'request_id': 'r-42'});
+  log.info('login_attempt', context: {'user': 'alice', 'password': 'hunter2'});
+  // {"logger":"api","request_id":"r-42","user":"alice","password":"***",
+  //  "event":"login_attempt","level":"info","timestamp":"..."}
+}
+```
+
+## How It Works
+
+Every log call flows through the same pipeline: if no enabled sink takes
+the call's level, it stops right there; otherwise your bound context and
+correlation fields are merged into the entry, the entry passes through the
+configured processors (which can enrich, mask, or drop it), and what
+survives is delivered to every sink whose level/category filters accept it:
+
+```mermaid
+flowchart LR
+    A["log.info('event', context: {...})"] --> L{"any enabled sink<br/>takes this level?"}
+    L -->|no| Y[return early]
+    L -->|yes| B["merge: bound context<br/>+ inline context<br/>+ correlation"]
+    B --> C["processors pipeline<br/>(dropNullValues, ...)"]
+    C -->|"dropped (returned null)"| X[discarded]
+    C -->|entry| D{"for each sink"}
+    D -->|"level/category match"| E["sink.output(entry, level)"]
+    D -->|"filtered out"| F[skipped]
+```
+
+A single `output:` in `StructlogConfiguration.configure()` is shorthand for
+one sink — most apps never need more than that. See
+[Multi-Sink Routing](#multi-sink-routing) below for delivering to several
+destinations at once, and [doc/ARCHITECTURE.md](doc/ARCHITECTURE.md) for the
+full internal design (with sequence diagrams) if you're extending the
+package.
 
 ## API Reference
 
@@ -669,19 +707,22 @@ void handleRequest(Request req) {
 }
 ```
 
-### Multiple Loggers (file + console)
+### Switching Outputs at Runtime
+
+A logger from `getLogger()` follows the configuration, so changing the output
+redirects loggers you already hold — there is nothing to re-fetch:
 
 ```dart
 import 'package:structured_log/io.dart'; // fileOutput
+import 'package:structured_log/structured_log.dart';
 
-// Console logger for development
-final consoleLog = getLogger('console');
-consoleLog.info('app started');
+void main() {
+  final log = getLogger('app');
+  log.info('app started'); // → console (defaultOutput)
 
-// Switch to file output — consoleLog follows the change too
-StructlogConfiguration.configure(output: fileOutput('logs/production.log'));
-final fileLog = getLogger('production');
-fileLog.info('same event, different output');
+  StructlogConfiguration.configure(output: fileOutput('logs/production.log'));
+  log.info('same logger, now to the file'); // → logs/production.log
+}
 ```
 
 ### Async-Safe Logging

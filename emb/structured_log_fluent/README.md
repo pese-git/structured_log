@@ -1,68 +1,118 @@
 # structured_log_fluent
 
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
 *Читать на [русском](README.ru.md).*
 
-A ready-to-use Fluent UI (WinUI-style) in-app log viewer for
-[`structured_log`](../structured_log), built on
-[`structured_log_flutter`](../structured_log_flutter)'s
-`LogViewerController`: a master-detail split view (list on the left, the
-selected entry's full context in a detail pane on the right — matching
-WinUI apps like Mail/Settings, not a mobile-style bottom sheet), a search
-box, category and level-filter dropdowns, all styled via `FluentTheme` for
-light and dark. Available both as a full screen (`FluentLogViewerPage`) and
-as a plain embeddable widget (`FluentLogViewer`) for dropping into existing
-page chrome — a `Flyout`, a side panel, a tab, ...
+**A ready-made Fluent UI (WinUI-style) log viewer for your Flutter app: a
+master-detail screen — or a docked panel — showing what the app just
+logged, with search, filters and every entry's full context.**
 
-> **Status:** published on [pub.dev](https://pub.dev/packages/structured_log_fluent)
-> (`0.1.0`). `fluent_ui` needs Flutter `3.44.0+` — enforced by this
-> package's own `environment.flutter` constraint (see
-> [pubspec.yaml](pubspec.yaml)), so an older Flutter SDK fails at `pub get`
-> rather than deep inside `fluent_ui` at build time.
-> Design reference: the
-> [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
-> canvas (Fluent section).
+## Why
+
+A desktop app misbehaves on a tester's machine, and the logs that explain
+it went to a console nobody opened. This package puts those logs inside the
+app, in the layout Windows users know from Mail and Settings: a live list of
+[`structured_log`](https://pub.dev/packages/structured_log) entries on the
+left, the selected entry's full context on the right, a search box and
+filter dropdowns above. Wiring it up is one extra sink and one widget.
+
+Pick it for apps built on `fluent_ui` — typically Windows desktop, though it
+runs wherever Flutter does, web included. For a Material app take
+[`structured_log_material`](https://pub.dev/packages/structured_log_material);
+for an app with an iOS look,
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino).
+If none of the three matches your design system, build your own on
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter) —
+the skins share it, so filtering and pausing behave the same everywhere.
 
 ## Features
 
-- **`FluentLogViewer`** — the log viewer as a plain embeddable widget: a
-  toolbar (search box, category dropdown, level dropdown, pause/resume,
-  clear-all) above a live newest-first master list with a detail pane for
-  the selected entry — no page chrome of its own, so it can be dropped
-  anywhere in an existing layout
-- **Responsive** — both the toolbar and the master-detail split react to
-  the width *this widget* is actually given, not the window's: a narrow
-  toolbar wraps onto a second row instead of overflowing, and a narrow
-  master-detail collapses to a single pane (the list; tapping an entry
-  shows its detail in place, with a back button to return) — so it stays
-  usable docked in a narrow side panel, not just full-screen
-- **`FluentLogViewerPage`** — a thin `ScaffoldPage` wrapper around
-  `FluentLogViewer` for the full-screen case: adds a title ("Logs") and,
-  when pushed via `Navigator`, a back button
-- **`LogCategoryComboBox`** — a `category`-filter dropdown whose options are
-  derived from the distinct `category` values currently in the buffer;
-  hidden automatically when fewer than two are present
-- **`LogEntryTile`** — one row: a colored level badge, `event`, formatted
-  time, and a category tag if the entry has one; hover and accent-colored
-  selection highlighting
-- **`LogEntryDetailPane`** — the selected entry's full context as
-  formatted key/value pairs, with a "Copy" action — rendered alongside the
-  list (master-detail), not as a modal overlay
-- **`LogViewerEmptyState`** — "No logs yet" vs. "No results found" (with a
-  "Clear filters" action)
-- **Theme-aware** — colors and typography come from `FluentTheme.of` /
-  `theme.resources` (light/dark both supported); only the level-indicator
-  palette is fixed (`logLevelColor`), kept in one place so it can't drift
-  between widgets
+### Drop-in
+
+- **A screen or a panel** — `FluentLogViewerPage` is a complete
+  `ScaffoldPage` with a "Logs" title (and a back button when pushed);
+  `FluentLogViewer` is the same viewer with no page chrome, for a `Flyout`,
+  a side panel or a tab.
+- **Master-detail, the WinUI way** — list on the left, the selected entry
+  (the newest by default) on the right, not a mobile-style bottom sheet.
+- **Stays usable when narrow** — it measures its own width, not the
+  window's: below 820 logical pixels the toolbar wraps onto a second row
+  instead of overflowing, and below 640 the split collapses to the list,
+  where a tap shows the entry in place with a back button.
+
+### Finding the entry
+
+- **A live list, newest first** — new entries appear as the app logs them.
+- **Search** — across event names and every context value.
+- **Level filter** — a dropdown from "All levels" to "Error and above".
+- **Category filter** — a dropdown built from the categories actually in
+  the buffer, hidden while there are fewer than two; entries from adapters
+  such as [`structured_log_dio`](https://pub.dev/packages/structured_log_dio)
+  (`http`) or [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc)
+  (`bloc`) become a filter on their own.
+- **Pause and clear** — freeze the list while you read; clear it to start a
+  fresh reproduction.
+- **Compact rows** — a colored level badge (`INF`, `WRN`, `ERR`, ...), the
+  event, the time and a category tag, with hover and accent-colored
+  selection.
+
+### Reading it
+
+- **Full context** — level, time and event on top, then every other field
+  as a key/value pair.
+- **Copy** — one click puts the fields on the clipboard as `key: value`
+  lines.
+- **Clear empty states** — "No logs yet" when nothing was captured, "No
+  results found" with a "Clear filters" action when the filters hid
+  everything.
+
+### Looks like your app
+
+- **Follows your theme** — colors and typography come from `FluentTheme`,
+  light and dark; only the level colors are fixed, and they are the same in
+  every skin.
+- **Parts to compose your own layout** — `LogEntryTile`,
+  `LogCategoryComboBox`, `LogEntryDetailPane`, `LogViewerEmptyState` and
+  `logLevelAbbreviation` are public.
+
+## Where it fits
+
+[`structured_log`](https://pub.dev/packages/structured_log) writes the
+entries;
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+keeps the recent ones in memory and handles filtering and pausing; this
+package is the Fluent face on top, a sibling of
+[`structured_log_material`](https://pub.dev/packages/structured_log_material)
+and [`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino).
+It works entirely inside your app, with no server; if you also ship logs to
+a self-hosted server with
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+the viewer keeps showing them locally. More in the documentation at
+[structured-log.openidealab.com](https://structured-log.openidealab.com) and
+in the [Embedding Guide](https://structured-log.openidealab.com/guides/embedding-guide/).
+Design reference: the
+[Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
+canvas (Fluent section).
 
 ## Installation
 
 ```yaml
 dependencies:
-  structured_log_fluent: ^0.1.0
+  fluent_ui: ^4.16.1
+  structured_log: ^0.3.0
+  structured_log_flutter: ^0.1.2
+  structured_log_fluent: ^0.1.1
 ```
 
-Within this monorepo, `melos bootstrap` resolves the two internal deps to
-path dependencies instead:
+`fluent_ui` needs Flutter `3.44.0+`. This package's own
+`environment.flutter` constraint (see
+[pubspec.yaml](https://github.com/pese-git/structured_log/blob/master/emb/structured_log_fluent/pubspec.yaml))
+enforces it, so an older Flutter SDK fails at `pub get` rather than deep
+inside `fluent_ui` at build time.
+
+Within this monorepo, `melos bootstrap` resolves the two internal packages
+to path dependencies instead:
 
 ```yaml
 dependencies:
@@ -95,7 +145,7 @@ void main() {
 }
 ```
 
-See [`example/`](example/) for a full runnable app (including web) — run it
+See [`example/`](https://github.com/pese-git/structured_log/tree/master/emb/structured_log_fluent/example) for a full runnable app (including web) — run it
 with `flutter run -d chrome` from that directory.
 
 To embed the viewer inside existing page chrome instead of giving it the

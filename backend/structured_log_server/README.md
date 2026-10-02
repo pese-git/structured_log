@@ -4,48 +4,110 @@
 
 *Читать на [русском](README.ru.md).*
 
-Self-hosted log server for
-[`structured_log`](https://pub.dev/packages/structured_log): applications
-ship entries to it over HTTP, people read them back through a query API and
-a live stream.
+**A self-hosted log server: it collects the logs of every install of your
+app in one place you control, and lets your team search them and watch
+them arrive live.**
 
 Not published to pub.dev — this is a service you run, not a library you
 depend on.
 
-> **Status: in development.** Log ingestion, querying, the live stream,
-> groups, projects, secret keys, authentication, RBAC, the audit log, user
-> lifecycle management (create/block/delete), teams, and role assignment
-> (including an `owner` granting roles within their own group) work today.
-> Self-registration, password recovery and email verification are
-> specified but not implemented — see
-> [tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) for
-> exactly what is and isn't there.
+## Why
 
-## What it does
+Logs written with [`structured_log`](https://pub.dev/packages/structured_log)
+stay on the device that wrote them: a phone in a customer's pocket, a
+desktop in another office, a container that has already been replaced.
+To find out what happened, you need those entries somewhere you can
+reach — and sending them to a third-party SaaS means handing over your
+users' data and paying per gigabyte.
 
-- **Ingest** — `POST /v1/logs`, authenticated by a per-project secret key
-- **Query** — `GET /v1/logs` with filters, paging, and full-text search
-- **Live stream** — `GET /v1/logs/stream`, Server-Sent Events with catch-up
-- **Multi-tenancy** — groups own projects and teams; roles are granted per
-  scope, to a user or to a whole team at once
-- **User management** — `admin` creates/edits/blocks/deletes accounts
-  (`POST`/`GET`/`PATCH`/`DELETE /v1/users`)
+`structured_log_server` is that somewhere, on your own infrastructure.
+Applications ship entries to it over HTTP with a per-project key; people
+read them back through a query API, a live stream, and the
+[web admin client](../../frontend/structured_log_admin_client/). It is one
+Dart process with an embedded SQLite file by default — no broker, cache or
+migration tool to run — and PostgreSQL when you need it.
+
+## Features
+
+### Ingest, search, live tail
+
+- **Batched ingestion** — `POST /v1/logs` takes a JSON array of entries,
+  authenticated by a per-project secret key; a malformed entry is refused
+  on its own without failing the batch.
+- **Search** — `GET /v1/logs` filters by level, category, logger, time
+  range, correlation ids and any `context.<field>`, with free-text search
+  over the event and its context, and cursor paging.
+- **Live tail** — `GET /v1/logs/stream`, Server-Sent Events under the same
+  filters; reconnect with `since_id` and the stream replays what you
+  missed, without duplicates.
+
+### Multi-tenancy and access
+
+- **Groups and projects** — a group owns projects; each project carries
+  its own secret keys (shown once, stored hashed, revocable), quotas and
+  retention window, and can be blocked to stop ingestion.
+- **Users** — `admin` creates, edits, blocks and deletes accounts
+  (`POST`/`GET`/`PATCH`/`DELETE /v1/users`); every new account starts with
+  a temporary password that must be changed at first sign-in.
 - **Teams** — `owner`/`admin` create a group's teams and manage membership
   (`POST /v1/groups/:groupId/teams`,
-  `POST`/`DELETE /v1/teams/:teamId/members`)
-- **Role assignments** — `admin` grants any role anywhere; a group's
-  `owner` grants `owner`/`user` within that group and its projects
-  (`POST`/`DELETE /v1/role-assignments`)
-- **Quotas** — per-project entry/byte limits and a retention window
-- **Rate limiting** — token buckets on the auth endpoints, by address and by subject
-- **Audit log** — `GET /v1/audit-log`, administrators only: who changed what,
-  and who tried to sign in
-- **Storage** — SQLite by default (one file, no external services), or
-  PostgreSQL as an operator-chosen alternative (`--db-backend=postgres`)
+  `POST`/`DELETE /v1/teams/:teamId/members`).
+- **Roles per scope** — `admin` grants any role anywhere; a group's
+  `owner` grants `owner`/`user` within that group and its projects, to a
+  user or a whole team at once (`POST`/`DELETE /v1/role-assignments`).
+- **Sessions** — JWT access tokens with rotating refresh tokens; in the
+  browser the refresh token lives in an `HttpOnly` cookie a script cannot
+  read. A password change can sign out every other session.
+
+### Operations
+
+- **Quotas and retention** — per-project entry/byte limits, and a
+  background job that purges entries older than the project's
+  `retention_days`.
+- **Rate limiting** — token buckets on the auth endpoints, by address and
+  by subject, aware of reverse proxies (`--trusted-proxy-hops`).
+- **Audit log** — `GET /v1/audit-log`, administrators only: who changed
+  what, and who tried to sign in; nothing deletes from it but its own
+  optional retention.
+- **Storage backends** — SQLite by default (one file, no external
+  services), or PostgreSQL as an operator-chosen alternative
+  (`--db-backend=postgres`).
+- **Deployment** — configuration by flags or environment variables,
+  secrets from the environment only, CORS off unless you list origins,
+  graceful shutdown on `SIGTERM`; a Dockerfile, a docker-compose setup and
+  Kubernetes manifests in [deploy/](../../deploy/).
+- **Its own diagnostics** — the server logs through `structured_log`
+  itself, and never writes passwords, tokens, keys or request bodies to
+  that log.
+
+## Status
+
+Working software, not feature-complete: everything listed above works
+today. Self-registration, password recovery and email verification are
+specified but not built — accounts are created by an administrator. See
+[tasks.md](../../openspec/changes/add-structured-log-server/tasks.md) for
+exactly what is and isn't there.
+
+## Where it fits
+
+Applications ship entries with
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync)
+— a sink for `structured_log` that batches, retries and never blocks the
+code that logged. Operators and their teams read them in the
+[admin client](../../frontend/structured_log_admin_client/), a web app
+served beside this API. [deploy/](../../deploy/) runs both behind one nginx
+on one origin with `./deploy.sh`. Guides on
+[structured-log.openidealab.com](https://structured-log.openidealab.com):
+[Administrator](https://structured-log.openidealab.com/guides/admin-guide/)
+(running and operating the server),
+[User](https://structured-log.openidealab.com/guides/user-guide/)
+(the admin client),
+[Developer](https://structured-log.openidealab.com/guides/developer-guide/)
+(shipping logs from your app).
 
 ## Requirements
 
-Dart SDK 3.0 or newer. Nothing else by default: the database is an embedded
+Dart SDK 3.9 or newer. Nothing else by default: the database is an embedded
 SQLite file and there is no message broker, cache or migration tool to run.
 Choosing `--db-backend=postgres` instead needs a PostgreSQL server the
 operator already runs — see
