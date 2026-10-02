@@ -21,9 +21,12 @@ on top of it — [`structured_log_material`](../structured_log_material),
 - **`LogBuffer`** — a fixed-capacity ring buffer that plugs directly into
   `structured_log` as an `OutputFunction`/`LogSink.output`
 - **Live updates** — `LogBuffer.entries` is a `ValueListenable`, so a widget
-  can rebuild on every new entry without polling
+  can rebuild as entries arrive without polling — once per burst, not once
+  per entry
 - **`LogViewerController`** — a `ChangeNotifier` with level/category/search
   filtering, pause/resume, and clearing, all applied on top of a `LogBuffer`
+- **`debugPrintOutput`** — a sink output for a phone's console: one plain
+  line per entry through `debugPrint`, no ANSI colours
 - **`logLevelColor(LogLevel level, Brightness brightness)`** — the
   canonical `LogLevel` indicator color, shared by every skin built on this
   package so the palette can't drift between them
@@ -36,6 +39,8 @@ on top of it — [`structured_log_material`](../structured_log_material),
 dependencies:
   structured_log_flutter: ^0.1.0
 ```
+
+It needs `structured_log` 0.3.0 or later.
 
 Within this monorepo, `melos bootstrap` resolves it to a path dependency
 instead:
@@ -76,7 +81,18 @@ print(controller.visibleEntries);
 | `LogBuffer({int capacity = 500})` | Creates an empty buffer; oldest entry evicted once `capacity` is exceeded |
 | `capture(Map<String, dynamic> entry, LogLevel level)` | Matches `OutputFunction`'s signature — pass it directly as a sink's `output` |
 | `entries` | `ValueListenable<List<Map<String, dynamic>>>`, oldest first |
-| `clear()` | Empties the buffer and notifies `entries`' listeners |
+| `clear()` | Empties the buffer and notifies `entries`' listeners at once |
+
+`entries.value` is always current, but its listeners are told at most once
+per turn of the event loop: a burst of entries logged in one go — a
+request's worth, a tight loop — is one notification and one rebuild, not one
+per entry. The list it returns is unmodifiable and never changes once read,
+so it is safe to hold on to; reading it twice with no capture in between
+gives the same list — it is copied once per change that is read, not once
+per entry.
+
+`LogBuffer` keeps entries in memory only. For logs that outlive the app,
+use the file outputs, which come from `package:structured_log/io.dart`.
 
 ### `LogViewerController`
 
@@ -91,6 +107,32 @@ A `ChangeNotifier` wrapping a `LogBuffer`:
 | `visibleEntries` | The buffer's entries, filtered by the three properties above |
 | `clear()` | Clears `buffer` (and any frozen snapshot) and notifies listeners |
 | `dispose()` | Detaches from `buffer.entries` — call when the controller is no longer needed |
+
+### `debugPrintOutput`
+
+An `OutputFunction` that writes each entry as one line through
+`debugPrint`, with no ANSI colours — the local time (from `timestamp`, to
+the millisecond), the level, the `event`, and every other field as
+`key=value` pairs:
+
+```text
+12:30:15.250 INFO login user="u" attempt=2
+```
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'console', output: debugPrintOutput),
+]);
+```
+
+Use it where logs are read in logcat or the Xcode console. `defaultOutput`
+pretty-prints JSON across several lines, which those consoles interleave
+with everything else, and `coloredConsoleOutput`'s escape codes show up in
+the iOS console as noise. Values are escaped the way `structured_log`'s
+`formatLogfmt` escapes them, so a value holding a newline stays on its
+line. `debugPrint` throttles a burst so Android does not drop lines, but it
+does not shorten one — logcat cuts a line past about 4 KB. In a terminal on
+a desktop, `coloredConsoleOutput` is still the more readable choice.
 
 ### `logLevelOf(Map<String, dynamic> entry)`
 
