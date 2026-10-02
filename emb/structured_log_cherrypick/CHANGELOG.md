@@ -1,3 +1,7 @@
+## 0.1.0-dev.3
+
+ - **DOCS**: ask for structured_log ^0.3.0 in the bloc, go_router and cherrypick install snippets.
+
 ## 0.1.0-dev.2
 
  - **DOCS**(ru): rewrite literal translations across the Russian docs.

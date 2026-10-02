@@ -1,3 +1,15 @@
+## 0.3.0
+
+> Note: This release has breaking changes.
+
+ - **PERF**(structured_log): count a rotating file's size instead of asking the file system on every write.
+ - **FIX**(structured_log): keep a log call from ever throwing, and encode what jsonEncode refuses.
+ - **FEAT**(structured_log): print from sinks, and escape logfmt so a value cannot forge a line.
+ - **DOCS**(structured_log): describe 0.3.0 and how to migrate to it.
+ - **BREAKING** **FEAT**(structured_log): move the file outputs to io.dart, so the main library needs no dart:io.
+ - **BREAKING** **FEAT**(structured_log): follow the current configuration, check the level first, take error and stackTrace.
+ - **BREAKING** **FEAT**(structured_log): write timestamps in UTC by default.
+
 ## 0.2.2+1
 
  - **DOCS**(ru): rename the headings that were calques, with their anchors.

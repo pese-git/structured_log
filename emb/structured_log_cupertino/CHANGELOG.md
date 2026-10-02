@@ -1,3 +1,7 @@
+## 0.1.1+3
+
+ - Update a dependency to the latest release.
+
 ## 0.1.1+2
 
  - **DOCS**(ru): rewrite literal translations across the Russian docs.

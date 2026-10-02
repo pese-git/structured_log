@@ -1,3 +1,10 @@
+## 0.1.0-dev.3
+
+> Note: This release has breaking changes.
+
+ - **DOCS**(structured_log_dio): describe body redaction and its breaking default.
+ - **BREAKING** **FIX**(structured_log_dio): redact body fields before a body is written.
+
 ## 0.1.0-dev.2
 
  - **DOCS**(ru): rewrite literal translations across the Russian docs.

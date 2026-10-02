@@ -1,3 +1,9 @@
+## 0.1.2
+
+ - **FEAT**(structured_log_flutter): notify LogBuffer listeners once per burst, and add debugPrintOutput.
+ - **DOCS**(structured_log_flutter): describe one notification per burst and debugPrintOutput.
+ - **DOCS**(structured_log_flutter): point LogBuffer at the file outputs in io.dart.
+
 ## 0.1.1+2
 
  - **DOCS**(ru): rewrite literal translations across the Russian docs.

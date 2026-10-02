@@ -1,3 +1,8 @@
+## 0.2.0+3
+
+ - **FIX**(structured_log_remote_sync): encode each entry when it is logged, so one value cannot cost the batch.
+ - **DOCS**(structured_log_remote_sync): say entries are encoded when they are logged.
+
 ## 0.2.0+2
 
  - **DOCS**(ru): rewrite literal translations across the Russian docs.
