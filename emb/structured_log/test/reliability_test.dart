@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:structured_log/src/report_print.dart';
 import 'package:structured_log/src/timestamp.dart';
+import 'package:structured_log/io.dart';
 import 'package:structured_log/structured_log.dart';
 import 'package:test/test.dart';
 

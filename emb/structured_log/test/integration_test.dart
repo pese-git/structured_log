@@ -13,6 +13,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:structured_log/io.dart';
 import 'package:structured_log/structured_log.dart';
 import 'package:test/test.dart';
 

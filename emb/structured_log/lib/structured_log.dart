@@ -6,4 +6,3 @@ export 'src/correlation.dart';
 export 'src/encoding.dart' show encodeLogEntry;
 export 'src/sink.dart';
 export 'src/timestamp.dart' show TimestampMode;
-export 'src/async_file_output.dart';
