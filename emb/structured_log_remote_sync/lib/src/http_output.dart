@@ -5,12 +5,17 @@ import 'dart:io';
 
 import 'package:structured_log/structured_log.dart';
 
-/// Sends a batch of already-encoded entries somewhere, answering the way
-/// `POST /v1/logs` does.
+/// Sends a batch of entries somewhere, answering the way `POST /v1/logs`
+/// does.
 ///
 /// The seam exists so tests can drive the retry and buffering behaviour
 /// without a socket — the real implementation is [_HttpBatchSender], and
 /// nothing outside this library needs to supply another.
+///
+/// The entries arrive as the server would read them: encoded to JSON when
+/// they were logged and decoded again for this call, so a `DateTime` is
+/// already its ISO-8601 string, and a change the application made to a map
+/// after logging it is not in the batch.
 typedef BatchSender = Future<BatchResult> Function(
   List<Map<String, dynamic>> entries,
 );
@@ -113,7 +118,8 @@ class RemoteSyncLogOutput {
   /// failure.
   final Duration requestTimeout;
 
-  final BatchSender _send;
+  /// Delivers already-encoded entries — one JSON object per string.
+  final Future<BatchResult> Function(List<String> entries) _send;
 
   /// The transport this instance created, if it created one — [close] has to
   /// release it, and a caller-supplied [BatchSender] is not ours to close.
@@ -125,7 +131,13 @@ class RemoteSyncLogOutput {
   /// [maxBufferedEntries] an actual bound: an earlier design chained one
   /// future per batch, so a long outage grew memory without limit through
   /// the pending chain while the buffer itself looked bounded.
-  final Queue<Map<String, dynamic>> _buffer = Queue();
+  ///
+  /// Entries wait here encoded, one JSON string each. Encoding at log time
+  /// means a value `jsonEncode` refuses costs nothing at send time — once a
+  /// whole batch went in one `jsonEncode` call, and one `DateTime` lost
+  /// every entry with it — and that the entry travels as it was when it was
+  /// logged, not as the application has changed the maps in it since.
+  final Queue<String> _buffer = Queue();
   Timer? _timer;
 
   /// The moment before which nothing may go out, named by a `Retry-After`
@@ -214,7 +226,7 @@ class RemoteSyncLogOutput {
     required BatchSender? sender,
     required void Function(String message)? report,
   })  : _ownedSender = ownedSender,
-        _send = sender ?? ownedSender!.send,
+        _send = sender != null ? _decodingFor(sender) : ownedSender!.send,
         _report = report ?? _reportToStderr {
     if (batchSize < 1) {
       throw ArgumentError.value(batchSize, 'batchSize', 'must be at least 1');
@@ -304,8 +316,21 @@ class RemoteSyncLogOutput {
   }
 
   static void _reportToStderr(String message) {
-    stderr.writeln('structured_log_remote_sync: $message');
+    try {
+      stderr.writeln('structured_log_remote_sync: $message');
+    } catch (_) {
+      // A report that cannot be written must not become the failure.
+    }
   }
+
+  /// Adapts a caller's [BatchSender] to the encoded buffer.
+  static Future<BatchResult> Function(List<String>) _decodingFor(
+    BatchSender sender,
+  ) =>
+      (entries) => sender([
+            for (final entry in entries)
+              jsonDecode(entry) as Map<String, dynamic>,
+          ]);
 
   /// Enqueues [entry]. Returns immediately — this is the whole point of the
   /// sink, and the reason [flushed] exists.
@@ -315,7 +340,20 @@ class RemoteSyncLogOutput {
       return;
     }
 
-    _buffer.add(entry);
+    final String encoded;
+    try {
+      encoded = encodeLogEntry(entry);
+    } catch (error) {
+      // encodeLogEntry already turns every value it can into one it can
+      // write, and a cycle into a stub; what reaches here is a map that
+      // cannot even be read. It goes alone — the batch it would have joined
+      // does not go with it.
+      _report('dropped an entry that could not be encoded: '
+          '${error.runtimeType}');
+      return;
+    }
+
+    _buffer.add(encoded);
     while (_buffer.length > maxBufferedEntries) {
       _buffer.removeFirst();
       _dropped++;
@@ -431,7 +469,7 @@ class RemoteSyncLogOutput {
         }
 
         final take = _buffer.length < batchSize ? _buffer.length : batchSize;
-        final batch = <Map<String, dynamic>>[
+        final batch = <String>[
           for (var i = 0; i < take; i++) _buffer.removeFirst(),
         ];
 
@@ -465,7 +503,7 @@ class RemoteSyncLogOutput {
   /// Delivers [batch], retrying what may yet succeed. Answers `false` when
   /// the pump must stop altogether — a wait the server named, abandoned
   /// because the sink is closing.
-  Future<bool> _deliver(List<Map<String, dynamic>> batch) async {
+  Future<bool> _deliver(List<String> batch) async {
     var delay = retryBackoff;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       if (!await _passQuietPeriod()) return false;
@@ -526,7 +564,7 @@ class _HttpBatchSender {
 
   void close() => _client.close(force: true);
 
-  Future<BatchResult> send(List<Map<String, dynamic>> entries) async {
+  Future<BatchResult> send(List<String> entries) async {
     try {
       final request = await _client.postUrl(endpoint).timeout(timeout);
       request.headers.contentType = ContentType.json;
@@ -534,7 +572,8 @@ class _HttpBatchSender {
         HttpHeaders.authorizationHeader,
         'Bearer $projectSecretKey',
       );
-      request.write(jsonEncode(entries));
+      // Each entry is already a JSON object; the batch is their array.
+      request.write('[${entries.join(',')}]');
 
       final response = await request.close().timeout(timeout);
       // The body has to be drained even when it is not read, or the
