@@ -32,6 +32,17 @@ const Set<String> defaultRedactedQueryParameters = {
   'client_secret',
 };
 
+/// Body fields whose values never reach the log, compared
+/// case-insensitively at any depth: `structured_log`'s
+/// [defaultSensitiveKeys], so a body and a log entry are redacted by one
+/// list.
+const Set<String> defaultRedactedBodyFields = defaultSensitiveKeys;
+
+/// What a string body is written as when its content type says JSON or a
+/// form, but it does not parse as one — the text itself is not written,
+/// since what failed to parse cannot be redacted.
+const String _unparseableBody = '<unparseable body>';
+
 /// The longest body string [describeHttpBody] keeps before cutting it short.
 const int defaultHttpBodyMaxLength = 1000;
 
@@ -126,6 +137,15 @@ class HttpLogLevels {
 /// them on, and even then the values of [redactedHeaders] are replaced with
 /// [redactedValue]. Query parameters named in [redactedQueryParameters] and
 /// any user info in the URL are always redacted.
+///
+/// A logged body has the fields named in [redactedBodyFields] replaced with
+/// [redactedValue] *before* it is written — at any depth, in a map or list
+/// body, and in a string body whose content type is JSON (`application/json`,
+/// `*+json`) or a form (`application/x-www-form-urlencoded`), which is parsed
+/// for the purpose. A string of either type that does not parse is written
+/// as `<unparseable body>`, and a string of any other type only as its
+/// length, unless [logUnrecognizedBodies] is on: there is no knowing where a
+/// secret sits in text of unknown shape.
 class StructuredLogDioInterceptor extends Interceptor {
   final BoundLogger? _logger;
 
@@ -160,8 +180,21 @@ class StructuredLogDioInterceptor extends Interceptor {
   /// [redactedValue].
   final Set<String> redactedQueryParameters;
 
-  /// Turns bodies into entry values; see [describeHttpBody].
+  /// Turns bodies into entry values; see [describeHttpBody]. It is given the
+  /// body with [redactedBodyFields] already redacted.
   final HttpBodyDescriber describeBody;
+
+  /// Body field names whose values are replaced with [redactedValue],
+  /// compared case-insensitively at any depth. Passing a set replaces
+  /// [defaultRedactedBodyFields]; to add to it, spread it in.
+  final Set<String> redactedBodyFields;
+
+  /// Whether a string body whose content type is neither JSON nor a form is
+  /// written as it is. Off by default, when it is written as `<N chars>`.
+  final bool logUnrecognizedBodies;
+
+  final Set<String> _bodyFieldNames;
+  final Processor _redactBodyFields;
 
   /// When given, only requests for which it returns `true` are logged —
   /// both their entries, since the decision is made once, on the request.
@@ -186,7 +219,16 @@ class StructuredLogDioInterceptor extends Interceptor {
     this.redactedQueryParameters = defaultRedactedQueryParameters,
     this.describeBody = describeHttpBody,
     this.filter,
-  }) : _logger = logger;
+    this.redactedBodyFields = defaultRedactedBodyFields,
+    this.logUnrecognizedBodies = false,
+  })  : _logger = logger,
+        _bodyFieldNames = {
+          for (final name in redactedBodyFields) name.toLowerCase(),
+        },
+        _redactBodyFields = redactKeys(
+          keys: redactedBodyFields,
+          placeholder: redactedValue,
+        );
 
   static const _callKey = 'structured_log_dio.call';
 
@@ -200,7 +242,8 @@ class StructuredLogDioInterceptor extends Interceptor {
         return {
           ..._requestFields(options, call),
           if (logHeaders) 'request_headers': _headers(options.headers),
-          if (logRequestBody) ..._body('request_body', options.data),
+          if (logRequestBody)
+            ..._body('request_body', options.data, options.contentType),
         };
       });
     });
@@ -311,12 +354,71 @@ class StructuredLogDioInterceptor extends Interceptor {
   Map<String, dynamic> _responseFields(Response<dynamic> response) => {
         if (response.statusCode != null) 'status_code': response.statusCode,
         if (logHeaders) 'response_headers': _headers(response.headers.map),
-        if (logResponseBody) ..._body('response_body', response.data),
+        if (logResponseBody)
+          ..._body(
+            'response_body',
+            response.data,
+            response.headers.value(Headers.contentTypeHeader),
+          ),
       };
 
-  Map<String, dynamic> _body(String key, Object? body) {
-    final described = describeBody(body);
+  Map<String, dynamic> _body(String key, Object? body, String? contentType) {
+    final described = describeBody(_redactBody(body, contentType));
     return described == null ? const {} : {key: described};
+  }
+
+  /// [body] with [redactedBodyFields] redacted — or, for a string whose
+  /// shape is unknown, a placeholder in its stead.
+  Object? _redactBody(Object? body, String? contentType) => switch (body) {
+        Map() || List() => _redactStructure(body),
+        String() => _redactString(body, contentType),
+        _ => body,
+      };
+
+  Object? _redactStructure(Object? body) =>
+      // redactKeys takes an entry: the body rides in one, under a name no
+      // field set will hold.
+      _redactBodyFields({'': body})![''];
+
+  String _redactString(String body, String? contentType) {
+    final mime = contentType?.split(';').first.trim().toLowerCase() ?? '';
+    if (mime == 'application/json' || mime.endsWith('+json')) {
+      try {
+        return jsonEncode(_redactStructure(jsonDecode(body)));
+      } on FormatException {
+        return _unparseableBody;
+      }
+    }
+    if (mime == Headers.formUrlEncodedContentType) {
+      try {
+        return _redactForm(body);
+      } on ArgumentError {
+        return _unparseableBody;
+      }
+    }
+    return logUnrecognizedBodies ? body : '<${body.length} chars>';
+  }
+
+  /// [form] with the value of every pair named in [redactedBodyFields]
+  /// replaced, the rest exactly as it was written. Throws [ArgumentError] on
+  /// a malformed percent-escape.
+  String _redactForm(String form) => [
+        for (final pair in form.split('&'))
+          if (pair.indexOf('=') case final eq when eq >= 0)
+            _bodyFieldNames.contains(
+              Uri.decodeQueryComponent(pair.substring(0, eq)).toLowerCase(),
+            )
+                ? '${pair.substring(0, eq)}=$redactedValue'
+                : _checked(pair, eq)
+          else
+            pair,
+      ].join('&');
+
+  /// [pair], once its value is known to decode — a form that does not
+  /// decode is not one this interceptor can vouch for.
+  String _checked(String pair, int eq) {
+    Uri.decodeQueryComponent(pair.substring(eq + 1));
+    return pair;
   }
 
   /// Header values as strings — a multi-valued header joined the way it
