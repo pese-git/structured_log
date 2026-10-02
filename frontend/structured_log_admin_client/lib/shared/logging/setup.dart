@@ -13,7 +13,6 @@ import 'package:structured_log/structured_log.dart';
 /// server over HTTP and never pass through here.
 BoundLogger configureClientLogging() {
   StructlogConfiguration.configure(
-    processors: [addTimestamp, addLogLevel],
     sinks: [
       LogSink(
         name: 'console',
