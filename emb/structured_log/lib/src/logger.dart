@@ -2,6 +2,7 @@ import 'configuration.dart';
 import 'correlation.dart';
 import 'encoding.dart';
 import 'report.dart';
+import 'sink.dart';
 import 'timestamp.dart';
 
 /// Log levels, from least to most severe. `trace` sits below `debug` and is
@@ -50,14 +51,31 @@ enum LogLevel { trace, debug, info, warning, error, critical }
 class BoundLogger {
   final Map<String, dynamic> _context;
   final LogCorrelation? _correlation;
-  final StructlogConfiguration _config;
 
+  /// The configuration this logger was given, or `null` for one that
+  /// follows [StructlogConfiguration.current] — every logger [getLogger]
+  /// returns.
+  final StructlogConfiguration? _config;
+
+  /// A logger that always uses [config], whatever
+  /// [StructlogConfiguration.configure] does afterwards — for handing a
+  /// logger its configuration explicitly (dependency injection, a test that
+  /// must not share global state). [StructlogConfiguration.initialContext]
+  /// is not merged in; [getLogger] is what does that.
   BoundLogger(
-    this._config, [
+    StructlogConfiguration config, [
     Map<String, dynamic>? context,
     LogCorrelation? correlation,
-  ])  : _context = Map<String, dynamic>.from(context ?? {}),
-        _correlation = correlation;
+  ]) : this._(config, context, correlation);
+
+  BoundLogger._(
+    this._config,
+    Map<String, dynamic>? context,
+    this._correlation,
+  ) : _context = Map<String, dynamic>.from(context ?? {});
+
+  StructlogConfiguration get _configuration =>
+      _config ?? StructlogConfiguration.current;
 
   /// Returns a new [BoundLogger] with [context] merged into this logger's
   /// bound context. Keys in [context] overwrite same-named keys already
@@ -73,7 +91,7 @@ class BoundLogger {
   /// ```
   BoundLogger bind(Map<String, dynamic> context) {
     final newContext = Map<String, dynamic>.from(_context)..addAll(context);
-    return BoundLogger(_config, newContext, _correlation);
+    return BoundLogger._(_config, newContext, _correlation);
   }
 
   /// Returns a new [BoundLogger] with [keys] removed from the bound
@@ -92,7 +110,7 @@ class BoundLogger {
     for (final key in keys) {
       newContext.remove(key);
     }
-    return BoundLogger(_config, newContext, _correlation);
+    return BoundLogger._(_config, newContext, _correlation);
   }
 
   /// Bind typed correlation identifiers (session, request, connection,
@@ -136,8 +154,44 @@ class BoundLogger {
       operationId: operationId,
     );
     final merged = (_correlation ?? const LogCorrelation()).merge(addition);
-    return BoundLogger(_config, _context, merged);
+    return BoundLogger._(_config, _context, merged);
   }
+
+  /// Whether an entry at [level] would reach at least one enabled sink —
+  /// for skipping the work of building a costly entry nobody will see:
+  ///
+  /// ```dart
+  /// if (log.isEnabled(LogLevel.trace)) {
+  ///   log.trace('frame', context: {'hex': hexDump(bytes)});
+  /// }
+  /// ```
+  ///
+  /// With [category], the answer is [LogSink.accepts] for that category.
+  /// Without it, the answer is about the level alone: some enabled sink's
+  /// `minLevel` is at or below [level]. A sink whose `accepts` throws counts
+  /// as accepting — saying "off" would hide entries it might want.
+  ///
+  /// [tryLog] asks the level-alone question itself, first, and returns
+  /// straight away when the answer is no: the entry is never assembled and
+  /// no processor runs. The category cannot be checked that early — it is
+  /// only known once the context is merged.
+  bool isEnabled(LogLevel level, {String? category}) {
+    for (final sink in _configuration.sinks) {
+      try {
+        if (category == null
+            ? _takesLevel(sink, level)
+            : sink.accepts(level, category)) {
+          return true;
+        }
+      } catch (_) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool _takesLevel(LogSink sink, LogLevel level) =>
+      sink.enabled && level.index >= sink.minLevel.index;
 
   /// Logs [event] at [level] with [context] merged into the bound context.
   ///
@@ -173,9 +227,11 @@ class BoundLogger {
     LogLevel level,
     String? event, {
     Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
   }) {
     try {
-      _log(level, event, context);
+      _log(level, event, context, error, stackTrace);
     } catch (error, stackTrace) {
       reportInternalError(
         'structured_log: logging "$event" threw: $error\n$stackTrace',
@@ -183,10 +239,31 @@ class BoundLogger {
     }
   }
 
-  void _log(LogLevel level, String? event, Map<String, dynamic>? context) {
-    final mergedContext = Map<String, dynamic>.from(_context);
+  void _log(
+    LogLevel level,
+    String? event,
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  ) {
+    final config = _configuration;
+    if (!config.sinks.any((sink) => _takesLevel(sink, level))) return;
+
+    final mergedContext = <String, dynamic>{
+      // Read now, not when the logger was made: a logger kept in a field
+      // outlives the configuration it was created under.
+      if (_config == null) ...config.initialContext,
+      ..._context,
+    };
     if (context != null) {
       mergedContext.addAll(context);
+    }
+    if (error != null) {
+      mergedContext['error'] = describeValue(error);
+      mergedContext['error_type'] = error.runtimeType.toString();
+    }
+    if (stackTrace != null) {
+      mergedContext['stack_trace'] = stackTrace.toString();
     }
     if (_correlation != null) {
       // Typed correlation fields take priority over same-named keys coming
@@ -197,14 +274,14 @@ class BoundLogger {
       mergedContext['event'] = event;
     }
 
-    final entry = _processEntry(mergedContext, level);
+    final entry = _processEntry(config, mergedContext, level);
     if (entry == null) return;
 
     final category = switch (entry['category']) {
       final String category => category,
       _ => null,
     };
-    for (final sink in _config.sinks) {
+    for (final sink in config.sinks) {
       try {
         if (!sink.accepts(level, category)) continue;
         sink.output(entry, level);
@@ -217,13 +294,14 @@ class BoundLogger {
   }
 
   Map<String, dynamic>? _processEntry(
+    StructlogConfiguration config,
     Map<String, dynamic> entry,
     LogLevel level,
   ) {
     entry['level'] = level.name;
-    entry['timestamp'] = formatTimestamp(DateTime.now(), _config.timestampMode);
+    entry['timestamp'] = formatTimestamp(DateTime.now(), config.timestampMode);
 
-    for (final processor in _config.processors) {
+    for (final processor in config.processors) {
       final Map<String, dynamic>? result;
       try {
         result = processor(entry);
@@ -257,51 +335,117 @@ class BoundLogger {
   /// ```dart
   /// log.trace('raw_frame', context: {'bytes': 128});
   /// ```
-  void trace(String? event, {Map<String, dynamic>? context}) =>
-      tryLog(LogLevel.trace, event, context: context);
+  void trace(
+    String? event, {
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  }) =>
+      tryLog(
+        LogLevel.trace,
+        event,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
   /// Logs [event] at [LogLevel.debug] — see [tryLog].
   ///
   /// ```dart
   /// log.debug('cache_miss', context: {'key': 'user:42'});
   /// ```
-  void debug(String? event, {Map<String, dynamic>? context}) =>
-      tryLog(LogLevel.debug, event, context: context);
+  void debug(
+    String? event, {
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  }) =>
+      tryLog(
+        LogLevel.debug,
+        event,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
   /// Logs [event] at [LogLevel.info] — see [tryLog].
   ///
   /// ```dart
   /// log.info('user_login', context: {'user_id': 42, 'ip': '127.0.0.1'});
   /// ```
-  void info(String? event, {Map<String, dynamic>? context}) =>
-      tryLog(LogLevel.info, event, context: context);
+  void info(
+    String? event, {
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  }) =>
+      tryLog(
+        LogLevel.info,
+        event,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
   /// Logs [event] at [LogLevel.warning] — see [tryLog].
   ///
   /// ```dart
   /// log.warning('slow_query', context: {'duration_ms': 1500});
   /// ```
-  void warning(String? event, {Map<String, dynamic>? context}) =>
-      tryLog(LogLevel.warning, event, context: context);
+  void warning(
+    String? event, {
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  }) =>
+      tryLog(
+        LogLevel.warning,
+        event,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
   /// Logs [event] at [LogLevel.error] — see [tryLog].
   ///
   /// ```dart
   /// log.error('payment_failed', context: {'error': 'timeout'});
   /// ```
-  void error(String? event, {Map<String, dynamic>? context}) =>
-      tryLog(LogLevel.error, event, context: context);
+  void error(
+    String? event, {
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  }) =>
+      tryLog(
+        LogLevel.error,
+        event,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+      );
 
   /// Logs [event] at [LogLevel.critical] — see [tryLog].
   ///
   /// ```dart
   /// log.critical('out_of_memory');
   /// ```
-  void critical(String? event, {Map<String, dynamic>? context}) =>
-      tryLog(LogLevel.critical, event, context: context);
+  void critical(
+    String? event, {
+    Map<String, dynamic>? context,
+    Object? error,
+    StackTrace? stackTrace,
+  }) =>
+      tryLog(
+        LogLevel.critical,
+        event,
+        context: context,
+        error: error,
+        stackTrace: stackTrace,
+      );
 }
 
-/// Returns a new [BoundLogger] bound to the current global configuration
+/// Returns a new [BoundLogger] that follows the current global configuration
 /// ([StructlogConfiguration.current]).
 ///
 /// If [name] is given, it is bound under the `logger` context key on every
@@ -310,11 +454,13 @@ class BoundLogger {
 /// merged in first, so [name] (and any later [BoundLogger.bind] or inline
 /// `context`) can override an `initialContext` key of the same name.
 ///
-/// Because [BoundLogger] reads the configuration once, at construction
-/// time, call [getLogger] again after
-/// [StructlogConfiguration.configure]/[StructlogConfiguration.reset] to
-/// pick up the new settings — reusing an old instance keeps talking to the
-/// configuration it was created with.
+/// The logger reads [StructlogConfiguration.current] — sinks, processors,
+/// `initialContext` — when it makes each entry, not when it is created, so
+/// one kept in a `static final` field picks up a later
+/// [StructlogConfiguration.configure] or [StructlogConfiguration.reset]. So
+/// does every logger derived from it with [BoundLogger.bind],
+/// [BoundLogger.unbind] or [BoundLogger.withCorrelation]. To pin a logger
+/// to one configuration instead, construct [BoundLogger] with it.
 ///
 /// ```dart
 /// final log = getLogger('payments'); // context: {"logger": "payments"}
@@ -323,11 +469,5 @@ class BoundLogger {
 /// final anonymous = getLogger(); // no "logger" key
 /// anonymous.info('startup');
 /// ```
-BoundLogger getLogger([String? name]) {
-  final config = StructlogConfiguration.current;
-  final context = Map<String, dynamic>.from(config.initialContext);
-  if (name != null) {
-    context['logger'] = name;
-  }
-  return BoundLogger(config, context);
-}
+BoundLogger getLogger([String? name]) =>
+    BoundLogger._(null, {if (name != null) 'logger': name}, null);

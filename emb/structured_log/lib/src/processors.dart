@@ -14,7 +14,16 @@ import 'logger.dart';
 ///
 /// Processors should be pure functions of their input and not depend on
 /// call order relative to other processors, unless that ordering is
-/// documented (as it is for the enrich-then-render pattern below).
+/// documented.
+///
+/// Processors run only for entries some enabled sink takes at their level
+/// (see [BoundLogger.isEnabled]): a `trace` call with no sink below `debug`
+/// returns before the first processor. A processor that counts or forwards
+/// entries as a side effect does not see those.
+///
+/// A processor that throws does not reach the caller: the entry is replaced
+/// by a stub naming the failure, and the processors after it do not run —
+/// see [BoundLogger.tryLog].
 ///
 /// ```dart
 /// // A custom processor that redacts a sensitive key.
