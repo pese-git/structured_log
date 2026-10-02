@@ -34,6 +34,17 @@ const Set<String> defaultRedactedQueryParameters = {
 };
 
 /// The longest body string [describeHttpBody] keeps before cutting it short.
+/// Body fields whose values never reach the log, compared
+/// case-insensitively at any depth: `structured_log`'s
+/// [defaultSensitiveKeys], so a body and a log entry are redacted by one
+/// list.
+const Set<String> defaultRedactedBodyFields = defaultSensitiveKeys;
+
+/// What a body is written as when its content type says JSON or a form but
+/// it does not parse as one — or was too long to be read whole: what cannot
+/// be parsed cannot be redacted, so the text itself is not written.
+const String _unparseableBody = '<unparseable body>';
+
 const int defaultHttpBodyMaxLength = 1000;
 
 /// Turns a request or response body into a value for a log entry; `null`
@@ -116,6 +127,16 @@ class HttpLogLevels {
 /// on, and even then the values of [redactedHeaders] are replaced with
 /// [redactedValue]. Query parameters named in [redactedQueryParameters] and
 /// any user info in the URL are always redacted.
+///
+/// A logged body whose content type is JSON (`application/json`, `*+json`)
+/// or a form (`application/x-www-form-urlencoded`) is parsed, has the
+/// fields named in [redactedBodyFields] replaced with [redactedValue] at
+/// any depth, and is written back — before [describeBody] sees it. To be
+/// parsed it is read whole, up to 64 KiB; one that does not parse, or is
+/// longer, is written as `<unparseable body>`. A textual body of any other
+/// type is written only as its size, `<N bytes>`, unless
+/// [logUnrecognizedBodies] is on: there is no knowing where a secret sits
+/// in text of unknown shape. The reader always gets the body unchanged.
 class StructuredLogHttpClient extends http.BaseClient {
   /// The client that actually sends the requests.
   final http.Client inner;
@@ -153,8 +174,21 @@ class StructuredLogHttpClient extends http.BaseClient {
   /// [redactedValue].
   final Set<String> redactedQueryParameters;
 
-  /// Turns bodies into entry values; see [describeHttpBody].
+  /// Turns bodies into entry values; see [describeHttpBody]. It is given the
+  /// body with [redactedBodyFields] already redacted.
   final HttpBodyDescriber describeBody;
+
+  /// Body field names whose values are replaced with [redactedValue],
+  /// compared case-insensitively at any depth. Passing a set replaces
+  /// [defaultRedactedBodyFields]; to add to it, spread it in.
+  final Set<String> redactedBodyFields;
+
+  /// Whether a textual body whose content type is neither JSON nor a form
+  /// is written as it is. Off by default, when it is written as `<N bytes>`.
+  final bool logUnrecognizedBodies;
+
+  final Set<String> _bodyFieldNames;
+  final Processor _redactBodyFields;
 
   /// When given, only requests for which it returns `true` are logged —
   /// both their entries, since the decision is made once, on the request.
@@ -180,7 +214,16 @@ class StructuredLogHttpClient extends http.BaseClient {
     this.redactedQueryParameters = defaultRedactedQueryParameters,
     this.describeBody = describeHttpBody,
     this.filter,
-  }) : _logger = logger;
+    this.redactedBodyFields = defaultRedactedBodyFields,
+    this.logUnrecognizedBodies = false,
+  })  : _logger = logger,
+        _bodyFieldNames = {
+          for (final name in redactedBodyFields) name.toLowerCase(),
+        },
+        _redactBodyFields = redactKeys(
+          keys: redactedBodyFields,
+          placeholder: redactedValue,
+        );
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -262,8 +305,9 @@ class StructuredLogHttpClient extends http.BaseClient {
     _Call call,
     http.StreamedResponse response,
   ) {
-    final textual = _isTextual(response.headers['content-type']);
-    final capture = _Capture(_captureLimit);
+    final contentType = response.headers['content-type'];
+    final textual = _isTextual(contentType);
+    final capture = _Capture(_captureLimitFor(contentType));
     var logged = false;
     void finish(Object? error) {
       if (logged) return;
@@ -275,7 +319,9 @@ class StructuredLogHttpClient extends http.BaseClient {
           _logResponse(
             call,
             response,
-            body: textual ? capture.text : '<${capture.total} bytes>',
+            body: textual
+                ? _redactedText(contentType, capture.total, () => capture.text)
+                : '<${capture.total} bytes>',
           );
         }
       });
@@ -338,13 +384,27 @@ class StructuredLogHttpClient extends http.BaseClient {
   /// hold enough text for the default describer to cut.
   static const _captureLimit = defaultHttpBodyMaxLength * 4;
 
+  /// A body that is redacted has to be parsed, and only a whole one parses:
+  /// for JSON and forms, this much is read before giving up on it.
+  static const _redactableCaptureLimit = 64 * 1024;
+
+  static int _captureLimitFor(String? contentType) =>
+      _shapeOf(contentType) == null ? _captureLimit : _redactableCaptureLimit;
+
   String _requestBody(http.BaseRequest request) => switch (request) {
         http.MultipartRequest(:final fields, :final files) =>
           '<multipart: ${fields.length} fields, ${files.length} files>',
         http.Request(:final bodyBytes, :final headers) =>
           _isTextual(headers['content-type'])
-              ? _textOf(bodyBytes.take(_captureLimit).toList(),
-                  truncated: bodyBytes.length > _captureLimit)
+              ? _redactedText(
+                  headers['content-type'],
+                  bodyBytes.length,
+                  () {
+                    final limit = _captureLimitFor(headers['content-type']);
+                    return _textOf(bodyBytes.take(limit).toList(),
+                        truncated: bodyBytes.length > limit);
+                  },
+                )
               : '<${bodyBytes.length} bytes>',
         _ => '<stream>',
       };
@@ -415,6 +475,70 @@ class StructuredLogHttpClient extends http.BaseClient {
       });
     }
     return redacted.toString();
+  }
+
+  /// A textual body as it may be logged: JSON or a form with
+  /// [redactedBodyFields] redacted, anything else only by its [byteCount]
+  /// unless [logUnrecognizedBodies] says otherwise. [text] is read only
+  /// when it is needed.
+  String _redactedText(
+    String? contentType,
+    int byteCount,
+    String Function() text,
+  ) {
+    switch (_shapeOf(contentType)) {
+      case _Shape.json:
+        try {
+          return jsonEncode(_redactStructure(jsonDecode(text())));
+        } on FormatException {
+          return _unparseableBody;
+        }
+      case _Shape.form:
+        try {
+          return _redactForm(text());
+        } on ArgumentError {
+          return _unparseableBody;
+        }
+      case null:
+        return logUnrecognizedBodies ? text() : '<$byteCount bytes>';
+    }
+  }
+
+  Object? _redactStructure(Object? body) =>
+      // redactKeys takes an entry: the body rides in one, under a name no
+      // field set will hold.
+      _redactBodyFields({'': body})![''];
+
+  /// [form] with the value of every pair named in [redactedBodyFields]
+  /// replaced, the rest exactly as it was written. Throws [ArgumentError] on
+  /// a malformed percent-escape.
+  String _redactForm(String form) => [
+        for (final pair in form.split('&'))
+          if (pair.indexOf('=') case final eq when eq >= 0)
+            _bodyFieldNames.contains(
+              Uri.decodeQueryComponent(pair.substring(0, eq)).toLowerCase(),
+            )
+                ? '${pair.substring(0, eq)}=$redactedValue'
+                : _checked(pair, eq)
+          else
+            pair,
+      ].join('&');
+
+  /// [pair], once its value is known to decode — a form that does not
+  /// decode is not one this client can vouch for.
+  static String _checked(String pair, int eq) {
+    Uri.decodeQueryComponent(pair.substring(eq + 1));
+    return pair;
+  }
+
+  /// Which redactable shape a body of [contentType] has, if any.
+  static _Shape? _shapeOf(String? contentType) {
+    final mime = contentType?.split(';').first.trim().toLowerCase() ?? '';
+    if (mime == 'application/json' || mime.endsWith('+json')) {
+      return _Shape.json;
+    }
+    if (mime == 'application/x-www-form-urlencoded') return _Shape.form;
+    return null;
   }
 
   /// Whether a body of this content type is worth logging as text; without
@@ -494,3 +618,6 @@ class _Capture {
         truncated: total > _bytes.length,
       );
 }
+
+/// The body shapes that can be parsed, and so redacted.
+enum _Shape { json, form }
