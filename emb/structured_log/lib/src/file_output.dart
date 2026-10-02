@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'encoding.dart';
@@ -41,6 +42,12 @@ OutputFunction fileOutput(String filePath) {
 /// beyond that is deleted. A fresh file at [filePath] is then created for
 /// the new entry. Writing (and rotation) is synchronous; for a non-blocking
 /// version see [AsyncRotatingFileOutput].
+///
+/// The size is read from the file once, when the output is created, and
+/// counted in memory from then on (in bytes, as written): the file system
+/// is not asked on every write. A file shortened or removed by someone else
+/// in the meantime is not noticed until the next rotation — which then
+/// comes early or late by that much, and loses nothing.
 ///
 /// ```dart
 /// StructlogConfiguration.configure(
@@ -89,13 +96,15 @@ OutputFunction rotatingFileOutput(
     }
   }
 
+  var size = file.existsSync() ? file.lengthSync() : 0;
+
   return (Map<String, dynamic> entry, LogLevel level) {
-    if (file.existsSync() && file.lengthSync() >= maxSizeBytes) {
+    if (size >= maxSizeBytes) {
       rotate();
+      size = 0;
     }
-    file.writeAsStringSync(
-      '${encodeLogEntry(entry)}\n',
-      mode: FileMode.append,
-    );
+    final bytes = utf8.encode('${encodeLogEntry(entry)}\n');
+    file.writeAsBytesSync(bytes, mode: FileMode.append);
+    size += bytes.length;
   };
 }
