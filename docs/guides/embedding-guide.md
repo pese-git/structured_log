@@ -52,7 +52,7 @@ The core library
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.0
+  structured_log: ^0.3.0
 ```
 
 ```dart
@@ -79,6 +79,24 @@ log.info('request_started');
 log.error('request_failed', context: {'status': 500});
 ```
 
+A logger from `getLogger()` reads the current configuration on every
+entry, so one kept in a `static final` that was created before
+`configure()` still writes where `configure()` said. A logging call never
+throws, and an exception goes in as `error:`/`stackTrace:` — written as
+`error`, `error_type` and `stack_trace`:
+
+```dart
+try {
+  await charge(order);
+} catch (e, st) {
+  log.error('payment_failed', error: e, stackTrace: st);
+}
+```
+
+`timestamp` is written in UTC (`2026-03-05T14:30:00.100Z`);
+`timestampMode: TimestampMode.localWithOffset` in `configure()` writes
+local time with its offset (`+03:00`) instead.
+
 Six levels, least to most severe: `trace` < `debug` < `info` <
 `warning` < `error` < `critical`. Multiple outputs, each filtered
 independently by level or category, is a normal setup — for example a
@@ -98,16 +116,31 @@ because a secret that reaches a sink is already out:
 
 ```dart
 StructlogConfiguration.configure(
-  processors: [redactKeys(), dropNullValues],  // before any renderer
+  processors: [redactKeys(), dropNullValues],  // sinks see what these return
 );
 ```
 
 `redactKeys()` replaces `password`, `token`, `authorization` and the rest
 of `defaultSensitiveKeys` at any depth, and takes your own names or
-predicates where those are not enough.
+predicates where those are not enough. If a processor throws, the sinks
+get a stub with only `event`, `level`, `timestamp`, `logger`, `category`
+and `processor_failed`, not the entry — the processor that failed may be
+the one that was meant to redact it.
+
+The file outputs need `dart:io`, so they live in a library of their own;
+the main one compiles on the web:
+
+```dart
+import 'package:structured_log/io.dart';
+import 'package:structured_log/structured_log.dart';
+
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'file', output: rotatingFileOutput('logs/app.log')),
+]);
+```
 
 Full API — processors, multi-sink routing, file and rotating-file
-output — in
+output, JSON-lines and logfmt output — in
 [`emb/structured_log/README.md`](../../emb/structured_log/README.md).
 
 ## 2. A headless viewer core: `structured_log_flutter`
@@ -135,10 +168,15 @@ StructlogConfiguration.configure(sinks: [
 ]);
 ```
 
-`logLevelColor()` — the one piece of visual opinion this package holds
+`LogBuffer` notifies its listeners once per burst — a hundred entries
+logged in one synchronous stretch rebuild the list once — while
+`entries.value` is always current. `logLevelColor()` — the one piece of
+visual opinion this package holds
 (a `LogLevel` → `Color` mapping, shared by all three skins below) — is
 exported too, if you want visual consistency with them without using
-one directly. Full API:
+one directly, and so is `debugPrintOutput`: one line per entry through
+`debugPrint`, without ANSI codes, which reads better in logcat and the
+Xcode console than the default multi-line JSON. Full API:
 [`emb/structured_log_flutter/README.md`](../../emb/structured_log_flutter/README.md).
 
 ## 3. A ready-made skin
@@ -196,7 +234,7 @@ the sinks configured above, the in-app viewer included:
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_bloc: ^0.1.0-dev.1
 ```
 
@@ -235,7 +273,7 @@ duration and a level that follows the status code:
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_dio: ^0.1.0-dev.1
 ```
 
@@ -247,10 +285,13 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
 Entries carry `category: 'http'`, next to the blocs' `bloc`, so the viewer
 can show either on its own. Headers and bodies are not logged until you
 turn them on, and `Authorization`, cookies and token-like query
-parameters are redacted — but a body, once on, is logged as it is; see
-the package's
-[README](../../emb/structured_log_dio/README.md#keeping-secrets-out-of-the-log)
-before turning bodies on for login or token calls.
+parameters are redacted. A body, once on, is redacted too: fields named
+in `redactedBodyFields` (by default the core's `defaultSensitiveKeys`)
+become `REDACTED` at any depth — in a map or list, and in a JSON or
+form-encoded string, which is parsed first. A string body of any other
+type is written only as its length (`<N chars>`) unless
+`logUnrecognizedBodies` is on; see the package's
+[README](../../emb/structured_log_dio/README.md#keeping-secrets-out-of-the-log).
 
 ### `package:http`: `structured_log_http_client`
 
@@ -261,7 +302,7 @@ client that wraps the one you already use — `IOClient`, `BrowserClient`,
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_http_client: ^0.1.0-dev.1
 ```
 
@@ -272,9 +313,13 @@ await client.get(Uri.parse('https://api.example.com/items'));
 
 `package:http` does not throw on a status code, so a 404 is an
 `http_response` at `warning`. With `logResponseBody` on, the body is not
-buffered — it reaches your code as it arrives — and the response entry is
-written once the body has been read; see the package's
+buffered — it reaches your code as it arrives, unchanged — and the
+response entry is written once the body has been read; see the package's
 [README](../../emb/structured_log_http_client/README.md#what-gets-logged).
+Bodies are redacted the same way as with `dio`, except that a text body
+of an unknown type is written as its size, `<N bytes>`, and a JSON or
+form body is read whole up to 64 KiB so it can be parsed (a longer one is
+`<unparseable body>`).
 
 ## 6. Optional: log navigation: `structured_log_go_router`
 
@@ -286,7 +331,7 @@ something went wrong:
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_go_router: ^0.1.0-dev.1
 ```
 
@@ -316,7 +361,7 @@ not happen shows up:
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_cherrypick: ^0.1.0-dev.1
 ```
 
@@ -345,7 +390,7 @@ with `HttpLogOutput` — same behaviour under the new names):
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_remote_sync: ^0.2.0
 ```
 

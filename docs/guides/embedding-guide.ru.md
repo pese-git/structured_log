@@ -54,7 +54,7 @@ Dart- или Flutter-приложение. Здесь ничто не обращ
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.0
+  structured_log: ^0.3.0
 ```
 
 ```dart
@@ -81,6 +81,24 @@ log.info('request_started');
 log.error('request_failed', context: {'status': 500});
 ```
 
+Логгер из `getLogger()` читает текущую конфигурацию на каждой записи,
+поэтому логгер в `static final`, созданный ещё до `configure()`, всё
+равно пишет туда, куда велел `configure()`. Вызов лога никогда не
+бросает, а исключение передаётся параметрами `error:`/`stackTrace:` — в
+запись оно попадает полями `error`, `error_type` и `stack_trace`:
+
+```dart
+try {
+  await charge(order);
+} catch (e, st) {
+  log.error('payment_failed', error: e, stackTrace: st);
+}
+```
+
+`timestamp` пишется в UTC (`2026-03-05T14:30:00.100Z`); с
+`timestampMode: TimestampMode.localWithOffset` в `configure()` — в
+местном времени со смещением (`+03:00`).
+
 Шесть уровней, от менее к более серьёзному: `trace` < `debug` < `info`
 < `warning` < `error` < `critical`. Несколько выводов, каждый со своей
 фильтрацией по уровню или категории, — обычная настройка: например,
@@ -99,16 +117,31 @@ StructlogConfiguration.configure(sinks: [
 
 ```dart
 StructlogConfiguration.configure(
-  processors: [redactKeys(), dropNullValues],  // до любого рендерера
+  processors: [redactKeys(), dropNullValues],  // sink'и видят то, что вернут они
 );
 ```
 
 `redactKeys()` заменяет `password`, `token`, `authorization` и остальные
 имена из `defaultSensitiveKeys` на любой глубине, а где их не хватает —
-принимает ваши собственные имена или предикаты.
+принимает ваши собственные имена или предикаты. Если процессор бросил,
+sink'и получают не запись, а заглушку — только `event`, `level`,
+`timestamp`, `logger`, `category` и `processor_failed`: бросить мог как
+раз тот процессор, который должен был её замаскировать.
+
+Файловым выводам нужен `dart:io`, поэтому они вынесены в отдельную
+библиотеку, а главная собирается и под web:
+
+```dart
+import 'package:structured_log/io.dart';
+import 'package:structured_log/structured_log.dart';
+
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'file', output: rotatingFileOutput('logs/app.log')),
+]);
+```
 
 Полный API — процессоры, мульти-sink роутинг, файловый и ротируемый
-вывод — в
+вывод, вывод JSON-строками и в logfmt — в
 [`emb/structured_log/README.md`](../../emb/structured_log/README.md).
 
 ## 2. Headless-ядро просмотрщика: `structured_log_flutter`
@@ -135,10 +168,16 @@ StructlogConfiguration.configure(sinks: [
 ]);
 ```
 
-`logLevelColor()` — единственное визуальное решение, которое пакет
+`LogBuffer` уведомляет слушателей один раз на пачку — сотня записей,
+сделанных за один синхронный участок, перестраивают список один раз, — а
+`entries.value` при этом всегда актуален. `logLevelColor()` —
+единственное визуальное решение, которое пакет
 всё-таки навязывает (соответствие `LogLevel` → `Color`, общее для всех
 трёх скинов ниже), — тоже экспортируется, если нужна визуальная
-согласованность с ними, не подключая сам скин.
+согласованность с ними, не подключая сам скин. Экспортируется и
+`debugPrintOutput`: одна строка на запись через `debugPrint`, без
+ANSI-кодов, — в logcat и консоли Xcode это читается лучше многострочного
+JSON по умолчанию.
 Полный API:
 [`emb/structured_log_flutter/README.md`](../../emb/structured_log_flutter/README.md).
 
@@ -198,7 +237,7 @@ MaterialLogViewer(controller: controller)
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_bloc: ^0.1.0-dev.1
 ```
 
@@ -237,7 +276,7 @@ Bloc.observer = StructuredLogBlocObserver();
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_dio: ^0.1.0-dev.1
 ```
 
@@ -249,8 +288,12 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
 Записи несут `category: 'http'` — рядом с `bloc` от блоков, так что
 просмотрщик может показать любую из них отдельно. Заголовки и тела не
 пишутся, пока их не включить, а `Authorization`, cookie и query-параметры
-с токенами маскируются. Но включённое тело пишется как есть — прежде чем
-включать тела для вызовов входа или выдачи токенов, см.
+с токенами маскируются. Включённое тело тоже маскируется: поля с именами
+из `redactedBodyFields` (по умолчанию — `defaultSensitiveKeys` ядра)
+заменяются на `REDACTED` на любой глубине — и в карте или списке, и в
+строке JSON или формы, которая для этого сначала разбирается. Строковое
+тело любого другого типа пишется только длиной (`<N chars>`), пока не
+включён `logUnrecognizedBodies`; см.
 [README](../../emb/structured_log_dio/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
 
@@ -264,7 +307,7 @@ final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_http_client: ^0.1.0-dev.1
 ```
 
@@ -275,10 +318,13 @@ await client.get(Uri.parse('https://api.example.com/items'));
 
 `package:http` не бросает исключений из-за статуса, поэтому 404 — это
 `http_response` на уровне `warning`. При включённом `logResponseBody` тело
-не буферизуется — оно доходит до вашего кода по мере поступления, — а
-запись об ответе пишется, когда тело прочитано; см.
+не буферизуется — оно доходит до вашего кода по мере поступления и без
+изменений, — а запись об ответе пишется, когда тело прочитано; см.
 [README](../../emb/structured_log_http_client/README.ru.md#что-пишется-в-лог)
-пакета.
+пакета. Тела маскируются так же, как у `dio`, с двумя отличиями:
+текстовое тело неизвестного типа пишется размером, `<N bytes>`, а тело
+JSON или формы читается целиком до 64 КиБ, чтобы его можно было разобрать
+(более длинное пишется как `<unparseable body>`).
 
 ## 6. Опционально: логировать навигацию: `structured_log_go_router`
 
@@ -291,7 +337,7 @@ await client.get(Uri.parse('https://api.example.com/items'));
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_go_router: ^0.1.0-dev.1
 ```
 
@@ -321,7 +367,7 @@ Query-параметры с токенами — включая `code` из call
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_cherrypick: ^0.1.0-dev.1
 ```
 
@@ -349,7 +395,7 @@ CherryPick.setGlobalObserver(StructuredLogCherryPickObserver());
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.1
+  structured_log: ^0.3.0
   structured_log_remote_sync: ^0.2.0
 ```
 
