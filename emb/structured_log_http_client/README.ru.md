@@ -26,8 +26,8 @@
   на `error`, прерывание на `debug`; каждый настраивается или выключается
 - **Секреты по умолчанию не попадают в лог** — заголовки и тела не пишутся,
   пока их не включить; `Authorization`, cookie и заголовки с API-ключами
-  маскируются и тогда; query-параметры, похожие на токены, и user info в
-  URL маскируются всегда
+  маскируются и тогда, как и поля тела с паролями и токенами;
+  query-параметры, похожие на токены, и user info в URL маскируются всегда
 - **Тело ответа без буферизации** — оно доходит до вашего кода по мере
   поступления; для лога сохраняется только его начало
 - **Никогда не ломает вызов** — если функция описания или фильтр бросят
@@ -36,14 +36,20 @@
 
 ## Установка
 
-Опубликован на pub.dev как пре-релиз (`0.1.0-dev.1`):
+Опубликован на pub.dev как пре-релиз (`0.1.0-dev.2`):
 
 ```yaml
 dependencies:
   http: ^1.5.0
-  structured_log: ^0.2.1
-  structured_log_http_client: ^0.1.0-dev.1
+  structured_log: ^0.3.0
+  structured_log_http_client: ^0.1.0-dev.2
 ```
+
+**Ломающее изменение после `0.1.0-dev.2`:** при включённых телах текстовое
+тело, тип содержимого которого не JSON и не форма, теперь пишется не целиком,
+а только размером — `<N bytes>`. Прежнее поведение возвращает
+`logUnrecognizedBodies: true`. Подробнее — в разделе
+[Как не пустить секреты в лог](#как-не-пустить-секреты-в-лог).
 
 ## Быстрый старт
 
@@ -103,24 +109,41 @@ server-sent events, оставленный открытым, — попадёт 
   `client_secret` — маскируются всегда; набор меняется параметром
   `redactedQueryParameters`. User info в URL (`https://user:pass@host`)
   отбрасывается всегда.
-- **Включённые тела пишутся как есть** (с обрезкой до 1000 символов). Форма
-  входа или ответ с токеном попадут в лог дословно, поэтому либо держите их
-  выключенными для таких вызовов через `filter`, либо передайте
-  `describeBody`, который их скрывает, — возврат `null` убирает поле:
+- **Включённое тело маскируется до того, как попасть в лог.** Поля с именами
+  из `redactedBodyFields` заменяются на `REDACTED` на любой глубине и без
+  учёта регистра. По умолчанию это `defaultRedactedBodyFields` — тот же
+  список `defaultSensitiveKeys`, что у самого `structured_log` (`password`,
+  `token`, `access_token`, `client_secret`, `api_key`, `authorization` и их
+  варианты написания), так что тело и запись лога маскируются по одному
+  списку. Что именно маскируется, зависит от типа содержимого:
+  - JSON (`application/json`, `*+json`) или форма
+    (`application/x-www-form-urlencoded`) — тело разбирается, маскируется и
+    собирается обратно. Для разбора оно читается целиком, но не больше
+    64 КиБ; тело, которое не разобралось или оказалось длиннее, пишется как
+    `<unparseable body>` — то, что не разобрано, не замаскировать;
+  - любой другой текстовый тип — только размер тела, `<N bytes>`: где в
+    тексте неизвестной структуры лежит секрет, знать неоткуда. Чтобы такие
+    тела писались как есть, передайте `logUnrecognizedBodies: true`.
+
+  Результат затем обрезается до 1000 символов. Ваш код всегда получает тело
+  без изменений — замаскированную копию видит только лог. Чтобы маскировать
+  больше, чем по умолчанию, включите стандартный набор в свой: переданный
+  набор заменяет его, а не дополняет:
 
 ```dart
 StructuredLogHttpClient(
   http.Client(),
   logRequestBody: true,
   logResponseBody: true,
-  describeBody: (body) =>
-      body.contains('"password"') ? null : describeHttpBody(body),
+  redactedBodyFields: {...defaultRedactedBodyFields, 'otp', 'pin'},
 );
 ```
 
-`describeBody` получает текст тела или заглушку для того, что не текст:
-`<42 bytes>` для двоичного content type, `<stream>` для `StreamedRequest`,
-`<multipart: 2 fields, 1 files>` для `MultipartRequest`.
+`describeBody` получает уже замаскированный текст тела или заглушку для
+того, что показать нельзя: `<N bytes>` для двоичного или нераспознанного
+текстового content type, `<unparseable body>`, `<stream>` для
+`StreamedRequest`, `<multipart: 2 fields, 1 files>` для `MultipartRequest`.
+Возврат `null` из него убирает поле.
 
 ## Настройка
 
@@ -144,11 +167,13 @@ StructuredLogHttpClient(
 
 | Символ | Описание |
 |---|---|
-| `StructuredLogHttpClient(inner, {logger, loggerName, category, levels, logHeaders, logRequestBody, logResponseBody, redactedHeaders, redactedQueryParameters, describeBody, filter})` | Клиент. `close()` закрывает `inner`. Без `logger` вызывает `getLogger(loggerName)` (`http`) на каждой записи, поэтому до него доходит и более поздний `StructlogConfiguration.configure`. `category: null` не привязывает категорию. |
+| `StructuredLogHttpClient(inner, {logger, loggerName, category, levels, logHeaders, logRequestBody, logResponseBody, redactedHeaders, redactedQueryParameters, describeBody, filter, redactedBodyFields, logUnrecognizedBodies})` | Клиент. `close()` закрывает `inner`. Без `logger` вызывает `getLogger(loggerName)` (`http`) на каждой записи, поэтому до него доходит и более поздний `StructlogConfiguration.configure`. `category: null` не привязывает категорию. |
 | `HttpLogLevels({request, success, clientError, serverError, failure, cancel})` | `LogLevel?` на каждый итог; `null` выключает. |
-| `HttpBodyDescriber` | `Object? Function(String body)` — превращает текст тела (или заглушку) в значение записи; `null` убирает поле. |
+| `HttpBodyDescriber` | `Object? Function(String body)` — превращает уже замаскированный текст тела (или заглушку) в значение записи; `null` убирает поле. |
 | `describeHttpBody(body)` | Описание по умолчанию: тело с обрезкой до `defaultHttpBodyMaxLength` (1000) символов. |
-| `defaultRedactedHeaders`, `defaultRedactedQueryParameters`, `redactedValue` | Наборы маскирования по умолчанию и значение (`REDACTED`), которым заменяется найденное. |
+| `redactedBodyFields` | Имена полей тела, значения которых заменяются на `REDACTED`, — без учёта регистра, на любой глубине. По умолчанию `defaultRedactedBodyFields`; переданный набор заменяет его. |
+| `logUnrecognizedBodies` | Писать ли как есть текстовое тело, которое не JSON и не форма. По умолчанию `false` — пишется `<N bytes>`. |
+| `defaultRedactedHeaders`, `defaultRedactedQueryParameters`, `defaultRedactedBodyFields`, `redactedValue` | Наборы маскирования по умолчанию и значение (`REDACTED`), которым заменяется найденное. `defaultRedactedBodyFields` — это `defaultSensitiveKeys` из `structured_log`. |
 
 ## Связанные пакеты
 
