@@ -49,6 +49,7 @@ unclosed connection pool, and Postgres-tagged test files needing
 |---|---|---|
 | Separate package, `structured_log` as its only dependency | Extend `structured_log` core, or fold into `structured_log_server` | The wire contract evolves with the *server*, not the logging core — coupling it to the independently-versioned, already-published core package isn't justified. It also can't live in `structured_log_server`: an app that only sends logs shouldn't need `shelf`/`drift`/etc. as transitive dependencies. (decision 5) |
 | `_SerializedAsyncOutput` pattern (from `AsyncFileOutput`) + batching + retry/backoff | A new queuing design | Reuses an already-proven pattern in the workspace instead of inventing a second one for the same problem shape (serialized delivery, per-step error isolation). |
+| Each entry encoded with the core's `encodeLogEntry` when the sink is called; the buffer holds JSON strings, a batch is their array | Keeping maps in the buffer and `jsonEncode`-ing the whole batch at send time | One value `jsonEncode` refused used to cost the whole batch (up to `batchSize` entries); now an unreadable entry is dropped alone and reported. An entry also travels as it was at log time — a map mutated afterwards doesn't leak into it — and a string costs roughly a fifth of the memory of the map it came from. The public `BatchSender` keeps its signature: a custom sender gets the entries decoded back into maps, which is what the server would read. (harden-structured-log-core decision 16) |
 
 `structured_log_remote_sync` is not part of the decisions 32–38 tech-stack expansion below — it stays a small, dependency-free client package, unaffected by `structured_log_server`'s or `structured_log_admin_client`'s internal choices.
 
@@ -239,3 +240,12 @@ without a second consumer" the design otherwise avoids everywhere else.
 `structured_log` itself keeps its zero-runtime-dependency rule (only
 `meta`) — none of the three new packages add a dependency to it. They're
 new packages, not new weight on the existing one.
+
+Since `harden-structured-log-core` its main library doesn't import
+`dart:io` either, so it compiles on the web: the four file outputs
+(`fileOutput`, `rotatingFileOutput`, `AsyncFileOutput`,
+`AsyncRotatingFileOutput`) live in `package:structured_log/io.dart`,
+which the server imports alongside the main library for its
+`AsyncRotatingFileOutput`. A conditional export was rejected — the
+library's API would then differ by platform, and a missing symbol would
+surface only in a web build (decision 12 of that change).
