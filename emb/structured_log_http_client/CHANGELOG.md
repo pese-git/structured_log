@@ -1,3 +1,7 @@
+## 0.1.0-dev.4
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
 ## 0.1.0-dev.3
 
 > Note: This release has breaking changes.

@@ -1,3 +1,7 @@
+## 0.3.0+1
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
 ## 0.3.0
 
 > Note: This release has breaking changes.

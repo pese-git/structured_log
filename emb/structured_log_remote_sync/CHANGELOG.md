@@ -1,3 +1,7 @@
+## 0.2.0+4
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
 ## 0.2.0+3
 
  - **FIX**(structured_log_remote_sync): encode each entry when it is logged, so one value cannot cost the batch.

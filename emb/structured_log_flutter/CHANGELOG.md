@@ -1,3 +1,7 @@
+## 0.1.2+1
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
 ## 0.1.2
 
  - **FEAT**(structured_log_flutter): notify LogBuffer listeners once per burst, and add debugPrintOutput.

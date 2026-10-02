@@ -1,3 +1,7 @@
+## 0.1.1+4
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
 ## 0.1.1+3
 
  - Update a dependency to the latest release.
