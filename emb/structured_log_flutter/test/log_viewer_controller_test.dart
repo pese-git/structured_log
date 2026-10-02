@@ -120,21 +120,24 @@ void main() {
       expect(notified, isTrue);
     });
 
-    test('notifies listeners when a new entry is captured', () {
+    test('notifies listeners when a new entry is captured', () async {
       var notified = false;
       controller.addListener(() => notified = true);
 
       buffer.capture({'event': 'a', 'level': 'info'}, LogLevel.info);
+      // The buffer tells its listeners once the burst is over.
+      await pumpEventQueue();
 
       expect(notified, isTrue);
     });
 
-    test('does not notify listeners for captures while paused', () {
+    test('does not notify listeners for captures while paused', () async {
       controller.paused = true;
       var notified = false;
       controller.addListener(() => notified = true);
 
       buffer.capture({'event': 'a', 'level': 'info'}, LogLevel.info);
+      await pumpEventQueue();
 
       expect(notified, isFalse);
     });
