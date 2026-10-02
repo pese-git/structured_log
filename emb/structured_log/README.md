@@ -89,22 +89,28 @@ What this package — the core everything above builds on — gives you:
 - **Typed correlation fields** — `withCorrelation()` for session/request/connection/tool-call/message/operation ids
 - **Processors** — transform log entries before output (filter, enrich, format)
 - **Secret redaction** — `redactKeys()` masks passwords, tokens and keys by field name, and by value with the bundled `looksLikeJwtOrBearer` / `looksLikeCardNumber` matchers
-- **Multiple outputs** — stdout, colored console, file, rotating file, or custom
+- **Multiple outputs** — stdout (pretty JSON, JSON lines, logfmt), colored console, file, rotating file, or custom
+- **Safe encoding** — `encodeLogEntry` converts a `DateTime`, an exception or any other value `jsonEncode` refuses, so one such value no longer loses the whole entry
+- **Logging never throws** — a throwing sink or processor is reported, never propagated to the caller
 - **Async file output** — `AsyncFileOutput` / `AsyncRotatingFileOutput` write without blocking the caller, with `flushed` to await delivery
 - **Multi-sink routing** — deliver one entry to several destinations with independent level/category filtering and runtime toggling
 - **Configurable** — global configuration with `StructlogConfiguration.configure()`
+- **Works on the web** — the main library has no `dart:io`; the file outputs live in `package:structured_log/io.dart`
 - **No third-party runtime dependencies** — only the Dart SDK and `meta`
 
 ## How It Works
 
-Every log call flows through the same pipeline: your bound context and
+Every log call flows through the same pipeline: if no enabled sink takes
+the call's level, it stops right there; otherwise your bound context and
 correlation fields are merged into the entry, the entry passes through the
 configured processors (which can enrich, mask, or drop it), and what
 survives is delivered to every sink whose level/category filters accept it:
 
 ```mermaid
 flowchart LR
-    A["log.info('event', context: {...})"] --> B["merge: bound context<br/>+ inline context<br/>+ correlation"]
+    A["log.info('event', context: {...})"] --> L{"any enabled sink<br/>takes this level?"}
+    L -->|no| Y[return early]
+    L -->|yes| B["merge: bound context<br/>+ inline context<br/>+ correlation"]
     B --> C["processors pipeline<br/>(dropNullValues, ...)"]
     C -->|"dropped (returned null)"| X[discarded]
     C -->|entry| D{"for each sink"}
@@ -125,7 +131,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  structured_log: ^0.2.2
+  structured_log: ^0.3.0
 ```
 
 ## Quick Start
@@ -147,9 +153,12 @@ Output:
   "ip": "127.0.0.1",
   "event": "user_login",
   "level": "info",
-  "timestamp": "2026-04-27T12:00:00.000000"
+  "timestamp": "2026-04-27T12:00:00.000Z"
 }
 ```
+
+The `timestamp` is UTC, ISO-8601, ending in `Z` — see
+[Timestamps](#timestamps) for writing local time instead.
 
 ## API Reference
 
@@ -161,6 +170,22 @@ final log = getLogger();
 
 // Named logger (adds 'logger' key to context)
 final log = getLogger('auth');
+```
+
+A logger from `getLogger()` reads the current global configuration — sinks,
+processors, `initialContext` — on every entry, not when it is created. So
+it is safe to keep one in a `static final` field initialised before
+`StructlogConfiguration.configure()` runs: it follows that call, and every
+later one, as do the loggers derived from it with `bind()`/`unbind()`/
+`withCorrelation()`.
+
+To pin a logger to one configuration instead — dependency injection, a test
+that must not share global state — construct `BoundLogger` with it. Such a
+logger ignores later `configure()` calls and does not merge
+`initialContext`:
+
+```dart
+final log = BoundLogger(StructlogConfiguration(output: myOutput));
 ```
 
 ### Log Levels
@@ -185,9 +210,37 @@ log.trace('raw_frame', context: {'bytes': 128});
 log.debug('cache miss', context: {'key': 'session:42'});
 log.info('request completed', context: {'duration_ms': 150});
 log.warning('slow query', context: {'sql': 'SELECT ...', 'ms': 2000});
-log.error('payment failed', context: {'error': 'timeout', 'order_id': 123});
+log.error('payment failed', context: {'order_id': 123});
 log.critical('database down', context: {'host': 'db-primary'});
 ```
+
+Every level method (and `tryLog`) also takes `error:` and `stackTrace:`. They
+become the fields `error` (the error's `toString()`), `error_type` (its
+runtime type) and `stack_trace`, and win over same-named keys in `context`:
+
+```dart
+try {
+  await charge(order);
+} catch (e, st) {
+  log.error('payment failed', error: e, stackTrace: st,
+      context: {'order_id': 123});
+}
+```
+
+`isEnabled(level, {category})` answers whether an entry at that level (and
+category) would reach any enabled sink — use it to skip building a costly
+entry nobody will see:
+
+```dart
+if (log.isEnabled(LogLevel.trace)) {
+  log.trace('frame', context: {'hex': hexDump(bytes)});
+}
+```
+
+The logging call does the level half of that check itself, first: when no
+enabled sink takes the level, it returns before merging any context or
+running any processor — so processors never see an entry no sink would
+take at its level.
 
 ### Context Binding
 
@@ -248,13 +301,17 @@ Pass per-call context directly:
 log.info('event', context: {'one_off': true});
 ```
 
-Context is merged in order: `initialContext` → `bind()` → inline `context`.
+Context is merged in order: `initialContext` → `bind()` → inline `context` →
+the `error:`/`stackTrace:` fields → correlation fields.
 
 ## Configuration
 
 ### Global Configuration
 
 ```dart
+import 'package:structured_log/io.dart'; // fileOutput
+import 'package:structured_log/structured_log.dart';
+
 StructlogConfiguration.configure(
   processors: [dropNullValues, myCustomProcessor],
   output: fileOutput('logs/app.log'),
@@ -262,12 +319,16 @@ StructlogConfiguration.configure(
 );
 ```
 
+Loggers already obtained with `getLogger()` pick the change up on their
+next entry — there is no need to fetch them again.
+
 | Parameter        | Type                  | Default           | Description                                       |
 |------------------|-----------------------|-------------------|----------------------------------------------------|
 | `processors`     | `List<Processor>`     | `[dropNullValues]`| Pipeline to transform entries                     |
 | `output`         | `OutputFunction`      | `defaultOutput`   | Shorthand for a single sink named `'default'`     |
 | `sinks`          | `List<LogSink>`       | one `output` sink | Multiple destinations with independent filtering  |
 | `initialContext` | `Map<String, dynamic>`| `{}`              | Context added to all loggers                      |
+| `timestampMode`  | `TimestampMode`       | `TimestampMode.utc` | How `timestamp` is written — see [Timestamps](#timestamps) |
 
 Reset to defaults:
 
@@ -275,7 +336,42 @@ Reset to defaults:
 StructlogConfiguration.reset();
 ```
 
+### Timestamps
+
+Every entry gets a `timestamp` before any processor runs. `timestampMode`
+decides how it is written; either way it names one instant unambiguously:
+
+```dart
+StructlogConfiguration.configure(timestampMode: TimestampMode.utc); // default
+// "timestamp": "2026-10-02T09:30:15.250Z"
+
+StructlogConfiguration.configure(
+  timestampMode: TimestampMode.localWithOffset,
+);
+// "timestamp": "2026-10-02T12:30:15.250+03:00"
+```
+
+`TimestampMode.utc` lets entries from devices in different time zones sort
+and compare as written; `TimestampMode.localWithOffset` keeps the wall clock
+the person on the device saw, with its offset. Local time *without* an
+offset is not offered: whoever parses it reads it as their own local time.
+
 ### Outputs
+
+Every built-in output encodes the entry with `encodeLogEntry`, which you can
+call from your own outputs too. Values `jsonEncode` refuses are converted
+instead of losing the entry: a `DateTime` becomes ISO-8601 in UTC, an enum
+its `name`, a `Duration` its microseconds, anything else its `toString()`.
+An entry that contains itself is written as a stub with `encoding_failed`.
+The conversion happens only in the output — processors and in-memory sinks
+still see the original objects.
+
+The console outputs and `jsonLineOutput`/`logfmtOutput` are in the main
+library and work everywhere, the web included. The file outputs need
+`dart:io`, so they live in a separate library — import
+`package:structured_log/io.dart` alongside the main one to use them. That
+split is what keeps `package:structured_log/structured_log.dart` free of
+`dart:io` and usable on the web.
 
 #### Console (default)
 
@@ -284,6 +380,25 @@ Pretty-printed JSON to stdout:
 ```dart
 StructlogConfiguration.configure(output: defaultOutput);
 ```
+
+#### JSON lines / logfmt
+
+One line per entry, to stdout — JSON (`jsonLineOutput`) or `key=value`
+pairs (`logfmtOutput`):
+
+```dart
+StructlogConfiguration.configure(output: jsonLineOutput);
+// {"pid":123,"event":"startup","level":"info","timestamp":"..."}
+
+StructlogConfiguration.configure(output: logfmtOutput);
+// pid=123 event="startup" level="info" timestamp="..."
+```
+
+`logfmtOutput` (and `formatLogfmt`, which builds its line) escapes quotes,
+backslashes, newlines and other control characters in values and replaces
+unsafe characters in keys, so whatever an entry holds, it is one line whose
+fields are exactly the entry's keys — a value cannot forge a field or a
+line.
 
 #### Colored Console
 
@@ -296,7 +411,7 @@ StructlogConfiguration.configure(output: coloredConsoleOutput);
 Output:
 
 ```
-[2026-04-27T12:00:00.000000] INFO: user_login {"user_id": 42}
+[2026-04-27T12:00:00.000Z] INFO: user_login {"user_id":42}
 ```
 
 #### File
@@ -304,6 +419,8 @@ Output:
 Append JSON lines (JSONL) to a file. Directories are created automatically:
 
 ```dart
+import 'package:structured_log/io.dart';
+
 StructlogConfiguration.configure(
   output: fileOutput('logs/app.log'),
 );
@@ -314,6 +431,8 @@ StructlogConfiguration.configure(
 Automatically rotates when file exceeds size limit:
 
 ```dart
+import 'package:structured_log/io.dart';
+
 StructlogConfiguration.configure(
   output: rotatingFileOutput(
     'logs/app.log',
@@ -334,6 +453,8 @@ and `AsyncRotatingFileOutput` use non-blocking file I/O instead, same
 options as their sync counterparts:
 
 ```dart
+import 'package:structured_log/io.dart';
+
 final asyncOutput = AsyncFileOutput('logs/app.log');
 // or: AsyncRotatingFileOutput('logs/app.log', maxSizeBytes: 10 * 1024 * 1024);
 StructlogConfiguration.configure(output: asyncOutput);
@@ -373,6 +494,8 @@ console output for developers plus a JSON file for later analysis — each
 with its own level and category filtering:
 
 ```dart
+import 'package:structured_log/io.dart'; // rotatingFileOutput
+
 StructlogConfiguration.configure(sinks: [
   LogSink(
     name: 'console',
@@ -403,9 +526,16 @@ StructlogConfiguration.setSinkEnabled('protocol', enabled: true);
 ```
 
 A single `output:` (as shown above) remains fully supported — it's
-shorthand for a single sink named `'default'`. If a sink's `output` throws,
-the error is caught and reported to `stderr`; it never stops delivery to
-the other sinks or crashes the caller.
+shorthand for a single sink named `'default'`.
+
+A logging call never throws. If a sink's `output` throws, the error is
+caught and reported; it never stops delivery to the other sinks or crashes
+the caller. If a **processor** throws, the processors after it do not run
+and the sinks get a stub instead of the entry: `event`, `level`,
+`timestamp`, `logger` and `category` (where they are strings) plus
+`processor_failed` naming the exception's type. The original entry is not
+delivered on purpose — the processor that failed may be the one meant to
+redact it. Reports go to `stderr`, or through `print` on the web.
 
 ## Processors
 
@@ -416,11 +546,11 @@ Processors are functions that transform log entries before output. Return `null`
 | Processor        | Description                    |
 |------------------|--------------------------------|
 | `dropNullValues` | Removes keys with `null` value |
-| `addTimestamp`   | Adds ISO 8601 timestamp        |
-| `addLogLevel`    | Ensures level key exists       |
-| `jsonRenderer`   | Prints entry as JSON           |
-| `logfmtRenderer` | Prints as `key=value` pairs    |
 | `redactKeys()`   | Replaces sensitive values, at any depth |
+| `addTimestamp`   | **Deprecated** — every entry already has a `timestamp`; set its form with `timestampMode` |
+| `addLogLevel`    | **Deprecated** — a no-op: every entry already has a `level` |
+| `jsonRenderer`   | **Deprecated** — prints from inside the chain; use `jsonLineOutput` as a sink output |
+| `logfmtRenderer` | **Deprecated** — prints from inside the chain; use `logfmtOutput` as a sink output |
 
 ### Redacting secrets
 
@@ -470,10 +600,14 @@ multi-word one in all three spellings). The correlation fields
 this package produces — `session_id`, `request_id` and the rest — are
 deliberately absent: they exist to be read back.
 
-Two things worth knowing:
+Worth knowing:
 
-- **Put it before any renderer.** `jsonRenderer` and `logfmtRenderer` print
-  as they run, so a redactor after one of them has already lost.
+- **Print from a sink, not from a processor.** The deprecated `jsonRenderer`
+  and `logfmtRenderer` print as they run, so a redactor after one of them
+  has already lost. A sink output — `jsonLineOutput`, `logfmtOutput` — runs
+  after every processor, so the redactor cannot end up behind it.
+- **It survives cycles.** A map or list that contains itself is written as
+  `'<cycle>'` where it recurs, instead of walking forever.
 - **It rebuilds, it does not edit.** `BoundLogger` copies bound context
   shallowly, so a nested map in an entry is the same object your code still
   holds — a hand-written redactor that walks and assigns takes your own
@@ -529,10 +663,7 @@ void handleRequest(Request req) {
       'duration_ms': response.duration,
     });
   } catch (e, st) {
-    log.error('request failed', context: {
-      'error': e.toString(),
-      'stack_trace': st.toString(),
-    });
+    log.error('request failed', error: e, stackTrace: st);
     rethrow;
   }
 }
@@ -541,11 +672,13 @@ void handleRequest(Request req) {
 ### Multiple Loggers (file + console)
 
 ```dart
+import 'package:structured_log/io.dart'; // fileOutput
+
 // Console logger for development
 final consoleLog = getLogger('console');
 consoleLog.info('app started');
 
-// Switch to file output
+// Switch to file output — consoleLog follows the change too
 StructlogConfiguration.configure(output: fileOutput('logs/production.log'));
 final fileLog = getLogger('production');
 fileLog.info('same event, different output');
@@ -553,7 +686,8 @@ fileLog.info('same event, different output');
 
 ### Async-Safe Logging
 
-The library uses synchronous file I/O, making it safe for use in any context:
+A logger is a plain immutable value, so it can be used across `await`s; the
+context bound to it travels with it:
 
 ```dart
 Future<void> asyncTask() async {
@@ -580,6 +714,42 @@ Future<void> asyncTask() async {
 | Multi-destination routing | Via stdlib logging handlers | Built-in (`LogSink`) |
 | Async file output    | Via handlers     | Built-in (`AsyncFileOutput`) |
 | Wrapper classes      | Yes              | No (simple)    |
+
+## Migrating to 0.3.0
+
+0.3.0 has three breaking changes:
+
+- **Timestamps are UTC.** `timestamp` now ends in `Z`
+  (`2026-10-02T09:30:15.250Z`) instead of an offset-less local time. If
+  you need local time, ask for it with its offset; if you parse timestamps,
+  parse them as ISO-8601 with a zone:
+
+  ```dart
+  StructlogConfiguration.configure(timestampMode: TimestampMode.localWithOffset);
+  ```
+
+- **`getLogger()` loggers follow the configuration.** They read sinks,
+  processors and `initialContext` on every entry, so re-fetching loggers
+  after `configure()` is no longer needed — you can delete it. If you relied
+  on a logger keeping the configuration it was created under, pin it
+  explicitly (a pinned logger does not merge `initialContext`):
+
+  ```dart
+  final log = BoundLogger(StructlogConfiguration.current);
+  ```
+
+- **File outputs moved to `io.dart`.** `fileOutput`, `rotatingFileOutput`,
+  `AsyncFileOutput` and `AsyncRotatingFileOutput` are no longer exported by
+  `package:structured_log/structured_log.dart`. Add the import wherever you
+  use them:
+
+  ```dart
+  import 'package:structured_log/io.dart';
+  ```
+
+`jsonRenderer`, `logfmtRenderer`, `addTimestamp` and `addLogLevel` are
+deprecated but still work; see [Built-in Processors](#built-in-processors)
+for what replaces them.
 
 ## Related packages
 

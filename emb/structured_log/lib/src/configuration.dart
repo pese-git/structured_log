@@ -7,8 +7,8 @@ import 'timestamp.dart';
 /// which [Processor]s run on every entry, which [LogSink]s receive it, and
 /// what context every logger starts with.
 ///
-/// There is a single current instance, reachable via [current], that
-/// [getLogger] reads when creating a [BoundLogger]. Change it with
+/// There is a single current instance, reachable via [current], that every
+/// logger from [getLogger] reads each time it makes an entry. Change it with
 /// [configure] (partial updates — unspecified fields keep their current
 /// value) or restore the library defaults with [reset]. Because it's
 /// process-global mutable state, tests that call [configure] should call
@@ -58,8 +58,8 @@ class StructlogConfiguration {
 
   static StructlogConfiguration _current = StructlogConfiguration();
 
-  /// The configuration every new [BoundLogger] (via [getLogger]) is created
-  /// with. Starts as the library default and changes on [configure] /
+  /// The configuration every logger from [getLogger] uses, read again for
+  /// each entry. Starts as the library default and changes on [configure] /
   /// [reset].
   static StructlogConfiguration get current => _current;
 
@@ -73,12 +73,13 @@ class StructlogConfiguration {
   /// shorthand for a single sink named `'default'` (not a breaking change);
   /// if both [sinks] and [output] are given, [sinks] wins.
   ///
-  /// Loggers already created via [getLogger] keep pointing at the
-  /// configuration they were built with — call [getLogger] again after
-  /// [configure] to pick up the change.
+  /// Loggers already created via [getLogger] pick up the change with their
+  /// next entry — one kept in a `static final` field included. Only a
+  /// [BoundLogger] constructed with a configuration of its own keeps it.
   ///
   /// ```dart
-  /// // Simple: JSON to a file instead of stdout.
+  /// // Simple: JSON to a file instead of stdout (fileOutput comes from
+  /// // package:structured_log/io.dart).
   /// StructlogConfiguration.configure(output: fileOutput('logs/app.log'));
   ///
   /// // Advanced: route by category to independent destinations.
