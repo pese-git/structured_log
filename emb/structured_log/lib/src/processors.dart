@@ -1,5 +1,5 @@
-import 'dart:convert';
-
+import 'encoding.dart';
+import 'formatters.dart';
 import 'logger.dart';
 
 /// A function that transforms (or drops) a log entry before it reaches any
@@ -14,7 +14,16 @@ import 'logger.dart';
 ///
 /// Processors should be pure functions of their input and not depend on
 /// call order relative to other processors, unless that ordering is
-/// documented (as it is for the enrich-then-render pattern below).
+/// documented.
+///
+/// Processors run only for entries some enabled sink takes at their level
+/// (see [BoundLogger.isEnabled]): a `trace` call with no sink below `debug`
+/// returns before the first processor. A processor that counts or forwards
+/// entries as a side effect does not see those.
+///
+/// A processor that throws does not reach the caller: the entry is replaced
+/// by a stub naming the failure, and the processors after it do not run —
+/// see [BoundLogger.tryLog].
 ///
 /// ```dart
 /// // A custom processor that redacts a sensitive key.
@@ -42,8 +51,9 @@ typedef Processor = Map<String, dynamic>? Function(Map<String, dynamic> entry);
 /// variable, anything.
 ///
 /// This is the type every built-in output in this library
-/// ([defaultOutput], [fileOutput], [rotatingFileOutput],
-/// [coloredConsoleOutput]) and [LogSink.output] share; write your own to
+/// ([defaultOutput], [coloredConsoleOutput], [jsonLineOutput],
+/// [logfmtOutput], and the file outputs in `package:structured_log/io.dart`)
+/// and [LogSink.output] share; write your own to
 /// integrate with a destination this package doesn't cover directly:
 ///
 /// ```dart
@@ -70,6 +80,10 @@ typedef OutputFunction = void Function(
 /// addTimestamp(entry);
 /// print(entry['timestamp']); // e.g. '2026-09-10T12:00:00.000'
 /// ```
+@Deprecated(
+  'Every entry already has a timestamp: BoundLogger.tryLog stamps it before '
+  'any processor runs, as StructlogConfiguration.timestampMode says.',
+)
 Map<String, dynamic>? addTimestamp(Map<String, dynamic> entry) {
   if (!entry.containsKey('timestamp')) {
     entry['timestamp'] = DateTime.now().toIso8601String();
@@ -87,37 +101,47 @@ Map<String, dynamic>? addTimestamp(Map<String, dynamic> entry) {
 ///   processors: [dropNullValues, addLogLevel], // addLogLevel is a no-op
 /// );
 /// ```
+@Deprecated('A no-op: BoundLogger.tryLog sets level before any processor runs.')
 Map<String, dynamic>? addLogLevel(Map<String, dynamic> entry) {
   return entry;
 }
 
-/// Prints [entry] as a single-line JSON string via [print] and returns it
-/// unchanged, so it can be chained with other processors or reach a sink
-/// afterwards.
+/// Prints [entry] as a single-line JSON string via [print] — encoded by
+/// [encodeLogEntry] — and returns it unchanged, so it can be chained with
+/// other processors or reach a sink afterwards.
+///
+/// Deprecated in favour of [jsonLineOutput], which does the same from a sink.
 ///
 /// ```dart
 /// jsonRenderer({'event': 'startup', 'pid': 123});
 /// // stdout: {"event":"startup","pid":123}
 /// ```
+@Deprecated(
+  'Print from a sink instead: LogSink(name: ..., output: jsonLineOutput). '
+  'A renderer prints from inside the processor chain, before the processors '
+  'after it — a redactor among them — have run.',
+)
 Map<String, dynamic>? jsonRenderer(Map<String, dynamic> entry) {
-  print(jsonEncode(entry));
+  print(encodeLogEntry(entry));
   return entry;
 }
 
-/// Prints [entry] as space-separated `key=value` pairs (logfmt style) via
-/// [print] and returns it unchanged. String values are wrapped in double
-/// quotes; other values use their `toString()`.
+/// Prints [entry] as one logfmt line via [print] — written, and escaped, as
+/// [formatLogfmt] describes — and returns it unchanged.
+///
+/// Deprecated in favour of [logfmtOutput], which does the same from a sink.
 ///
 /// ```dart
 /// logfmtRenderer({'event': 'startup', 'pid': 123});
 /// // stdout: event="startup" pid=123
 /// ```
+@Deprecated(
+  'Print from a sink instead: LogSink(name: ..., output: logfmtOutput). '
+  'A renderer prints from inside the processor chain, before the processors '
+  'after it — a redactor among them — have run.',
+)
 Map<String, dynamic>? logfmtRenderer(Map<String, dynamic> entry) {
-  final pairs = entry.entries.map((e) {
-    final value = e.value is String ? '"${e.value}"' : e.value.toString();
-    return '${e.key}=$value';
-  }).join(' ');
-  print(pairs);
+  print(formatLogfmt(entry));
   return entry;
 }
 
@@ -241,8 +265,10 @@ const defaultSensitiveKeys = <String>{
 /// );
 /// ```
 ///
-/// **Place it before any renderer.** [jsonRenderer] and [logfmtRenderer]
-/// print as they go, so a redactor after one of them has already lost.
+/// **Print from a sink, not from a renderer.** The deprecated [jsonRenderer]
+/// and [logfmtRenderer] print as they go, so a redactor after one of them
+/// has already lost; [jsonLineOutput] and [logfmtOutput] print after every
+/// processor has run.
 ///
 /// The entry is rebuilt rather than edited, and only along the path where
 /// something was replaced — an entry with nothing to redact comes back as
@@ -253,8 +279,11 @@ const defaultSensitiveKeys = <String>{
 /// place would take the caller's own token away, and that is the mistake
 /// this function exists to stop anyone from writing again.
 ///
-/// The walk assumes the entry is acyclic — as [jsonRenderer] already does,
-/// since `jsonEncode` refuses a cycle outright.
+/// A map or list that contains itself — directly or further down — is
+/// replaced, where it recurs, by `'<cycle>'`: the walk would otherwise never
+/// end, and a processor that overflows the stack costs the whole entry. A
+/// container reached twice along *different* paths is not a cycle and is
+/// walked both times.
 Processor redactKeys({
   Set<String> keys = defaultSensitiveKeys,
   bool Function(String key)? matchesKey,
@@ -271,26 +300,43 @@ Processor redactKeys({
     return value is String && matchesValue != null && matchesValue(value);
   }
 
-  return (entry) =>
-      _redact(null, entry, matches, placeholder) as Map<String, dynamic>;
+  return (entry) => _redact(null, entry, matches, placeholder, Set.identity())
+      as Map<String, dynamic>;
 }
 
 /// Returns [value] redacted, or [value] itself when nothing in it matched.
 ///
 /// [key] is the name [value] was found under, or `null` when it has no name
-/// — the entry itself, or an element of a list.
+/// — the entry itself, or an element of a list. [ancestors] holds the
+/// containers on the path down to [value], compared by identity.
 Object? _redact(
   String? key,
   Object? value,
   bool Function(String?, Object?) matches,
   String placeholder,
+  Set<Object> ancestors,
 ) {
   if (matches(key, value)) return placeholder;
+  if (value is! Map && value is! List) return value;
+  if (!ancestors.add(value!)) return '<cycle>';
+  try {
+    return _redactContainer(value, matches, placeholder, ancestors);
+  } finally {
+    ancestors.remove(value);
+  }
+}
 
+Object _redactContainer(
+  Object value,
+  bool Function(String?, Object?) matches,
+  String placeholder,
+  Set<Object> ancestors,
+) {
   if (value is Map<String, dynamic>) {
     Map<String, dynamic>? copy;
     for (final field in value.entries) {
-      final next = _redact(field.key, field.value, matches, placeholder);
+      final next =
+          _redact(field.key, field.value, matches, placeholder, ancestors);
       if (identical(next, field.value)) continue;
       (copy ??= Map<String, dynamic>.of(value))[field.key] = next;
     }
@@ -301,7 +347,7 @@ Object? _redact(
     Map<Object?, Object?>? copy;
     for (final field in value.entries) {
       final name = field.key is String ? field.key as String : null;
-      final next = _redact(name, field.value, matches, placeholder);
+      final next = _redact(name, field.value, matches, placeholder, ancestors);
       if (identical(next, field.value)) continue;
       (copy ??= Map<Object?, Object?>.of(value))[field.key] = next;
     }
@@ -311,7 +357,7 @@ Object? _redact(
   if (value is List) {
     List<Object?>? copy;
     for (var i = 0; i < value.length; i++) {
-      final next = _redact(null, value[i], matches, placeholder);
+      final next = _redact(null, value[i], matches, placeholder, ancestors);
       if (identical(next, value[i])) continue;
       // Widened to `List<Object?>` rather than copied at its own type: a
       // placeholder does not fit a `List<int>`. Only a list holding strings

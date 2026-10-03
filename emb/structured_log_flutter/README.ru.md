@@ -1,41 +1,102 @@
 # structured_log_flutter
 
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
 *Read in [English](README.md).*
 
-Headless-ядро просмотрщика логов для [`structured_log`](../structured_log) —
-буфер ограниченного размера и фильтрующий контроллер для построения живого
-in-app просмотрщика логов во Flutter. Никакой зависимости от Material,
-Cupertino или любой другой дизайн-системы: пакет сам ничего не рисует, так что
-поверх него можно построить любой UI-скин — на нём построены
-[`structured_log_material`](../structured_log_material),
-[`structured_log_fluent`](../structured_log_fluent) и
-[`structured_log_cupertino`](../structured_log_cupertino).
+**Основа просмотрщика логов внутри Flutter-приложения: последние записи
+[`structured_log`](https://pub.dev/packages/structured_log) хранятся в памяти,
+фильтруются и готовы для любого UI. В придачу — аккуратный однострочный вывод
+в консоль для телефонов.**
 
-> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_flutter)
-> (`0.1.0`). `structured_log_material`, `structured_log_fluent` и
-> `structured_log_cupertino` подключают его как обычную hosted-зависимость;
-> внутри этого monorepo `melos bootstrap` подставляет вместо неё
-> path-зависимость.
+## Зачем
+
+Тестировщик ловит ошибку на устройстве, а логи, которые могли бы её
+объяснить, ушли в консоль, к которой никто не был подключён, или утонули в
+logcat среди системного шума. Выход — держать последние записи внутри
+приложения и показывать их по запросу. Как бы ни выглядел такой экран, под
+ним одно и то же: буфер, который не растёт бесконечно, фильтры по уровню,
+категории и тексту и пауза, чтобы список не уезжал, пока вы его читаете.
+
+`structured_log_flutter` — ровно эти части, без единого виджета. Пакет
+ничего не рисует и не зависит ни от одной дизайн-системы, поэтому на нём
+построены все три готовых просмотрщика — Material, Fluent и Cupertino, — и
+на нём же можно собрать свой. Большинству приложений он напрямую не нужен:
+достаточно выбрать скин. Берите этот пакет, если нужен просмотрщик в
+собственной дизайн-системе или доступ к последним записям из кода —
+например, чтобы приложить их к отчёту об ошибке. А на случай, когда консоль
+*всё-таки* под рукой, в нём есть `debugPrintOutput`: он пишет каждую запись
+одной читаемой строкой, а не многострочным JSON.
 
 ## Возможности
 
-- **`LogBuffer`** — кольцевой буфер фиксированной ёмкости, подключается напрямую
-  к `structured_log` как `OutputFunction`/`LogSink.output`
-- **Живые обновления** — `LogBuffer.entries` — это `ValueListenable`, так что
-  виджет может перерисовываться на каждую новую запись без опроса
-- **`LogViewerController`** — `ChangeNotifier` с фильтрацией по уровню/категории/
-  тексту поиска, паузой/возобновлением и очисткой поверх `LogBuffer`
-- **`logLevelColor(LogLevel level, Brightness brightness)`** — канонический
-  цвет индикатора `LogLevel`, общий для всех скинов, построенных на этом
-  пакете, чтобы палитра не расходилась между ними
-- **Никаких зависимостей от дизайн-систем** — только `dart:ui`,
-  `package:flutter/foundation.dart` и `structured_log`
+### Сбор записей
+
+- **Ещё один синк** — у `LogBuffer.capture` сигнатура `OutputFunction`,
+  так что буфер встаёт отдельным `LogSink` рядом с консолью; ни один вызов
+  лога не меняется.
+- **Ограниченная память** — кольцевой буфер фиксированной ёмкости (по
+  умолчанию 500): первой вытесняется самая старая запись, на диск ничего не
+  пишется.
+- **Одна перерисовка на пачку** — `entries` — это `ValueListenable`: его
+  значение всегда актуально, а слушатели узнают о пачке записей один раз, а
+  не о каждой по отдельности. Запрос, написавший в лог пятьдесят строк,
+  стоит интерфейсу одной перерисовки.
+- **Снимки можно хранить** — прочитанный список неизменяем и потом уже не
+  меняется, поэтому ссылку на него можно держать или сравнивать с более
+  поздним чтением.
+
+### Состояние просмотрщика
+
+- **Фильтры** — `LogViewerController` отбирает записи по минимальному
+  уровню, точному значению категории и регистронезависимому поиску по
+  событию и всем значениям контекста.
+- **Пауза** — замораживает видимый список, пока буфер продолжает
+  принимать записи, так что ничего не уезжает посреди чтения; после
+  возобновления список догоняет буфер.
+- **Очистка** — одним вызовом опустошает и буфер, и снимок паузы.
+- **Обычный `ChangeNotifier`** — работает с `AnimatedBuilder`,
+  `ListenableBuilder` и любым state management, которым вы уже пользуетесь.
+
+### Чтение логов в консоли
+
+- **`debugPrintOutput`** — одна строка на запись
+  (`12:30:15.250 INFO login user="u" attempt=2`): местное время, без
+  ANSI-кодов, значения экранируются, так что перевод строки не разорвёт
+  запись. Печать идёт через `debugPrint`, который придерживает всплески,
+  чтобы Android не терял строки.
+
+### Общее для всех скинов
+
+- **Одна палитра уровней** — `logLevelColor()` даёт каждому `LogLevel` цвет
+  для светлой и тёмной темы, поэтому просмотрщики Material, Fluent и
+  Cupertino не расходятся в цветах; `logLevelOf()` читает уровень записи
+  обратно.
+- **Без дизайн-системы** — зависимости только `dart:ui`,
+  `package:flutter/foundation.dart` и `structured_log`.
+
+## Место в проекте
+
+[`structured_log`](https://pub.dev/packages/structured_log) пишет записи и
+раздаёт их по синкам; этот пакет — синк, который оставляет их внутри
+приложения, плюс состояние, нужное просмотрщику, чтобы их показать.
+[`structured_log_material`](https://pub.dev/packages/structured_log_material),
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) и
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino)
+— готовые экраны поверх него. Всё это работает целиком внутри приложения,
+без сервера; если позже вы начнёте отправлять логи на self-hosted сервер
+через [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+просмотрщик продолжит работать рядом с ним — синки друг от друга не
+зависят. Подробнее — в документации на
+[structured-log.openidealab.com](https://structured-log.openidealab.com/ru/)
+и в [руководстве по встраиванию](https://structured-log.openidealab.com/ru/guides/embedding-guide/).
 
 ## Установка
 
 ```yaml
 dependencies:
-  structured_log_flutter: ^0.1.0
+  structured_log: ^0.3.0
+  structured_log_flutter: ^0.1.2
 ```
 
 Внутри этого monorepo `melos bootstrap` подставляет вместо неё
@@ -75,9 +136,22 @@ print(controller.visibleEntries);
 | Член | Описание |
 |---|---|
 | `LogBuffer({int capacity = 500})` | Создаёт пустой буфер; при превышении `capacity` вытесняется самая старая запись |
+| `capacity` | Наибольшее число записей, которое буфер держит одновременно |
 | `capture(Map<String, dynamic> entry, LogLevel level)` | Совпадает по сигнатуре с `OutputFunction` — передавайте напрямую как `output` синка |
 | `entries` | `ValueListenable<List<Map<String, dynamic>>>`, от старой к новой |
-| `clear()` | Опустошает буфер и уведомляет слушателей `entries` |
+| `clear()` | Опустошает буфер и сразу уведомляет слушателей `entries` |
+
+`entries.value` всегда актуален, но слушателей уведомляют не чаще раза за
+оборот цикла событий: пачка записей, залогированных разом, — всё, что
+написал один запрос, или плотный цикл, — это одно уведомление и одна
+перерисовка, а не по одной на запись. Возвращаемый список неизменяемый и
+после чтения уже не меняется, так что ссылку на него можно хранить; два
+чтения подряд без новых записей между ними дают один и тот же список —
+копия делается раз на прочитанное изменение, а не на каждую запись.
+
+`LogBuffer` держит записи только в памяти. Если логи должны пережить
+приложение, нужны файловые выводы — они импортируются из
+`package:structured_log/io.dart`.
 
 ### `LogViewerController`
 
@@ -89,9 +163,35 @@ print(controller.visibleEntries);
 | `categoryFilter` (`String?`) | Требуемое точное значение `category`; `null` — без ограничения |
 | `searchQuery` (`String`) | Регистронезависимое совпадение подстроки с `event` и остальными значениями контекста (`level`/`timestamp` исключены) |
 | `paused` (`bool`) | Пока `true`, `visibleEntries` остаются такими, какими были в момент паузы, даже если `buffer` продолжает захватывать записи |
-| `visibleEntries` | Записи буфера, отфильтрованные тремя свойствами выше |
+| `visibleEntries` | Записи буфера, отфильтрованные тремя свойствами выше, от старой к новой |
 | `clear()` | Очищает `buffer` (и зафиксированный снимок, если есть) и уведомляет слушателей |
 | `dispose()` | Отписывается от `buffer.entries` — вызывать, когда контроллер больше не нужен |
+
+### `debugPrintOutput`
+
+`OutputFunction`, который пишет каждую запись одной строкой через
+`debugPrint`, без ANSI-цветов: местное время (из `timestamp`, с
+миллисекундами), уровень, `event` и все остальные поля парами `key=value`:
+
+```text
+12:30:15.250 INFO login user="u" attempt=2
+```
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'console', output: debugPrintOutput),
+]);
+```
+
+Он нужен там, где логи читают в logcat или в консоли Xcode. `defaultOutput`
+печатает JSON с отступами на несколько строк, и эти консоли перемешивают их
+со всем остальным, а escape-коды `coloredConsoleOutput` в консоли iOS
+превращаются в мусор. Значения экранируются так же, как это делает
+`formatLogfmt` из `structured_log`, поэтому значение с переводом строки не
+разрывает строку лога. `debugPrint` придерживает поток строк, чтобы Android
+их не терял, но длинную строку не укорачивает — logcat обрезает строку
+длиннее примерно 4 КБ. В терминале на десктопе `coloredConsoleOutput`
+по-прежнему читается лучше.
 
 ### `logLevelOf(Map<String, dynamic> entry)`
 
@@ -113,11 +213,51 @@ Material, ни к Cupertino, ни к Fluent — эта таблица дейст
 `structured_log_flutter` намеренно ничего не рисует — подключайте
 `LogViewerController` к любым виджетам, слушая его как обычный `ChangeNotifier`
 (`AnimatedBuilder`, `ListenableBuilder` и т.п.) и читая `visibleEntries` для
-отображения. Полные эталонные реализации (список, детали записи,
-empty-состояния) на Material 3, Fluent UI и Cupertino смотрите в
-[`structured_log_material`](../structured_log_material),
-[`structured_log_fluent`](../structured_log_fluent) и
-[`structured_log_cupertino`](../structured_log_cupertino) соответственно.
+отображения. Простейший список, которому хватает одного
+`package:flutter/widgets.dart`:
+
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:structured_log_flutter/structured_log_flutter.dart';
+
+class PlainLogList extends StatelessWidget {
+  const PlainLogList({required this.controller, super.key});
+
+  final LogViewerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        // visibleEntries идут от старой к новой; новые показываем сверху.
+        final entries = controller.visibleEntries.reversed.toList();
+        return ListView.builder(
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            final level = logLevelOf(entry);
+            return Text(
+              '${level?.name ?? '?'}  ${entry['event']}',
+              style: TextStyle(
+                color: level == null ? null : logLevelColor(level, brightness),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+```
+
+Полные эталонные реализации (список, детали записи, empty-состояния) на
+Material 3, Fluent UI и Cupertino смотрите в
+[`structured_log_material`](https://pub.dev/packages/structured_log_material),
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) и
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino)
+соответственно.
 
 ## Связанные пакеты
 

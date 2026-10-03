@@ -244,6 +244,20 @@ jobs:
       # Both halves generate code that is not committed, and both are needed
       # before anything here compiles or runs: the client because this package
       # imports it, the server because the harness starts it.
+      # The server is started from its own directory, so it resolves its own
+      # dependencies — the overrides in packages/e2e/pubspec.yaml do not reach
+      # it. Without this it runs on the published structured_log, and a
+      # breaking change to emb/structured_log in the same PR would either go
+      # unnoticed or, as with the move to io.dart, fail to compile here.
+      - name: Link the workspace copy of structured_log into the server
+        working-directory: backend/structured_log_server
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../../emb/structured_log
+          EOF
+
       - name: Generate the server's code
         working-directory: backend/structured_log_server
         run: |
@@ -886,6 +900,25 @@ jobs:
           key: ${{ runner.os }}-pub-${{ hashFiles(format('{0}/pubspec.lock', matrix.package)) }}
           restore-keys: |
             ${{ runner.os }}-pub-
+
+      # The same link the Dart jobs write, for the same reason, and for every
+      # package here that depends on the core or on structured_log_flutter:
+      # without it pub resolves the published packages, and a package built
+      # on API its core gained in the same PR does not compile here at all.
+      # Paths are relative to the package, which sits one to three levels down.
+      - name: Link the workspace copies of structured_log and structured_log_flutter
+        run: |
+          root=$(realpath --relative-to=. "$GITHUB_WORKSPACE")
+          overrides=''
+          for dep in structured_log structured_log_flutter; do
+            if grep -q "^  $dep:" pubspec.yaml; then
+              overrides="$overrides  $dep:\n    path: $root/emb/$dep\n"
+            fi
+          done
+          if [ -n "$overrides" ]; then
+            printf 'dependency_overrides:\n%b' "$overrides" > pubspec_overrides.yaml
+            cat pubspec_overrides.yaml
+          fi
 
       - name: Install dependencies
         run: flutter pub get

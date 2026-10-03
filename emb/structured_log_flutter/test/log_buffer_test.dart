@@ -23,12 +23,13 @@ void main() {
       expect(buffer.entries.value.map((e) => e['event']), ['b', 'c']);
     });
 
-    test('entries ValueListenable notifies on capture', () {
+    test('entries ValueListenable notifies on capture', () async {
       final buffer = LogBuffer();
       var notifications = 0;
       buffer.entries.addListener(() => notifications++);
 
       buffer.capture({'event': 'a'}, LogLevel.info);
+      await pumpEventQueue();
 
       expect(notifications, 1);
     });

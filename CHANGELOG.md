@@ -3,6 +3,164 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-10-03
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.3.0+1`](#structured_log---v0301)
+ - [`structured_log_bloc` - `v0.1.0-dev.4`](#structured_log_bloc---v010-dev4)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.4`](#structured_log_cherrypick---v010-dev4)
+ - [`structured_log_cupertino` - `v0.1.1+4`](#structured_log_cupertino---v0114)
+ - [`structured_log_dio` - `v0.1.0-dev.4`](#structured_log_dio---v010-dev4)
+ - [`structured_log_fluent` - `v0.1.1+4`](#structured_log_fluent---v0114)
+ - [`structured_log_flutter` - `v0.1.2+1`](#structured_log_flutter---v0121)
+ - [`structured_log_go_router` - `v0.1.0-dev.4`](#structured_log_go_router---v010-dev4)
+ - [`structured_log_http_client` - `v0.1.0-dev.4`](#structured_log_http_client---v010-dev4)
+ - [`structured_log_material` - `v0.1.1+4`](#structured_log_material---v0114)
+ - [`structured_log_remote_sync` - `v0.2.0+4`](#structured_log_remote_sync---v0204)
+ - [`structured_log_http` - `v0.2.0+4`](#structured_log_http---v0204)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_http` - `v0.2.0+4`
+
+---
+
+#### `structured_log` - `v0.3.0+1`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_bloc` - `v0.1.0-dev.4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_cupertino` - `v0.1.1+4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_dio` - `v0.1.0-dev.4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_fluent` - `v0.1.1+4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_flutter` - `v0.1.2+1`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_go_router` - `v0.1.0-dev.4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_http_client` - `v0.1.0-dev.4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_material` - `v0.1.1+4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+#### `structured_log_remote_sync` - `v0.2.0+4`
+
+ - **DOCS**: lead every package README with its purpose and features (#102).
+
+
+## 2026-10-02
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`structured_log` - `v0.3.0`](#structured_log---v030)
+ - [`structured_log_dio` - `v0.1.0-dev.3`](#structured_log_dio---v010-dev3)
+ - [`structured_log_http_client` - `v0.1.0-dev.3`](#structured_log_http_client---v010-dev3)
+
+Packages with other changes:
+
+ - [`structured_log_bloc` - `v0.1.0-dev.3`](#structured_log_bloc---v010-dev3)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.3`](#structured_log_cherrypick---v010-dev3)
+ - [`structured_log_flutter` - `v0.1.2`](#structured_log_flutter---v012)
+ - [`structured_log_go_router` - `v0.1.0-dev.3`](#structured_log_go_router---v010-dev3)
+ - [`structured_log_remote_sync` - `v0.2.0+3`](#structured_log_remote_sync---v0203)
+ - [`structured_log_material` - `v0.1.1+3`](#structured_log_material---v0113)
+ - [`structured_log_fluent` - `v0.1.1+3`](#structured_log_fluent---v0113)
+ - [`structured_log_cupertino` - `v0.1.1+3`](#structured_log_cupertino---v0113)
+ - [`structured_log_http` - `v0.2.0+3`](#structured_log_http---v0203)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_material` - `v0.1.1+3`
+ - `structured_log_fluent` - `v0.1.1+3`
+ - `structured_log_cupertino` - `v0.1.1+3`
+ - `structured_log_http` - `v0.2.0+3`
+
+---
+
+#### `structured_log` - `v0.3.0`
+
+ - **PERF**(structured_log): count a rotating file's size instead of asking the file system on every write.
+ - **FIX**(structured_log): keep a log call from ever throwing, and encode what jsonEncode refuses.
+ - **FEAT**(structured_log): print from sinks, and escape logfmt so a value cannot forge a line.
+ - **DOCS**(structured_log): describe 0.3.0 and how to migrate to it.
+ - **BREAKING** **FEAT**(structured_log): move the file outputs to io.dart, so the main library needs no dart:io.
+ - **BREAKING** **FEAT**(structured_log): follow the current configuration, check the level first, take error and stackTrace.
+ - **BREAKING** **FEAT**(structured_log): write timestamps in UTC by default.
+
+#### `structured_log_dio` - `v0.1.0-dev.3`
+
+ - **DOCS**(structured_log_dio): describe body redaction and its breaking default.
+ - **BREAKING** **FIX**(structured_log_dio): redact body fields before a body is written.
+
+#### `structured_log_http_client` - `v0.1.0-dev.3`
+
+ - **DOCS**(structured_log_http_client): describe body redaction and its breaking default.
+ - **BREAKING** **FIX**(structured_log_http_client): redact body fields before a body is written.
+
+#### `structured_log_bloc` - `v0.1.0-dev.3`
+
+ - **DOCS**: ask for structured_log ^0.3.0 in the bloc, go_router and cherrypick install snippets.
+ - **DOCS**(structured_log_bloc): show a describe that returns a map redactKeys can reach.
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.3`
+
+ - **DOCS**: ask for structured_log ^0.3.0 in the bloc, go_router and cherrypick install snippets.
+
+#### `structured_log_flutter` - `v0.1.2`
+
+ - **FEAT**(structured_log_flutter): notify LogBuffer listeners once per burst, and add debugPrintOutput.
+ - **DOCS**(structured_log_flutter): describe one notification per burst and debugPrintOutput.
+ - **DOCS**(structured_log_flutter): point LogBuffer at the file outputs in io.dart.
+
+#### `structured_log_go_router` - `v0.1.0-dev.3`
+
+ - **DOCS**: ask for structured_log ^0.3.0 in the bloc, go_router and cherrypick install snippets.
+
+#### `structured_log_remote_sync` - `v0.2.0+3`
+
+ - **FIX**(structured_log_remote_sync): encode each entry when it is logged, so one value cannot cost the batch.
+ - **DOCS**(structured_log_remote_sync): say entries are encoded when they are logged.
+
+
 ## 2026-10-02
 
 ### Changes

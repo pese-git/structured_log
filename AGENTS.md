@@ -43,9 +43,16 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
+  Главная библиотека не импортирует `dart:io` и собирается под web; файловые выходы — в отдельной
+  `package:structured_log/io.dart`. Это и ещё две ломающие правки (UTC в `timestamp` по умолчанию,
+  ленивая конфигурация логгеров `getLogger()`) вышли как `0.3.0` (02.10.2026) — заявка
+  [openspec/changes/archive/2026-10-02-harden-structured-log-core/](openspec/changes/archive/2026-10-02-harden-structured-log-core/),
+  основные спеки — [openspec/specs/structured-log-core/](openspec/specs/structured-log-core/spec.md) и
+  [openspec/specs/remote-sync-entry-encoding/](openspec/specs/remote-sync-entry-encoding/spec.md); зависимые
+  пакеты перешли на `structured_log: ^0.3.0` тем же релизом.
 - [emb/structured_log_flutter/](emb/structured_log_flutter/) — headless-ядро для in-app просмотра логов
-  во Flutter (`LogBuffer`, `LogViewerController`, `logLevelColor()`); не зависит ни от какой
-  конкретной дизайн-системы. Опубликован на pub.dev.
+  во Flutter (`LogBuffer`, `LogViewerController`, `logLevelColor()`, однострочный выход
+  `debugPrintOutput`); не зависит ни от какой конкретной дизайн-системы. Опубликован на pub.dev.
 - [emb/structured_log_material/](emb/structured_log_material/) — Material 3 виджет просмотрщика логов
   поверх `structured_log_flutter`. Разрешена публикация на pub.dev (`publish_to: none` снят).
 - [emb/structured_log_fluent/](emb/structured_log_fluent/) — Fluent UI (WinUI-style) виджет просмотрщика
@@ -79,7 +86,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_dio/](emb/structured_log_dio/) — `StructuredLogDioInterceptor`: перехватчик `dio`,
   пишущий каждый запрос (`http_request`) и его итог (`http_response`/`http_error`) записями
   `structured_log` с `category: 'http'`, уровень — по статусу ответа. Заголовки и тела по умолчанию
-  не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются. Чистый Dart,
+  не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются, а включённые
+  тела — по именам полей (`redactedBodyFields`, harden-structured-log-core). Чистый Dart,
   опубликован как пре-релиз (`0.1.0-dev.1`),
   [openspec/changes/archive/2026-10-01-add-structured-log-dio/](openspec/changes/archive/2026-10-01-add-structured-log-dio/), основная спека — [openspec/specs/dio-log-interceptor/](openspec/specs/dio-log-interceptor/spec.md).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — `StructuredLogHttpClient`: то же для
@@ -166,7 +174,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`.
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`;
+  `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
+  записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
@@ -224,17 +234,29 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log/lib/src/sink.dart](emb/structured_log/lib/src/sink.dart) — `LogSink`, мультивывод с независимой фильтрацией по уровню/категории и runtime-переключением.
 - [emb/structured_log/lib/src/correlation.dart](emb/structured_log/lib/src/correlation.dart) — `LogCorrelation`, типизированные id (session/request/connection/tool-call/message/operation) для `BoundLogger.withCorrelation()`.
 - [emb/structured_log/lib/src/processors.dart](emb/structured_log/lib/src/processors.dart) — процессоры, трансформирующие запись лога.
-- [emb/structured_log/lib/src/formatters.dart](emb/structured_log/lib/src/formatters.dart) — функции вывода (консоль, файл, ротация файлов) — синхронные.
-- [emb/structured_log/lib/src/async_file_output.dart](emb/structured_log/lib/src/async_file_output.dart) — `AsyncFileOutput`/`AsyncRotatingFileOutput`, неблокирующие аналоги файлового вывода с сериализованной очередью записи.
+- [emb/structured_log/lib/src/formatters.dart](emb/structured_log/lib/src/formatters.dart) — консольные выходы (`defaultOutput`, `coloredConsoleOutput`, `jsonLineOutput`, `logfmtOutput`) и `formatLogfmt`; без `dart:io` — файловых выходов здесь больше нет.
+- [emb/structured_log/lib/io.dart](emb/structured_log/lib/io.dart) — вторая публичная библиотека: файловые выходы, которым нужен `dart:io`. Импортируется **вместе** с `structured_log.dart`, а не вместо неё. Условный экспорт отвергнут: API главной библиотеки различался бы по платформе, и «нет такого символа» всплывало бы только при сборке под web (decision 12 `harden-structured-log-core`). В репозитории её импортирует только сервер (`logging/setup.dart`).
+- [emb/structured_log/lib/src/file_output.dart](emb/structured_log/lib/src/file_output.dart) — `fileOutput`/`rotatingFileOutput`, синхронные. Ротируемый выход держит размер файла в памяти — читает `length` один раз при создании и прибавляет записанные байты, — а не спрашивает файловую систему на каждой записи; внешнюю обрезку файла он не замечает (цена — одна лишняя или запоздалая ротация, не потеря данных).
+- [emb/structured_log/lib/src/async_file_output.dart](emb/structured_log/lib/src/async_file_output.dart) — `AsyncFileOutput`/`AsyncRotatingFileOutput`, неблокирующие аналоги файлового вывода с сериализованной очередью записи; экспортируются тоже только из `io.dart`.
+- [emb/structured_log/lib/src/encoding.dart](emb/structured_log/lib/src/encoding.dart) — `encodeLogEntry`, единственный кодировщик записи для всех встроенных выходов, `structured_log_remote_sync` и `debugPrintOutput`: `DateTime` → ISO-8601 UTC, enum → `name`, `Duration` → микросекунды, прочее → `toString()` (бросивший — `'<Type>'`); цикл → заглушка с `encoding_failed`. Значение, которое не принял бы `jsonEncode`, стоит одного поля, а не записи. Нормализуется только при кодировании — процессоры и `LogBuffer` видят исходные объекты.
+- [emb/structured_log/lib/src/report.dart](emb/structured_log/lib/src/report.dart) — `reportInternalError`: условный импорт (`report_io.dart` → `stderr`, `report_print.dart` → `print`), потому что на web `stderr.writeln` сам бросает, и аварийная ветка роняла бы вызов, который защищала. Репортёр не бросает никогда.
+- [emb/structured_log/lib/src/timestamp.dart](emb/structured_log/lib/src/timestamp.dart) — `TimestampMode`: `utc` (по умолчанию, `Z`) или `localWithOffset` (`+03:00`). Прежнего локального формата без смещения нет вовсе: сервер читал его как своё локальное время и смещал записи на разницу поясов.
+- **Вызов лога не бросает никогда.** Бросивший процессор → sink'и получают заглушку (`event`/`level`/`timestamp`/`logger`/`category` + `processor_failed: <тип>`), процессоры после него не выполняются, исходная запись **не** доставляется: бросить мог как раз маскирующий процессор, и доставка «как есть» была бы утечкой (fail-closed, decision 1). Текст исключения в заглушку не пишется — он может цитировать значение. Сбой `accepts`/`output` одного sink'а сообщается и не мешает остальным.
+- **`getLogger()` читает `StructlogConfiguration.current` на каждой записи** (sink'и, процессоры, `initialContext`), так что логгер в `static final`, созданный до `configure()`, ему следует. `BoundLogger(config)` с явной конфигурацией по-прежнему её фиксирует (путь для DI и изолированных тестов) и `initialContext` не склеивает. Совет «взять логгер заново после `configure`» больше не нужен.
+- **Ранний выход по уровню**: `tryLog` сначала спрашивает `isEnabled(level)` и без включённого sink'а с подходящим `minLevel` не склеивает контекст и не гоняет процессоры. Категорию так проверить нельзя — она известна только после склейки. Следствие: процессор с побочным эффектом (счётчик) не видит записей, которые никто не примет.
+- `jsonRenderer`/`logfmtRenderer` (печатали изнутри цепочки процессоров), `addLogLevel` (ничего не делал) и `addTimestamp` (дублировал `tryLog`) — `@Deprecated`; замена рендерерам — выходы `jsonLineOutput`/`logfmtOutput`.
 - [emb/structured_log/test/structlog_test.dart](emb/structured_log/test/structlog_test.dart) — модульные тесты по компонентам.
 - [emb/structured_log/test/integration_test.dart](emb/structured_log/test/integration_test.dart) — интеграционные тесты, проверяющие пакет как целую систему на реальных файлах.
+- [emb/structured_log/test/io_test.dart](emb/structured_log/test/io_test.dart) — страж раскладки: обходит импорты от `lib/structured_log.dart` (условные — по ветке по умолчанию, той, что берёт web) и падает, если достижим `dart:io`; заодно проверяет, что обход дошёл до `formatters.dart`, иначе страж молча ничего бы не сторожил.
+- [emb/structured_log/test/reliability_test.dart](emb/structured_log/test/reliability_test.dart) / [emb/structured_log/test/api_test.dart](emb/structured_log/test/api_test.dart) — изоляция и кодирование / новый API (`isEnabled`, `error`/`stackTrace`, ленивая конфигурация, logfmt); `api_test` гасит `deprecated_member_use_from_same_package` — устаревшие рендереры проверяются, пока не удалены.
 - [emb/structured_log/example/main.dart](emb/structured_log/example/main.dart) — рабочий пример использования.
 - [emb/structured_log/doc/ARCHITECTURE.md](emb/structured_log/doc/ARCHITECTURE.md) / [emb/structured_log/doc/ARCHITECTURE.ru.md](emb/structured_log/doc/ARCHITECTURE.ru.md) — внутренний дизайн для контрибьюторов с mermaid-диаграммами (жизненный цикл лог-вызова, мульти-синк роутинг).
 
 Внутри [emb/structured_log_flutter/](emb/structured_log_flutter/):
 
 - [emb/structured_log_flutter/lib/structured_log_flutter.dart](emb/structured_log_flutter/lib/structured_log_flutter.dart) — barrel-файл экспорта.
-- [emb/structured_log_flutter/lib/src/log_buffer.dart](emb/structured_log_flutter/lib/src/log_buffer.dart) — `LogBuffer`: кольцевой буфер, `capture()` подключается как `OutputFunction`/`LogSink.output`, отдаёт записи как `ValueListenable`.
+- [emb/structured_log_flutter/lib/src/log_buffer.dart](emb/structured_log_flutter/lib/src/log_buffer.dart) — `LogBuffer`: кольцевой буфер (`ListQueue`), `capture()` подключается как `OutputFunction`/`LogSink.output`, отдаёт записи как `ValueListenable`. **Уведомление — одно на пачку, а значение всегда актуально** (decision 14 `harden-structured-log-core`): `capture` сбрасывает снимок, `entries.value` собирает `List.unmodifiable` при первом чтении после изменения (повторное чтение — тот же список), а слушателей зовёт одна `scheduleMicrotask` на пачку. Откладывать само значение пробовали и отказались: отстающее от `capture` значение ломало бы синхронное чтение — `LogViewerController.paused` замораживает именно `entries.value`. Микрозадача, а не кадр `SchedulerBinding`: пакет работает и тестируется без живого `WidgetsBinding`. `clear()` уведомляет сразу и гасит ожидающее уведомление — это действие пользователя.
+- [emb/structured_log_flutter/lib/src/debug_print_output.dart](emb/structured_log_flutter/lib/src/debug_print_output.dart) — `debugPrintOutput`: одна строка через `debugPrint`, без ANSI — `HH:mm:ss.SSS LEVEL event key=value…` (местное время из `timestamp`), значения экранирует `formatLogfmt` ядра. `debugPrint` выбран ради троттлинга (Android не теряет строки при всплеске); длинную строку он не переносит, а logcat режет её после ~4 КБ. Выход по умолчанию ядра не меняется — ядро не знает про Flutter.
 - [emb/structured_log_flutter/lib/src/log_viewer_controller.dart](emb/structured_log_flutter/lib/src/log_viewer_controller.dart) — `LogViewerController` (`ChangeNotifier`): фильтры по уровню/категории/поиску, пауза, `clear()`; плюс публичная `logLevelOf()`.
 - [emb/structured_log_flutter/lib/src/log_level_colors.dart](emb/structured_log_flutter/lib/src/log_level_colors.dart) — `logLevelColor()`: единственный источник цветов `LogLevel`, общий для всех скинов (Material/Fluent/Cupertino); живёт здесь, а не в конкретном скине, т.к. `Color`/`Brightness` не привязаны ни к одной дизайн-системе — извлечено из `structured_log_material`, когда появился третий скин (`structured_log_cupertino`), см. `design.md` соответствующей change.
 - [emb/structured_log_flutter/test/](emb/structured_log_flutter/test/) — тесты (`flutter test`) на `LogBuffer`, `LogViewerController` и `logLevelColor()`.
@@ -284,6 +306,16 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 
 - [emb/structured_log_remote_sync/lib/structured_log_remote_sync.dart](emb/structured_log_remote_sync/lib/structured_log_remote_sync.dart) — barrel-файл экспорта.
 - [emb/structured_log_remote_sync/lib/src/http_output.dart](emb/structured_log_remote_sync/lib/src/http_output.dart) — `RemoteSyncLogOutput`: батчинг по размеру/таймауту, retry с backoff на сетевых ошибках/таймаутах/5xx (на 4xx — нет, кроме `408`/`429`), ограниченный буфер с вытеснением самых старых, публичный `flushed`. **Все неотправленные записи лежат в одной очереди, из которой насос забирает по `batchSize`** — первая версия выстраивала батчи цепочкой futures, и лимит буфера тогда не ограничивал память (см. 9.4 в `tasks.md`).
+- **Запись кодируется `encodeLogEntry` ядра в момент вызова sink'а, в очереди лежат JSON-строки**, батч —
+  `[` + `join(',')` + `]`. Раньше в очереди лежали карты, а `jsonEncode(entries)` при отправке на одном
+  `DateTime`/исключении в контексте терял **весь** батч (до `batchSize`); теперь нечитаемая запись
+  отбрасывается одна и сообщается репортёру. Попутно запись уходит такой, какой была при логировании
+  (позднее изменение карты не просачивается), а строка в памяти примерно впятеро легче карты
+  (~4–5 МБ против 25–35 МБ RSS на 10 000 типичных записей).
+- **`BatchSender` сохранил сигнатуру**, хотя буфер теперь из строк (decision 16 `harden-structured-log-core`):
+  тип публичный и реэкспортируется прослойкой `structured_log_http`. Внутренний шов принимает строки,
+  настоящий транспорт шлёт их как есть, а подставной `BatchSender` получает их **декодированными** обратно
+  в карты — то, что прочитал бы сервер. Цена — `jsonDecode` на запись, и только в тестах.
 - Транспорт — `dart:io`'s `HttpClient`, зависимость только `structured_log` (без `dio`/`http`). Шов `BatchSender` позволяет тестировать батчинг/retry/вытеснение без сокета; отдельная группа тестов работает против настоящего `HttpServer`.
 - `README.md`/`README.ru.md` — билингвальная пара, как у остальных пакетов.
 - `CHANGELOG.md` перенесён из `structured_log_http` без правок: история кода общая, а пишет файл только
@@ -344,6 +376,15 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `authorization`/`proxy-authorization`/`cookie`/`set-cookie`/`x-api-key` → `REDACTED`; query-параметры
   с токенами и user info в URL маскируются всегда. Значение — `REDACTED`, а не `<redacted>`: query
   перекодируется, и `%3Credacted%3E` в логе читается хуже. Обе ветки маскирования проверены мутацией.
+- **Включённое тело маскируется по именам полей до сериализации** (decision 11 `harden-structured-log-core`):
+  раньше `describeHttpBody` превращал `Map` в строку, и `redactKeys` ядра видел строку, а не поле
+  `password`. Теперь `Map`/`List` проходят через `redactKeys` с набором `redactedBodyFields` (по умолчанию
+  `defaultRedactedBodyFields` = `defaultSensitiveKeys` ядра, без учёта регистра, на любой глубине);
+  строка с `Content-Type` JSON (`application/json`, `*+json`) или `x-www-form-urlencoded` разбирается,
+  маскируется и собирается обратно, не разобралась — `<unparseable body>`, а не исходная строка; строка
+  другого типа — `<N chars>`, пока не включён `logUnrecognizedBodies` (по умолчанию `false`).
+  Пользовательский `describeBody` получает **уже замаскированное** тело. Ломающее для тех, кто включил
+  тела, — но в сторону меньшей записи, а не утечки.
 - Для `badResponse` поле `error` не пишется: сообщение `dio` — абзац шаблонного текста вокруг того же
   статуса.
 - Перехватчик стоит в пути запроса, поэтому всё, что он делает, обёрнуто так, что бросивший фильтр
@@ -362,14 +403,21 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   внутренний клиент бросил, тело оборвалось или запрос прерван (`RequestAbortedException` → уровень
   `cancel`; поэтому `http: ^1.5.0`).
 - **Тело ответа не буферизуется.** При `logResponseBody` ответ отдаётся новым `StreamedResponse` поверх
-  `StreamController`, который пропускает куски читателю и копит начало (до `4 × 1000` байт — UTF-8
-  до четырёх байт на символ); запись `http_response` пишется на конце потока, на ошибке или когда
+  `StreamController`, который пропускает куски читателю без изменений и копит начало (для JSON и формы —
+  до 64 КиБ, для прочего текста — `4 × 1000` байт: UTF-8 до четырёх байт на символ); запись `http_response` пишется на конце потока, на ошибке или когда
   читатель отписался. Следствие: незачитанный ответ (открытый SSE) пишется только при отписке, а подтип
   клиента (`IOStreamedResponse.detachSocket`) теряется. `BaseResponseWithUrl.url` сохраняется своим
   приватным классом — `StreamedResponseV2` из `http` не экспортируется. **`MockClient` сам перепаковывает
   ответ и теряет `url`**, поэтому тест на `url` идёт через свой `BaseClient`.
 - **Тело описывается внутри защищённого построителя записи**, а не до него: в первой редакции бросающий
   `describeBody` при `logResponseBody` терял всю запись `http_response`, а не только тело — поймано тестом.
+- **Маскирование тел — как у `structured_log_dio`, с двумя отличиями** (decision 17 `harden-structured-log-core`).
+  Заглушка текста неизвестного типа — `<N bytes>`, а не `<N chars>`: тело здесь байты, а у ответа, пока
+  его читает читатель, известно только их число. И тело JSON/формы захватывается до 64 КиБ, а не прежние
+  4000 байт: разобрать и замаскировать можно только целое тело, а 4000 байт резали ответ токен-эндпоинта
+  посередине, и он стал бы `<unparseable body>`. Длиннее 64 КиБ — `<unparseable body>`. Цена — до 64 КиБ
+  памяти на ответ в полёте, только при `logResponseBody`. Тесты на обрезку и поток событий (`text/plain`,
+  `text/event-stream`) явно включают `logUnrecognizedBodies` — без него такие тела пишутся размером.
 - Мутацией проверены пять мест: маскирование query и заголовков, уровень `cancel` для прерывания, запись
   при досрочной отписке, захват тела.
 - Тесты — на `MockClient` из `package:http/testing.dart`; `example/main.dart` — на настоящем `IOClient`
@@ -978,7 +1026,7 @@ dart run example/main.dart
 
 ## Соглашения
 
-- Публичный API `structured_log` экспортируется только через [emb/structured_log/lib/structured_log.dart](emb/structured_log/lib/structured_log.dart); новые публичные символы добавлять туда же.
+- Публичный API `structured_log` экспортируется только через [emb/structured_log/lib/structured_log.dart](emb/structured_log/lib/structured_log.dart); новые публичные символы добавлять туда же. Исключение — то, что требует `dart:io`: оно идёт в [emb/structured_log/lib/io.dart](emb/structured_log/lib/io.dart), а главная библиотека остаётся без `dart:io` (стережёт `test/io_test.dart`).
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
@@ -1049,7 +1097,11 @@ dart run example/main.dart
   **двух** пакетов (сервера и admin-клиента) и `flutter test`. Отдельной джобой
   именно поэтому: это единственный прогон, которому одновременно нужны
   сгенерированный код двух пакетов и Flutter SDK, и он поднимает `bin/server.dart`
-  настоящим процессом. Покрытием не инструментируется — сервер работает
+  настоящим процессом. Перед кодогенерацией сервера джоба пишет ему
+  `pubspec_overrides.yaml` на `emb/structured_log`: процесс сервера разрешает
+  **свои** зависимости, и `dependency_overrides` из `packages/e2e/pubspec.yaml` до
+  него не доходят — без этого он собирался против опубликованного ядра, и перенос
+  файловых выходов в `io.dart` уронил всю джобу. Покрытием не инструментируется — сервер работает
   отдельным процессом, чьё покрытие сборщик не видит (см. `site`-абзац ниже
   и `tool/coverage_floors.json`).
 - `remote-sync` (до переименования пакета — `http-sender`) — для `emb/structured_log_remote_sync/`: `dart pub get`,
@@ -1107,7 +1159,11 @@ dart run example/main.dart
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
   (+`example/`), `structured_log_go_router`, `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному
   матричному прогону на пакет: `flutter pub get`, `dart format --set-exit-if-changed`,
-  `flutter analyze`, `flutter test`. Для `structured_log_admin_client` между `pub get` и
+  `flutter analyze`, `flutter test`. Перед `pub get` джоба пишет `pubspec_overrides.yaml` на рабочие копии
+  `emb/structured_log` и `emb/structured_log_flutter` — каждому пакету матрицы, который от них зависит, путь
+  отсчитывается от самого пакета (`realpath --relative-to`). Раньше матрица этого не делала, и до
+  `harden-structured-log-core` разницы не было; но `structured_log_flutter`, опирающийся на `formatLogfmt` из ещё
+  не выпущенного ядра, против опубликованного `0.2.2+1` не компилируется вовсе. Для `structured_log_admin_client` между `pub get` и
   `format` вставлен условный (`if: matrix.package == ...`) шаг `build_runner` — кодогенерация нужна
   только ему.
   Только `ubuntu-latest` — этим пакетам не нужна ОС-чувствительная проверка ротации файлов.

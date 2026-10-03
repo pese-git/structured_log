@@ -11,6 +11,7 @@ export 'src/http_client.dart'
         HttpLogLevels,
         StructuredLogHttpClient,
         defaultHttpBodyMaxLength,
+        defaultRedactedBodyFields,
         defaultRedactedHeaders,
         defaultRedactedQueryParameters,
         describeHttpBody,

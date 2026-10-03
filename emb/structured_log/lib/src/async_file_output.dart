@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'encoding.dart';
 import 'logger.dart';
+import 'report.dart';
 
 /// Serializes writes through a chained [Future] so overlapping async calls
 /// never race on the same destination, and isolates each write's failure so
@@ -26,7 +28,7 @@ abstract class _SerializedAsyncOutput {
   void call(Map<String, dynamic> entry, LogLevel level) {
     _queue = _queue.then((_) => _write(entry, level)).catchError(
       (Object error, StackTrace stackTrace) {
-        stderr.writeln(
+        reportInternalError(
           'structured_log: $_diagnosticLabel threw: $error\n$stackTrace',
         );
       },
@@ -73,7 +75,7 @@ class AsyncFileOutput extends _SerializedAsyncOutput {
   @override
   Future<void> _write(Map<String, dynamic> entry, LogLevel level) {
     return _file.writeAsString(
-      '${jsonEncode(entry)}\n',
+      '${encodeLogEntry(entry)}\n',
       mode: FileMode.append,
     );
   }
@@ -85,7 +87,8 @@ class AsyncFileOutput extends _SerializedAsyncOutput {
 /// through the same write queue, so they never race with themselves.
 ///
 /// The non-blocking counterpart of [rotatingFileOutput]; see
-/// [AsyncFileOutput] for why and how to use [flushed].
+/// [AsyncFileOutput] for why and how to use [flushed]. Like it, the size is
+/// read once, at construction, and counted in memory from then on.
 ///
 /// ```dart
 /// final asyncRotating = AsyncRotatingFileOutput(
@@ -107,15 +110,20 @@ class AsyncRotatingFileOutput extends _SerializedAsyncOutput {
   final int maxBackups;
   final File _file;
 
+  /// The file's size as written so far: read once here, then counted.
+  int _size;
+
   AsyncRotatingFileOutput(
     this.filePath, {
     this.maxSizeBytes = 10 * 1024 * 1024, // 10MB default
     this.maxBackups = 5,
-  }) : _file = File(filePath) {
+  })  : _file = File(filePath),
+        _size = 0 {
     final dir = _file.parent;
     if (!dir.existsSync()) {
       dir.createSync(recursive: true);
     }
+    _size = _file.existsSync() ? _file.lengthSync() : 0;
   }
 
   @override
@@ -139,12 +147,12 @@ class AsyncRotatingFileOutput extends _SerializedAsyncOutput {
 
   @override
   Future<void> _write(Map<String, dynamic> entry, LogLevel level) async {
-    if (await _file.exists() && await _file.length() >= maxSizeBytes) {
+    if (_size >= maxSizeBytes) {
       await _rotate();
+      _size = 0;
     }
-    await _file.writeAsString(
-      '${jsonEncode(entry)}\n',
-      mode: FileMode.append,
-    );
+    final bytes = utf8.encode('${encodeLogEntry(entry)}\n');
+    await _file.writeAsBytes(bytes, mode: FileMode.append);
+    _size += bytes.length;
   }
 }

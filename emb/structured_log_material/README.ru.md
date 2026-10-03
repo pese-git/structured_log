@@ -1,68 +1,108 @@
 # structured_log_material
 
+[![CI](https://github.com/pese-git/structured_log/actions/workflows/ci.yml/badge.svg)](https://github.com/pese-git/structured_log/actions/workflows/ci.yml)
+
 *Read in [English](README.md).*
 
-Готовый к использованию in-app просмотрщик логов на Material 3 для
-[`structured_log`](../structured_log), построенный поверх `LogViewerController`
-из [`structured_log_flutter`](../structured_log_flutter): живой список (новые
-сверху) с поиском, фильтрами по категории и уровню, bottom sheet с полным
-контекстом записи и копированием, empty-состояние, различающее «логов ещё
-нет» и «нет записей по текущему фильтру». Доступен и как полный экран
-(`MaterialLogViewerPage`), и как обычный встраиваемый виджет
-(`MaterialLogViewer`) — чтобы вставить его в уже существующую хрому
-страницы: вкладку, боковую панель, диалог и т.п.
+**Готовый просмотрщик логов на Material 3 для Flutter-приложения: откройте
+экран или боковую панель — и увидите, что приложение только что записало в
+лог, с поиском, фильтрами и полным контекстом каждой записи.**
 
-> **Статус:** опубликован на [pub.dev](https://pub.dev/packages/structured_log_material)
-> (`0.1.0`). Эталон дизайна: canvas
-> [Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
-> (раздел Material — [`structured_log_fluent`](../structured_log_fluent) и
-> [`structured_log_cupertino`](../structured_log_cupertino) тоже
-> реализованы, из разделов Fluent/Cupertino того же canvas).
+## Зачем
+
+Во время проверки на телефоне что-то идёт не так, а объяснение лежит в
+логах, которые печатаются в консоль, — а её оттуда не видно. Этот пакет
+выводит логи на экран прямо в приложении: все записи
+[`structured_log`](https://pub.dev/packages/structured_log), новые сверху, с
+поиском и фильтрами по уровню и категории; тап по записи показывает её
+полный контекст, который можно скопировать в отчёт об ошибке. Подключение —
+один дополнительный синк и один виджет.
+
+Этот скин — для приложений на Material (`MaterialApp`): под Android или
+кроссплатформенных. Для десктопного приложения в стиле Windows на
+`fluent_ui` берите
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent), для
+приложения в стиле iOS —
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino).
+Если ни один из трёх не подходит к вашей дизайн-системе, соберите свой на
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter):
+скины построены на нём, поэтому фильтры и пауза везде ведут себя одинаково.
 
 ## Возможности
 
-- **`MaterialLogViewer`** — просмотрщик логов как обычный встраиваемый
-  виджет: панель управления (поле поиска, пауза/возобновление, очистка)
-  над чипами фильтров по категории и уровню и живым списком (новые
-  сверху) — без собственной хромы страницы, поэтому его можно вставить в
-  любую раскладку
-- **`MaterialLogViewerPage`** — тонкая обёртка `Scaffold`/`AppBar` вокруг
-  `MaterialLogViewer` для полноэкранного сценария: добавляет заголовок
-  («Logs») и, при пуше через `Navigator`, кнопку «назад» (штатную для
-  `AppBar`)
-- **Адаптивность** — способ показа контекста выбранной записи зависит
-  от ширины, которую получил *сам виджет* (а не окно): ниже
-  брейкпоинта master-detail (мобильный сценарий по умолчанию) тап по
-  строке открывает `LogEntryDetailSheet` как модальный bottom sheet; на
-  и выше него список и немодальная `LogEntryDetailPanel` показываются
-  рядом — по рекомендациям Material для раскладки list-detail на планшете и десктопе
-- **`LogCategoryChips`** — ряд чипов фильтра по `category`, варианты
-  которого берутся из уникальных значений `category`, реально
-  присутствующих в буфере; скрывается автоматически, если их меньше двух
-- **`LogEntryTile`** — одна строка: цветной индикатор уровня, `event`,
-  отформатированное время и тег категории, если он задан; подсвечивается,
-  когда её запись показана в соседней `LogEntryDetailPanel`
-- **`LogEntryDetailSheet`** — тап по строке (на узких экранах) показывает
-  весь контекст записи как пары ключ-значение в модальном bottom sheet, с
-  действием «Copy context»
-- **`LogEntryDetailPanel`** — то же содержимое (контекст и копирование), что и
-  `LogEntryDetailSheet`, но как немодальная панель для широкоэкранного
-  master-detail split — без ручки для свайпа и кнопки «Close»
-- **`LogViewerEmptyState`** — «No logs yet» (ничего ещё не захвачено) либо
-  «No logs match the current filter» (с действием «Clear filters»)
-- **Следует теме** — цвета и типографика берутся из `Theme.of(context)`
-  (поддержаны светлая и тёмная); фиксирована только палитра индикаторов уровня
-  (`logLevelColor`); она задана в одном месте, чтобы не расходиться между виджетами
+### Готов к встраиванию
+
+- **Экран или панель** — `MaterialLogViewerPage` — готовый экран с
+  `AppBar` (и кнопкой «назад», если его открыли через `Navigator`);
+  `MaterialLogViewer` — тот же просмотрщик без хромы страницы, для вкладки,
+  боковой панели или диалога.
+- **Подстраивается под отведённое место** — ориентируется на собственную
+  ширину, а не на ширину окна: если она меньше 700 логических пикселей,
+  тап открывает запись в модальном bottom sheet, а начиная с 700 список и
+  панель деталей стоят рядом, и выбрана самая новая запись.
+
+### Поиск нужной записи
+
+- **Живой список, новые сверху** — записи появляются по мере того, как
+  приложение их пишет.
+- **Поиск** — по именам событий и всем значениям контекста.
+- **Фильтр по уровню** — чипы All, Debug+, Info+, Warning+ и Error+.
+- **Фильтр по категории** — чипы из категорий, которые реально есть в
+  буфере; пока их меньше двух, ряд скрыт. Записи адаптеров вроде
+  [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) (`http`)
+  или [`structured_log_bloc`](https://pub.dev/packages/structured_log_bloc)
+  (`bloc`) сами собой становятся фильтром.
+- **Пауза и очистка** — заморозьте список, пока читаете; очистите его
+  перед новым воспроизведением.
+
+### Чтение записи
+
+- **Полный контекст** — сверху уровень, время и событие, ниже все
+  остальные поля парами ключ-значение.
+- **Копирование контекста** — один тап кладёт поля в буфер обмена строками
+  `key: value`.
+- **Понятные пустые состояния** — «No logs yet», если ничего не захвачено,
+  и «No logs match the current filter» с действием «Clear filters», если
+  всё скрыли фильтры.
+
+### Выглядит как ваше приложение
+
+- **Следует теме** — цвета и типографика берутся из `Theme.of(context)`,
+  светлая и тёмная темы поддержаны; фиксированы только цвета уровней, и они
+  одинаковы во всех скинах.
+- **Детали для своей раскладки** — `LogEntryTile`, `LogCategoryChips`,
+  `LogEntryDetailSheet`, `LogEntryDetailPanel` и `LogViewerEmptyState`
+  публичны.
+
+## Место в проекте
+
+[`structured_log`](https://pub.dev/packages/structured_log) пишет записи;
+[`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+держит последние из них в памяти и отвечает за фильтры и паузу; этот пакет —
+Material-оболочка поверх, рядом с
+[`structured_log_fluent`](https://pub.dev/packages/structured_log_fluent) и
+[`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino).
+Он работает целиком внутри приложения, без сервера; если вы вдобавок
+отправляете логи на self-hosted сервер через
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+просмотрщик по-прежнему показывает их на месте. Подробнее — в документации на
+[structured-log.openidealab.com](https://structured-log.openidealab.com/ru/)
+и в [руководстве по встраиванию](https://structured-log.openidealab.com/ru/guides/embedding-guide/).
+Эталон дизайна — canvas
+[Log Viewer UI Concepts](https://claude.ai/code/artifact/400091b3-da51-4f73-a1fb-2ce779515de0)
+(раздел Material).
 
 ## Установка
 
 ```yaml
 dependencies:
-  structured_log_material: ^0.1.0
+  structured_log: ^0.3.0
+  structured_log_flutter: ^0.1.2
+  structured_log_material: ^0.1.1
 ```
 
-Внутри этого monorepo `melos bootstrap` подставляет вместо обеих
-path-зависимости:
+Внутри этого monorepo `melos bootstrap` подставляет вместо обоих
+внутренних пакетов path-зависимости:
 
 ```yaml
 dependencies:
@@ -107,7 +147,7 @@ void main() {
 }
 ```
 
-Полноценное запускаемое приложение (включая web) — в [`example/`](example/),
+Полноценное запускаемое приложение (включая web) — в [`example/`](https://github.com/pese-git/structured_log/tree/master/emb/structured_log_material/example),
 запуск через `flutter run -d chrome` из этой директории.
 
 Чтобы встроить просмотрщик в уже существующую хрому страницы, а не

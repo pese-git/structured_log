@@ -4,43 +4,92 @@
 
 *Read in [English](README.md).*
 
-Пишет в лог каждый запрос клиента [`dio`](https://pub.dev/packages/dio) и
-то, чем он закончился, — ответ, ошибку, таймаут, отмену — записями
-[`structured_log`](https://pub.dev/packages/structured_log).
+**Каждый запрос клиента [`dio`](https://pub.dev/packages/dio) и то, чем он
+закончился, — записью [`structured_log`](https://pub.dev/packages/structured_log),
+в которую не попадают ни токены, ни пароли.**
 
-`StructuredLogDioInterceptor` — обычный `Interceptor` из `dio`: достаточно
-добавить его в `dio.interceptors`, и каждый вызов пишет в уже настроенные
-выводы — консоль, файл, встроенный просмотрщик логов
-(`structured_log_flutter`) или `structured_log_server` через
-`structured_log_remote_sync`.
+## Зачем
+
+В баг-репорте написано «не загрузилось». Какой это был вызов, что ответил
+сервер, сколько всё заняло? На это отвечает лог запросов — только наивный
+лог заодно записывает access-токен пользователя, cookie сессии и пароль и
+отправляет их туда же, куда уходят логи.
+
+`StructuredLogDioInterceptor` — обычный `Interceptor` из `dio`. Добавьте его
+в `dio.interceptors`, и каждый вызов превратится в две записи — запрос и его
+итог, связанные общим id, со статусом и длительностью, на уровне, который
+зависит от статуса. Заголовки и тела не пишутся, пока вы их не включите, а
+когда включите, учётные данные маскируются ещё до записи.
 
 ## Возможности
 
-- **Подключение одной строкой** — `dio.interceptors.add(StructuredLogDioInterceptor())`
+### Что видно в логе
+
 - **Запрос и итог связаны** — `http_request_id` связывает две записи одного
-  вызова; итог несёт `status_code` и `duration_ms`
+  вызова; итог несёт `status_code` и `duration_ms`.
+- **Любой исход вызова** — ответ, отвергнутый статус, таймаут, отказ в
+  соединении, отмена: у каждого есть запись итога, а если это не обычный
+  ответ — с `error_type` от `dio`.
 - **Уровень по статусу** — 2xx/3xx на `debug`, 4xx на `warning`, 5xx и сбои
   без ответа на `error`, отмена на `debug`; каждый настраивается или
-  выключается
-- **Секреты по умолчанию не попадают в лог** — заголовки и тела не пишутся,
-  пока их не включить; `Authorization`, cookie и заголовки с API-ключами
-  маскируются и тогда; query-параметры, похожие на токены, и user info в
-  URL маскируются всегда
+  выключается. 404 — это `warning`, пропустил его `validateStatus` или нет.
 - **Своя категория** — каждая запись несёт `category: 'http'`, по которой
-  `LogSink` может маршрутизировать, а просмотрщик — фильтровать
+  `LogSink` может маршрутизировать, а просмотрщик — фильтровать.
+
+### Что в лог не попадает
+
+- **Заголовки и тела по умолчанию выключены** — пока их не включить,
+  пишутся только метод, URL, статус и время.
+- **Учётные данные маскируются и после включения** — `Authorization`,
+  cookie и заголовки с API-ключами заменяются на `REDACTED`, как и поля тела
+  с паролями и токенами на любой глубине — по тому же списку, что у самого
+  `structured_log`.
+- **URL очищается всегда** — query-параметры, похожие на токены, и user info
+  (`https://user:pass@host`) в лог не попадают.
+
+### Что не мешает работе
+
+- **Подключение одной строкой** — `dio.interceptors.add(StructuredLogDioInterceptor())`.
 - **Никогда не ломает вызов** — если функция описания или фильтр бросят
-  исключение, пропадёт запись, а не запрос
+  исключение, пропадёт запись, а не запрос: перехватчик всегда передаёт
+  вызов дальше.
+- **Следует за перенастройкой** — без явного логгера подхватывает более
+  поздний `StructlogConfiguration.configure`, так что `Dio`, созданный на
+  старте, пересоздавать не нужно.
+
+## Место в проекте
+
+`structured_log_dio` — одна из интеграций вокруг
+[`structured_log`](https://pub.dev/packages/structured_log): кроме ядра и
+`dio`, он ни от чего не зависит и пишет в уже настроенные выводы. Соседний
+[`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client)
+пишет те же записи — с теми же именами, полями, уровнями и маскированием —
+для `package:http`, так что в приложении с обоими клиентами лог получается
+единым. Сервер не нужен: записи уходят в консоль, в файл или во встроенный
+просмотрщик логов ([`structured_log_flutter`](https://pub.dev/packages/structured_log_flutter)
+со скином Material, Fluent или Cupertino), а если у вас развёрнут
+self-hosted `structured_log_server` — ещё и на него через
+[`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync),
+где команда найдёт их по статусу, URL или id запроса. Подробнее — на
+[structured-log.openidealab.com](https://structured-log.openidealab.com/ru/).
 
 ## Установка
 
-Опубликован на pub.dev как пре-релиз (`0.1.0-dev.1`):
+Опубликован на pub.dev как пре-релиз (`0.1.0-dev.3`):
 
 ```yaml
 dependencies:
   dio: ^5.4.0
-  structured_log: ^0.2.1
-  structured_log_dio: ^0.1.0-dev.1
+  structured_log: ^0.3.0
+  structured_log_dio: ^0.1.0-dev.3
 ```
+
+**Ломающее изменение в `0.1.0-dev.3`** (для тех, кто обновляется с
+`0.1.0-dev.2`): при включённых телах строковое тело, тип содержимого
+которого не JSON и не форма, теперь пишется не целиком, а только размером —
+`<N chars>`. Прежнее поведение возвращает `logUnrecognizedBodies: true`.
+Подробнее — в разделе
+[Как не пустить секреты в лог](#как-не-пустить-секреты-в-лог).
 
 ## Быстрый старт
 
@@ -103,17 +152,33 @@ DEBUG: http_response {"category":"http","http_request_id":1,"method":"GET","url"
   `client_secret` — маскируются всегда; набор меняется параметром
   `redactedQueryParameters`. User info в URL (`https://user:pass@host`)
   отбрасывается всегда.
-- **Включённые тела пишутся как есть** (JSON, обрезка до 1000 символов).
-  Форма входа или ответ с токеном попадут в лог дословно, поэтому либо
-  держите их выключенными для таких вызовов через `filter`, либо передайте
-  `describeBody`, который их скрывает, — возврат `null` убирает поле:
+- **Включённое тело маскируется до того, как попасть в лог.** Поля с именами
+  из `redactedBodyFields` заменяются на `REDACTED` на любой глубине и без
+  учёта регистра. По умолчанию это `defaultRedactedBodyFields` — тот же
+  список `defaultSensitiveKeys`, что у самого `structured_log` (`password`,
+  `token`, `access_token`, `client_secret`, `api_key`, `authorization` и их
+  варианты написания), так что тело и запись лога маскируются по одному
+  списку. Что именно маскируется, зависит от тела:
+  - словарь или список — маскируется как есть;
+  - строка с типом содержимого JSON (`application/json`, `*+json`) или формы
+    (`application/x-www-form-urlencoded`) разбирается, маскируется и
+    собирается обратно; если разобрать её не удалось, пишется
+    `<unparseable body>` — то, что не разобрано, не замаскировать;
+  - строка любого другого типа — только её длина, `<N chars>`: где в тексте
+    неизвестной структуры лежит секрет, знать неоткуда. Чтобы такие строки
+    писались как есть, передайте `logUnrecognizedBodies: true`.
+
+  Результат затем кодируется в JSON и обрезается до 1000 символов.
+  Собственный `describeBody` получает уже замаскированное тело; возврат
+  `null` из него убирает поле. Чтобы маскировать больше, чем по умолчанию,
+  включите стандартный набор в свой: переданный набор заменяет его, а не
+  дополняет:
 
 ```dart
 StructuredLogDioInterceptor(
   logRequestBody: true,
   logResponseBody: true,
-  describeBody: (body) =>
-      body is Map && body.containsKey('password') ? null : describeHttpBody(body),
+  redactedBodyFields: {...defaultRedactedBodyFields, 'otp', 'pin'},
 );
 ```
 
@@ -136,11 +201,13 @@ StructuredLogDioInterceptor(
 
 | Символ | Описание |
 |---|---|
-| `StructuredLogDioInterceptor({logger, loggerName, category, levels, logHeaders, logRequestBody, logResponseBody, redactedHeaders, redactedQueryParameters, describeBody, filter})` | Перехватчик. Без `logger` вызывает `getLogger(loggerName)` (`dio`) на каждой записи, поэтому до него доходит и более поздний `StructlogConfiguration.configure`. `category: null` не привязывает категорию. |
+| `StructuredLogDioInterceptor({logger, loggerName, category, levels, logHeaders, logRequestBody, logResponseBody, redactedHeaders, redactedQueryParameters, describeBody, filter, redactedBodyFields, logUnrecognizedBodies})` | Перехватчик. Без `logger` вызывает `getLogger(loggerName)` (`dio`) на каждой записи, поэтому до него доходит и более поздний `StructlogConfiguration.configure`. `category: null` не привязывает категорию. |
 | `HttpLogLevels({request, success, clientError, serverError, failure, cancel})` | `LogLevel?` на каждый итог; `null` выключает. |
-| `HttpBodyDescriber` | `Object? Function(Object? body)` — превращает тело в значение записи; `null` убирает поле. |
+| `HttpBodyDescriber` | `Object? Function(Object? body)` — превращает уже замаскированное тело в значение записи; `null` убирает поле. |
 | `describeHttpBody(body)` | Описание по умолчанию: строки как есть, словари и списки — в JSON, байты/потоки/`FormData` — кратко, обрезка до `defaultHttpBodyMaxLength` (1000) символов. |
-| `defaultRedactedHeaders`, `defaultRedactedQueryParameters`, `redactedValue` | Наборы маскирования по умолчанию и значение (`REDACTED`), которым заменяется найденное. |
+| `redactedBodyFields` | Имена полей тела, значения которых заменяются на `REDACTED`, — без учёта регистра, на любой глубине. По умолчанию `defaultRedactedBodyFields`; переданный набор заменяет его. |
+| `logUnrecognizedBodies` | Писать ли как есть строковое тело, которое не JSON и не форма. По умолчанию `false` — пишется `<N chars>`. |
+| `defaultRedactedHeaders`, `defaultRedactedQueryParameters`, `defaultRedactedBodyFields`, `redactedValue` | Наборы маскирования по умолчанию и значение (`REDACTED`), которым заменяется найденное. `defaultRedactedBodyFields` — это `defaultSensitiveKeys` из `structured_log`. |
 
 ## Связанные пакеты
 

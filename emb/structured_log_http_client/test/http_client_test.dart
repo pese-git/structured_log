@@ -239,6 +239,8 @@ void main() {
       final client = StructuredLogHttpClient(
         answering(200),
         logRequestBody: true,
+        // Plain text is written only by its size unless asked for.
+        logUnrecognizedBodies: true,
       );
       await client.post(api, body: 'x' * 5000);
 
@@ -303,6 +305,7 @@ void main() {
               headers: {'content-type': 'text/event-stream'}),
         ),
         logResponseBody: true,
+        logUnrecognizedBodies: true,
       );
       final response = await client.send(http.Request('GET', api));
       final first = Completer<void>();
@@ -320,6 +323,7 @@ void main() {
         answering(200,
             body: 'y' * 10000, headers: {'content-type': 'text/plain'}),
         logResponseBody: true,
+        logUnrecognizedBodies: true,
       );
       final response = await client.get(api);
 

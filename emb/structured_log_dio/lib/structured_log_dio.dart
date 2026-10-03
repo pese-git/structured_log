@@ -10,6 +10,7 @@ export 'src/dio_interceptor.dart'
         HttpLogLevels,
         StructuredLogDioInterceptor,
         defaultHttpBodyMaxLength,
+        defaultRedactedBodyFields,
         defaultRedactedHeaders,
         defaultRedactedQueryParameters,
         describeHttpBody,

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cherrypick/cherrypick.dart' show Disposable;
+import 'package:structured_log/io.dart';
 import 'package:structured_log/structured_log.dart';
 
 import '../config/config_resolver.dart';
