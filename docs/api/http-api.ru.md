@@ -21,7 +21,7 @@
 
 | Параметр | Примечания |
 |---|---|
-| `limit` | По умолчанию 50, предел 200 — большее значение воспринимается как 200, а не отклоняется. Не положительное целое → `400 invalid_request`. |
+| `limit` | По умолчанию 50, предел 200 — большее значение приводится к 200, а не отклоняется. Не положительное целое → `400 invalid_request`. |
 | `cursor` | `next_cursor` предыдущего ответа, переданный обратно как есть. Значение, которого сервер не выдавал → `400 invalid_request`. |
 
 Порядок — сначала новые (больший `id` первым); `cursor` ведёт дальше к более
@@ -38,12 +38,12 @@
 > возвращали все видимые строки, а теперь возвращают первую страницу (50).
 > Вызывающий, читавший их целиком, должен идти по `next_cursor`.
 
-Примеры ниже используют `http://localhost:8080` как базовый URL
-сервера, и shell-переменные `$ACCESS_TOKEN` (JWT из `POST
-/v1/auth/token`) и `$PROJECT_SECRET_KEY` (из `POST
-/v1/projects/:id/secret-keys`, с префиксом `slk_`) — подставьте свои.
+В примерах ниже базовый URL сервера — `http://localhost:8080`, а
+`$ACCESS_TOKEN` (JWT из `POST /v1/auth/token`) и `$PROJECT_SECRET_KEY`
+(из `POST /v1/projects/:id/secret-keys`, с префиксом `slk_`) —
+shell-переменные; подставьте свои значения.
 
-## Межоригинные запросы (CORS) (`log-server-api`)
+## Кросс-доменные запросы (CORS) (`log-server-api`)
 
 По умолчанию CORS выключен: все ответы ниже описаны такими, какими они
 приходят без заголовка `Origin` или с `Origin`, который оператор не
@@ -73,13 +73,13 @@
   `Access-Control-Request-Method`/`-Headers`.
 
 - **К любому другому ответу, успешному или с ошибкой, добавляются два
-  заголовка** поверх того, что он уже несёт — `Access-Control-Allow-Origin:
+  заголовка** к тем, что в нём уже есть, — `Access-Control-Allow-Origin:
   <совпавший origin>` и `Vary: Origin` — так что браузер может прочитать
   и тело `401`, `403`, `429` или `5xx`, а не только `200`.
 
-`Origin`, не совпавший ни с одним настроенным значением, трактуется
-ровно как отсутствие `Origin` — без заголовков CORS и без отдельного
-ответа-отказа. Где это стоит относительно ограничения частоты и
+`Origin`, не совпавший ни с одним настроенным значением, обрабатывается
+так же, как отсутствие `Origin`: без заголовков CORS и без отдельного
+ответа-отказа. Где этот шаг стоит по отношению к ограничению частоты и
 аутентификации — см.
 [README.md](../architecture/README.ru.md#цепочка-middleware).
 
@@ -91,9 +91,9 @@
 
 ### `POST /v1/logs`
 
-Auth: `Authorization: Bearer <секретный ключ проекта>` — значение ключа
-несёт префикс `slk_`, которым он отличается от access-токена в общем для
-обеих схем заголовке. На access-токен здесь сервер отвечает `401` —
+Auth: `Authorization: Bearer <секретный ключ проекта>` — у значения ключа
+есть префикс `slk_`, по которому его отличают от access-токена в общем
+для обеих схем заголовке. На access-токен здесь сервер отвечает `401` —
 так же, как на отсутствие учётных данных.
 
 **Тело запроса:** JSON-массив произвольных объектов записи лога — см.
@@ -117,7 +117,7 @@ Auth: `Authorization: Bearer <секретный ключ проекта>` — �
 валидный JSON), `401 unauthorized` (неверный/неизвестный/отозванный
 ключ), `403 project_blocked`, `413 payload_too_large`. Коды
 `validation_error`/`quota_exceeded` на уровне записи сообщаются внутри
-тела `202`, не как HTTP-ошибки.
+тела `202`, а не HTTP-ошибками.
 
 ```bash
 curl -X POST http://localhost:8080/v1/logs \
@@ -144,7 +144,7 @@ Auth: `Authorization: Bearer <access-token>`.
 | `from`, `to` | ISO 8601 | Диапазон по `timestamp`. Значение, которое не читается, или значение с несуществующими компонентами (`2026-13-01`, `2026-02-30`) — `400 invalid_request`, а не отброшенный фильтр |
 | `session_id`, `request_id`, `connection_generation`, `tool_call_id`, `message_id`, `operation_id` | string | Точное совпадение |
 | `q` | string | Полнотекстовый, по `event` и содержимому |
-| `context.<key>` | string | Точное совпадение по произвольному полю, например `context.order_id=ord_44821`. Ключ с точками адресует вложенный объект (`context.order.id`). Пустой сегмент в ключе недопустим — `context.`, `context..x`, `context..` и завершающая точка (`context.a.`) отвечают `400 invalid_request` |
+| `context.<key>` | string | Точное совпадение по произвольному полю, например `context.order_id=ord_44821`. Ключ с точками указывает на вложенный объект (`context.order.id`). Пустой сегмент в ключе недопустим — `context.`, `context..x`, `context..` и завершающая точка (`context.a.`) дают `400 invalid_request` |
 | `limit`, `cursor` | | [Пагинация](#пагинация-log-server-pagination) |
 
 **Ответ `200`:** `{"items": [LogEntry], "next_cursor": строка \| null}` — см. [models.md#logentry](models.ru.md#logentry). Без `cursor` `items` идут от новых к старым по `id`; `cursor` сдвигает выборку к более ранним записям.
@@ -167,12 +167,12 @@ Auth: `Authorization: Bearer <access-token>`.
 **Query-параметры:** те же, что у `GET /v1/logs` выше, плюс `since_id`
 (integer, опционален — точка catch-up, см.
 [live-streaming.md](../architecture/live-streaming.ru.md#закрытие-зазора-catch-up-по-since_id)).
-Без `limit`/`cursor` — это поток, не страница.
+`limit`/`cursor` здесь нет: это поток, а не страница.
 
 **Ответ `200`:** `Content-Type: text/event-stream`; кадры — `id:
 <id записи>` / `event: log` / `data: <LogEntry как JSON>`, плюс
 периодические keep-alive комментарии `: ping` и возможное терминальное
-`event: end` — полное кадрирование — в
+`event: end`; полное описание кадров — в
 [live-streaming.md](../architecture/live-streaming.ru.md).
 
 **Ошибки:** те же, что у `GET /v1/logs`, возвращаются обычным
@@ -211,11 +211,11 @@ curl http://localhost:8080/healthz
 > `POST /v1/auth/verify-email`, `POST /v1/auth/verify-email/resend`,
 > `POST /v1/auth/password-reset` и
 > `POST /v1/auth/password-reset/confirm` — пять из девяти эндпоинтов
-> ниже — часть изначально специфицированного дизайна (ссылки выше), но
-> маршрута в работающем сервере у них нет; каждый отмечен отдельно
-> ниже. Каждую учётную запись вместо этого создаёт администратор или
-> owner группы (`POST /v1/users`), а забытый пароль сбрасывается тем же
-> способом (`PATCH /v1/users/:id`) — см.
+> ниже — входят в дизайн, с самого начала заложенный в спецификацию
+> (ссылки выше), но маршрута в работающем сервере у них нет; каждый
+> отмечен ниже отдельно. Вместо этого каждую учётную запись создаёт
+> администратор или owner группы (`POST /v1/users`), а забытый пароль
+> сбрасывается тем же способом (`PATCH /v1/users/:id`) — см.
 > [Руководство разработчика](../guides/developer-guide.ru.md#что-не-реализовано).
 
 **Каждый эндпоинт этого раздела ограничен по частоте**
@@ -246,7 +246,7 @@ Auth: нет. JSON-тело, **не** form-encoded — в отличие от to
 | `email` | string | да — обязательно именно на этом пути |
 | `display_name` | string | нет |
 
-**Ответ `201`:** [User](models.ru.md#user) (ещё без `RoleAssignment`, `email_verified_at: null`). Письмо подтверждения отправляется как побочный эффект — аккаунт не сможет войти через `grant_type=password`, пока email не подтверждён, см. ниже и [auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-перед-входом-не-опционально).
+**Ответ `201`:** [User](models.ru.md#user) (ещё без `RoleAssignment`, `email_verified_at: null`). Попутно отправляется письмо подтверждения: войти через `grant_type=password` аккаунт не сможет, пока email не подтверждён, см. ниже и [auth.md](../architecture/auth.ru.md#подтверждение-email-обязательно-до-входа).
 
 **Ошибки:** `400 invalid_request` (отсутствует `email`/`username`/`password`), `403 forbidden` (`registrationEnabled = false`), `409 username_taken`, `409 email_taken`.
 
@@ -295,7 +295,7 @@ curl -X POST http://localhost:8080/v1/auth/verify-email/resend \
 ### `POST /v1/auth/token`
 
 Auth: нет. **Form-encoded** (`application/x-www-form-urlencoded`), RFC
-6749 — единственный эндпоинт в этом API, отклоняющийся от общего
+6749 — единственный эндпоинт в этом API, который отступает от общего
 JSON-конверта и в запросе, и в ответе об ошибке, ради совместимости с
 готовыми OAuth2-клиентами ([auth.md](../architecture/auth.ru.md)).
 
@@ -305,7 +305,7 @@ JSON-конверта и в запросе, и в ответе об ошибке
 
 **Ответ `200`:** [Ответ токена](models.ru.md#ответ-токена).
 
-**Ошибки:** `429 too_many_requests` (общий конверт, см. выше); в остальном все `400`, форма RFC — `invalid_request` (отсутствует поле для данного `grant_type`), `unsupported_grant_type`, `invalid_grant` (неверные учётные данные; неизвестный/истёкший/отозванный refresh-токен; заблокированный пользователь при refresh; неподтверждённый `email` при `grant_type=password` — ответ дополнительно несёт `reason: "email_not_verified"`, см. [errors.md](errors.ru.md#расширение-rfc-конверта-token-эндпоинта-reason)).
+**Ошибки:** `429 too_many_requests` (общий конверт, см. выше); в остальном все `400`, форма RFC — `invalid_request` (отсутствует поле для данного `grant_type`), `unsupported_grant_type`, `invalid_grant` (неверные учётные данные; неизвестный/истёкший/отозванный refresh-токен; заблокированный пользователь при refresh; неподтверждённый `email` при `grant_type=password` — в ответе дополнительно есть `reason: "email_not_verified"`, см. [errors.md](errors.ru.md#расширение-rfc-конверта-token-эндпоинта-reason)).
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/token \
@@ -402,10 +402,9 @@ Auth: `Authorization: Bearer <access-token>`. JSON-тело. Доступен п
 
 Успешная смена, кроме того, завершает **остальные** сессии учётной
 записи: отзываются все её refresh-токены, кроме названного в
-`current_refresh_token`. Одного инкремента `token_version` для этого не
-хватает — он прекращает действие access-токенов, а refresh-токен
-переживает его и выдаёт новый, так что пароль, сменённый из-за того,
-что его кто-то узнал, этого человека не выгонит.
+`current_refresh_token`. Одного увеличения `token_version` для этого мало:
+оно гасит access-токены, но refresh-токен его переживает и выдаёт новый,
+так что смена пароля, который кто-то узнал, этого человека не выгонит.
 
 Безопасное поведение — поведение по умолчанию, поэтому клиент, не
 приславший ни одного из двух полей, получает отзыв. Значит, и
@@ -416,7 +415,7 @@ Auth: `Authorization: Bearer <access-token>`. JSON-тело. Доступен п
 Чтобы остаться в системе, присылайте `current_refresh_token`; чтобы не
 трогать ни одну сессию — `keep_other_sessions: true`.
 
-**Ошибки:** `401 invalid_grant` (неверный текущий пароль); `400 invalid_request`, если `new_password` короче 8 символов (`details.reason: "too_short"`, `min_length`) или длиннее 72 байт в UTF-8 (`"too_long"`, `max_bytes`) — то же правило действует везде, где пароль задаётся (`POST /v1/users`, `PATCH /v1/users/:id`). Проверяется при *выборе* пароля, но никогда при входе. `400 invalid_request` с `details.field`, называющим поле, если `keep_other_sessions` не boolean или `current_refresh_token` не строка.
+**Ошибки:** `401 invalid_grant` (неверный текущий пароль); `400 invalid_request`, если `new_password` короче 8 символов (`details.reason: "too_short"`, `min_length`) или длиннее 72 байт в UTF-8 (`"too_long"`, `max_bytes`) — то же правило действует везде, где пароль задаётся (`POST /v1/users`, `PATCH /v1/users/:id`). Правило проверяется, когда пароль *задают*, и никогда — при входе. `400 invalid_request` с именем поля в `details.field`, если `keep_other_sessions` не boolean или `current_refresh_token` не строка.
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/change-password \
@@ -471,9 +470,9 @@ curl -G http://localhost:8080/v1/users -H "Authorization: Bearer $ACCESS_TOKEN" 
 
 | Поле | Тип | Примечания |
 |---|---|---|
-| `email` | string | Новое значение сбрасывает `email_verified_at` в `null` и запускает новое письмо подтверждения |
+| `email` | string | Новое значение сбрасывает `email_verified_at` в `null` и отправляет новое письмо подтверждения |
 | `display_name` | string | |
-| `password` | string | Установка этого поля всегда ставит `must_change_password: true` и отзывает все refresh-токены цели |
+| `password` | string | Если задать это поле, всегда ставится `must_change_password: true` и отзываются все refresh-токены цели |
 
 **Ответ `200`:** [User](models.ru.md#user) (обновлённый).
 
@@ -528,8 +527,8 @@ curl -X POST http://localhost:8080/v1/groups \
 
 ### `GET /v1/groups`
 
-Роль: любой аутентифицированный пользователь; результат ограничен видимыми группами.
-Видимость входит в сам запрос, поэтому вызывающий с одной группой среди тысячи
+Роль: любой аутентифицированный пользователь; в результат попадают только видимые ему группы.
+Видимость учитывается в самом запросе, поэтому вызывающий с одной группой среди тысячи
 получает её на первой странице.
 
 **Query:** `name` (подстрока, без учёта регистра), `limit`, `cursor` — см. [Пагинацию](#пагинация-log-server-pagination).
@@ -570,7 +569,7 @@ curl http://localhost:8080/v1/groups/3/teams -H "Authorization: Bearer $ACCESS_T
 
 ### `GET /v1/teams/:teamId/members`
 
-Роль: та же, что выше. Минимальная форма, не полный
+Роль: та же, что выше. Ответ в минимальной форме, а не полный
 [User](models.ru.md#user) — только то, что нужно, чтобы показать участника и
 выбрать его: `{"items": [{"user_id": 42, "username": "alice"}]}`.
 
@@ -583,8 +582,8 @@ curl http://localhost:8080/v1/teams/5/members -H "Authorization: Bearer $ACCESS_
 ### `POST /v1/teams/:teamId/members`
 
 Роль: `owner` группы этой команды, или `admin`. Увеличивает
-`token_version` только у добавленного пользователя, не у остальных участников
-команды — их собственный доступ не меняется от того, что в команду вошёл
+`token_version` только у добавленного пользователя, а не у остальных участников
+команды: их доступ не меняется оттого, что в команду вошёл
 кто-то ещё
 ([auth.md](../architecture/auth.ru.md#token_version-как-снапшот-в-jwt-остаётся-отзываемым)).
 
@@ -608,7 +607,7 @@ curl -X POST http://localhost:8080/v1/teams/5/members \
 
 **Ответ `204`:** пустое тело.
 
-**Ошибки:** `403 forbidden`, `404 not_found`, `409 sole_group_owner` (участник — последний в команде, владеющей группой, и больше никто ею не владеет — `details.blocking_groups`).
+**Ошибки:** `403 forbidden`, `404 not_found`, `409 sole_group_owner` (участник — последний в команде-владельце группы, и других владельцев у группы нет — `details.blocking_groups`).
 
 ```bash
 curl -X DELETE http://localhost:8080/v1/teams/5/members/42 -H "Authorization: Bearer $ACCESS_TOKEN"
@@ -660,8 +659,8 @@ curl -X DELETE http://localhost:8080/v1/role-assignments/128 -H "Authorization: 
 ### `GET /v1/projects`
 
 Роль: любой аутентифицированный пользователь; все проекты, которые вызывающий
-вправе читать, плоским списком — роль на проект не покрывает его группу, и для
-такого пользователя это единственный способ его найти.
+вправе читать, плоским списком: роль на проект не распространяется на его группу, и
+для такого пользователя это единственный способ найти проект.
 
 **Query:** `group_id`, `name` (подстрока, без учёта регистра), `limit`, `cursor` — см. [Пагинацию](#пагинация-log-server-pagination).
 
@@ -724,7 +723,7 @@ curl http://localhost:8080/v1/projects/7 -H "Authorization: Bearer $ACCESS_TOKEN
 
 ### `POST /v1/projects/:id/block` / `POST /v1/projects/:id/unblock`
 
-Роль: только `admin` — не `owner`, даже для собственного проекта. Без тела запроса.
+Роль: только `admin`; `owner` — нет, даже для собственного проекта. Без тела запроса.
 
 **Ответ `200`:** [Project](models.ru.md#project) (с обновлённым `is_blocked`).
 
@@ -741,7 +740,7 @@ curl -X POST http://localhost:8080/v1/projects/7/unblock -H "Authorization: Bear
 
 **Тело запроса:** `{"label": "..."}` (опционально).
 
-**Ответ `201`:** [ProjectSecretKey](models.ru.md#projectsecretkey), **с** `secret` — показывается ровно этот единственный раз.
+**Ответ `201`:** [ProjectSecretKey](models.ru.md#projectsecretkey), **с** `secret` — он показывается только в этом ответе.
 
 **Ошибки:** `403 forbidden`, `404 not_found`.
 
@@ -755,7 +754,7 @@ curl -X POST http://localhost:8080/v1/projects/7/secret-keys \
 
 Роль: `owner`/`user` с доступом, или `admin`.
 
-**Ответ `200`:** `{"items": [ProjectSecretKey]}` — только метаданные, никогда `secret`.
+**Ответ `200`:** `{"items": [ProjectSecretKey]}` — только метаданные, `secret` — никогда.
 
 **Ошибки:** `403 forbidden`, `404 not_found`.
 
@@ -791,7 +790,7 @@ Auth: `Authorization: Bearer <access-token>`. Роль: только `admin`.
 
 **Ошибки:** `400 invalid_request` (неизвестный `action`, нечитаемые `from`/`to`, `limit`/`cursor`), `403 forbidden`.
 
-Эндпоинта, удаляющего записи аудита, не существует ни для какой роли, а сроки хранения задаются конфигурацией сервера, а не через API — администратор — субъект этого журнала, а не его владелец. Записи исчезают только по настроенной оператором политике, и каждый проход очистки, что-то удаливший, оставляет после себя запись `audit.purged`.
+Эндпоинта, удаляющего записи аудита, не существует ни для какой роли, а сроки хранения задаются конфигурацией сервера, а не через API: администратор — субъект этого журнала, а не его владелец. Записи исчезают только по настроенной оператором политике, и каждый проход очистки, что-то удаливший, оставляет после себя запись `audit.purged`.
 
 ```bash
 curl -G http://localhost:8080/v1/audit-log \
@@ -804,7 +803,7 @@ curl -G http://localhost:8080/v1/audit-log \
 
 - [models.md](models.ru.md) — полные формы объектов.
 - [errors.md](errors.ru.md) — полный каталог ошибок, включая различие
-  между кодами на уровне записи батча и верхнеуровневыми HTTP-ошибками,
+  между кодами на уровне записи батча и HTTP-ошибками верхнего уровня,
   и почему `403` иногда используется вместо `404`.
 - [configuration.md](../operations/configuration.ru.md#справочник) —
   `--cors-allowed-origins` и все остальные настройки.
