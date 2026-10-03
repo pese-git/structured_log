@@ -154,7 +154,7 @@ One stage wraps all three and isn't part of any of them: when
 Off by default, and a no-op for any `Origin` not on the list, which is
 why the three chains above can be read as if it didn't exist.
 
-Three things about this order are load-bearing:
+Four things about this order are load-bearing:
 
 - **The limiter runs before grant processing, not inside it.** A request
   stopped by the rate limiter never reaches the OAuth2 handler — which is
