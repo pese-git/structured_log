@@ -83,7 +83,7 @@ where your team can search them by status, URL or request id. More at
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.3`):
+Published on pub.dev as a pre-release:
 
 ```yaml
 dependencies:

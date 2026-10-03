@@ -72,7 +72,7 @@ the whole project is at
 
 ## Installation
 
-Published on pub.dev as a pre-release (`0.1.0-dev.3`):
+Published on pub.dev as a pre-release:
 
 ```yaml
 dependencies:
