@@ -89,9 +89,13 @@ class _TeamMembersDialogState extends State<TeamMembersDialog> {
                   // Remounted whenever the member list changes — after a
                   // successful add there is no other way to clear the
                   // picker's own text/selection back to empty, since it
-                  // exposes neither.
+                  // exposes neither. Keyed by a string, not the sorted `List`:
+                  // a `List` compares by identity, so it remounted the picker
+                  // on every rebuild — including the one each keystroke
+                  // triggers through `onSelected(null)`, which emptied the
+                  // field after the first character.
                   child: AdminSearchPicker<int>(
-                    key: ValueKey(memberIds.toList()..sort()),
+                    key: ValueKey((memberIds.toList()..sort()).join(',')),
                     label: context.l10n.resAddMember,
                     placeholder: context.l10n.resSearchUserHint,
                     enabled: !widget.changing,
