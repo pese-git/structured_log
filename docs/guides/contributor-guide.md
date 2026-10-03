@@ -192,8 +192,8 @@ first thing to work out, not an afterthought:
   plan turned out to be wrong and was revised against real evidence.
 - **A bug fix, a docs correction, a dependency bump, a refactor with no
   behavior change** — a plain commit is enough; no proposal/design/specs
-  needed. These three product guides (this one included) and the
-  Kubernetes deployment section were both added this way.
+  needed. The product guides in `docs/guides/` (this one included) and
+  the Kubernetes deployment section were added this way.
 
 When in doubt, `openspec-onboard` (a skill in this repo) explains the
 workflow from scratch; `openspec-explore` is the read-only way to browse
