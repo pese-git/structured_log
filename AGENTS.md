@@ -82,31 +82,31 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   пишущий создание/события/смену состояния/ошибки/закрытие каждого блока и кубита записями
   `structured_log` с `category: 'bloc'`. Зависит от `package:bloc`, **не** от `flutter_bloc` —
   `flutter_bloc` построен поверх него и выставляет тот же `Bloc.observer`, так что пакет работает в
-  Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Опубликован как пре-релиз (`0.1.0-dev.1`), [openspec/changes/archive/2026-10-01-add-structured-log-bloc/](openspec/changes/archive/2026-10-01-add-structured-log-bloc/), основная спека — [openspec/specs/bloc-log-observer/](openspec/specs/bloc-log-observer/spec.md).
+  Flutter-приложении как есть, а тестируется и гоняется в CI чистым `dart test`. Опубликован как пре-релиз (серия `0.1.0-dev.N`), [openspec/changes/archive/2026-10-01-add-structured-log-bloc/](openspec/changes/archive/2026-10-01-add-structured-log-bloc/), основная спека — [openspec/specs/bloc-log-observer/](openspec/specs/bloc-log-observer/spec.md).
 - [emb/structured_log_dio/](emb/structured_log_dio/) — `StructuredLogDioInterceptor`: перехватчик `dio`,
   пишущий каждый запрос (`http_request`) и его итог (`http_response`/`http_error`) записями
   `structured_log` с `category: 'http'`, уровень — по статусу ответа. Заголовки и тела по умолчанию
   не пишутся; заголовки авторизации/cookie и query-параметры с токенами маскируются, а включённые
   тела — по именам полей (`redactedBodyFields`, harden-structured-log-core). Чистый Dart,
-  опубликован как пре-релиз (`0.1.0-dev.1`),
+  опубликован как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-01-add-structured-log-dio/](openspec/changes/archive/2026-10-01-add-structured-log-dio/), основная спека — [openspec/specs/dio-log-interceptor/](openspec/specs/dio-log-interceptor/spec.md).
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — `StructuredLogHttpClient`: то же для
   `package:http` — клиент-обёртка над любым `http.Client` с теми же записями, уровнями и маскированием,
   что у `structured_log_dio`. Пока отправщик назывался `structured_log_http`, этот пакет приходилось
-  сопровождать пометкой «не путать»; с переименованием отправщика в `structured_log_remote_sync` она снята. Чистый Dart, опубликован как пре-релиз (`0.1.0-dev.1`),
+  сопровождать пометкой «не путать»; с переименованием отправщика в `structured_log_remote_sync` она снята. Чистый Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-01-add-structured-log-http-client/](openspec/changes/archive/2026-10-01-add-structured-log-http-client/), основная спека — [openspec/specs/http-client-logging/](openspec/specs/http-client-logging/spec.md).
 - [emb/structured_log_go_router/](emb/structured_log_go_router/) — `StructuredLogGoRouter`: пишет каждую
   навигацию `go_router` (`route_changed`: расположение, шаблон маршрута, предыдущее расположение),
   перенаправление (`route_redirected`, через обёртку `redirect`) и ошибку маршрутизации (`route_error`) с
   `category: 'navigation'`. **Flutter-пакет** (в отличие от трёх соседей выше): `go_router` тянет Flutter,
-  поэтому `flutter test` и строка во Flutter-матрице CI. Опубликован как пре-релиз (`0.1.0-dev.1`),
+  поэтому `flutter test` и строка во Flutter-матрице CI. Опубликован как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-01-add-structured-log-go-router/](openspec/changes/archive/2026-10-01-add-structured-log-go-router/), основная спека — [openspec/specs/go-router-logging/](openspec/specs/go-router-logging/spec.md).
 - [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — `StructuredLogCherryPickObserver`:
   `CherryPickObserver`, пишущий работу DI-контейнера `cherrypick` (скоупы, модули, циклы, ошибки) с
   `category: 'di'`, никогда не печатая экземпляр. Обобщение наблюдателя, который раньше жил двумя
   дословными копиями — в сервере и admin-клиенте; **оба теперь берут его из пакета** — зависимостью по
   пути (`path: ../../emb/structured_log_cherrypick`), как клиент берёт `structured_log_admin_ui`: пакет лежит
-  в том же репозитории, а оба потребителя — `publish_to: none`. Чистый Dart, `cherrypick` 3.x и 4.x, опубликован как пре-релиз (`0.1.0-dev.1`),
+  в том же репозитории, а оба потребителя — `publish_to: none`. Чистый Dart, `cherrypick` 3.x и 4.x, опубликован как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/](openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/), основная спека — [openspec/specs/cherrypick-log-observer/](openspec/specs/cherrypick-log-observer/spec.md).
 
 Плюс один пакет в `backend/`:
@@ -134,9 +134,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 В `packages/` — `structured_log_e2e` (сквозные тесты, см. ниже).
 
 `structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`
-опубликованы на pub.dev (`0.1.0`, стабильный релиз после серии `-dev.N`, `melos version`
-прогнан и теги `<package>-v0.1.0` проставлены). Зависимость на `structured_log_flutter` в
-`pubspec.yaml` трёх скинов — обычный hosted-констрейнт (`^0.1.0`), путь к нему при локальной
+опубликованы на pub.dev (стабильная линия `0.1.x` после серии `-dev.N`; версии и теги
+`<package>-v<версия>` ставит `melos version`). Зависимость на `structured_log_flutter` в
+`pubspec.yaml` трёх скинов — обычный hosted-констрейнт (`^0.1.x`; нижнюю границу поднимает `melos version` при каждом релизе ядра просмотрщика), путь к нему при локальной
 разработке подставляет `melos bootstrap` через `pubspec_overrides.yaml` (генерируется, не
 коммитится — см. `.gitignore`). Их `example/` остаются `publish_to: none` — демо-приложения
 не публикуются. История и обоснование решений — в
@@ -319,15 +319,15 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - Транспорт — `dart:io`'s `HttpClient`, зависимость только `structured_log` (без `dio`/`http`). Шов `BatchSender` позволяет тестировать батчинг/retry/вытеснение без сокета; отдельная группа тестов работает против настоящего `HttpServer`.
 - `README.md`/`README.ru.md` — билингвальная пара, как у остальных пакетов.
 - `CHANGELOG.md` перенесён из `structured_log_http` без правок: история кода общая, а пишет файл только
-  `melos version`. Тега `structured_log_remote_sync-v*` до первой публикации нет — без него `melos version`
-  посчитал бы всю историю каталога, поэтому после публикации `0.1.0` тег ставится на опубликованный коммит.
+  `melos version`. Теги `structured_log_remote_sync-v*` идут с первой публикации под новым именем (`0.2.0`);
+  без такого тега `melos version` посчитал бы всю историю каталога.
 
 Внутри [emb/structured_log_http/](emb/structured_log_http/):
 
 - Прослойка из одного файла `lib/structured_log_http.dart` и одного теста: `HttpLogOutput` — это
   `RemoteSyncLogOutput`, создаётся и доставляет. Тест гасит `deprecated_member_use` — устаревшие имена здесь
   и есть предмет проверки.
-- Зависит от `structured_log_remote_sync` как hosted-пакета (`^0.1.0`), поэтому публикуется **после** него,
+- Зависит от `structured_log_remote_sync` как hosted-пакета (`^0.2.0`; точную нижнюю границу поднимает `melos version`), поэтому публикуется **после** него,
   отдельным шагом (`melos publish` по уровням, как у скинов поверх `structured_log_flutter`). Пометка discontinued
   на pub.dev — последним шагом, когда прослойка уже опубликована: иначе баннер встал бы над README без
   уведомления. Пометку ставит владелец пакета в админке pub.dev; CLI этого не умеет.
