@@ -35,7 +35,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 файл друг за другом по кругу, из-за чего проверить формат локально становится
 нечем. Так и случилось 15.09.2026: пин отставал (`3.44.9` против `3.47.4` на CI),
 и один файл раздела 14 разошёлся ровно по этой причине. Поднимать пин —
-`fvm use <version>` из корня, затем `dart run melos bootstrap` и полный прогон
+`fvm use <version>` из корня, затем `fvm dart run melos bootstrap` и полный прогон
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
@@ -168,7 +168,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [packages/e2e/](packages/e2e/) — `structured_log_e2e`, сквозные тесты через всю систему (см. ниже).
 - [melos.yaml](melos.yaml) — манифест workspace и общие скрипты (analyze/format/test/lint/build).
 - [pubspec.yaml](pubspec.yaml) — корневой pubspec workspace (`publish_to: none`, не публикуется); нужен
-  только для того, чтобы `dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
+  только для того, чтобы `fvm dart run melos <cmd>` резолвил `melos` как dev-зависимость — сам по себе
   не является пакетом workspace и не перечислен в `packages:` в `melos.yaml`.
 - [openspec/](openspec/) — артефакты OpenSpec: `changes/` — открытые change-заявки
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
@@ -272,7 +272,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_material/lib/src/log_entry_detail_panel.dart](emb/structured_log_material/lib/src/log_entry_detail_panel.dart) — `LogEntryDetailPanel`: тот же контент, что в `LogEntryDetailSheet`, но немодальной панелью для master-detail split (широкие экраны).
 - [emb/structured_log_material/lib/src/log_viewer_empty_state.dart](emb/structured_log_material/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «логов ещё нет» / «нет по фильтру».
 - [emb/structured_log_material/test/](emb/structured_log_material/test/) — виджет-тесты (`flutter test`).
-- [emb/structured_log_material/example/](emb/structured_log_material/example/) — полноценное Flutter-приложение (`structured_log_material_example` в `melos.yaml`), запускается через `flutter run -d chrome` (или `-d web-server`) из этой директории; поддерживает web; демонстрирует и `MaterialLogViewerPage`, и встроенный `MaterialLogViewer` в боковой панели.
+- [emb/structured_log_material/example/](emb/structured_log_material/example/) — полноценное Flutter-приложение (`structured_log_material_example` в `melos.yaml`), запускается через `fvm flutter run -d chrome` (или `-d web-server`) из этой директории; поддерживает web; демонстрирует и `MaterialLogViewerPage`, и встроенный `MaterialLogViewer` в боковой панели.
 
 Внутри [emb/structured_log_fluent/](emb/structured_log_fluent/):
 
@@ -285,7 +285,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_fluent/lib/src/log_viewer_empty_state.dart](emb/structured_log_fluent/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No results found».
 - [emb/structured_log_fluent/lib/src/log_level_colors.dart](emb/structured_log_fluent/lib/src/log_level_colors.dart) — только `logLevelAbbreviation()` (короткий бейдж уровня); `logLevelColor()` теперь общий, приезжает из `structured_log_flutter`.
 - [emb/structured_log_fluent/test/](emb/structured_log_fluent/test/) — виджет-тесты (`flutter test`); поведенческие тесты (`fluent_log_viewer_test.dart`) пампят `FluentLogViewer` напрямую без `ScaffoldPage`/`Navigator` на широком вьюпорте (1200×800 — дефолтный 800×600 слишком узкий), `fluent_log_viewer_responsive_test.dart` — брейкпоинты на явно заданной ширине через `SizedBox`, `fluent_log_viewer_page_test.dart` — только специфика страницы (заголовок/back-кнопка); скоуп-хелперы `_inList`/`_inDetailPane` (список и панель деталей видны одновременно, `find.text(event)` иначе находит дубликаты).
-- [emb/structured_log_fluent/example/](emb/structured_log_fluent/example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `FluentLogViewerPage`, и встроенный `FluentLogViewer` в боковой панели (`Expanded`, не фиксированная ширина — иначе при сужении окна `Row` переполняется).
+- [emb/structured_log_fluent/example/](emb/structured_log_fluent/example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `fvm flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `FluentLogViewerPage`, и встроенный `FluentLogViewer` в боковой панели (`Expanded`, не фиксированная ширина — иначе при сужении окна `Row` переполняется).
 - `fluent_ui: ^4.16.1` — обычный диапазон, не точный пин. До 2026-09 было зафиксировано точной версией `4.15.1`, т.к. `4.16.1` не компилировалась с Flutter SDK, который тогда был в проекте (`3.41.7`) — рассинхрон API `fluent_ui`/Flutter framework (`RawTooltip.ignorePointer`, `ReorderableListView.builder.onReorderItem`, тип `ScrollCacheExtent`; `flutter analyze` это не ловит, только `flutter test`/`flutter build`). Причина оказалась не в `fluent_ui`, а в устаревшем локальном `stable`-снепшоте FVM в этом репозитории: `fluent_ui 4.16.0` уже требовал Flutter `3.44.0+` («refactor: Flutter 3.44.0 support» в его CHANGELOG), но его собственный `environment.flutter` констрейнт (`>=3.32.0`) этого не отражал. После обновления `.fvm/fvm_config.json` на `3.44.9` (см. ниже) пакет компилируется и все тесты проходят — диапазон снят.
 
 Внутри [emb/structured_log_cupertino/](emb/structured_log_cupertino/):
@@ -299,7 +299,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cupertino/lib/src/log_viewer_empty_state.dart](emb/structured_log_cupertino/lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No logs match the current filter».
 - `CupertinoSlidingSegmentedControl`'s type parameter должен быть non-nullable (`bound Object`) — фильтр уровня (включая `null` = «All») закодирован как индекс в списке опций, а не сам `LogLevel?` напрямую.
 - [emb/structured_log_cupertino/test/](emb/structured_log_cupertino/test/) — виджет-тесты (`flutter test`), структура и приёмы тестирования как у `structured_log_fluent`/`structured_log_material` (поведенческие тесты на явно заданной узкой ширине, брейкпоинты — на явно заданной широкой, отдельный тест для page-обёртки).
-- [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
+- [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `fvm flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
 - `cupertino_icons` — обычная зависимость (иконки `CupertinoIcons` не бандлятся во Flutter SDK сами по себе); `uses-material-design: false` — пакет не тянет Material-иконки/шрифты.
 
 Внутри [emb/structured_log_remote_sync/](emb/structured_log_remote_sync/):
@@ -503,7 +503,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   широкой оттого, что широко окно. Тот же принцип, что в скинах `emb/`. Практическое следствие для
   тестов: дефолтный вьюпорт виджет-теста (800×600) **ниже** `navRail`, поэтому тест про подписанный
   nav-pane обязан явно задать ширину — иначе он видит рельс.
-- `example/` — web-галерея компонентов (`structured_log_admin_ui_example`), `flutter run -d chrome`.
+- `example/` — web-галерея компонентов (`structured_log_admin_ui_example`), `fvm flutter run -d chrome`.
   В её тестах `pumpAndSettle` неприменим: `AdminLoadingIndicator` крутится вечно, нужен `pump`.
 - `publish_to: none` — привязан к эстетике одного клиента, не кит общего назначения.
 
@@ -653,7 +653,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   тесты фейков этого не ловят — фейк отвечает тем, что у него спросили; ловят `test/integration/`
   (мок в `lib/testing/mock_server.dart` режет страницы как сервер) и `packages/e2e`.
 - **`integration_test/` — путь оператора на живом приложении.** Запускается не `flutter test`, а
-  `flutter drive --driver=test_driver/integration_test.dart --target=integration_test/user_flow_test.dart
+  `fvm flutter drive --driver=test_driver/integration_test.dart --target=integration_test/user_flow_test.dart
   -d web-server --browser-name=chrome` (нужен запущенный `chromedriver`; **`-d chrome` не годится** —
   тогда браузер поднимается мимо драйвера и результат не возвращается). Смысл в биндинге:
   `IntegrationTestWidgetsFlutterBinding` не подменяет ввод и не глушит HTTP, поэтому тап — это тап по
@@ -663,7 +663,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `lib/testing/`, а не в `test/`: у web-цели корнем компиляции становится `integration_test/`, и
   относительный импорт в `test/` не находится; направление зависимости стережёт
   `test/testing_boundary_test.dart`. Есть и `test_driver/app.dart` — то же приложение с включённым
-  driver-расширением, чтобы водить его руками через dart MCP (`flutter run --print-dtd` →
+  driver-расширением, чтобы водить его руками через dart MCP (`fvm flutter run --print-dtd` →
   `connect_dart_tooling_daemon`); именно так был найден дефект ниже.
 - **Содержимое `ContentDialog` не пишется голой `Column`.** Диалог отдаёт `content` в **loose**
   `Flexible` — это максимум высоты, а не жёсткая высота, — а `Column` по умолчанию
@@ -735,7 +735,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   используется намеренно: его `CherryPickProvider` отдаёт **глобальный** корневой скоуп, а клиент передаёт `Scope`
   явно (`AdminApp(scope: ...)`), так что тесты не делят состояние.
 - Кодогенерация: `freezed`/`json_serializable`/`retrofit_generator` через `build_runner` —
-  `dart run melos run generate` или из директории пакета; `*.g.dart`/`*.freezed.dart` не коммитятся.
+  `fvm dart run melos run generate` или из директории пакета; `*.g.dart`/`*.freezed.dart` не коммитятся.
   **`retrofit_generator` — 10.x, не 9.x**: 9.7.0 объявляет `retrofit: ^4.6.0`, но не компилируется с
   4.10 (в enum `Parser` появилось значение, которого нет в его switch) — тот же класс ловушки, что с
   `fluent_ui`/Flutter. 10.x требует `build ^4`, а `freezed` 2.x — `build ^2`, поэтому `freezed` здесь 3.x.
@@ -751,7 +751,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - `lib/src/` — по фиче: `auth/` (токены, пароли, принципал), `rbac/`, `storage/` (`drift`-схема, `LogStore`, `LogFilter`), `ingest/`, `live/` (broadcast живого потока), `retention/` (purge job), `config/`, `logging/`, `http/` (middleware + `routes/`).
 - `bin/server.dart` — CLI entrypoint: команды `serve`/`create-admin`, резолвер конфигурации, автосоздание первого администратора, таймер очистки, graceful shutdown по SIGINT/SIGTERM.
 - `README.md`/`README.ru.md` — путь от пустой БД до прочитанного лога; команды в нём проверены прогоном против запущенной сборки (10.8 в `tasks.md`).
-- Кодогенерация: `drift_dev`/`freezed`/`json_serializable`/`shelf_router_generator` через `build_runner` — `dart run melos run generate` (скоуп `structured_log_server`) или `dart run build_runner build --delete-conflicting-outputs` из директории пакета; `*.g.dart`/`*.freezed.dart` — в `.gitignore` пакета, не коммитятся.
+- Кодогенерация: `drift_dev`/`freezed`/`json_serializable`/`shelf_router_generator` через `build_runner` — `fvm dart run melos run generate` (скоуп `structured_log_server`) или `fvm dart run build_runner build --delete-conflicting-outputs` из директории пакета; `*.g.dart`/`*.freezed.dart` — в `.gitignore` пакета, не коммитятся.
 - Периодическая очистка по `retention_days` (`lib/src/retention/purge_job.dart`)
   живёт таймером в `bin/server.dart` и останавливается в shutdown до закрытия БД.
   Удаление — порциями, порция и уменьшение `project_usage` в одной транзакции.
@@ -995,34 +995,37 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 
 ## Команды
 
-Запускаются через `melos run <script>` из корня репозитория (см. [melos.yaml](melos.yaml)) —
-скрипты, кроме `clean`, определены через `exec:`/`steps:` и выполняются в директории каждого
-пакета workspace. Если глобально активированный `melos` недоступен/сломан (например, конфликт
-версии Dart SDK со снапшотом бинаря), используйте `dart run melos <cmd>` — корневой
-[pubspec.yaml](pubspec.yaml) как раз для этого держит `melos` в dev-зависимостях:
+Локально SDK вызывается **только через FVM** (`fvm dart …`, `fvm flutter …`) — на версии из
+[.fvmrc](.fvmrc); глобальный SDK может отличаться, и тогда `format:check` расходится с CI (см. выше).
+Melos запускается из корня репозитория как `fvm dart run melos <cmd>` — корневой
+[pubspec.yaml](pubspec.yaml) держит `melos` в dev-зависимостях, а `sdkPath` в [melos.yaml](melos.yaml)
+указывает на FVM-SDK, так что скрипты внутри тоже идут на закреплённой версии. Глобально
+активированный `melos` не используйте: его снапшот привязан к той версии Dart, под которой его ставили.
+Скрипты, кроме `clean`, определены через `exec:`/`steps:` и выполняются в директории каждого пакета
+workspace:
 
 ```bash
-dart run melos bootstrap
-dart run melos run analyze
-dart run melos run test
-dart run melos run lint
+fvm dart run melos bootstrap
+fvm dart run melos run analyze
+fvm dart run melos run test
+fvm dart run melos run lint
 ```
 
-Для прямых вызовов `dart` нужно сначала зайти в директорию пакета:
+Для прямых вызовов нужно сначала зайти в директорию пакета (Flutter-пакеты — `fvm flutter analyze`/`fvm flutter test`):
 
 ```bash
 cd emb/structured_log
 
-dart analyze
-dart format .
-dart format --set-exit-if-changed .   # format:check
-dart test
-dart test --coverage=coverage
-dart run example/main.dart
+fvm dart analyze
+fvm dart format .
+fvm dart format --set-exit-if-changed .   # format:check
+fvm dart test
+fvm dart test --coverage=coverage
+fvm dart run example/main.dart
 ```
 
 `melos run lint` запускает analyze + format:check вместе; `melos run build` — `pub get` + analyze;
-`melos run example` — пример конкретно для `structured_log`.
+`melos run example` — пример конкретно для `structured_log` (все — через `fvm dart run melos run …`).
 
 ## Соглашения
 
@@ -1031,7 +1034,7 @@ dart run example/main.dart
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
 - Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
-- Форматирование должно строго соответствовать существующему (`dart format .` перед завершением любого изменения).
+- Форматирование должно строго соответствовать существующему (`fvm dart format .` перед завершением любого изменения).
 - У каждого живого пакета `emb/` в `README.md`/`README.ru.md` перед «License»/«Лицензия» есть раздел
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
   доставка на сервер, интеграции), без самого пакета. Ссылки — **абсолютные на pub.dev**, а не `../<пакет>`:
@@ -1212,14 +1215,16 @@ dart run example/main.dart
 
 ## Перед завершением изменения
 
-1. `dart analyze` — не должно быть замечаний.
-2. `dart test` — все тесты должны проходить. **Для `structured_log_server` нужен кейс под
+Команды — через FVM, в директории затронутого пакета (Flutter-пакеты — `fvm flutter analyze`/`fvm flutter test`):
+
+1. `fvm dart analyze` — не должно быть замечаний.
+2. `fvm dart test` — все тесты должны проходить. **Для `structured_log_server` нужен кейс под
    тегом `postgres`, если изменение трогает запрос к БД, собранный чем-то сложнее
    `equals`/`isNull`/`isIn`, — или опирается на измеренное поведение SQLite, даже когда
    запроса не трогает вовсе.** Прогон по умолчанию идёт на SQLite (`NativeDatabase.memory()`),
    и зелёный он потому, что PostgreSQL никто не спросил (см. два пункта про диалекты в
    разделе о сервере).
-3. `dart format --set-exit-if-changed .` — код должен быть отформатирован.
+3. `fvm dart format --set-exit-if-changed .` — код должен быть отформатирован.
 4. При изменении публичного поведения пакета обновлять его `README.md`/`README.ru.md`
    ([emb/structured_log/](emb/structured_log/README.md), [emb/structured_log_flutter/](emb/structured_log_flutter/README.md),
    [emb/structured_log_material/](emb/structured_log_material/README.md), [emb/structured_log_fluent/](emb/structured_log_fluent/README.md),
