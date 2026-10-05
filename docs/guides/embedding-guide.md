@@ -38,8 +38,11 @@ Several packages, and you only need as many of them as your project does:
 7. **Log your database queries** —
    [`structured_log_drift`](#8-optional-log-your-database-queries-structured_log_drift),
    for apps with a `drift` database.
-8. **Also ship those logs to a server** —
-   [`structured_log_remote_sync`](#9-optional-also-ship-logs-to-a-server), a
+8. **Bring in what other libraries log** —
+   [`structured_log_logging`](#9-optional-bring-in-packagelogging-records-structured_log_logging),
+   for every library that writes through `package:logging`.
+9. **Also ship those logs to a server** —
+   [`structured_log_remote_sync`](#10-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -409,7 +412,39 @@ text — unless you turn them on; see the package's
 [README](../../emb/structured_log_drift/README.md#keeping-secrets-out-of-the-log)
 for that, and for what is not logged (migrations).
 
-## 9. Optional: also ship logs to a server
+## 9. Optional: bring in `package:logging` records: `structured_log_logging`
+
+Much of the Dart ecosystem logs through
+[`package:logging`](https://pub.dev/packages/logging) — database drivers,
+HTTP stacks, code generators — and those records go nowhere unless someone
+listens. [`structured_log_logging`](../../emb/structured_log_logging/)
+listens and writes each one as a `structured_log` entry, so it reaches the
+same sinks and the same viewer as everything above:
+
+```yaml
+dependencies:
+  logging: ^1.2.0
+  structured_log: ^0.3.0
+  structured_log_logging:
+    path: ../structured_log_logging # not yet on pub.dev
+```
+
+```dart
+// package:logging's own gate: below it, records are never created.
+Logger.root.level = Level.ALL;
+StructuredLogLoggingBridge().attach();
+```
+
+Entries carry `category: 'logging'`, the library's logger name as
+`logger`, and the level mapped by value (`FINE` → `debug`, `SEVERE` →
+`error`). The message is the entry's `event`, a plain string that
+`redactKeys` cannot look inside, so leave out loggers you don't trust with
+`filter`; see the package's
+[README](../../emb/structured_log_logging/README.md#keeping-secrets-out-of-the-log)
+for that, and for why a sink should not itself log through
+`package:logging`.
+
+## 10. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,

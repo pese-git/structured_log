@@ -18,5 +18,5 @@
 - [x] 3.1 `README.md`/`README.ru.md` пакета: установка, быстрый старт (с `Logger.root.level = Level.ALL` и объяснением, decision 2), таблица уровней, поля записи, раздел о секретах в тексте сообщений, рекурсия, API, «Related packages»
 - [x] 3.2 Строка о `structured_log_logging` в разделе «Related packages»/«Связанные пакеты» (группа «Integrations»/«Интеграции») README всех одиннадцати живых пакетов `emb/` (22 файла; прослойка `structured_log_http` не участвует); заодно «один из пяти адаптеров» → «шести» в README пяти адаптеров
 - [x] 3.3 Корневые `README.md`/`README.ru.md` и `AGENTS.md`: пакет в списке `emb/`, в «Структуре», раздел «Внутри `emb/structured_log_logging/`», CI-джоба, число джоб и пакетов
-- [ ] 3.4 `docs/guides/embedding-guide.md`/`.ru.md`: раздел «логировать записи `package:logging`»
-- [ ] 3.5 Сайт: оглавление пакетов и карточка на главной (EN/RU). Страница пакета генерируется `migrate_docs.py`, проверить, что `npm run build` проходит
+- [x] 3.4 `docs/guides/embedding-guide.md`/`.ru.md`: раздел 8 «принимать записи `package:logging`», раздел про сервер стал 9-м
+- [x] 3.5 Сайт: оглавление пакетов, карточка, строка таблицы интеграций, список адаптеров и диаграмма на главной (EN/RU). Страница пакета генерируется `migrate_docs.py` сама (пакеты `emb/` находятся по наличию README), `npm run build` проходит — 69 страниц, включая `/packages/structured_log_logging/`
