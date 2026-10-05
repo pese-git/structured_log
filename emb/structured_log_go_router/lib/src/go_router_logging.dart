@@ -218,9 +218,25 @@ class StructuredLogGoRouter {
   void _logError(Uri location, GoException? error) {
     _log(levels.error, 'route_error', {
       'location': _redact(location),
-      if (error != null) 'error': error.message,
+      if (error != null) 'error': _redactText(error.message),
     });
   }
+
+  /// [text] with every location it names redacted like [_redact] would.
+  ///
+  /// `go_router` puts the locations themselves into its messages (`no
+  /// routes for location: /x?token=t`, `redirect loop detected /a => /b`),
+  /// so the message would otherwise give away what `location` hides. A
+  /// location's `toString()` has no spaces, so each one is a single token.
+  String _redactText(String text) => text.replaceAllMapped(
+    _uriLikeToken,
+    (match) => switch (Uri.tryParse(match[0]!)) {
+      final uri? => _redact(uri),
+      null => match[0]!,
+    },
+  );
+
+  static final _uriLikeToken = RegExp(r'\S*[?#]\S*');
 
   /// Logging runs inside the router's own notification and redirect
   /// calls, so nothing it does may change how navigation goes.

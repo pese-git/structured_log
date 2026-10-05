@@ -397,7 +397,36 @@ void main() {
       expect(error, containsPair('event', 'route_error'));
       expect(error, containsPair('level', 'warning'));
       expect(error, containsPair('location', '/nowhere?token=REDACTED'));
-      expect(error['error'], contains('/nowhere'));
+      expect(error['error'], contains('/nowhere?token=REDACTED'));
+      expect(error['error'], isNot(contains('token=t')));
+    });
+
+    testWidgets('the locations a redirect loop names are redacted too', (
+      tester,
+    ) async {
+      final routeLog = StructuredLogGoRouter();
+      final router = GoRouter(
+        routes: routes(),
+        redirect: (_, state) => switch (state.uri.path) {
+          '/settings' => '/login?token=t',
+          '/login' => '/settings?token=t',
+          _ => null,
+        },
+        errorBuilder: (_, __) => page('not found'),
+      );
+      addTearDown(router.dispose);
+      await pumpRouter(tester, router);
+      routeLog.attach(router);
+      addTearDown(routeLog.detach);
+
+      router.go('/settings?token=t');
+      await tester.pumpAndSettle();
+
+      final error = entries.last;
+      expect(error, containsPair('event', 'route_error'));
+      expect(error['error'], contains('redirect loop'));
+      expect(error['error'], contains('token=REDACTED'));
+      expect(error['error'], isNot(contains('token=t')));
     });
 
     testWidgets('an error handled by onException is logged through the '
