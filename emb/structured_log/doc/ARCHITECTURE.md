@@ -221,8 +221,9 @@ Key invariants from this flow:
 - **Encoding happens in the output, not in the pipeline.** Processors and
   in-memory sinks see the original objects; the built-in outputs serialize
   with `encodeLogEntry`, which converts what `jsonEncode` refuses (`DateTime`
-  → ISO-8601 UTC, enum → `name`, `Duration` → microseconds, anything else →
-  `toString()`, or `'<TypeName>'` if that throws). Only an entry that
+  → ISO-8601 UTC, enum → `name`, `Duration` → microseconds, `Set` → list,
+  an object with `toJson()` → what it returns, anything else → `toString()`,
+  or `'<TypeName>'` if that throws). Only an entry that
   contains itself cannot be encoded; it becomes a stub with
   `encoding_failed`.
 

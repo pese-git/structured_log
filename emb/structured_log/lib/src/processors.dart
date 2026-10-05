@@ -220,7 +220,8 @@ const defaultSensitiveKeys = <String>{
 };
 
 /// A [Processor] that replaces sensitive values anywhere in the entry —
-/// including inside nested maps and lists — with [placeholder].
+/// including inside nested maps, lists and sets, and inside what an
+/// object's `toJson()` returns — with [placeholder].
 ///
 /// A value is replaced when **any** of three independent criteria says so,
 /// which is what lets them be combined or used one at a time:
@@ -317,13 +318,50 @@ Object? _redact(
   Set<Object> ancestors,
 ) {
   if (matches(key, value)) return placeholder;
-  if (value is! Map && value is! List) return value;
+  if (_isScalar(value)) return value;
   if (!ancestors.add(value!)) return '<cycle>';
   try {
-    return _redactContainer(value, matches, placeholder, ancestors);
+    if (value is Map || value is List || value is Set) {
+      return _redactContainer(value, matches, placeholder, ancestors);
+    }
+    return _redactJsonOf(value, matches, placeholder, ancestors);
   } finally {
     ancestors.remove(value);
   }
+}
+
+/// Values the encoder writes as they are, with nothing inside to walk.
+bool _isScalar(Object? value) =>
+    value == null ||
+    value is String ||
+    value is num ||
+    value is bool ||
+    value is DateTime ||
+    value is Duration ||
+    value is Enum;
+
+/// [value] redacted through what its `toJson()` returns, or [value] itself
+/// when it has none, it throws, or nothing in it matched.
+///
+/// The encoder writes such a value as its `toJson()`, so that is where its
+/// secrets are; walking only maps and lists would let a DTO carry a
+/// `password` straight past this processor. The object is kept when there
+/// is nothing to redact, so the processors after this one still see it.
+Object _redactJsonOf(
+  Object value,
+  bool Function(String?, Object?) matches,
+  String placeholder,
+  Set<Object> ancestors,
+) {
+  final Object? json;
+  try {
+    json = (value as dynamic).toJson();
+  } catch (_) {
+    return value;
+  }
+  if (json is! Map && json is! List) return value;
+  final redacted = _redact(null, json, matches, placeholder, ancestors);
+  return identical(redacted, json) ? value : redacted!;
 }
 
 Object _redactContainer(
@@ -365,6 +403,15 @@ Object _redactContainer(
       (copy ??= List<Object?>.of(value))[i] = next;
     }
     return copy ?? value;
+  }
+
+  if (value is Set) {
+    final elements = value.toList();
+    final redacted =
+        _redactContainer(elements, matches, placeholder, ancestors);
+    // A set the walk changed is written as the list the encoder would have
+    // made of it anyway; one it did not change is left a set.
+    return identical(redacted, elements) ? value : redacted;
   }
 
   return value;

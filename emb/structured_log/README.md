@@ -399,7 +399,9 @@ offset is not offered: whoever parses it reads it as their own local time.
 Every built-in output encodes the entry with `encodeLogEntry`, which you can
 call from your own outputs too. Values `jsonEncode` refuses are converted
 instead of losing the entry: a `DateTime` becomes ISO-8601 in UTC, an enum
-its `name`, a `Duration` its microseconds, anything else its `toString()`.
+its `name`, a `Duration` its microseconds, a `Set` a list, an object with
+a `toJson()` method what that returns (as `jsonEncode` itself would), and
+anything else its `toString()`.
 An entry that contains itself is written as a stub with `encoding_failed`.
 The conversion happens only in the output — processors and in-memory sinks
 still see the original objects.
@@ -593,7 +595,8 @@ Processors are functions that transform log entries before output. Return `null`
 ### Redacting secrets
 
 `redactKeys()` replaces a value with `***` wherever it appears — top level,
-nested maps, lists — and decides what to replace by any of three criteria,
+nested maps, lists, sets, and inside what an object's `toJson()` returns, so
+a DTO in the context is redacted as the JSON it will be written as — and decides what to replace by any of three criteria,
 used alone or together:
 
 ```dart

@@ -67,8 +67,25 @@ Object? toEncodableValue(Object? value) => switch (value) {
       DateTime() => value.toUtc().toIso8601String(),
       Duration() => value.inMicroseconds,
       Enum() => value.name,
-      _ => describeValue(value),
+      Set() => value.toList(),
+      _ => jsonOf(value),
     };
+
+/// What [value]'s `toJson()` returns, as `jsonEncode` would use it, or
+/// [describeValue] when it has none or it throws.
+///
+/// `jsonEncode` calls `toJson()` itself, but only when no `toEncodable` is
+/// given — and [encodeLogEntry] gives one, so without this a DTO from
+/// `json_serializable` or `freezed` would be written as its `toString()`.
+Object? jsonOf(Object? value) {
+  try {
+    return (value as dynamic).toJson();
+  } catch (_) {
+    // `NoSuchMethodError` when there is no `toJson()`, anything at all
+    // when there is one and it fails.
+    return describeValue(value);
+  }
+}
 
 /// [value]'s `toString()`, or `'<TypeName>'` when that throws.
 String describeValue(Object? value) {

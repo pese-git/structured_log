@@ -91,6 +91,31 @@ void main() {
       expect(encodeLogEntry({'a': 1}, indent: '  '), '{\n  "a": 1\n}');
     });
 
+    test('writes an object with toJson() as what toJson() returns', () {
+      final decoded = _decode(encodeLogEntry({
+        'user': _User('alice', DateTime.utc(2026, 10, 5)),
+      }));
+
+      expect(decoded['user'], {
+        'name': 'alice',
+        'joined': '2026-10-05T00:00:00.000Z',
+      });
+    });
+
+    test('a toJson() that throws costs the value its JSON, not the entry', () {
+      final decoded = _decode(encodeLogEntry({'v': _ThrowingToJson()}));
+
+      expect(decoded['v'], 'throwing toJson');
+    });
+
+    test('writes a Set as a JSON array', () {
+      final decoded = _decode(encodeLogEntry({
+        'tags': {'a', 'b'}
+      }));
+
+      expect(decoded['tags'], ['a', 'b']);
+    });
+
     test('leaves the entry it was given untouched', () {
       final at = DateTime(2026);
       final entry = <String, dynamic>{'at': at};
@@ -345,6 +370,59 @@ void main() {
     });
   });
 
+  group('redactKeys on values that are not maps or lists', () {
+    test('looks inside toJson() and redacts what it finds', () {
+      final result = redactKeys()({
+        'event': 'e',
+        'account': _Account('alice', 'hunter2'),
+      })!;
+
+      expect(result['account'], {'name': 'alice', 'password': '***'});
+      expect(encodeLogEntry(result), isNot(contains('hunter2')));
+    });
+
+    test('keeps the object when toJson() holds nothing to redact', () {
+      final user = _User('alice', DateTime.utc(2026));
+      final entry = <String, dynamic>{'event': 'e', 'user': user};
+
+      expect(redactKeys()(entry), same(entry));
+    });
+
+    test('walks a Set like a list', () {
+      final result = redactKeys()({
+        'event': 'e',
+        'users': {
+          {'password': 'x'},
+        },
+      })!;
+
+      expect(result['users'], [
+        {'password': '***'},
+      ]);
+    });
+
+    test('a toJson() that returns its own object again is a cycle', () {
+      final result = redactKeys()({'event': 'e', 'node': _SelfJson()})!;
+
+      expect(result['node'], {'self': '<cycle>', 'token': '***'});
+    });
+
+    test('a toJson() that returns a plain value has nothing to walk', () {
+      final value = _Version();
+      final entry = <String, dynamic>{'event': 'e', 'password_hint': value};
+
+      expect(redactKeys()(entry), same(entry));
+      expect(_decode(encodeLogEntry(entry))['password_hint'], '1.2.3');
+    });
+
+    test('a toJson() that throws leaves the value to the encoder', () {
+      final value = _ThrowingToJson();
+      final entry = <String, dynamic>{'event': 'e', 'v': value};
+
+      expect(redactKeys()(entry), same(entry));
+    });
+  });
+
   group('redactKeys on a cyclic entry', () {
     test('redacts what it can and marks the cycle', () {
       final m = <String, dynamic>{'token': 't'};
@@ -513,6 +591,42 @@ class _ThrowingStdout implements Stdout {
 
 Map<String, dynamic> _decode(String json) =>
     jsonDecode(json) as Map<String, dynamic>;
+
+class _User {
+  _User(this.name, this.joined);
+
+  final String name;
+  final DateTime joined;
+
+  Map<String, Object?> toJson() => {'name': name, 'joined': joined};
+}
+
+class _Account {
+  _Account(this.name, this.password);
+
+  final String name;
+  final String password;
+
+  Map<String, Object?> toJson() => {'name': name, 'password': password};
+
+  @override
+  String toString() => 'Account(name: $name, password: $password)';
+}
+
+class _Version {
+  String toJson() => '1.2.3';
+}
+
+class _SelfJson {
+  Map<String, Object?> toJson() => {'self': this, 'token': 't'};
+}
+
+class _ThrowingToJson {
+  Object? toJson() => throw StateError('no');
+
+  @override
+  String toString() => 'throwing toJson';
+}
 
 class _ThrowingToString {
   @override
