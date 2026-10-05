@@ -42,11 +42,15 @@
 - **THEN** записан `route_error` с `location: /nowhere`, и обработчик приложения вызван
 
 ### Requirement: Токены в расположении маскируются
-Значения query-параметров из `redactedQueryParameters` (регистронезависимо) SHALL заменяться на `REDACTED` в `location`, `previous_location`, `from`, `to` — и в query, и во фрагменте вида `a=b`. Фрагмент другого вида и query без таких параметров SHALL оставаться без изменений.
+Значения query-параметров из `redactedQueryParameters` (регистронезависимо) SHALL заменяться на `REDACTED` в `location`, `previous_location`, `from`, `to` и в расположениях, которые `go_router` цитирует в тексте ошибки (`error` у `route_error`), — и в query, и во фрагменте вида `a=b`. Фрагмент другого вида и query без таких параметров SHALL оставаться без изменений.
 
 #### Scenario: Токен во фрагменте
 - **WHEN** выполнен `go('/login#access_token=secret&state=s')`
 - **THEN** `location` содержит фрагмент `access_token=REDACTED&state=s`, и `secret` не встречается ни в одной записи
+
+#### Scenario: Токен в тексте ошибки
+- **WHEN** выполнен `go('/nowhere?token=t')` на несуществующее расположение, или перенаправления зациклились на расположениях с `token=t`
+- **THEN** `error` у `route_error` содержит `token=REDACTED` и не содержит `token=t`
 
 ### Requirement: Логирование не меняет навигацию
 Исключение из `filter` или логирования SHALL NOT выходить из слушателя; навигация SHALL завершаться как без логирования.

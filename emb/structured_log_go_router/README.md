@@ -146,7 +146,9 @@ is what identifies the screen — with two exceptions:
   `client_secret`, and `code` (the OAuth authorization code a sign-in
   callback carries) — become `REDACTED`, in the query and in a fragment
   shaped like one (`#access_token=...`). Pass `redactedQueryParameters`
-  to change the set (lower-case names; compared case-insensitively);
+  to change the set (lower-case names; compared case-insensitively). The
+  same goes for the locations `go_router` quotes in an error's message
+  (`no routes for location: ...`, the history of a redirect loop);
 - `extra` and other route state objects are never logged.
 
 If a path parameter itself is sensitive (an email in `/invite/:email`),
