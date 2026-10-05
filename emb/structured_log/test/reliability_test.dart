@@ -108,6 +108,47 @@ void main() {
       expect(decoded['v'], 'throwing toJson');
     });
 
+    test(
+        'a toJson() that returns its own object costs the value, not the '
+        'entry', () {
+      final decoded = _decode(encodeLogEntry({
+        'event': 'e',
+        'user': _User('alice', DateTime.utc(2026, 10, 5)),
+        'v': _ReturnsSelf(),
+      }));
+
+      expect(decoded, {
+        'event': 'e',
+        'user': {'name': 'alice', 'joined': '2026-10-05T00:00:00.000Z'},
+        'v': 'returns self',
+      });
+    });
+
+    test(
+        'a toJson() that leads back to its own object costs the value, not '
+        'the entry', () {
+      final decoded = _decode(encodeLogEntry({
+        'event': 'e',
+        'v': _SelfJson(),
+      }));
+
+      expect(decoded, {'event': 'e', 'v': 'self json'});
+    });
+
+    test(
+        'a toJson() cycle through another object costs the object that '
+        'closes it', () {
+      final decoded = _decode(encodeLogEntry({
+        'event': 'e',
+        'v': _Parent(),
+      }));
+
+      expect(decoded, {
+        'event': 'e',
+        'v': {'child': 'child'},
+      });
+    });
+
     test('writes a Set as a JSON array', () {
       final decoded = _decode(encodeLogEntry({
         'tags': {'a', 'b'}
@@ -619,6 +660,33 @@ class _Version {
 
 class _SelfJson {
   Map<String, Object?> toJson() => {'self': this, 'token': 't'};
+
+  @override
+  String toString() => 'self json';
+}
+
+class _ReturnsSelf {
+  Object toJson() => this;
+
+  @override
+  String toString() => 'returns self';
+}
+
+class _Parent {
+  late final _Child child = _Child(this);
+
+  Map<String, Object?> toJson() => {'child': child};
+}
+
+class _Child {
+  _Child(this.parent);
+
+  final _Parent parent;
+
+  Map<String, Object?> toJson() => {'parent': parent};
+
+  @override
+  String toString() => 'child';
 }
 
 class _ThrowingToJson {
