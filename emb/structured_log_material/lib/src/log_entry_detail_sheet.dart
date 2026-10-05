@@ -90,28 +90,45 @@ class LogEntryDetailSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            for (final field in contextEntries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
+            // Only the context scrolls: a stack trace or a few dozen fields
+            // would otherwise push the sheet past the screen, and the
+            // actions below with it.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      field.key,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        '${field.value}',
-                        textAlign: TextAlign.end,
-                        style: theme.textTheme.bodyMedium,
+                    for (final field in contextEntries)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Flexible(
+                              flex: 2,
+                              child: Text(
+                                field.key,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                '${field.value}',
+                                textAlign: TextAlign.end,
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
