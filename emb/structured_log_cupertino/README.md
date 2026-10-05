@@ -160,6 +160,11 @@ Row(
 )
 ```
 
+`CupertinoLogViewer` lays itself out from its top edge and keeps no safe
+area of its own. Under a translucent `CupertinoNavigationBar` — the
+default — wrap it in a `SafeArea`, as `CupertinoLogViewerPage` does, or
+its toolbar sits under the bar.
+
 ## Screenshots
 
 `CupertinoLogViewerPage` as the full screen, on a wide/iPad-size

@@ -52,6 +52,22 @@ void main() {
 
   tearDown(() => controller.dispose());
 
+  testWidgets('keeps the toolbar below the translucent navigation bar',
+      (tester) async {
+    // A status bar, as on a phone: the default bar is translucent, so the
+    // scaffold lays the page out behind it and only reports the bar's
+    // height through MediaQuery padding.
+    tester.view.padding = const FakeViewPadding(top: 47);
+    addTearDown(tester.view.resetPadding);
+    await _pump(tester, controller);
+
+    final barBottom =
+        tester.getBottomLeft(find.byType(CupertinoNavigationBar)).dy;
+    final searchTop =
+        tester.getTopLeft(find.byType(CupertinoSearchTextField)).dy;
+    expect(searchTop, greaterThanOrEqualTo(barBottom));
+  });
+
   testWidgets('wraps CupertinoLogViewer with a "Logs" navigation bar title',
       (tester) async {
     buffer.capture(_entry(event: 'a'), LogLevel.info);

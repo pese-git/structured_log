@@ -41,7 +41,10 @@ class CupertinoLogViewerPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: const CupertinoNavigationBar(middle: Text('Logs')),
-      child: CupertinoLogViewer(controller: controller),
+      // The default bar is translucent, so the scaffold lays the page out
+      // behind it and only reports its height as MediaQuery padding; without
+      // this the toolbar would sit under the bar, out of reach.
+      child: SafeArea(child: CupertinoLogViewer(controller: controller)),
     );
   }
 }
