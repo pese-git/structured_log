@@ -237,6 +237,53 @@ void main() {
       expect(_inDetailSheet('ord_9182'), findsOneWidget);
     });
 
+    testWidgets('a long context scrolls and leaves the actions in reach',
+        (tester) async {
+      buffer.capture(
+        _entry(
+          event: 'bloc_error',
+          extra: {
+            for (var i = 0; i < 40; i++) 'field_$i': 'value $i',
+            'stack_trace':
+                List.filled(60, '#0 frame (file.dart:1:1)').join('\n'),
+          },
+        ),
+        LogLevel.error,
+      );
+      await _pumpEmbedded(tester, controller);
+
+      await tester.tap(find.byType(LogEntryTile));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Close').hitTestable(), findsOneWidget);
+      await tester.dragUntilVisible(
+        _inDetailSheet('field_39'),
+        find.descendant(
+          of: find.byType(LogEntryDetailSheet),
+          matching: find.byType(Scrollable),
+        ),
+        const Offset(0, -200),
+      );
+      expect(_inDetailSheet('field_39').hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('a long key does not overflow its row', (tester) async {
+      buffer.capture(
+        _entry(
+          event: 'e',
+          extra: {'a_very_long_context_key_' * 6: 'value'},
+        ),
+        LogLevel.info,
+      );
+      await _pumpEmbedded(tester, controller);
+
+      await tester.tap(find.byType(LogEntryTile));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('the copy action copies context as text to the clipboard',
         (tester) async {
       buffer.capture(
