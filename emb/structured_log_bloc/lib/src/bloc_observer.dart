@@ -221,9 +221,10 @@ class StructuredLogBlocObserver extends BlocObserver {
   /// large state is the expensive part, and a hook that is off or a bloc
   /// that is filtered out should cost nothing.
   ///
-  /// A [describe] that throws costs the entry its values, not the bloc its
-  /// `emit`: the hooks run inside the bloc, so an exception here would
-  /// surface in application code that never asked to be logged.
+  /// A [describe] that throws costs the entry its values, and a [filter]
+  /// that throws costs the entry, but neither costs the bloc its `emit`:
+  /// the hooks run inside the bloc, so an exception here would surface in
+  /// application code that never asked to be logged.
   void _log(
     BlocBase<dynamic> bloc,
     LogLevel? level,
@@ -231,7 +232,13 @@ class StructuredLogBlocObserver extends BlocObserver {
     Map<String, dynamic> Function() fields,
   ) {
     if (level == null) return;
-    if (filter != null && !filter!(bloc)) return;
+    if (filter != null) {
+      try {
+        if (!filter!(bloc)) return;
+      } catch (_) {
+        return;
+      }
+    }
     Map<String, dynamic> described;
     try {
       described = fields();

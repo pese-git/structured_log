@@ -209,6 +209,17 @@ void main() {
       expect(entries.map((e) => e['bloc']).toSet(), {'CounterBloc'});
     });
 
+    test('a throwing filter costs the entry, not the emit', () {
+      Bloc.observer = StructuredLogBlocObserver(
+        filter: (bloc) => throw StateError('filter'),
+      );
+      final cubit = CounterCubit();
+
+      expect(cubit.increment, returnsNormally);
+      expect(cubit.state, 1);
+      expect(entries, isEmpty);
+    });
+
     test('a given logger and category replace the defaults', () {
       final logger = getLogger('ui').bind({'screen': 'home'});
       Bloc.observer = StructuredLogBlocObserver(
