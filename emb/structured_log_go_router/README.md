@@ -152,7 +152,9 @@ is what identifies the screen — with two exceptions:
 - `extra` and other route state objects are never logged.
 
 If a path parameter itself is sensitive (an email in `/invite/:email`),
-leave that route out with `filter`.
+leave that route out with `filter`. Its location then appears in no
+entry: the next navigation names it by its route alone
+(`previous_route: /invite/:email`, no `previous_location`).
 
 ## Configuration
 

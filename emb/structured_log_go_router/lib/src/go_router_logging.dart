@@ -90,8 +90,9 @@ class StructuredLogGoRouter {
   final Set<String> redactedQueryParameters;
 
   /// When given, only navigations to a state for which it returns `true`
-  /// produce a `route_changed` entry. Redirects and errors are not
-  /// filtered.
+  /// produce a `route_changed` entry. The entry after a navigation it
+  /// leaves out carries that navigation's `previous_route` but not its
+  /// `previous_location`. Redirects and errors are not filtered.
   final bool Function(GoRouterState state)? filter;
 
   GoRouter? _router;
@@ -192,9 +193,17 @@ class StructuredLogGoRouter {
       final route = state.fullPath;
       final previousLocation = _lastLocation;
       final previousRoute = _lastRoute;
-      _lastLocation = location;
+      bool logged;
+      try {
+        logged = filter?.call(state) ?? true;
+      } catch (_) {
+        logged = false;
+      }
+      // A navigation left out still counts as where the user came from, but
+      // only by its route: its location may be what the filter is hiding.
+      _lastLocation = logged ? location : null;
       _lastRoute = route;
-      if (filter != null && !filter!(state)) return;
+      if (!logged) return;
 
       _log(levels.navigation, 'route_changed', {
         'location': location,

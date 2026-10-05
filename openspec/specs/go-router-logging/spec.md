@@ -5,7 +5,7 @@
 
 ## Requirements
 ### Requirement: Каждое новое расположение даёт запись route_changed
-После `attach(router)` `StructuredLogGoRouter` SHALL писать `route_changed` на расположение, на котором роутер уже стоит, и на каждое следующее новое расположение (`go`, `push`, `pop`). Запись SHALL содержать `location`, `route` (шаблон маршрута), `route_name` (если у маршрута есть имя), `previous_location`/`previous_route` (кроме первой записи) и `category` (по умолчанию `navigation`). Уведомление делегата без нового расположения SHALL NOT давать запись. После `detach()` записи SHALL NOT писаться.
+После `attach(router)` `StructuredLogGoRouter` SHALL писать `route_changed` на расположение, на котором роутер уже стоит, и на каждое следующее новое расположение (`go`, `push`, `pop`). Запись SHALL содержать `location`, `route` (шаблон маршрута), `route_name` (если у маршрута есть имя), `previous_location`/`previous_route` (кроме первой записи; после навигации, исключённой `filter`, — только `previous_route`) и `category` (по умолчанию `navigation`). Уведомление делегата без нового расположения SHALL NOT давать запись. После `detach()` записи SHALL NOT писаться.
 
 #### Scenario: Переход на маршрут с параметром
 - **WHEN** роутер стоит на `/`, затем выполнен `go('/users/42')`
@@ -18,6 +18,10 @@
 #### Scenario: Уведомление без нового расположения
 - **WHEN** делегат уведомил слушателей, а расположение не изменилось
 - **THEN** новой записи нет
+
+#### Scenario: Навигация, исключённая filter
+- **WHEN** `filter` отвергает маршрут `/users/:id`, выполнены `go('/users/alice@example.com')` и затем `go('/login')`
+- **THEN** записи для `/users/alice@example.com` нет, запись для `/login` содержит `previous_route: /users/:id` и не содержит `previous_location`, и `alice` не встречается ни в одной записи
 
 ### Requirement: Перенаправления пишутся через обёртку redirect
 Функция, обёрнутая `redirect(...)`, SHALL писать `route_redirected` с `from` и `to`, когда возвращает расположение, отличное от текущего. Ответ и исключения обёрнутой функции SHALL доходить до роутера без изменений; синхронный ответ SHALL оставаться синхронным.

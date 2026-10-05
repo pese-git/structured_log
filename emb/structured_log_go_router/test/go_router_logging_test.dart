@@ -194,8 +194,32 @@ void main() {
       await tester.pumpAndSettle();
 
       expect([for (final e in entries) e['location']], ['/', '/login']);
-      // The skipped navigation still counts as where the user came from.
-      expect(entries.last, containsPair('previous_location', '/settings'));
+      // The skipped navigation still counts as where the user came from —
+      // by its route, which names no parameters, not by its location,
+      // which may be exactly what the filter was meant to keep out.
+      expect(entries.last, containsPair('previous_route', '/settings'));
+      expect(entries.last.keys, isNot(contains('previous_location')));
+    });
+
+    testWidgets('a filtered location appears in no later entry', (
+      tester,
+    ) async {
+      final routeLog = StructuredLogGoRouter(
+        filter: (state) => state.fullPath != '/users/:id',
+      );
+      final router = GoRouter(routes: routes());
+      addTearDown(router.dispose);
+      await pumpRouter(tester, router);
+      routeLog.attach(router);
+      addTearDown(routeLog.detach);
+
+      router.go('/users/alice@example.com');
+      await tester.pumpAndSettle();
+      router.go('/login');
+      await tester.pumpAndSettle();
+
+      expect(jsonEncode(entries), isNot(contains('alice')));
+      expect(entries.last, containsPair('previous_route', '/users/:id'));
     });
   });
 
