@@ -50,7 +50,8 @@ can filter the story of one bloc out of everything else.
 ### Safety
 
 - **Never breaks a bloc** — a `toString()` or describer that throws costs the
-  entry its values, not the bloc its `emit`.
+  entry its values, and a filter that throws costs the entry, but neither
+  costs the bloc its `emit`.
 - **Costs nothing when off** — a hook that is off or a bloc that is filtered
   out never has its state described.
 
