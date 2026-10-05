@@ -10,6 +10,10 @@ import 'dart:convert';
 /// only here; [entry] itself, and so whatever processors and in-memory sinks
 /// see, keeps the original objects.
 ///
+/// An object with a `toJson()` is written as what it returns; one whose
+/// `toJson()` returns the object itself, or leads back to it, is written as
+/// its `toString()` instead.
+///
 /// An entry that cannot be encoded even so — one that contains itself — is
 /// replaced by a stub carrying the fields that say which entry it was
 /// (`event`, `level`, `timestamp`, `logger`, `category`, where they are
@@ -29,12 +33,69 @@ String encodeLogEntry(Map<String, dynamic> entry, {String? indent}) {
   try {
     return encoder.convert(entry);
   } catch (error) {
-    return encoder.convert({
-      ...identifyingFields(entry),
-      'encoding_failed': error.runtimeType.toString(),
-    });
+    // A `toJson()` that returns its own object, or one that leads back to
+    // it, fails the whole entry, and `JsonEncoder` cannot say which value
+    // did it. Checking every `toJson()` on its own finds it, at a cost paid
+    // only here, on the failure path.
+    try {
+      return encoder.convert(_checkToJson(entry, Set.identity()));
+    } catch (_) {
+      return encoder.convert({
+        ...identifyingFields(entry),
+        'encoding_failed': error.runtimeType.toString(),
+      });
+    }
   }
 }
+
+/// [value] with every object in it replaced by what its `toJson()` returns,
+/// walked the same way, or by its [describeValue] when that cannot be
+/// written: it leads back to an object on the path down to it, or it has
+/// no `toJson()` at all.
+///
+/// A map or list that contains itself still throws: that is the entry's own
+/// cycle, not a value's, and it costs the entry as before. [ancestors] holds
+/// what is on the path down to [value], compared by identity.
+Object? _checkToJson(Object? value, Set<Object> ancestors) {
+  if (value == null ||
+      value is String ||
+      value is num ||
+      value is bool ||
+      value is DateTime ||
+      value is Duration ||
+      value is Enum) {
+    return value;
+  }
+  if (!ancestors.add(value)) throw _CycleError();
+  try {
+    if (value is Map) {
+      // A map with keys other than strings is written as its `toString()`
+      // by the encoder; there is nothing here to walk.
+      if (value.keys.any((key) => key is! String)) return value;
+      return {
+        for (final field in value.entries)
+          field.key: _checkToJson(field.value, ancestors),
+      };
+    }
+    if (value is List || value is Set) {
+      return [
+        for (final element in value as Iterable)
+          _checkToJson(element, ancestors),
+      ];
+    }
+    try {
+      return _checkToJson((value as dynamic).toJson(), ancestors);
+    } catch (_) {
+      return describeValue(value);
+    }
+  } finally {
+    ancestors.remove(value);
+  }
+}
+
+/// What [_checkToJson] throws on a cycle; the error [encodeLogEntry] names in
+/// a stub is the encoder's own.
+class _CycleError extends Error {}
 
 /// The fields of [entry] that say which entry it was, and nothing else:
 /// what a stub keeps when the rest cannot be delivered.
