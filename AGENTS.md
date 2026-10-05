@@ -181,9 +181,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и
+  оттуда, а не из `specs/`. Открыты сейчас три — `add-structured-log-server`,
   `add-structured-log-drift` (перехватчик запросов `drift`, пакет `emb/structured_log_drift/`; заявка заведена
   06.10.2026, пакет реализован, не архивирована);
+  `add-structured-log-logging` (мост `package:logging` → `structured_log`, будущий пакет
+  `emb/structured_log_logging/`; заявка заведена 05.10.2026, реализация не начата);
   `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
   записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
