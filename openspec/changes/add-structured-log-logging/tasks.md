@@ -8,9 +8,9 @@
 
 ## 2. Workspace и CI
 
-- [ ] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
-- [ ] 2.2 CI-джоба `logging-bridge` по форме `bloc-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze/тесты с покрытием, прогон примера) плюс второй прогон тестов с `logging: 1.2.0` в `pubspec_overrides.yaml`, последним шагом (decision 10)
-- [ ] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью `_added_<дата>`
+- [x] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
+- [x] 2.2 CI-джоба `logging-bridge` по форме `cherrypick-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze, прогон примера, тесты с покрытием и порогом) плюс второй прогон тестов с `logging: 1.2.0` в `pubspec_overrides.yaml`, последним шагом (decision 10). Шаги прогнаны локально, второй прогон — 26/26 на 1.2.0
+- [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — 97 при измеренных 100 % (39/39), запись `_added_2026_10_05`
 - [ ] 2.4 CI зелёный на GitHub Actions, включая новую джобу
 
 ## 3. Документация
