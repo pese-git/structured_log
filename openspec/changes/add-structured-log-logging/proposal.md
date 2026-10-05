@@ -6,7 +6,7 @@
 
 - Новый пакет `emb/structured_log_logging/` с `StructuredLogLoggingBridge`: подписка на `onRecord` логгера `package:logging` (по умолчанию `Logger.root`). Каждая `LogRecord` даёт одну запись `structured_log`: сообщение становится `event`, имя логгера становится `logger`, `category` по умолчанию `logging`, уровень сопоставляется по числовому значению `Level`. `error` и `stackTrace` передаются ядру как есть, поэтому поля `error`/`error_type`/`stack_trace` получаются те же, что у `BoundLogger.error`.
 - Настройка: функция сопоставления уровней (`levelOf`), фильтр записей (`filter`), категория (`category`, `null` убирает поле), дополнительный контекст из записи (`context` — например, id запроса из `Zone`). Методы `attach()`/`detach()` идемпотентны.
-- Защита от рекурсии: запись, пришедшая из `package:logging`, пока мост сам доставляет предыдущую (sink или процессор снова пишет в `package:logging`), отбрасывается, а не зацикливает вызов.
+- Рекурсии нет: пока мост доставляет запись, `package:logging` сам отказывается публиковать следующую, и вложенный вызов из sink'а или процессора получает `StateError`, а не входит в мост повторно. Это поведение закреплено тестом и описано в README.
 - Регистрация в `melos.yaml` (`packages:` и скоуп `test:dart`), отдельная CI-джоба `logging-bridge` и порог покрытия в `tool/coverage_floors.json`.
 - Документация: `README.md`/`README.ru.md` пакета, раздел «Related packages»/«Связанные пакеты» во всех остальных живых пакетах `emb/`, корневые README, `AGENTS.md`, `docs/guides/embedding-guide.md`/`.ru.md`, оглавление пакетов и главная страница сайта.
 - Вне рамок:
