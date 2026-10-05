@@ -26,7 +26,8 @@
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
    приложении уже делают `bloc`, `dio`, `http`, `go_router` и `cherrypick`,
-   а также запросы к базе `drift`.
+   запросы к базе `drift`, а мост передаёт записи всех библиотек, логирующих
+   через `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
    Material, Fluent или Cupertino.
 4. **Собрать** — self-hosted сервер принимает логи со всех установок
@@ -78,6 +79,7 @@
 | `go_router` | навигация с шаблоном маршрута, перенаправления, ошибки маршрутизации | `navigation` |
 | `cherrypick` | скоупы DI, модули, циклы, ошибки разрешения; сами экземпляры в лог не попадают | `di` |
 | `drift` | каждый запрос с SQL, длительностью и числом строк, медленные выделены, сбои со стеком; значения аргументов выключены | `db` |
+| `package:logging` | каждая запись каждой библиотеки, которая через него логирует, с уровнем, ошибкой и стеком | `logging` |
 
 HTTP- и навигационные адаптеры по умолчанию маскируют заголовки
 авторизации, cookie и query-параметры с токенами. Тела запросов пишутся
@@ -109,7 +111,7 @@ HTTP- и навигационные адаптеры по умолчанию м�
 ```mermaid
 flowchart LR
   subgraph app["Ваше приложение на Dart / Flutter"]
-    A["Адаптеры<br/>bloc · dio · http · go_router · cherrypick · drift"] --> C["structured_log"]
+    A["Адаптеры<br/>bloc · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Ваш код"] --> C
     C --> O["Консоль / файл"]
     C --> V["Просмотрщик логов в приложении"]
@@ -187,6 +189,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_go_router`](emb/structured_log_go_router/) | Логирование навигации `go_router` | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | Наблюдатель DI `cherrypick` | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
 | [`structured_log_drift`](emb/structured_log_drift/) | Логирование запросов `drift` | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
+| [`structured_log_logging`](emb/structured_log_logging/) | Мост `package:logging` | ещё не опубликован |
 | [`structured_log_server`](backend/structured_log_server/) | Self-hosted сервер логов | сервис, не публикуется |
 | [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Веб-админка сервера | приложение, не публикуется |
 
