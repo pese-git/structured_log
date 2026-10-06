@@ -247,6 +247,7 @@ The rest of the `structured_log` family:
 - [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) — `dio` interceptor that logs HTTP calls
 - [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) — logs `go_router` navigation
 - [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) — observer for the `cherrypick` DI container
+- [`structured_log_drift`](https://pub.dev/packages/structured_log_drift) — drift `QueryInterceptor` that logs queries, failures and transactions
 
 ## License
 
