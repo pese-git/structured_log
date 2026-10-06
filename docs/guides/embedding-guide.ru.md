@@ -37,8 +37,11 @@ Dart- или Flutter-приложение. Ничто из описанного 
 6. **Писать в лог работу DI-контейнера** —
    [`structured_log_cherrypick`](#7-опционально-логировать-di-контейнер-structured_log_cherrypick),
    для приложений, собранных на `cherrypick`.
-7. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_remote_sync`](#8-опционально-доставлять-логи-и-на-сервер),
+7. **Писать в лог запросы к базе** —
+   [`structured_log_drift`](#8-опционально-логировать-запросы-к-базе-structured_log_drift),
+   для приложений с базой `drift`.
+8. **Ещё и доставлять эти логи на сервер** —
+   [`structured_log_remote_sync`](#9-опционально-доставлять-логи-и-на-сервер),
    тонкая надстройка над `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -386,7 +389,40 @@ CherryPick.setGlobalObserver(StructuredLogCherryPickObserver());
 [README](../../emb/structured_log_cherrypick/README.ru.md#что-пишется-в-лог)
 пакета.
 
-## 8. Опционально: доставлять логи и на сервер
+## 8. Опционально: логировать запросы к базе: `structured_log_drift`
+
+Медленный или упавший запрос — частая причина подвисшего или пустого
+экрана, а встроенный в drift `logStatements` печатает значения аргументов
+через `print`, поэтому его не включают.
+[`structured_log_drift`](../../emb/structured_log_drift/) — это
+`QueryInterceptor` для drift, который вместо этого пишет каждый запрос
+записью:
+
+```yaml
+dependencies:
+  drift: ^2.14.0
+  structured_log: ^0.3.0
+  structured_log_drift:
+    git:
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_drift # на pub.dev пока нет
+```
+
+```dart
+final db = AppDatabase(
+  NativeDatabase(file).interceptWith(StructuredLogDriftInterceptor()),
+);
+```
+
+У записей стоит `category: 'db'`: `db_query` на каждый запрос с SQL,
+`duration_ms` и числом строк, `db_batch` на пакет, `db_query_failed` с
+ошибкой и стеком. Запрос от 500 мс пишется уровнем `warning` с `slow: true`.
+Значения аргументов не попадают ни в запись, ни в текст ошибки, пока вы их не
+включите; как это сделать и что не пишется (миграции), — в
+[README](../../emb/structured_log_drift/README.ru.md#как-не-пустить-секреты-в-лог)
+пакета.
+
+## 9. Опционально: доставлять логи и на сервер
 
 Всё описанное выше работает полностью локально: без сети и без сервера.
 Если нужно ещё и собирать эти логи в одном месте (искать по ним после

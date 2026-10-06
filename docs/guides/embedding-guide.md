@@ -35,8 +35,11 @@ Several packages, and you only need as many of them as your project does:
 6. **Log the DI container** —
    [`structured_log_cherrypick`](#7-optional-log-the-di-container-structured_log_cherrypick),
    for apps wired with `cherrypick`.
-7. **Also ship those logs to a server** —
-   [`structured_log_remote_sync`](#8-optional-also-ship-logs-to-a-server), a
+7. **Log your database queries** —
+   [`structured_log_drift`](#8-optional-log-your-database-queries-structured_log_drift),
+   for apps with a `drift` database.
+8. **Also ship those logs to a server** —
+   [`structured_log_remote_sync`](#9-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -378,7 +381,38 @@ the package's
 for turning them on and for what the container itself does and does not
 report.
 
-## 8. Optional: also ship logs to a server
+## 8. Optional: log your database queries: `structured_log_drift`
+
+A slow or failing query is a common reason for a screen that hangs or comes
+up empty, and drift's own `logStatements` prints argument values through
+`print`, so it stays off. [`structured_log_drift`](../../emb/structured_log_drift/)
+is a drift `QueryInterceptor` that writes every query as an entry instead:
+
+```yaml
+dependencies:
+  drift: ^2.14.0
+  structured_log: ^0.3.0
+  structured_log_drift:
+    git:
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_drift # not yet on pub.dev
+```
+
+```dart
+final db = AppDatabase(
+  NativeDatabase(file).interceptWith(StructuredLogDriftInterceptor()),
+);
+```
+
+Entries carry `category: 'db'`: a `db_query` per query with its SQL,
+`duration_ms` and rows, a `db_batch` per batch, a `db_query_failed` with the
+error and stack trace. A query of 500 ms or more is a `warning` with
+`slow: true`. Argument values stay out — of the entry and of the error's
+text — unless you turn them on; see the package's
+[README](../../emb/structured_log_drift/README.md#keeping-secrets-out-of-the-log)
+for that, and for what is not logged (migrations).
+
+## 9. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,

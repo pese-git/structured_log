@@ -19,6 +19,7 @@ self-hosted сервер и его admin-клиент — см. [руковод�
 | [structured_log_http_client](/ru/packages/structured_log_http_client/) | То же для `package:http`: клиент-обёртка над любым `http.Client`, который пишет каждый проходящий через него вызов. |
 | [structured_log_go_router](/ru/packages/structured_log_go_router/) | Пишет каждую навигацию `go_router` — расположение, шаблон маршрута, предыдущее расположение — а также перенаправления и ошибки маршрутизации, маскируя query-параметры с токенами. |
 | [structured_log_cherrypick](/ru/packages/structured_log_cherrypick/) | `CherryPickObserver`, который пишет, что делает DI-контейнер `cherrypick`, — скоупы, модули, циклы, ошибки разрешения — и никогда не печатает экземпляр. |
+| [structured_log_drift](/ru/packages/structured_log_drift/) | `QueryInterceptor` для drift, который пишет каждый запрос — SQL, длительность, строки, — а также пакеты, сбои и завершение транзакций, выделяет медленные запросы и по умолчанию не пишет значения аргументов. |
 
 Ищете `structured_log_http`? Он переименован в `structured_log_remote_sync`
 (`HttpLogOutput` → `RemoteSyncLogOutput`) и больше не развивается;

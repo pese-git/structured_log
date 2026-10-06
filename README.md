@@ -24,7 +24,8 @@ The project covers the whole path such an entry travels:
 
 1. **Write it** — a small, dependency-free core library for Dart and Flutter.
 2. **Get it for free** — adapters that log what `bloc`, `dio`, `http`,
-   `go_router` and `cherrypick` already do in your app.
+   `go_router` and `cherrypick` already do in your app, and the queries of
+   a `drift` database.
 3. **See it on the device** — a drop-in log viewer screen in Material,
    Fluent or Cupertino style.
 4. **Collect it** — a self-hosted server that receives logs from every
@@ -70,6 +71,7 @@ optional, and adding it doesn't change a single logging call.
 | `package:http` | the same, as a wrapping `http.Client`, without buffering bodies | `http` |
 | `go_router` | navigation with route pattern, redirects, routing errors | `navigation` |
 | `cherrypick` | DI scopes, modules, cycles, resolve errors — never an instance | `di` |
+| `drift` | every query with its SQL, duration and rows, slow ones flagged, failures with their stack — argument values off | `db` |
 
 HTTP and navigation adapters redact auth headers, cookies, and token-like
 query parameters by default; bodies are off unless enabled, and masked by
@@ -98,7 +100,7 @@ field name when they are.
 ```mermaid
 flowchart LR
   subgraph app["Your Dart / Flutter app"]
-    A["Adapters<br/>bloc · dio · http · go_router · cherrypick"] --> C["structured_log"]
+    A["Adapters<br/>bloc · dio · http · go_router · cherrypick · drift"] --> C["structured_log"]
     Y["Your code"] --> C
     C --> O["Console / file"]
     C --> V["In-app log viewer"]
@@ -175,6 +177,7 @@ the admin client.
 | [`structured_log_http_client`](emb/structured_log_http_client/) | `package:http` client wrapper | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | `go_router` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | `cherrypick` DI observer | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
+| [`structured_log_drift`](emb/structured_log_drift/) | `drift` query logging | not yet published |
 | [`structured_log_server`](backend/structured_log_server/) | Self-hosted log server | service, not published |
 | [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Web admin for the server | app, not published |
 
