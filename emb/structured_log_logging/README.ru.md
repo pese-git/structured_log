@@ -78,14 +78,16 @@
 ## Установка
 
 Пакет ещё не опубликован на pub.dev (`0.1.0-dev.0`), поэтому пока
-подключайте его по пути или из git:
+подключайте его из git:
 
 ```yaml
 dependencies:
   logging: ^1.2.0
   structured_log: ^0.3.0
   structured_log_logging:
-    path: ../structured_log_logging # внутри этого монорепозитория
+    git:
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_logging
 ```
 
 ## Быстрый старт
