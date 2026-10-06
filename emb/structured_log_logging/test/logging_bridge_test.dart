@@ -252,7 +252,10 @@ void main() {
   });
 
   group('never throws into the caller', () {
-    test('a throwing filter costs the entry its type, not the call', () {
+    // filter and levelOf are where a record is left out, so one that throws
+    // leaves it out too: writing it would let through exactly what they
+    // were there to keep out.
+    test('a throwing filter costs the entry, not the call', () {
       final errors = uncaughtErrorsOf(() {
         attached(StructuredLogLoggingBridge(
           filter: (_) => throw const FormatException('secret=1'),
@@ -261,11 +264,10 @@ void main() {
       });
 
       expect(errors, isEmpty);
-      expect(entries.single, containsPair('bridge_failed', 'FormatException'));
-      expect(jsonEncode(entries), isNot(contains('secret=1')));
+      expect(entries, isEmpty);
     });
 
-    test('a throwing levelOf falls back to the default mapping', () {
+    test('a throwing levelOf costs the entry, not the call', () {
       final errors = uncaughtErrorsOf(() {
         attached(StructuredLogLoggingBridge(
           levelOf: (_) => throw StateError('levelOf'),
@@ -274,21 +276,33 @@ void main() {
       });
 
       expect(errors, isEmpty);
-      expect(entries.single, containsPair('level', 'error'));
-      expect(entries.single, containsPair('bridge_failed', 'StateError'));
+      expect(entries, isEmpty);
+    });
+
+    test('a later record still arrives after a throwing filter', () {
+      var calls = 0;
+      attached(StructuredLogLoggingBridge(
+        filter: (_) => ++calls == 1 ? throw StateError('once') : true,
+      ));
+
+      Logger('x').info('first');
+      Logger('x').info('second');
+
+      expect(eventsOf(entries), ['second']);
     });
 
     test('a throwing context costs only its fields', () {
       final errors = uncaughtErrorsOf(() {
         attached(StructuredLogLoggingBridge(
-          context: (_) => throw StateError('context'),
+          context: (_) => throw const FormatException('secret=1'),
         ));
         Logger('x').info('m');
       });
 
       expect(errors, isEmpty);
       expect(entries.single, containsPair('event', 'm'));
-      expect(entries.single, containsPair('bridge_failed', 'StateError'));
+      expect(entries.single, containsPair('bridge_failed', 'FormatException'));
+      expect(jsonEncode(entries), isNot(contains('secret=1')));
     });
 
     test('a failing sink does not reach the caller either', () {

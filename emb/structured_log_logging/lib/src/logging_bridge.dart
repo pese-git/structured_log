@@ -72,16 +72,20 @@ class StructuredLogLoggingBridge {
   /// The logger whose records are bridged.
   final Logger source;
 
-  /// The level each record is written at; see [defaultLogLevelOf].
+  /// The level each record is written at; see [defaultLogLevelOf]. A record
+  /// for which it throws is not written.
   final LogLevelOf levelOf;
 
-  /// When given, only records for which it returns `true` are written.
+  /// When given, only records for which it returns `true` are written; one
+  /// for which it throws is not written either.
   final bool Function(LogRecord record)? filter;
 
   /// The `category` of every entry; `null` writes none.
   final String? category;
 
-  /// When given, the fields it returns are added to the record's entry.
+  /// When given, the fields it returns are added to the record's entry. When
+  /// it throws, the entry is written without them and with `bridge_failed`
+  /// naming the exception's type.
   final Map<String, Object?>? Function(LogRecord record)? context;
 
   StreamSubscription<LogRecord>? _subscription;
@@ -119,37 +123,29 @@ class StructuredLogLoggingBridge {
   }
 
   void _deliver(LogRecord record) {
-    // The callbacks do not redact anything — that is what processors are
-    // for — so one that throws costs the entry its type in `bridge_failed`,
-    // not the entry. Only the type: an exception's message may quote a
-    // value.
-    String? failed;
-
-    if (filter != null) {
-      try {
-        if (!filter!(record)) return;
-      } catch (error) {
-        failed = error.runtimeType.toString();
-      }
-    }
-
-    LogLevel? mapped;
-    var mappingFailed = false;
+    // filter and levelOf are where a record is left out — a logger too
+    // revealing to write, say — so one that throws leaves the record out:
+    // writing it anyway would let through exactly what they were there to
+    // keep out. That is what a throwing filter costs in the other adapters.
+    final LogLevel? level;
     try {
-      mapped = levelOf(record.level);
-    } catch (error) {
-      failed ??= error.runtimeType.toString();
-      mappingFailed = true;
+      if (filter != null && !filter!(record)) return;
+      level = levelOf(record.level);
+    } catch (_) {
+      return;
     }
-    if (mapped == null && !mappingFailed) return;
-    final level = mapped ?? defaultLogLevelOf(record.level);
+    if (level == null) return;
 
+    // context only adds fields, so one that throws costs the entry those
+    // fields and its type in `bridge_failed`, not the entry. Only the type:
+    // an exception's message may quote a value.
+    String? failed;
     Map<String, Object?>? extra;
     if (context != null) {
       try {
         extra = context!(record);
       } catch (error) {
-        failed ??= error.runtimeType.toString();
+        failed = error.runtimeType.toString();
       }
     }
 

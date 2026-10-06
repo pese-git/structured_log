@@ -50,8 +50,10 @@ libraries that wrote it.
 ### Safety
 
 - **Never throws into the caller** — it runs inside the library's own
-  `Logger.log` call; a filter, level mapping or context callback that throws
-  costs the entry its type in `bridge_failed`, not the library its call.
+  `Logger.log` call. A filter or level mapping that throws costs the record
+  — it is where you keep records out, so the bridge errs on that side; a
+  context callback that throws costs only its fields, and the entry names
+  its type in `bridge_failed`.
 - **Leaves `package:logging` alone** — it never changes a logger's level or
   `hierarchicalLoggingEnabled`.
 
