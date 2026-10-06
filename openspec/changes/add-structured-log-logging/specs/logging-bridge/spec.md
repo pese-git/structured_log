@@ -4,8 +4,8 @@
 `StructuredLogLoggingBridge` после `attach()` SHALL писать ровно одну запись `structured_log` на каждую `LogRecord`, опубликованную в `onRecord` логгера-источника (по умолчанию `Logger.root`). Поле `event` записи SHALL равняться `LogRecord.message`. Запись SHALL писаться логгером `getLogger(loggerName)`, а для корня с пустым именем — `getLogger('root')`.
 
 #### Scenario: Сообщение чужой библиотеки
-- **WHEN** мост подключён, `Logger.root.level = Level.ALL` и библиотека вызывает `Logger('postgres').info('connected')`
-- **THEN** sink `structured_log` получает одну запись с `event: 'connected'`, `logger: 'postgres'` и уровнем `info`
+- **WHEN** мост подключён, `Logger.root.level = Level.ALL` и библиотека вызывает `Logger('smtp').info('connected')`
+- **THEN** sink `structured_log` получает одну запись с `event: 'connected'`, `logger: 'smtp'` и уровнем `info`
 
 #### Scenario: Запись корневого логгера
 - **WHEN** вызван `Logger.root.warning('low disk')`

@@ -86,11 +86,11 @@ void main() {
     test('a library message keeps its text, logger and level', () {
       attached();
 
-      Logger('postgres').info('connected');
+      Logger('smtp').info('connected');
 
       expect(entries, hasLength(1));
       expect(entries.single, containsPair('event', 'connected'));
-      expect(entries.single, containsPair('logger', 'postgres'));
+      expect(entries.single, containsPair('logger', 'smtp'));
       expect(entries.single, containsPair('level', 'info'));
     });
 

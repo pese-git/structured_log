@@ -108,9 +108,9 @@ void main() {
 A database driver that writes through `package:logging` then logs:
 
 ```text
-[2026-10-05T09:39:05.575330Z] INFO: connection opened {"logger":"postgres","category":"logging"}
-[2026-10-05T09:39:05.578816Z] DEBUG: query took 3 ms {"logger":"postgres","category":"logging"}
-[2026-10-05T09:39:05.579002Z] ERROR: query failed {"logger":"postgres","category":"logging","error":"Bad state: connection closed","error_type":"StateError"}
+[2026-10-05T09:39:05.575330Z] INFO: connection opened {"logger":"db","category":"logging"}
+[2026-10-05T09:39:05.578816Z] DEBUG: query took 3 ms {"logger":"db","category":"logging"}
+[2026-10-05T09:39:05.579002Z] ERROR: query failed {"logger":"db","category":"logging","error":"Bad state: connection closed","error_type":"StateError"}
 ```
 
 See [example/main.dart](example/main.dart) for a runnable version
