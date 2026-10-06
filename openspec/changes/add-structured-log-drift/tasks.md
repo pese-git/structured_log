@@ -9,9 +9,9 @@
 
 ## 2. Workspace и CI
 
-- [ ] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
-- [ ] 2.2 CI-джоба `drift-interceptor` по форме `bloc-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze, прогон примера, тесты с покрытием и порогом) плюс второй прогон тестов на `drift: 2.14.0` последним шагом (decision 13)
-- [ ] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью-обоснованием
+- [x] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
+- [x] 2.2 CI-джоба `drift-interceptor` по форме `bloc-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze, прогон примера, тесты с покрытием и порогом) плюс второй прогон тестов на `drift: 2.14.0` последним шагом (decision 13)
+- [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью-обоснованием
 - [ ] 2.4 CI зелёный на GitHub Actions, включая новую джобу
 
 ## 3. Документация

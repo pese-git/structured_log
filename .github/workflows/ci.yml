@@ -621,6 +621,81 @@ jobs:
           dart pub get
           dart test
 
+  drift-interceptor:
+    name: Analyze & test (structured_log_drift)
+    runs-on: ubuntu-latest
+    # Pure Dart: drift needs no Flutter SDK, and the tests run on
+    # NativeDatabase.memory() against the system's libsqlite3. They run
+    # twice — once on what pub picks by default and once on drift 2.14.0,
+    # where QueryInterceptor appeared, so that lower bound is checked
+    # rather than assumed.
+    defaults:
+      run:
+        working-directory: emb/structured_log_drift
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Cache pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('emb/structured_log_drift/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      # Same reason as the remote-sync job: without the override pub
+      # resolves the published structured_log.
+      - name: Link the workspace copy of structured_log
+        run: |
+          cat > pubspec_overrides.yaml <<'EOF'
+          dependency_overrides:
+            structured_log:
+              path: ../structured_log
+          EOF
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze
+
+      - name: Run the example
+        run: dart run example/main.dart
+
+      - name: Run tests with coverage
+        run: dart test --coverage=coverage
+
+      - name: Check coverage against its floor
+        working-directory: .
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --lcov \
+            --in=emb/structured_log_drift/coverage \
+            --out=emb/structured_log_drift/coverage/lcov.info \
+            --report-on=emb/structured_log_drift/lib \
+            --packages=emb/structured_log_drift/.dart_tool/package_config.json
+          dart tool/coverage_floor.dart --package structured_log_drift \
+            --lcov emb/structured_log_drift/coverage/lcov.info
+
+      # drift: >=2.14.0 is a claim about 2.14.0, and nothing else would
+      # check it. Last, after the coverage check, which needs the
+      # package_config.json of the first run.
+      - name: Run tests against the lowest drift it admits
+        run: |
+          cat >> pubspec_overrides.yaml <<'EOF'
+            drift: 2.14.0
+          EOF
+          dart pub get
+          dart test
+
   browser-cookie:
     name: What the browser does with the refresh cookie
     runs-on: ubuntu-latest
