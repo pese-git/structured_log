@@ -8,7 +8,7 @@
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
 (`structured_log`, скины просмотрщика логов, `structured_log_remote_sync` и адаптеры к чужим библиотекам —
-`bloc`/`dio`/`http`/`go_router`/`cherrypick`), [backend/](backend/) —
+`bloc`/`dio`/`http`/`go_router`/`cherrypick`/`drift`), [backend/](backend/) —
 самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
 самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
 пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (сейчас там один
@@ -39,7 +39,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Двенадцать пакетов в `emb/` — одиннадцать живых и прослойка `structured_log_http`:
+Тринадцать пакетов в `emb/` — двенадцать живых и прослойка `structured_log_http`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -108,6 +108,12 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   пути (`path: ../../emb/structured_log_cherrypick`), как клиент берёт `structured_log_admin_ui`: пакет лежит
   в том же репозитории, а оба потребителя — `publish_to: none`. Чистый Dart, `cherrypick` 3.x и 4.x, опубликован как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/](openspec/changes/archive/2026-10-01-add-structured-log-cherrypick/), основная спека — [openspec/specs/cherrypick-log-observer/](openspec/specs/cherrypick-log-observer/spec.md).
+- [emb/structured_log_drift/](emb/structured_log_drift/) — `StructuredLogDriftInterceptor`: `QueryInterceptor`
+  drift, пишущий каждый запрос (`db_query`: вид, SQL, дробный `duration_ms`, `rows`/`affected_rows`/`insert_id`),
+  пакет (`db_batch`), сбой (`db_query_failed` со стеком) и завершение транзакции с `category: 'db'`; медленный
+  запрос (от 500 мс) — `warning` с `slow: true`. Значения аргументов по умолчанию не пишутся — ни в записи, ни
+  в тексте ошибки. Чистый Dart, `drift: >=2.14.0 <3.0.0`, ещё не опубликован (`0.1.0-dev.0`), заявка открыта —
+  [openspec/changes/add-structured-log-drift/](openspec/changes/add-structured-log-drift/).
 
 Плюс один пакет в `backend/`:
 
@@ -162,6 +168,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_http_client/](emb/structured_log_http_client/) — логирующая обёртка `http.Client` (см. ниже).
 - [emb/structured_log_go_router/](emb/structured_log_go_router/) — логирование навигации `go_router` (см. ниже).
 - [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — наблюдатель DI-контейнера `cherrypick` (см. ниже).
+- [emb/structured_log_drift/](emb/structured_log_drift/) — логирование запросов `drift` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -174,7 +181,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`;
+  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и
+  `add-structured-log-drift` (перехватчик запросов `drift`, пакет `emb/structured_log_drift/`; заявка заведена
+  06.10.2026, пакет реализован, не архивирована);
   `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
   записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
@@ -472,6 +481,33 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   умолчанию берёт стабильную 3.x, а потребители в репозитории сидят на 4.0-dev, поэтому CI-джоба
   `cherrypick-observer` гоняет тесты второй раз с `cherrypick: ^4.0.0-dev.5` в `pubspec_overrides.yaml`
   (последним шагом — после проверки покрытия, которой нужен `package_config.json` первого прогона).
+
+Внутри [emb/structured_log_drift/](emb/structured_log_drift/):
+
+- [emb/structured_log_drift/lib/src/drift_interceptor.dart](emb/structured_log_drift/lib/src/drift_interceptor.dart) —
+  `StructuredLogDriftInterceptor` (наследник `QueryInterceptor`), `DriftLogLevels`, `defaultStatementMaxLength`/
+  `defaultArgumentMaxLength`.
+- **Поведение drift проверено пробой до design, а не выведено из документации**: миграции идут мимо перехватчика
+  (`ensureOpen` отдаёт базе внутренний исполнитель); `batch` — один `runBatched` внутри своей транзакции, а
+  одинаковые операторы схлопнуты (`statement_count` — различные операторы, `execution_count` — наборы аргументов);
+  вложенная транзакция — ещё одна пара `beginTransaction`/`commitTransaction`. Поэтому за каждым пакетом идёт
+  коммит, и коммит по умолчанию на `trace`, чтобы пакет не попадал в лог дважды.
+- **Запрос выполняется вне защиты логирования**: результат и исключение доходят до вызывающего как есть
+  (`rethrow` сохраняет стек), всё логирование — в `_guard`. Бросивший `filter` стоит записи (fail-closed).
+- **Аргументы утекали бы через текст ошибки — найдено прогоном примера.** `SqliteException.toString()` дописывает
+  `parameters:` со значениями упавшего оператора, так что поле `error` в форме ядра обходило выключенный
+  `logArguments`. Пока аргументы выключены, перехватчик пишет `error`/`error_type`/`stack_trace` сам: хвост
+  `parameters:` → `<hidden>`, строковые аргументы от 4 символов → `<argument>` (на случай других драйверов —
+  PostgreSQL цитирует повторившееся значение). Включённые аргументы — ошибка уходит ядру как есть.
+- **`duration_ms` дробный**, а не целый, как у HTTP-адаптеров: запрос к локальной базе короче миллисекунды.
+  Имя поля общее, чтобы фильтр «медленнее N мс» на сервере писался одинаково.
+- Транзакция замеряется по исполнителю, который вернул `beginTransaction` (`Expando<Stopwatch>`): вложенные не
+  путаются, перехватчик ничего не держит после транзакции. Мутацией проверено: одно поле на перехватчике вместо
+  `Expando` роняет тест вложенной транзакции.
+- **`drift: >=2.14.0`** — там появился `QueryInterceptor`; CI-джоба `drift-interceptor` гоняет тесты второй раз
+  на `drift: 2.14.0`. Тесты — на `NativeDatabase.memory()` (системный `libsqlite3`), плюс заглушки
+  исполнителя для `runDelete` (его вызывает только сгенерированный `delete(table)`, `customUpdate` идёт через
+  `runUpdate` при любом `updateKind`) и для ошибок других драйверов.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -1033,14 +1069,14 @@ fvm dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`fvm dart format .` перед завершением любого изменения).
 - У каждого живого пакета `emb/` в `README.md`/`README.ru.md` перед «License»/«Лицензия» есть раздел
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
   доставка на сервер, интеграции), без самого пакета. Ссылки — **абсолютные на pub.dev**, а не `../<пакет>`:
   относительную генератор сайта переписал бы правильно, но pub.dev разрешает её от корня репозитория, и в
-  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (22 файла
-  на 11 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
+  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (24 файла
+  на 12 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
   имена символов кода, флаги команд и т.п., которые остаются как есть, не переводятся).
@@ -1066,7 +1102,7 @@ fvm dart run example/main.dart
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
-в `master`/`develop` и на `workflow_dispatch`, четырнадцать джоб:
+в `master`/`develop` и на `workflow_dispatch`, пятнадцать джоб:
 
 - `test` — для `structured_log`: `dart format --set-exit-if-changed`, `dart analyze`,
   `dart test`, `dart run example/main.dart` — на `ubuntu-latest`/`macos-latest`/`windows-latest`
@@ -1121,6 +1157,8 @@ fvm dart run example/main.dart
 - `http-client` — для `emb/structured_log_http_client/`, та же форма.
 - `cherrypick-observer` — для `emb/structured_log_cherrypick/`, та же форма плюс второй прогон тестов на
   `cherrypick` 4.x.
+- `drift-interceptor` — для `emb/structured_log_drift/`, та же форма плюс второй прогон тестов на `drift: 2.14.0`
+  — нижней границе констрейнта, где появился `QueryInterceptor`.
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -1233,6 +1271,7 @@ fvm dart run example/main.dart
    [emb/structured_log_dio/](emb/structured_log_dio/README.md),
    [emb/structured_log_http_client/](emb/structured_log_http_client/README.md),
    [emb/structured_log_go_router/](emb/structured_log_go_router/README.md),
-   [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/README.md))
+   [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/README.md),
+   [emb/structured_log_drift/](emb/structured_log_drift/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.
