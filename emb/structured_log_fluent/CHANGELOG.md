@@ -1,3 +1,7 @@
+## 0.1.2+1
+
+ - **FIX**(structured_log_fluent): scroll the empty state instead of overflowing (#112).
+
 ## 0.1.2
 
  - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).

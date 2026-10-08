@@ -3,7 +3,7 @@ description: >-
   StructuredLogDriftInterceptor — a drift QueryInterceptor that logs every
   query, batch, failure and transaction end as a structured_log entry, with
   its duration and slow queries flagged; argument values stay out by default.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_drift/
 repository: https://github.com/pese-git/structured_log.git

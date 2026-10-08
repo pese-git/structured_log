@@ -15,6 +15,32 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`structured_log_drift` - `v0.1.0-dev.2`](#structured_log_drift---v010-dev2)
+ - [`structured_log_fluent` - `v0.1.2+1`](#structured_log_fluent---v0121)
+
+---
+
+#### `structured_log_drift` - `v0.1.0-dev.2`
+
+ - **DOCS**: pin structured_log_drift to its published pre-release (#111).
+
+#### `structured_log_fluent` - `v0.1.2+1`
+
+ - **FIX**(structured_log_fluent): scroll the empty state instead of overflowing (#112).
+
+
+## 2026-10-08
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`structured_log` - `v0.3.1`](#structured_log---v031)
  - [`structured_log_bloc` - `v0.1.0-dev.5`](#structured_log_bloc---v010-dev5)
  - [`structured_log_cherrypick` - `v0.1.0-dev.5`](#structured_log_cherrypick---v010-dev5)
