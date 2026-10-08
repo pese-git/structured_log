@@ -47,7 +47,7 @@ call that failed.
   fragment (`#access_token=...`).
 - **Route state** — `extra` and other state objects are never logged.
 - **Screens you choose** — a `filter` leaves out the navigations to a route
-  whose path itself is sensitive.
+  whose path itself is sensitive, and the redirects into or out of it.
 
 ### What doesn't get in the way
 
@@ -125,7 +125,7 @@ this package.
 | Entry              | When | Default level | Fields |
 |--------------------|------|---------------|--------|
 | `route_changed`    | the router settled on a new location — `go`, `push`, `pop`, a deep link, the browser's back button | `info` | `location`, `route` (the pattern), `route_name` if the route has one; `previous_location`, `previous_route` after the first navigation |
-| `route_redirected` | a redirect wrapped with `routeLog.redirect(...)` sent the navigation elsewhere | `debug` | `from`, `to` |
+| `route_redirected` | a redirect wrapped with `routeLog.redirect(...)` sent the navigation elsewhere | `debug` | `from`, `to` (`to_route` instead, when `filter` rejects the target) |
 | `route_error`      | a location matched no route, or routing failed | `warning` | `location`, `error` |
 
 `route_error` reaches the log in either of go_router's two error modes:
@@ -154,7 +154,14 @@ is what identifies the screen — with two exceptions:
 If a path parameter itself is sensitive (an email in `/invite/:email`),
 leave that route out with `filter`. Its location then appears in no
 entry: the next navigation names it by its route alone
-(`previous_route: /invite/:email`, no `previous_location`).
+(`previous_route: /invite/:email`, no `previous_location`), a redirect that
+starts there is not logged, and one that ends there names it by
+`to_route` alone. The target of a redirect is judged by the state the
+attached router builds for it; while no router is attached it cannot be
+judged, so with a `filter` set `to` is left out and `to_route` is not known.
+Routing errors are the exception: a location that matched no route has no
+route to filter by, so `route_error` is not filtered (its location is still
+redacted like any other).
 
 ## Configuration
 
@@ -162,7 +169,8 @@ entry: the next navigation names it by its route alone
 StructuredLogGoRouter(
   // Which entries are logged, and at what level; null turns one off.
   levels: const RouteLogLevels(navigation: LogLevel.debug),
-  // Leave a screen out — its navigations only; redirects and errors stay.
+  // Leave a screen out — its navigations and the redirects into or out of it;
+  // routing errors stay.
   filter: (state) => state.fullPath != '/invite/:email',
   category: 'ui',
 );

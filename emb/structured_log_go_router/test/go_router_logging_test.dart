@@ -332,6 +332,111 @@ void main() {
       expect(entries.last, containsPair('location', '/login?token=REDACTED'));
     });
 
+    testWidgets('a redirect from a filtered location is not logged', (
+      tester,
+    ) async {
+      final routeLog = StructuredLogGoRouter(
+        filter: (state) => state.fullPath != '/users/:id',
+      );
+      final router = GoRouter(
+        routes: routes(),
+        redirect: routeLog.redirect(
+          (context, state) => state.fullPath == '/users/:id' ? '/login' : null,
+        ),
+      );
+      addTearDown(router.dispose);
+      await pumpRouter(tester, router);
+      routeLog.attach(router);
+      addTearDown(routeLog.detach);
+
+      router.go('/users/alice@example.com');
+      await tester.pumpAndSettle();
+
+      expect(find.text('login'), findsOneWidget);
+      expect(entries.where((e) => e['event'] == 'route_redirected'), isEmpty);
+      expect(jsonEncode(entries), isNot(contains('alice')));
+    });
+
+    testWidgets('a redirect to a filtered location names its route only', (
+      tester,
+    ) async {
+      final routeLog = StructuredLogGoRouter(
+        filter: (state) => state.fullPath != '/users/:id',
+      );
+      final router = GoRouter(
+        routes: routes(),
+        redirect: routeLog.redirect(
+          (context, state) =>
+              state.uri.path == '/login' ? '/users/alice@example.com' : null,
+        ),
+      );
+      addTearDown(router.dispose);
+      await pumpRouter(tester, router);
+      routeLog.attach(router);
+      addTearDown(routeLog.detach);
+
+      router.go('/login');
+      await tester.pumpAndSettle();
+
+      final redirected = entries.singleWhere(
+        (e) => e['event'] == 'route_redirected',
+      );
+      expect(redirected, containsPair('from', '/login'));
+      expect(redirected, containsPair('to_route', '/users/:id'));
+      expect(redirected.keys, isNot(contains('to')));
+      expect(jsonEncode(entries), isNot(contains('alice')));
+    });
+
+    testWidgets('a redirect to a location the filter accepts keeps its to', (
+      tester,
+    ) async {
+      final routeLog = StructuredLogGoRouter(
+        filter: (state) => state.fullPath != '/users/:id',
+      );
+      final router = GoRouter(
+        routes: routes(),
+        redirect: routeLog.redirect(
+          (context, state) => state.uri.path == '/settings' ? '/login' : null,
+        ),
+      );
+      addTearDown(router.dispose);
+      await pumpRouter(tester, router);
+      routeLog.attach(router);
+      addTearDown(routeLog.detach);
+
+      router.go('/settings');
+      await tester.pumpAndSettle();
+
+      final redirected = entries.singleWhere(
+        (e) => e['event'] == 'route_redirected',
+      );
+      expect(redirected, containsPair('to', '/login'));
+      expect(redirected.keys, isNot(contains('to_route')));
+    });
+
+    testWidgets('with a filter and no router attached, to is withheld', (
+      tester,
+    ) async {
+      final routeLog = StructuredLogGoRouter(filter: (_) => true);
+      final router = GoRouter(
+        routes: routes(),
+        redirect: routeLog.redirect(
+          (context, state) => state.uri.path == '/settings' ? '/login' : null,
+        ),
+      );
+      addTearDown(router.dispose);
+      await pumpRouter(tester, router);
+
+      router.go('/settings');
+      await tester.pumpAndSettle();
+
+      final redirected = entries.singleWhere(
+        (e) => e['event'] == 'route_redirected',
+      );
+      expect(redirected, containsPair('from', '/settings'));
+      expect(redirected.keys, isNot(contains('to')));
+    });
+
     testWidgets('an asynchronous redirect is logged and still applied', (
       tester,
     ) async {
