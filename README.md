@@ -177,7 +177,7 @@ the admin client.
 | [`structured_log_http_client`](emb/structured_log_http_client/) | `package:http` client wrapper | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | `go_router` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | `cherrypick` DI observer | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
-| [`structured_log_drift`](emb/structured_log_drift/) | `drift` query logging | not yet published |
+| [`structured_log_drift`](emb/structured_log_drift/) | `drift` query logging | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_server`](backend/structured_log_server/) | Self-hosted log server | service, not published |
 | [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Web admin for the server | app, not published |
 

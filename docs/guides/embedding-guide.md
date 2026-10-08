@@ -392,10 +392,7 @@ is a drift `QueryInterceptor` that writes every query as an entry instead:
 dependencies:
   drift: ^2.14.0
   structured_log: ^0.3.0
-  structured_log_drift:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_drift # not yet on pub.dev
+  structured_log_drift: ^0.1.0-dev.1
 ```
 
 ```dart
