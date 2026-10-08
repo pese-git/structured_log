@@ -1,3 +1,11 @@
+## 0.1.0-dev.5
+
+ - **FIX**(structured_log_go_router): apply filter to both ends of a redirect.
+ - **FIX**(structured_log_go_router): keep a filtered location out of previous_location.
+ - **FIX**(structured_log_go_router): redact the locations quoted in route_error.
+ - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).
+ - **DOCS**(ru): rewrite literal translations across package READMEs and docs (#104).
+
 ## 0.1.0-dev.4
 
  - **DOCS**: lead every package README with its purpose and features (#102).

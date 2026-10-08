@@ -1,3 +1,8 @@
+## 0.2.1
+
+ - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).
+ - **DOCS**(ru): rewrite literal translations across package READMEs and docs (#104).
+
 ## 0.2.0+4
 
  - **DOCS**: lead every package README with its purpose and features (#102).

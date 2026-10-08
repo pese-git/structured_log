@@ -1,3 +1,9 @@
+## 0.1.0-dev.5
+
+ - **FIX**(structured_log_bloc): keep a throwing filter out of emit and add.
+ - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).
+ - **DOCS**(ru): rewrite literal translations across package READMEs and docs (#104).
+
 ## 0.1.0-dev.4
 
  - **DOCS**: lead every package README with its purpose and features (#102).

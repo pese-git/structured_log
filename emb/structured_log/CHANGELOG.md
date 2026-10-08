@@ -1,3 +1,10 @@
+## 0.3.1
+
+ - **FIX**(structured_log): let a toJson() that leads back to its object cost only its field.
+ - **FIX**(structured_log): encode toJson() again and redact through it.
+ - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).
+ - **DOCS**(ru): rewrite literal translations across package READMEs and docs (#104).
+
 ## 0.3.0+1
 
  - **DOCS**: lead every package README with its purpose and features (#102).
