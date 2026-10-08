@@ -39,7 +39,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Тринадцать пакетов в `emb/` — двенадцать живых и прослойка `structured_log_http`:
+Четырнадцать пакетов в `emb/` — тринадцать живых и прослойка `structured_log_http`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -1106,8 +1106,8 @@ fvm dart run example/main.dart
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
   доставка на сервер, интеграции), без самого пакета. Ссылки — **абсолютные на pub.dev**, а не `../<пакет>`:
   относительную генератор сайта переписал бы правильно, но pub.dev разрешает её от корня репозитория, и в
-  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (24 файла
-  на 12 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
+  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (26 файлов
+  на 13 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
   имена символов кода, флаги команд и т.п., которые остаются как есть, не переводятся).
@@ -1133,7 +1133,7 @@ fvm dart run example/main.dart
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
-в `master`/`develop` и на `workflow_dispatch`, пятнадцать джоб:
+в `master`/`develop` и на `workflow_dispatch`, шестнадцать джоб:
 
 - `test` — для `structured_log`: `dart format --set-exit-if-changed`, `dart analyze`,
   `dart test`, `dart run example/main.dart` — на `ubuntu-latest`/`macos-latest`/`windows-latest`
