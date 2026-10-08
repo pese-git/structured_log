@@ -27,6 +27,21 @@ class LogViewerEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
+    // Centred when there is room, scrollable instead of overflowing when the
+    // host is shorter than the content (e.g. a docked panel).
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+          ),
+          child: _content(theme),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(FluentThemeData theme) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 48),
