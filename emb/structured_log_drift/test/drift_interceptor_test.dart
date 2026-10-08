@@ -241,30 +241,36 @@ void main() {
       expect(jsonEncode(entries), isNot(contains('secret-token')));
     });
 
-    test('a parameter list is hidden even when no argument names it', () {
-      final error = SqliteException(
-        1,
-        'constraint failed',
-        null,
+    // A real failing statement rather than a constructed SqliteException:
+    // its constructor changed between sqlite3 2.x and 3.x, and what this
+    // test guards is the message of whichever version is installed.
+    test('a parameter list is hidden even when no argument names it', () async {
+      final db = await open();
+      await db.customStatement('CREATE UNIQUE INDEX t_name ON t (name)');
+      await db.customInsert(
         'INSERT INTO t (name) VALUES (?)',
-        const ['abc'],
+        variables: [Variable('abc')],
       );
-      expect(error.toString(), contains('parameters: abc'));
+      entries.clear();
 
-      // A three-character argument is below the scrubbing length, so only
-      // the parameter list can hide it.
-      final interceptor = StructuredLogDriftInterceptor();
-      return expectLater(
-        interceptor.runSelect(
-          FailingExecutor(error),
+      Object? caught;
+      try {
+        await db.customInsert(
           'INSERT INTO t (name) VALUES (?)',
-          const ['abc'],
-        ),
-        throwsA(same(error)),
-      ).then((_) {
-        expect(entries.single['error'], endsWith('parameters: <hidden>'));
-        expect(entries.single['error'], isNot(contains('abc')));
-      });
+          variables: [Variable('abc')],
+        );
+      } catch (error) {
+        caught = error;
+      }
+
+      // The driver itself quotes the argument; a three-character one is
+      // below the scrubbing length, so only the parameter list can hide it.
+      expect(caught, isA<SqliteException>());
+      expect(caught.toString(), contains('parameters: abc'));
+      final failed = entries.single;
+      expect(failed['error'], contains('UNIQUE constraint failed'));
+      expect(failed['error'], endsWith('parameters: <hidden>'));
+      expect(failed['error'], isNot(contains('abc')));
     });
 
     test('are scrubbed from any driver message that quotes them', () async {
