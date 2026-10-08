@@ -78,18 +78,14 @@
 
 ## Установка
 
-Пакет ещё не опубликован на pub.dev (`0.1.0-dev.0`), поэтому пока
-подключайте его из git. Нужен drift 2.14.0 или новее — в нём появился
-`QueryInterceptor`:
+Опубликован на pub.dev как пре-релиз. Нужен drift 2.14.0 или новее — в нём
+появился `QueryInterceptor`:
 
 ```yaml
 dependencies:
   drift: ^2.14.0
   structured_log: ^0.3.0
-  structured_log_drift:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_drift
+  structured_log_drift: ^0.1.0-dev.1
 ```
 
 ## Быстрый старт

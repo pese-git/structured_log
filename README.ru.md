@@ -186,7 +186,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_http_client`](emb/structured_log_http_client/) | Обёртка клиента `package:http` | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | Логирование навигации `go_router` | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | Наблюдатель DI `cherrypick` | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
-| [`structured_log_drift`](emb/structured_log_drift/) | Логирование запросов `drift` | ещё не опубликован |
+| [`structured_log_drift`](emb/structured_log_drift/) | Логирование запросов `drift` | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_server`](backend/structured_log_server/) | Self-hosted сервер логов | сервис, не публикуется |
 | [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Веб-админка сервера | приложение, не публикуется |
 

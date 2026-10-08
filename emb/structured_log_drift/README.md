@@ -79,17 +79,14 @@ the whole project is at
 
 ## Installation
 
-Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it from git for
-now. It needs drift 2.14.0 or later, where `QueryInterceptor` appeared:
+Published on pub.dev as a pre-release. It needs drift 2.14.0 or later, where
+`QueryInterceptor` appeared:
 
 ```yaml
 dependencies:
   drift: ^2.14.0
   structured_log: ^0.3.0
-  structured_log_drift:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_drift
+  structured_log_drift: ^0.1.0-dev.1
 ```
 
 ## Quick Start
