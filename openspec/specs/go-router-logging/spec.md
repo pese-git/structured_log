@@ -26,9 +26,19 @@
 ### Requirement: Перенаправления пишутся через обёртку redirect
 Функция, обёрнутая `redirect(...)`, SHALL писать `route_redirected` с `from` и `to`, когда возвращает расположение, отличное от текущего. Ответ и исключения обёрнутой функции SHALL доходить до роутера без изменений; синхронный ответ SHALL оставаться синхронным.
 
+`filter` SHALL действовать на оба конца перенаправления. Перенаправление, начинающееся на расположении, которое `filter` отвергает, SHALL NOT давать записи. Если отвергается цель (её состояние строит подключённый роутер), запись SHALL NOT содержать `to` и SHALL содержать `to_route` (шаблон маршрута цели); если роутер не подключён и `filter` задан, цель оценить нельзя, и запись SHALL NOT содержать `to`. `route_error` `filter` SHALL NOT фильтровать: у расположения без совпадения нет маршрута.
+
 #### Scenario: Синхронный redirect
 - **WHEN** обёрнутый redirect для `/settings` возвращает `/login`
 - **THEN** роутер показывает `/login`, а `route_redirected` содержит `from: /settings`, `to: /login`
+
+#### Scenario: Redirect с расположения, отвергнутого filter
+- **WHEN** `filter` отвергает `/users/:id` и обёрнутый redirect отправляет `/users/alice@example.com` на `/login`
+- **THEN** роутер показывает `/login`, записи `route_redirected` нет, и `alice` не встречается ни в одной записи
+
+#### Scenario: Redirect на расположение, отвергнутое filter
+- **WHEN** `filter` отвергает `/users/:id` и обёрнутый redirect отправляет `/login` на `/users/alice@example.com`
+- **THEN** `route_redirected` содержит `from: /login` и `to_route: /users/:id`, не содержит `to`, и `alice` не встречается ни в одной записи
 
 #### Scenario: Redirect бросает исключение
 - **WHEN** обёрнутая функция бросает `StateError`

@@ -92,7 +92,14 @@ class StructuredLogGoRouter {
   /// When given, only navigations to a state for which it returns `true`
   /// produce a `route_changed` entry. The entry after a navigation it
   /// leaves out carries that navigation's `previous_route` but not its
-  /// `previous_location`. Redirects and errors are not filtered.
+  /// `previous_location`.
+  ///
+  /// A redirect is filtered by both ends. One that starts at a location the
+  /// filter rejects produces no `route_redirected` entry. One that ends at
+  /// such a location — judged by the state the attached router builds for
+  /// it — names it by `to_route` alone; so does any redirect while no
+  /// router is attached, since its target cannot be judged. Errors are not
+  /// filtered: a location that matched no route has no route to filter by.
   final bool Function(GoRouterState state)? filter;
 
   GoRouter? _router;
@@ -193,12 +200,7 @@ class StructuredLogGoRouter {
       final route = state.fullPath;
       final previousLocation = _lastLocation;
       final previousRoute = _lastRoute;
-      bool logged;
-      try {
-        logged = filter?.call(state) ?? true;
-      } catch (_) {
-        logged = false;
-      }
+      final logged = _passes(state);
       // A navigation left out still counts as where the user came from, but
       // only by its route: its location may be what the filter is hiding.
       _lastLocation = logged ? location : null;
@@ -216,12 +218,51 @@ class StructuredLogGoRouter {
     });
   }
 
+  /// Whether [filter] lets [state] be logged; a filter that throws does not.
+  bool _passes(GoRouterState state) {
+    try {
+      return filter?.call(state) ?? true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   void _logRedirect(GoRouterState state, String? to) {
     if (to == null) return;
+    if (!_passes(state)) return;
     final from = _redact(state.uri);
-    final target = _redact(Uri.parse(to));
+    final targetUri = Uri.parse(to);
+    final target = _redact(targetUri);
     if (from == target) return;
-    _log(levels.redirect, 'route_redirected', {'from': from, 'to': target});
+    final fields = <String, dynamic>{'from': from};
+    if (filter == null) {
+      fields['to'] = target;
+    } else {
+      // The target has no state of its own yet; the attached router can
+      // build the one it will have. Without one, or when it is rejected,
+      // only its route — if that is known — is named.
+      final targetState = _stateFor(targetUri);
+      if (targetState != null && _passes(targetState)) {
+        fields['to'] = target;
+      } else {
+        final route = targetState?.fullPath;
+        if (route != null && route.isNotEmpty) fields['to_route'] = route;
+      }
+    }
+    _log(levels.redirect, 'route_redirected', fields);
+  }
+
+  /// The state the attached router would hold at [uri], or `null` when none
+  /// is attached or it cannot be built.
+  GoRouterState? _stateFor(Uri uri) {
+    try {
+      final configuration = _router?.configuration;
+      return configuration?.buildTopLevelGoRouterState(
+        configuration.findMatch(uri),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   void _logError(Uri location, GoException? error) {
