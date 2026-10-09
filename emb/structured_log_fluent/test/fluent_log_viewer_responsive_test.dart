@@ -88,6 +88,51 @@ void main() {
       final levelTop = tester.getTopLeft(find.byType(ComboBox<LogLevel?>)).dy;
       expect(levelTop, greaterThan(searchTop));
     });
+
+    // The second row used to reserve a fixed 190 px for the category box, so
+    // the level box fell under its minimum width (a few px of RenderFlex
+    // overflow) in bands of the toolbar's width — roughly 244-248 and
+    // 277-291 px of viewer width — that a handful of hand-picked widths
+    // easily misses. Sweep every width instead.
+    for (final categories in [0, 2]) {
+      testWidgets(
+          'never overflows horizontally at any width from 180 to 819 px '
+          '(${categories == 0 ? 'no' : 'two'} categories)', (tester) async {
+        for (var i = 0; i < categories; i++) {
+          buffer.capture(
+            _entry(event: 'e$i', extra: {'category': 'category$i'}),
+            LogLevel.info,
+          );
+        }
+        tester.view.physicalSize = const Size(1400, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        for (var width = 180; width < 820; width++) {
+          await tester.pumpWidget(
+            FluentApp(
+              // Fresh render objects each time: a reused RenderFlex reports
+              // an overflow only when its size changes.
+              key: UniqueKey(),
+              home: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width.toDouble(),
+                  height: 700,
+                  child: FluentLogViewer(controller: controller),
+                ),
+              ),
+            ),
+          );
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'overflow at a viewer width of $width px',
+          );
+        }
+      });
+    }
   });
 
   group('master-detail', () {
