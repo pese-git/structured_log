@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:structured_log/structured_log.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
@@ -82,6 +84,12 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
 
   /// Below this width the master-detail split collapses to a single pane.
   static const _masterDetailBreakpoint = 640.0;
+
+  /// Width of the category filter in both toolbar layouts (the narrow one
+  /// shrinks it to fit — see [_buildNarrowToolbar]) and the gap between the
+  /// filters.
+  static const _categoryBoxWidth = 190.0;
+  static const _toolbarGap = 10.0;
 
   static const _levelOptions = <String, LogLevel?>{
     'All levels': null,
@@ -204,12 +212,12 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
     return Row(
       children: [
         SizedBox(width: 240, child: _searchBox(controller)),
-        const SizedBox(width: 10),
+        const SizedBox(width: _toolbarGap),
         SizedBox(
-          width: 190,
+          width: _categoryBoxWidth,
           child: LogCategoryComboBox(controller: controller),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: _toolbarGap),
         SizedBox(width: 190, child: _levelComboBox(controller)),
         const Spacer(),
         _pauseButton(controller),
@@ -233,18 +241,29 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            // Reserved at a fixed width whether or not it renders anything
-            // (it hides itself with fewer than two categories) — matching
-            // the wide toolbar, which reserves the same space for it.
-            SizedBox(
-              width: 190,
-              child: LogCategoryComboBox(controller: controller),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: _levelComboBox(controller)),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Reserved whether or not the category box renders anything (it
+            // hides itself with fewer than two categories) — matching the
+            // wide toolbar, which reserves the same space for it. Capped at
+            // the wide toolbar's width, but never more than half the row: a
+            // fixed 190 left the level box under its minimum width (it
+            // overflowed) once the row got narrower than ~244 px.
+            final categoryWidth = math.min(
+              _categoryBoxWidth,
+              (constraints.maxWidth - _toolbarGap) / 2,
+            );
+            return Row(
+              children: [
+                SizedBox(
+                  width: categoryWidth,
+                  child: LogCategoryComboBox(controller: controller),
+                ),
+                const SizedBox(width: _toolbarGap),
+                Expanded(child: _levelComboBox(controller)),
+              ],
+            );
+          },
         ),
       ],
     );
