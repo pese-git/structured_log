@@ -20,6 +20,7 @@ self-hosted сервер и его admin-клиент — см. [руковод�
 | [structured_log_go_router](/ru/packages/structured_log_go_router/) | Пишет каждую навигацию `go_router` — расположение, шаблон маршрута, предыдущее расположение — а также перенаправления и ошибки маршрутизации, маскируя query-параметры с токенами. |
 | [structured_log_cherrypick](/ru/packages/structured_log_cherrypick/) | `CherryPickObserver`, который пишет, что делает DI-контейнер `cherrypick`, — скоупы, модули, циклы, ошибки разрешения — и никогда не печатает экземпляр. |
 | [structured_log_drift](/ru/packages/structured_log_drift/) | `QueryInterceptor` для drift, который пишет каждый запрос — SQL, длительность, строки, — а также пакеты, сбои и завершение транзакций, выделяет медленные запросы и по умолчанию не пишет значения аргументов. |
+| [structured_log_logging](/ru/packages/structured_log_logging/) | Мост, который пишет каждую запись `package:logging` записью `structured_log` — сообщение, логгер, уровень по значению, ошибку и стек, — так что логи библиотек, пишущих через `package:logging`, попадают в те же выводы, что и ваши. |
 
 Ищете `structured_log_http`? Он переименован в `structured_log_remote_sync`
 (`HttpLogOutput` → `RemoteSyncLogOutput`) и больше не развивается;

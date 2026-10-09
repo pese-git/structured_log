@@ -20,6 +20,7 @@ admin client, see the [guides](/guides/) instead.)
 | [structured_log_go_router](/packages/structured_log_go_router/) | Logs every `go_router` navigation — location, route pattern, previous location — plus redirects and routing errors, with token-like query parameters redacted. |
 | [structured_log_cherrypick](/packages/structured_log_cherrypick/) | A `CherryPickObserver` that logs what the `cherrypick` DI container does — scopes, modules, cycles, resolve errors — without ever printing an instance. |
 | [structured_log_drift](/packages/structured_log_drift/) | A drift `QueryInterceptor` that writes every query — SQL, duration, rows — plus batches, failures and transaction ends, flags slow queries and keeps argument values out by default. |
+| [structured_log_logging](/packages/structured_log_logging/) | A bridge that writes every `package:logging` record as a `structured_log` entry — message, logger, level by value, error and stack trace — so the logs of libraries that write through `package:logging` reach the same sinks as your own. |
 
 Looking for `structured_log_http`? It was renamed to
 `structured_log_remote_sync` (`HttpLogOutput` → `RemoteSyncLogOutput`) and is

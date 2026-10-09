@@ -31,7 +31,8 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
    приложении уже делают `bloc`, `dio`, `http`, `go_router` и `cherrypick`,
-   а также запросы к базе `drift`.
+   запросы к базе `drift`, а мост передаёт записи всех библиотек, логирующих
+   через `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
    Material, Fluent или Cupertino.
 4. **Собрать** — self-hosted сервер принимает логи со всех установок
@@ -162,6 +163,7 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 | `go_router` | навигация с шаблоном маршрута, перенаправления, ошибки маршрутизации | `navigation` |
 | `cherrypick` | скоупы DI, модули, циклы, ошибки разрешения; сами экземпляры в лог не попадают | `di` |
 | `drift` | каждый запрос с SQL, длительностью и числом строк, медленные выделены, сбои со стеком; значения аргументов выключены | `db` |
+| `package:logging` | каждая запись каждой библиотеки, которая через него логирует, с уровнем, ошибкой и стеком | `logging` |
 
 HTTP- и навигационные адаптеры по умолчанию маскируют заголовки
 авторизации, cookie и query-параметры с токенами. Тела запросов пишутся
@@ -192,7 +194,7 @@ HTTP- и навигационные адаптеры по умолчанию м�
 
 <pre class="mermaid">{`flowchart LR
   subgraph app["Ваше приложение на Dart / Flutter"]
-    A["Адаптеры<br/>bloc · dio · http · go_router · cherrypick · drift"] --> C["structured_log"]
+    A["Адаптеры<br/>bloc · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Ваш код"] --> C
     C --> O["Консоль / файл"]
     C --> V["Просмотрщик логов в приложении"]
@@ -255,6 +257,11 @@ HTTP- и навигационные адаптеры по умолчанию м�
 		Пишет каждый запрос к базе `drift` — SQL, длительность, строки, —
 		выделяет медленные и не пускает в лог значения аргументов.
 		[Использование и API](/ru/packages/structured_log_drift/). Пре-релиз на pub.dev.
+	</Card>
+	<Card title="structured_log_logging" icon="list-format">
+		Передаёт каждую запись, которую библиотека пишет через `package:logging`,
+		в те же выводы, просмотрщик и на тот же сервер, что и ваши записи.
+		[Использование и API](/ru/packages/structured_log_logging/). На pub.dev пока нет.
 	</Card>
 </CardGrid>
 

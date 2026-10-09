@@ -29,8 +29,9 @@ The project covers the whole path such an entry travels:
 
 1. **Write it** — a small, dependency-free core library for Dart and Flutter.
 2. **Get it for free** — adapters that log what `bloc`, `dio`, `http`,
-   `go_router` and `cherrypick` already do in your app, and the queries of
-   a `drift` database.
+   `go_router` and `cherrypick` already do in your app, the queries of
+   a `drift` database, and a bridge for every library that logs through
+   `package:logging`.
 3. **See it on the device** — a drop-in log viewer screen in Material,
    Fluent or Cupertino style.
 4. **Collect it** — a self-hosted server that receives logs from every
@@ -156,6 +157,7 @@ optional, and adding it doesn't change a single logging call.
 | `go_router` | navigation with route pattern, redirects, routing errors | `navigation` |
 | `cherrypick` | DI scopes, modules, cycles, resolve errors — never an instance | `di` |
 | `drift` | every query with its SQL, duration and rows, slow ones flagged, failures with their stack — argument values off | `db` |
+| `package:logging` | every record of every library that logs through it, with its level, error and stack trace | `logging` |
 
 HTTP and navigation adapters redact auth headers, cookies, and token-like
 query parameters by default; bodies are off unless enabled, and masked by
@@ -183,7 +185,7 @@ field name when they are.
 
 <pre class="mermaid">{`flowchart LR
   subgraph app["Your Dart / Flutter app"]
-    A["Adapters<br/>bloc · dio · http · go_router · cherrypick · drift"] --> C["structured_log"]
+    A["Adapters<br/>bloc · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Your code"] --> C
     C --> O["Console / file"]
     C --> V["In-app log viewer"]
@@ -245,6 +247,11 @@ when you want logs collected centrally.
 		Logs every query of a `drift` database — SQL, duration, rows — flags
 		the slow ones and keeps argument values out.
 		[Usage & API](/packages/structured_log_drift/). Pre-release on pub.dev.
+	</Card>
+	<Card title="structured_log_logging" icon="list-format">
+		Brings every record a library writes through `package:logging` into
+		the same sinks, viewer and server as your own entries.
+		[Usage & API](/packages/structured_log_logging/). Not yet on pub.dev.
 	</Card>
 </CardGrid>
 

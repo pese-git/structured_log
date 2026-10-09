@@ -1,0 +1,24 @@
+name: structured_log_logging
+description: >-
+  StructuredLogLoggingBridge — routes every package:logging record into
+  structured_log, so the logs of libraries that write through package:logging
+  reach the same sinks, viewer and server as your own.
+version: 0.1.0-dev.0
+homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_logging/
+repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - structured-logging
+  - debugging
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  logging: ^1.2.0
+  structured_log: ^0.3.0
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.24.0
