@@ -3,6 +3,39 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-10-09
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log_cupertino` - `v0.1.2+1`](#structured_log_cupertino---v0121)
+ - [`structured_log_fluent` - `v0.1.2+2`](#structured_log_fluent---v0122)
+ - [`structured_log_material` - `v0.1.2+1`](#structured_log_material---v0121)
+
+---
+
+#### `structured_log_cupertino` - `v0.1.2+1`
+
+ - **FIX**(structured_log_material,structured_log_cupertino): state the Flutter they need.
+ - **FIX**(structured_log_cupertino): keep the page's toolbar below its navigation bar.
+
+#### `structured_log_fluent` - `v0.1.2+2`
+
+ - **FIX**(structured_log_fluent): keep the narrow toolbar from overflowing (#113).
+
+#### `structured_log_material` - `v0.1.2+1`
+
+ - **FIX**(structured_log_material,structured_log_cupertino): state the Flutter they need.
+ - **FIX**(structured_log_material): let the detail sheet scroll.
+
+
 ## 2026-10-08
 
 ### Changes

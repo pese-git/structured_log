@@ -1,3 +1,8 @@
+## 0.1.2+1
+
+ - **FIX**(structured_log_material,structured_log_cupertino): state the Flutter they need.
+ - **FIX**(structured_log_material): let the detail sheet scroll.
+
 ## 0.1.2
 
  - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).

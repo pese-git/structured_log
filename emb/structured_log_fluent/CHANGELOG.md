@@ -1,3 +1,7 @@
+## 0.1.2+2
+
+ - **FIX**(structured_log_fluent): keep the narrow toolbar from overflowing (#113).
+
 ## 0.1.2+1
 
  - **FIX**(structured_log_fluent): scroll the empty state instead of overflowing (#112).

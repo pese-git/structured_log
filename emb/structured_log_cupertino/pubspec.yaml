@@ -2,7 +2,7 @@ name: structured_log_cupertino
 description: >-
   A Cupertino (iOS-style) in-app log viewer for structured_log, built on
   structured_log_flutter.
-version: 0.1.2
+version: 0.1.2+1
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_cupertino/
 repository: https://github.com/pese-git/structured_log.git
