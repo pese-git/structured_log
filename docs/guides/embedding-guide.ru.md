@@ -435,10 +435,7 @@ HTTP-стеки, генераторы кода, — и эти записи ни�
 dependencies:
   logging: ^1.2.0
   structured_log: ^0.3.0
-  structured_log_logging:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_logging # на pub.dev пока нет
+  structured_log_logging: ^0.1.0-dev.1
 ```
 
 ```dart
