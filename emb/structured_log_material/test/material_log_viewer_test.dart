@@ -268,6 +268,46 @@ void main() {
       expect(_inDetailSheet('field_39').hitTestable(), findsOneWidget);
     });
 
+    testWidgets('a sheet that fills the screen stays below the status bar',
+        (tester) async {
+      const statusBar = 44.0;
+      buffer.capture(
+        _entry(
+          event: 'bloc_error',
+          extra: {for (var i = 0; i < 60; i++) 'field_$i': 'value $i'},
+        ),
+        LogLevel.error,
+      );
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              padding: const EdgeInsets.only(top: statusBar),
+              viewPadding: const EdgeInsets.only(top: statusBar),
+            ),
+            child: child!,
+          ),
+          home: Material(child: MaterialLogViewer(controller: controller)),
+        ),
+      );
+
+      await tester.tap(find.byType(LogEntryTile));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.byType(BottomSheet)).dy,
+        greaterThanOrEqualTo(statusBar),
+      );
+      expect(
+        tester.getTopLeft(_inDetailSheet('bloc_error')).dy,
+        greaterThanOrEqualTo(statusBar),
+      );
+    });
+
     testWidgets('a long key does not overflow its row', (tester) async {
       buffer.capture(
         _entry(

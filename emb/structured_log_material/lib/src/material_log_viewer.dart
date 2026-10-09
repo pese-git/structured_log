@@ -193,6 +193,10 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
       onTap: (entry) => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
+        // A long entry fills the screen; the route takes the status bar's
+        // inset away from the sheet's own SafeArea, so without this the
+        // header ends up under the clock.
+        useSafeArea: true,
         builder: (_) => LogEntryDetailSheet(entry: entry),
       ),
     );
