@@ -119,7 +119,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `event`, имя логгера — `logger`, уровень сопоставляется по `Level.value`, `error`/`stackTrace` — поля
   ядра, `category: 'logging'`. Нужен потому, что через `package:logging` пишет большая часть экосистемы
   (в зависимостях сервера — SMTP-клиент `mailer`), а сами по себе эти записи никуда не попадают. Чистый
-  Dart, ещё не опубликован (`0.1.0-dev.0`), заявка открыта —
+  Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
   [openspec/changes/add-structured-log-logging/](openspec/changes/add-structured-log-logging/).
 
 Плюс один пакет в `backend/`:

@@ -425,10 +425,7 @@ same sinks and the same viewer as everything above:
 dependencies:
   logging: ^1.2.0
   structured_log: ^0.3.0
-  structured_log_logging:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_logging # not yet on pub.dev
+  structured_log_logging: ^0.1.0-dev.1
 ```
 
 ```dart
