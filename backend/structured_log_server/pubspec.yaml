@@ -23,7 +23,7 @@ dependencies:
   sqlite3: ^2.5.0
   cherrypick: ^4.0.0-dev.5
   cherrypick_annotations: ^4.0.0-dev.1
-  structured_log: ^0.3.1
+  structured_log: ^0.3.2
   # The container's observer, shared with the admin client. A path rather than
   # a version: the package is not published, and this service is not either
   # (publish_to: none), so nothing downstream has to resolve it from pub.dev.

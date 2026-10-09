@@ -1,3 +1,7 @@
+## 0.1.0-dev.3
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
 ## 0.1.0-dev.2
 
  - **DOCS**: pin structured_log_drift to its published pre-release (#111).

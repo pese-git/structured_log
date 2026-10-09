@@ -1,3 +1,7 @@
+## 0.3.2
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
 ## 0.3.1
 
  - **FIX**(structured_log): let a toJson() that leads back to its object cost only its field.

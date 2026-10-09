@@ -1,3 +1,7 @@
+## 0.1.0-dev.6
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
 ## 0.1.0-dev.5
 
  - **FIX**(structured_log_go_router): apply filter to both ends of a redirect.

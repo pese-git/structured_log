@@ -3,7 +3,7 @@ description: >-
   StructuredLogDioInterceptor — a dio Interceptor that logs every request,
   response and failure as structured_log entries, with sensitive headers and
   query parameters redacted.
-version: 0.1.0-dev.5
+version: 0.1.0-dev.6
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_dio/
 repository: https://github.com/pese-git/structured_log.git
@@ -19,7 +19,7 @@ environment:
 
 dependencies:
   dio: ^5.4.0
-  structured_log: ^0.3.1
+  structured_log: ^0.3.2
 
 dev_dependencies:
   lints: ^3.0.0

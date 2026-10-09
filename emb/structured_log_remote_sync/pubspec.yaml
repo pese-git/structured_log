@@ -2,7 +2,7 @@ name: structured_log_remote_sync
 description: >-
   RemoteSyncLogOutput — a batching, retrying structured_log sink that ships log
   entries to a structured_log_server instance over HTTP.
-version: 0.2.1
+version: 0.2.2
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_remote_sync/
 repository: https://github.com/pese-git/structured_log.git
@@ -17,7 +17,7 @@ environment:
   sdk: ^3.0.0
 
 dependencies:
-  structured_log: ^0.3.1
+  structured_log: ^0.3.2
 
 dev_dependencies:
   lints: ^3.0.0

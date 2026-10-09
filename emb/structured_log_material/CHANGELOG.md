@@ -1,3 +1,8 @@
+## 0.1.3
+
+ - **FIX**(structured_log_material): keep the detail sheet below the status bar (#114).
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
 ## 0.1.2+1
 
  - **FIX**(structured_log_material,structured_log_cupertino): state the Flutter they need.

@@ -15,6 +15,95 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`structured_log` - `v0.3.2`](#structured_log---v032)
+ - [`structured_log_bloc` - `v0.1.0-dev.6`](#structured_log_bloc---v010-dev6)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.6`](#structured_log_cherrypick---v010-dev6)
+ - [`structured_log_cupertino` - `v0.1.3`](#structured_log_cupertino---v013)
+ - [`structured_log_dio` - `v0.1.0-dev.6`](#structured_log_dio---v010-dev6)
+ - [`structured_log_drift` - `v0.1.0-dev.3`](#structured_log_drift---v010-dev3)
+ - [`structured_log_fluent` - `v0.1.3`](#structured_log_fluent---v013)
+ - [`structured_log_flutter` - `v0.1.4`](#structured_log_flutter---v014)
+ - [`structured_log_go_router` - `v0.1.0-dev.6`](#structured_log_go_router---v010-dev6)
+ - [`structured_log_http_client` - `v0.1.0-dev.6`](#structured_log_http_client---v010-dev6)
+ - [`structured_log_logging` - `v0.1.0-dev.1`](#structured_log_logging---v010-dev1)
+ - [`structured_log_material` - `v0.1.3`](#structured_log_material---v013)
+ - [`structured_log_remote_sync` - `v0.2.2`](#structured_log_remote_sync---v022)
+ - [`structured_log_http` - `v0.2.0+6`](#structured_log_http---v0206)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_http` - `v0.2.0+6`
+
+---
+
+#### `structured_log` - `v0.3.2`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_bloc` - `v0.1.0-dev.6`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.6`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_cupertino` - `v0.1.3`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_dio` - `v0.1.0-dev.6`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_drift` - `v0.1.0-dev.3`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_fluent` - `v0.1.3`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_flutter` - `v0.1.4`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_go_router` - `v0.1.0-dev.6`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_http_client` - `v0.1.0-dev.6`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_logging` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_material` - `v0.1.3`
+
+ - **FIX**(structured_log_material): keep the detail sheet below the status bar (#114).
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+#### `structured_log_remote_sync` - `v0.2.2`
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
+
+## 2026-10-09
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`structured_log_cupertino` - `v0.1.2+1`](#structured_log_cupertino---v0121)
  - [`structured_log_fluent` - `v0.1.2+2`](#structured_log_fluent---v0122)
  - [`structured_log_material` - `v0.1.2+1`](#structured_log_material---v0121)

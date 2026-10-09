@@ -1,3 +1,7 @@
+## 0.1.3
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
 ## 0.1.2+2
 
  - **FIX**(structured_log_fluent): keep the narrow toolbar from overflowing (#113).

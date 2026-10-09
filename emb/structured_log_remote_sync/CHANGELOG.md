@@ -1,3 +1,7 @@
+## 0.2.2
+
+ - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
+
 ## 0.2.1
 
  - **FEAT**(structured_log_drift): add a drift QueryInterceptor (#110).
