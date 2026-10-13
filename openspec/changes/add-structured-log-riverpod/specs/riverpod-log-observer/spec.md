@@ -5,7 +5,7 @@
 - `provider_added` — при создании;
 - `provider_updated` — при смене значения;
 - `provider_failed` — при ошибке;
-- `provider_disposed` — при удалении.
+- `provider_disposed` — при удалении из памяти (не при перестроении).
 
 Каждая запись SHALL нести `category: 'riverpod'` и поле `provider`. Поле `provider` SHALL равняться `name` провайдера, если имя задано, и типу провайдера, если нет.
 
@@ -18,8 +18,16 @@
 - **THEN** поле `provider` содержит тип провайдера, а не результат его `toString()`
 
 #### Scenario: Удаление
-- **WHEN** провайдер `autoDispose` теряет последнего слушателя
+- **WHEN** провайдер `autoDispose` теряет последнего слушателя, на `riverpod` с хуком `didUnmountProvider` (3.3.2 и новее)
 - **THEN** записан `provider_disposed` с его `provider`
+
+#### Scenario: Перестроение не удаление
+- **WHEN** провайдер перестраивается из-за смены зависимости, `refresh` или `invalidate`
+- **THEN** записи `provider_disposed` нет
+
+#### Scenario: Старая версия riverpod
+- **WHEN** используется `riverpod` 3.0.0–3.2.1, где нет хука `didUnmountProvider`
+- **THEN** `provider_disposed` не пишется, а остальные записи пишутся как обычно
 
 ### Requirement: Аргумент семейства пишется отдельным полем
 Для провайдера семейства (`family`) запись SHALL содержать поле `provider_argument`, полученное той же функцией описания, что и значения.

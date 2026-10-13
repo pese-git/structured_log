@@ -1,17 +1,17 @@
 ## 1. structured_log_riverpod
 
-- [ ] 1.1 Сверить API Riverpod 3 с исходниками до написания кода (decision 1, риск 1): сигнатуры четырёх хуков `ProviderObserver` и `ProviderObserverContext`, модификатор класса (`base`/`final` у наследника), имя и аргумент провайдера семейства, сообщается ли асинхронная ошибка дважды (decision 6). Расхождения внести в `design.md` до 1.3
-- [ ] 1.2 Скаффолдинг пакета `emb/structured_log_riverpod/`: `pubspec.yaml` (`riverpod: ^3.0.0`, `structured_log: ^0.3.0`, версия `0.1.0-dev.0`, без `publish_to`), `LICENSE`, barrel-файл `lib/structured_log_riverpod.dart`. `analysis_options.yaml` не заводится — его нет ни у одного пакета `emb/`
-- [ ] 1.3 `StructuredLogRiverpodObserver` и `RiverpodLogLevels` (`lib/src/riverpod_observer.dart`): четыре хука, поле `provider` (decision 4), `provider_argument`, описание значений с обрезкой и заменяемым `describe` (decision 5), пропуск `provider_updated` для `AsyncError` (decision 6), `filter` и `describe` под `try` (decision 8), логгер на каждом хуке (decision 9)
-- [ ] 1.4 Тесты на каждый сценарий `specs/riverpod-log-observer/spec.md` (`test/riverpod_observer_test.dart`) на настоящем `ProviderContainer(observers: [...])`. Сценарии с бросающими колбэками — внутри `runZonedGuarded` с проверкой, что обработчик ошибок зоны не вызван. `StructlogConfiguration` восстанавливается в `tearDown`, контейнеры закрываются там же
-- [ ] 1.5 Проверить мутацией, что тесты краснеют: без `try` вокруг `filter`, без пропуска `AsyncError` в `provider_updated`, с `toString()` провайдера вместо имени, без обрезки значения, с логгером, взятым один раз в конструкторе
-- [ ] 1.6 `example/main.dart`: `ProviderContainer` с наблюдателем, именованный провайдер, провайдер семейства, `FutureProvider` с ошибкой, вывод `jsonLineOutput`
+- [x] 1.1 Сверить API Riverpod 3 с исходниками до написания кода (decision 1, риск 1): сигнатуры четырёх хуков `ProviderObserver` и `ProviderObserverContext`, модификатор класса (`base`/`final` у наследника), имя и аргумент провайдера семейства, сообщается ли асинхронная ошибка дважды (decision 6). Расхождения внести в `design.md` до 1.3
+- [x] 1.2 Скаффолдинг пакета `emb/structured_log_riverpod/`: `pubspec.yaml` (`riverpod: ^3.0.0`, `structured_log: ^0.3.0`, версия `0.1.0-dev.0`, без `publish_to`), `LICENSE`, barrel-файл `lib/structured_log_riverpod.dart`. `analysis_options.yaml` не заводится — его нет ни у одного пакета `emb/`
+- [x] 1.3 `StructuredLogRiverpodObserver` и `RiverpodLogLevels` (`lib/src/riverpod_observer.dart`): четыре хука, поле `provider` (decision 4), `provider_argument`, описание значений с обрезкой и заменяемым `describe` (decision 5), пропуск `provider_updated` для `AsyncError` (decision 6), `filter` и `describe` под `try` (decision 8), логгер на каждом хуке (decision 9)
+- [x] 1.4 Тесты на каждый сценарий `specs/riverpod-log-observer/spec.md` (`test/riverpod_observer_test.dart`) на настоящем `ProviderContainer(observers: [...])`. Сценарии с бросающими колбэками — внутри `runZonedGuarded` с проверкой, что обработчик ошибок зоны не вызван. `StructlogConfiguration` восстанавливается в `tearDown`, контейнеры закрываются там же
+- [x] 1.5 Проверить мутацией, что тесты краснеют: без `try` вокруг `filter`, без пропуска `AsyncError` в `provider_updated`, с `toString()` провайдера вместо имени, без обрезки значения, с логгером, взятым один раз в конструкторе
+- [x] 1.6 `example/main.dart`: `ProviderContainer` с наблюдателем, именованный провайдер, провайдер семейства, `FutureProvider` с ошибкой, вывод `jsonLineOutput`
 
 ## 2. Workspace и CI
 
-- [ ] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
-- [ ] 2.2 CI-джоба `riverpod-observer` по форме `bloc-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze, прогон примера, тесты с покрытием и порогом) плюс второй прогон тестов на `riverpod: 3.0.0` последним шагом (decision 10)
-- [ ] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью-обоснованием по образцу `_added_2026_10_01`
+- [x] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
+- [x] 2.2 CI-джоба `riverpod-observer` по форме `bloc-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze, прогон примера, тесты с покрытием и порогом) плюс второй прогон тестов на `riverpod: 3.0.0` последним шагом (decision 10)
+- [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью-обоснованием по образцу `_added_2026_10_01`
 - [ ] 2.4 CI зелёный на GitHub Actions, включая новую джобу
 
 ## 3. Документация
