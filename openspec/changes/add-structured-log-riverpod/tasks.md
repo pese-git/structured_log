@@ -16,8 +16,8 @@
 
 ## 3. Документация
 
-- [ ] 3.1 `README.md`/`README.ru.md` пакета: только Riverpod 3 (decision 1), установка, быстрый старт с `ProviderScope(observers: [...])` и `ProviderContainer`, записи и их поля, уровни, раздел о секретах в значениях и аргументах (`describe`, возвращающий `null`), API, «Related packages»
-- [ ] 3.2 Строка о `structured_log_riverpod` в разделе «Related packages»/«Связанные пакеты» (группа «Integrations»/«Интеграции») README всех остальных живых пакетов `emb/`, включая `structured_log_logging`, если тот к этому моменту влит; прослойка `structured_log_http` не участвует. Число адаптеров во фразе «один из N адаптеров» в README адаптеров — увеличить на один
-- [ ] 3.3 Корневые `README.md`/`README.ru.md` и `AGENTS.md`: пакет в списке `emb/`, в «Структуре», раздел «Внутри `emb/structured_log_riverpod/`», CI-джоба, число пакетов, джоб и README в правиле «Related packages», список адаптеров в «Соглашениях»
-- [ ] 3.4 `docs/guides/embedding-guide.md`/`.ru.md`: раздел о `structured_log_riverpod` рядом с разделом о `structured_log_bloc`, перенумеровать последующие разделы и их якоря
-- [ ] 3.5 Сайт: оглавление пакетов, карточка, строка таблицы интеграций, список адаптеров и диаграмма на главной (EN/RU); `npm run build` в `site/` проходит, и страница `/packages/structured_log_riverpod/` создаётся
+- [x] 3.1 `README.md`/`README.ru.md` пакета: только Riverpod 3 (decision 1), установка, быстрый старт с `ProviderScope(observers: [...])` и `ProviderContainer`, записи и их поля, уровни, раздел о секретах в значениях и аргументах (`describe`, возвращающий `null`), API, «Related packages»
+- [x] 3.2 Строка о `structured_log_riverpod` в разделе «Related packages»/«Связанные пакеты» (группа «Integrations»/«Интеграции») README всех остальных живых пакетов `emb/`, включая `structured_log_logging`, если тот к этому моменту влит; прослойка `structured_log_http` не участвует. Число адаптеров во фразе «один из N адаптеров» в README адаптеров — увеличить на один
+- [x] 3.3 Корневые `README.md`/`README.ru.md` и `AGENTS.md`: пакет в списке `emb/`, в «Структуре», раздел «Внутри `emb/structured_log_riverpod/`», CI-джоба, число пакетов, джоб и README в правиле «Related packages», список адаптеров в «Соглашениях»
+- [x] 3.4 `docs/guides/embedding-guide.md`/`.ru.md`: раздел о `structured_log_riverpod` рядом с разделом о `structured_log_bloc`, перенумеровать последующие разделы и их якоря
+- [x] 3.5 Сайт: оглавление пакетов, карточка, строка таблицы интеграций, список адаптеров и диаграмма на главной (EN/RU); `npm run build` в `site/` проходит, и страница `/packages/structured_log_riverpod/` создаётся

@@ -28,23 +28,26 @@ Dart- или Flutter-приложение. Ничто из описанного 
 3. **Писать в лог, что делают блоки** —
    [`structured_log_bloc`](#4-опционально-логировать-блоки-structured_log_bloc),
    `BlocObserver` для приложений на `bloc`/`flutter_bloc`.
-4. **Писать в лог HTTP-вызовы** —
-   [`structured_log_dio` или `structured_log_http_client`](#5-опционально-логировать-http-вызовы),
+4. **Писать в лог, что делают провайдеры Riverpod** —
+   [`structured_log_riverpod`](#5-опционально-логировать-провайдеры-structured_log_riverpod),
+   `ProviderObserver` для приложений на Riverpod 3.
+5. **Писать в лог HTTP-вызовы** —
+   [`structured_log_dio` или `structured_log_http_client`](#6-опционально-логировать-http-вызовы),
    для приложений, которые ходят на свой бэкенд через `dio` или `package:http`.
-5. **Писать в лог навигацию** —
-   [`structured_log_go_router`](#6-опционально-логировать-навигацию-structured_log_go_router),
+6. **Писать в лог навигацию** —
+   [`structured_log_go_router`](#7-опционально-логировать-навигацию-structured_log_go_router),
    для Flutter-приложений с маршрутизацией на `go_router`.
-6. **Писать в лог работу DI-контейнера** —
-   [`structured_log_cherrypick`](#7-опционально-логировать-di-контейнер-structured_log_cherrypick),
+7. **Писать в лог работу DI-контейнера** —
+   [`structured_log_cherrypick`](#8-опционально-логировать-di-контейнер-structured_log_cherrypick),
    для приложений, собранных на `cherrypick`.
-7. **Писать в лог запросы к базе** —
-   [`structured_log_drift`](#8-опционально-логировать-запросы-к-базе-structured_log_drift),
+8. **Писать в лог запросы к базе** —
+   [`structured_log_drift`](#9-опционально-логировать-запросы-к-базе-structured_log_drift),
    для приложений с базой `drift`.
-8. **Принять то, что пишут другие библиотеки** —
-   [`structured_log_logging`](#9-опционально-принимать-записи-packagelogging-structured_log_logging),
+9. **Принять то, что пишут другие библиотеки** —
+   [`structured_log_logging`](#10-опционально-принимать-записи-packagelogging-structured_log_logging),
    для всех библиотек, которые логируют через `package:logging`.
-9. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_remote_sync`](#10-опционально-доставлять-логи-и-на-сервер),
+10. **Ещё и доставлять эти логи на сервер** —
+   [`structured_log_remote_sync`](#11-опционально-доставлять-логи-и-на-сервер),
    тонкая надстройка над `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -268,7 +271,51 @@ Bloc.observer = StructuredLogBlocObserver();
 [README](../../emb/structured_log_bloc/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета; там же перечислены все записи и настройка уровня на каждый хук.
 
-## 5. Опционально: логировать HTTP-вызовы
+## 5. Опционально: логировать провайдеры: `structured_log_riverpod`
+
+Если состояние приложения живёт в провайдерах Riverpod
+([`riverpod`](https://pub.dev/packages/riverpod) /
+[`flutter_riverpod`](https://pub.dev/packages/flutter_riverpod), версия 3),
+[`structured_log_riverpod`](../../emb/structured_log_riverpod/) пишет всё, что
+делает каждый провайдер — создание, обновления, сбои, удаление, — в
+настроенные выше выводы, включая встроенный просмотрщик:
+
+```yaml
+dependencies:
+  structured_log: ^0.3.0
+  structured_log_riverpod:
+    git:
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_riverpod # на pub.dev пока нет
+```
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'console', output: coloredConsoleOutput),
+]);
+runApp(
+  ProviderScope(
+    observers: [StructuredLogRiverpodObserver()],
+    child: const MyApp(),
+  ),
+);
+```
+
+У каждой записи стоит `category: 'riverpod'`, поэтому фильтр категорий в
+просмотрщике отделяет записи провайдеров от остальных, а `LogSink` с
+`categories: {'riverpod'}` может отправлять их в отдельный вывод. Провайдер
+называется своим `name`, а без имени — типом, и упавший future пишется один
+раз, как `provider_failed`. Пакет зависит только от `package:riverpod` —
+`flutter_riverpod` реэкспортирует тот же `ProviderObserver`, — поэтому ничего
+Flutter-специфичного ему не нужно. Работает только с Riverpod 3.
+
+**По умолчанию значения и аргументы семейства пишутся через `toString()`.**
+Если в них бывают пароли, токены или персональные данные, передайте
+`describe`, который их скрывает, — см.
+[README](../../emb/structured_log_riverpod/README.ru.md#как-не-пустить-секреты-в-лог)
+пакета; там же перечислены все записи и настройка уровня на каждый хук.
+
+## 6. Опционально: логировать HTTP-вызовы
 
 Пакетов два, по одному на HTTP-клиент. Записи у них одинаковые
 (`http_request`, затем `http_response` или `http_error`, связанные
@@ -334,7 +381,7 @@ await client.get(Uri.parse('https://api.example.com/items'));
 JSON или формы читается целиком до 64 КиБ, чтобы его можно было разобрать
 (более длинное пишется как `<unparseable body>`).
 
-## 6. Опционально: логировать навигацию: `structured_log_go_router`
+## 7. Опционально: логировать навигацию: `structured_log_go_router`
 
 Если маршрутизация приложения построена на
 [`go_router`](https://pub.dev/packages/go_router),
@@ -365,7 +412,7 @@ Query-параметры с токенами — включая `code` из call
 [README](../../emb/structured_log_go_router/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
 
-## 7. Опционально: логировать DI-контейнер: `structured_log_cherrypick`
+## 8. Опционально: логировать DI-контейнер: `structured_log_cherrypick`
 
 Если приложение собрано на [`cherrypick`](https://pub.dev/packages/cherrypick),
 [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/) пишет,
@@ -392,7 +439,7 @@ CherryPick.setGlobalObserver(StructuredLogCherryPickObserver());
 [README](../../emb/structured_log_cherrypick/README.ru.md#что-пишется-в-лог)
 пакета.
 
-## 8. Опционально: логировать запросы к базе: `structured_log_drift`
+## 9. Опционально: логировать запросы к базе: `structured_log_drift`
 
 Медленный или упавший запрос — частая причина подвисшего или пустого
 экрана, а встроенный в drift `logStatements` печатает значения аргументов
@@ -422,7 +469,7 @@ final db = AppDatabase(
 [README](../../emb/structured_log_drift/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
 
-## 9. Опционально: принимать записи `package:logging`: `structured_log_logging`
+## 10. Опционально: принимать записи `package:logging`: `structured_log_logging`
 
 Большая часть экосистемы Dart логирует через
 [`package:logging`](https://pub.dev/packages/logging) — драйверы баз данных,
@@ -453,7 +500,7 @@ StructuredLogLoggingBridge().attach();
 [README](../../emb/structured_log_logging/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
 
-## 10. Опционально: доставлять логи и на сервер
+## 11. Опционально: доставлять логи и на сервер
 
 Всё описанное выше работает полностью локально: без сети и без сервера.
 Если нужно ещё и собирать эти логи в одном месте (искать по ним после

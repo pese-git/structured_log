@@ -283,6 +283,30 @@ void main() {
       expect(jsonEncode(entries), isNot(contains('token=abc')));
     });
 
+    test('describe may return a map that redactKeys can reach', () {
+      StructlogConfiguration.configure(
+        processors: [redactKeys()],
+        sinks: [
+          LogSink(
+            name: 'capture',
+            output: (entry, level) => entries.add(Map.of(entry)),
+            minLevel: LogLevel.trace,
+          ),
+        ],
+      );
+      final container = containerWith(
+        StructuredLogRiverpodObserver(
+          describe: (value) =>
+              value is Session ? {'user': 'u', 'token': 'abc'} : null,
+        ),
+      );
+
+      container.read(sessionProvider);
+
+      expect(entries.single['value'], {'user': 'u', 'token': '***'});
+      expect(jsonEncode(entries), isNot(contains('abc')));
+    });
+
     test('describe replaces the description of every value', () {
       final container = containerWith(
         StructuredLogRiverpodObserver(describe: (value) => 'V($value)'),
