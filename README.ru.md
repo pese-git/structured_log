@@ -25,9 +25,9 @@
 1. **Записать** — компактная библиотека-ядро для Dart и Flutter без
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
-   приложении уже делают `bloc`, `dio`, `http`, `go_router` и `cherrypick`,
-   запросы к базе `drift`, а мост передаёт записи всех библиотек, логирующих
-   через `package:logging`.
+   приложении уже делают `bloc`, `riverpod`, `dio`, `http`, `go_router` и
+   `cherrypick`, запросы к базе `drift`, а мост передаёт записи всех
+   библиотек, логирующих через `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
    Material, Fluent или Cupertino.
 4. **Собрать** — self-hosted сервер принимает логи со всех установок
@@ -74,6 +74,7 @@
 | Библиотека | Что пишется в лог | Категория |
 |---|---|---|
 | `bloc` / `flutter_bloc` | создание, события, переходы, ошибки, закрытие каждого блока и кубита | `bloc` |
+| `riverpod` / `flutter_riverpod` | создание, обновления, сбои, удаление каждого провайдера; сбой пишется один раз | `riverpod` |
 | `dio` | каждый запрос и его итог, уровень по статусу ответа | `http` |
 | `package:http` | то же самое через обёртку над `http.Client`; тела не буферизуются | `http` |
 | `go_router` | навигация с шаблоном маршрута, перенаправления, ошибки маршрутизации | `navigation` |
@@ -111,7 +112,7 @@ HTTP- и навигационные адаптеры по умолчанию м�
 ```mermaid
 flowchart LR
   subgraph app["Ваше приложение на Dart / Flutter"]
-    A["Адаптеры<br/>bloc · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Адаптеры<br/>bloc · riverpod · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Ваш код"] --> C
     C --> O["Консоль / файл"]
     C --> V["Просмотрщик логов в приложении"]
@@ -184,6 +185,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_cupertino`](emb/structured_log_cupertino/) | Просмотрщик на Cupertino | [![pub](https://img.shields.io/pub/v/structured_log_cupertino.svg)](https://pub.dev/packages/structured_log_cupertino) |
 | [`structured_log_remote_sync`](emb/structured_log_remote_sync/) | Отправка логов на сервер | [![pub](https://img.shields.io/pub/v/structured_log_remote_sync.svg)](https://pub.dev/packages/structured_log_remote_sync) |
 | [`structured_log_bloc`](emb/structured_log_bloc/) | Наблюдатель `bloc` / `flutter_bloc` | [![pub](https://img.shields.io/pub/v/structured_log_bloc.svg?include_prereleases)](https://pub.dev/packages/structured_log_bloc) |
+| [`structured_log_riverpod`](emb/structured_log_riverpod/) | Наблюдатель провайдеров `riverpod` | ещё не опубликован |
 | [`structured_log_dio`](emb/structured_log_dio/) | Перехватчик `dio` | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | Обёртка клиента `package:http` | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | Логирование навигации `go_router` | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |

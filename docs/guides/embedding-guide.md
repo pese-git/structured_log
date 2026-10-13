@@ -26,23 +26,26 @@ Several packages, and you only need as many of them as your project does:
 3. **Log what your blocs do** —
    [`structured_log_bloc`](#4-optional-log-your-blocs-structured_log_bloc),
    a `BlocObserver` for apps built on `bloc`/`flutter_bloc`.
-4. **Log your HTTP calls** —
-   [`structured_log_dio` or `structured_log_http_client`](#5-optional-log-your-http-calls),
+4. **Log what your Riverpod providers do** —
+   [`structured_log_riverpod`](#5-optional-log-your-providers-structured_log_riverpod),
+   a `ProviderObserver` for apps built on Riverpod 3.
+5. **Log your HTTP calls** —
+   [`structured_log_dio` or `structured_log_http_client`](#6-optional-log-your-http-calls),
    for apps that talk to their backend through `dio` or `package:http`.
-5. **Log navigation** —
-   [`structured_log_go_router`](#6-optional-log-navigation-structured_log_go_router),
+6. **Log navigation** —
+   [`structured_log_go_router`](#7-optional-log-navigation-structured_log_go_router),
    for Flutter apps routed with `go_router`.
-6. **Log the DI container** —
-   [`structured_log_cherrypick`](#7-optional-log-the-di-container-structured_log_cherrypick),
+7. **Log the DI container** —
+   [`structured_log_cherrypick`](#8-optional-log-the-di-container-structured_log_cherrypick),
    for apps wired with `cherrypick`.
-7. **Log your database queries** —
-   [`structured_log_drift`](#8-optional-log-your-database-queries-structured_log_drift),
+8. **Log your database queries** —
+   [`structured_log_drift`](#9-optional-log-your-database-queries-structured_log_drift),
    for apps with a `drift` database.
-8. **Bring in what other libraries log** —
-   [`structured_log_logging`](#9-optional-bring-in-packagelogging-records-structured_log_logging),
+9. **Bring in what other libraries log** —
+   [`structured_log_logging`](#10-optional-bring-in-packagelogging-records-structured_log_logging),
    for every library that writes through `package:logging`.
-9. **Also ship those logs to a server** —
-   [`structured_log_remote_sync`](#10-optional-also-ship-logs-to-a-server), a
+10. **Also ship those logs to a server** —
+   [`structured_log_remote_sync`](#11-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -263,7 +266,51 @@ withholds them — see the package's
 [README](../../emb/structured_log_bloc/README.md#keeping-secrets-out-of-the-log),
 which also lists every entry it writes and how to tune levels per hook.
 
-## 5. Optional: log your HTTP calls
+## 5. Optional: log your providers: `structured_log_riverpod`
+
+If the app keeps its state in Riverpod providers
+([`riverpod`](https://pub.dev/packages/riverpod) /
+[`flutter_riverpod`](https://pub.dev/packages/flutter_riverpod), version 3),
+[`structured_log_riverpod`](../../emb/structured_log_riverpod/) logs what
+every provider does — creation, updates, failures, removal — through the
+sinks configured above, the in-app viewer included:
+
+```yaml
+dependencies:
+  structured_log: ^0.3.0
+  structured_log_riverpod:
+    git:
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_riverpod # not yet on pub.dev
+```
+
+```dart
+StructlogConfiguration.configure(sinks: [
+  LogSink(name: 'console', output: coloredConsoleOutput),
+]);
+runApp(
+  ProviderScope(
+    observers: [StructuredLogRiverpodObserver()],
+    child: const MyApp(),
+  ),
+);
+```
+
+Every entry carries `category: 'riverpod'`, so the viewer's category filter
+separates provider traffic from the rest, and a `LogSink` with
+`categories: {'riverpod'}` can route it on its own. A provider is named by its
+`name`, or by its type when it has none, and a failing future is logged once,
+as `provider_failed`. The package depends on `package:riverpod` only —
+`flutter_riverpod` re-exports the same `ProviderObserver` — so it needs
+nothing Flutter-specific. It works with Riverpod 3 only.
+
+**Values and family arguments are logged through `toString()` by default.**
+If they can carry passwords, tokens or personal data, pass a `describe` that
+withholds them — see the package's
+[README](../../emb/structured_log_riverpod/README.md#keeping-secrets-out-of-the-log),
+which also lists every entry it writes and how to tune levels per hook.
+
+## 6. Optional: log your HTTP calls
 
 Two packages, one per HTTP client, with the same entries
 (`http_request`, then `http_response` or `http_error`, paired by
@@ -327,7 +374,7 @@ of an unknown type is written as its size, `<N bytes>`, and a JSON or
 form body is read whole up to 64 KiB so it can be parsed (a longer one is
 `<unparseable body>`).
 
-## 6. Optional: log navigation: `structured_log_go_router`
+## 7. Optional: log navigation: `structured_log_go_router`
 
 If the app is routed with [`go_router`](https://pub.dev/packages/go_router),
 [`structured_log_go_router`](../../emb/structured_log_go_router/) logs
@@ -357,7 +404,7 @@ see the package's
 [README](../../emb/structured_log_go_router/README.md#keeping-secrets-out-of-the-log)
 if a route carries something sensitive in its path.
 
-## 7. Optional: log the DI container: `structured_log_cherrypick`
+## 8. Optional: log the DI container: `structured_log_cherrypick`
 
 If the app is wired with [`cherrypick`](https://pub.dev/packages/cherrypick),
 [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/) logs
@@ -384,7 +431,7 @@ the package's
 for turning them on and for what the container itself does and does not
 report.
 
-## 8. Optional: log your database queries: `structured_log_drift`
+## 9. Optional: log your database queries: `structured_log_drift`
 
 A slow or failing query is a common reason for a screen that hangs or comes
 up empty, and drift's own `logStatements` prints argument values through
@@ -412,7 +459,7 @@ text — unless you turn them on; see the package's
 [README](../../emb/structured_log_drift/README.md#keeping-secrets-out-of-the-log)
 for that, and for what is not logged (migrations).
 
-## 9. Optional: bring in `package:logging` records: `structured_log_logging`
+## 10. Optional: bring in `package:logging` records: `structured_log_logging`
 
 Much of the Dart ecosystem logs through
 [`package:logging`](https://pub.dev/packages/logging) — database drivers,
@@ -443,7 +490,7 @@ Entries carry `category: 'logging'`, the library's logger name as
 for that, and for why a sink should not itself log through
 `package:logging`.
 
-## 10. Optional: also ship logs to a server
+## 11. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,

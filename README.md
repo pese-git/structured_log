@@ -23,8 +23,8 @@ searched by any field.
 The project covers the whole path such an entry travels:
 
 1. **Write it** — a small, dependency-free core library for Dart and Flutter.
-2. **Get it for free** — adapters that log what `bloc`, `dio`, `http`,
-   `go_router` and `cherrypick` already do in your app, the queries of
+2. **Get it for free** — adapters that log what `bloc`, `riverpod`, `dio`,
+   `http`, `go_router` and `cherrypick` already do in your app, the queries of
    a `drift` database, and a bridge for every library that logs through
    `package:logging`.
 3. **See it on the device** — a drop-in log viewer screen in Material,
@@ -68,6 +68,7 @@ optional, and adding it doesn't change a single logging call.
 | Library | What gets logged | Category |
 |---|---|---|
 | `bloc` / `flutter_bloc` | creation, events, transitions, errors, closing of every bloc and cubit | `bloc` |
+| `riverpod` / `flutter_riverpod` | creation, updates, failures, removal of every provider; a failure is logged once | `riverpod` |
 | `dio` | every request and its outcome, level by status code | `http` |
 | `package:http` | the same, as a wrapping `http.Client`, without buffering bodies | `http` |
 | `go_router` | navigation with route pattern, redirects, routing errors | `navigation` |
@@ -102,7 +103,7 @@ field name when they are.
 ```mermaid
 flowchart LR
   subgraph app["Your Dart / Flutter app"]
-    A["Adapters<br/>bloc · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Adapters<br/>bloc · riverpod · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Your code"] --> C
     C --> O["Console / file"]
     C --> V["In-app log viewer"]
@@ -175,6 +176,7 @@ the admin client.
 | [`structured_log_cupertino`](emb/structured_log_cupertino/) | Cupertino log viewer | [![pub](https://img.shields.io/pub/v/structured_log_cupertino.svg)](https://pub.dev/packages/structured_log_cupertino) |
 | [`structured_log_remote_sync`](emb/structured_log_remote_sync/) | Ships logs to the server | [![pub](https://img.shields.io/pub/v/structured_log_remote_sync.svg)](https://pub.dev/packages/structured_log_remote_sync) |
 | [`structured_log_bloc`](emb/structured_log_bloc/) | `bloc` / `flutter_bloc` observer | [![pub](https://img.shields.io/pub/v/structured_log_bloc.svg?include_prereleases)](https://pub.dev/packages/structured_log_bloc) |
+| [`structured_log_riverpod`](emb/structured_log_riverpod/) | `riverpod` provider observer | not yet published |
 | [`structured_log_dio`](emb/structured_log_dio/) | `dio` interceptor | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | `package:http` client wrapper | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | `go_router` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |

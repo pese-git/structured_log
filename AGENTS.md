@@ -8,7 +8,7 @@
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
 (`structured_log`, скины просмотрщика логов, `structured_log_remote_sync` и адаптеры к чужим библиотекам —
-`bloc`/`dio`/`http`/`go_router`/`cherrypick`/`drift`/`logging`), [backend/](backend/) —
+`bloc`/`riverpod`/`dio`/`http`/`go_router`/`cherrypick`/`drift`/`logging`), [backend/](backend/) —
 самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
 самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
 пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (сейчас там один
@@ -39,7 +39,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Четырнадцать пакетов в `emb/` — тринадцать живых и прослойка `structured_log_http`:
+Пятнадцать пакетов в `emb/` — четырнадцать живых и прослойка `structured_log_http`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -121,6 +121,14 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (в зависимостях сервера — SMTP-клиент `mailer`), а сами по себе эти записи никуда не попадают. Чистый
   Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
   [openspec/changes/add-structured-log-logging/](openspec/changes/add-structured-log-logging/).
+- [emb/structured_log_riverpod/](emb/structured_log_riverpod/) — `StructuredLogRiverpodObserver`:
+  `ProviderObserver` Riverpod, пишущий создание (`provider_added`), обновление (`provider_updated`), сбой
+  (`provider_failed` со стеком) и удаление из памяти (`provider_disposed`) каждого провайдера с
+  `category: 'riverpod'`. Провайдер называется своим `name`, а без имени — типом; аргумент семейства лежит в
+  `provider_argument`. Зависит от `package:riverpod`, **не** от `flutter_riverpod` — как `structured_log_bloc`
+  от `bloc`. **Только Riverpod 3** (`riverpod: ^3.0.0`): сигнатуры хуков 2.x другие. Чистый Dart, не опубликован
+  (`0.1.0-dev.0`), заявка открыта —
+  [openspec/changes/add-structured-log-riverpod/](openspec/changes/add-structured-log-riverpod/).
 
 Плюс один пакет в `backend/`:
 
@@ -177,6 +185,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/) — наблюдатель DI-контейнера `cherrypick` (см. ниже).
 - [emb/structured_log_drift/](emb/structured_log_drift/) — логирование запросов `drift` (см. ниже).
 - [emb/structured_log_logging/](emb/structured_log_logging/) — мост `package:logging` → `structured_log` (см. ниже).
+- [emb/structured_log_riverpod/](emb/structured_log_riverpod/) — наблюдатель провайдеров Riverpod (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -189,11 +198,13 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас три — `add-structured-log-server`,
+  оттуда, а не из `specs/`. Открыты сейчас четыре — `add-structured-log-server`,
   `add-structured-log-drift` (перехватчик запросов `drift`, пакет `emb/structured_log_drift/`; заявка заведена
   06.10.2026, пакет реализован, не архивирована);
   `add-structured-log-logging` (мост `package:logging` → `structured_log`, будущий пакет
   `emb/structured_log_logging/`; заявка заведена 05.10.2026, пакет реализован, не архивирована);
+  `add-structured-log-riverpod` (наблюдатель провайдеров Riverpod 3, пакет `emb/structured_log_riverpod/`; заявка
+  заведена 06.10.2026, пакет реализован, не архивирована);
   `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
   записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
@@ -539,6 +550,41 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `recordStackTraceAtLevel`, отбрасывается при **точном** совпадении, а не по префиксу; стек остаётся.
 - **`logging: ^1.2.0`, и нижняя граница проверяется**: CI-джоба `logging-bridge` гоняет тесты второй раз на
   `logging: 1.2.0` (последним шагом, после проверки покрытия).
+
+Внутри [emb/structured_log_riverpod/](emb/structured_log_riverpod/):
+
+- [emb/structured_log_riverpod/lib/src/riverpod_observer.dart](emb/structured_log_riverpod/lib/src/riverpod_observer.dart) —
+  `StructuredLogRiverpodObserver` (`final class`: `ProviderObserver` объявлен `abstract base`), `RiverpodLogLevels`,
+  `describeRiverpodValue`.
+- **API Riverpod 3 сверен по исходникам и пробной программой, а не по документации** (задача 1.1, `riverpod` 3.0.0, 3.2.1,
+  3.3.2). Хуки принимают `ProviderObserverContext` (`provider`, `container`, `mutation`); `ProviderBase` в основной
+  библиотеке **не экспортируется** — он в `package:riverpod/misc.dart`, оттуда тип нужен для `filter`; `StateProvider`
+  в 3.x переехал в `package:riverpod/legacy.dart`; `read` провайдера в ошибочном состоянии бросает `ProviderException`
+  (обёртку), а не исходное исключение.
+- **Хуков удаления два, и пишется `provider_disposed` из `didUnmountProvider`, а не из `didDisposeProvider`.** Второй
+  срабатывает на каждое перестроение (смена зависимости, `refresh`, `invalidate`), иногда дважды подряд, и об удалении
+  ничего не говорит. Первый есть с `riverpod` **3.3.2**, в 3.0.0–3.2.1 его нет: там `provider_disposed` не пишется
+  вовсе и без предупреждения (решение пользователя 14.10.2026 — граница осталась `^3.0.0`, README говорит об этом прямо).
+  Остальные три записи одинаковы на любой 3.x. `didDisposeProvider` не переопределяется.
+- **Асинхронная ошибка приходит дважды** — `didUpdateProvider` с `AsyncError`, затем `providerDidFail` (проверено на 3.0.0
+  и 3.3.2). Обновление до `AsyncError` пропускается, ошибка пишется одной записью `provider_failed`, которая несёт стек.
+  Ошибку и стек пишет `tryLog(error:, stackTrace:)` ядра, мимо `describe`.
+- **`getLogger()` сам читает конфигурацию на каждой записи**, поэтому «взять логгер в конструкторе» поведения не меняет
+  (мутацией проверено: тесты остались зелёными). Закрепляет конфигурацию только `BoundLogger(StructlogConfiguration.current)`;
+  тесты краснеют именно на нём.
+- **Значения описываются лениво**: после `filter` и проверки `logger.isEnabled(level)`. Бросивший `filter` или логгер стоит
+  записи, бросивший `describe` — её значений (`describe_failed` с типом исключения, без текста).
+- **Тест удаления определяет хук пробным наблюдателем, а не по номеру версии**: `riverpodReportsUnmount()` закрывает
+  контейнер и смотрит, позвали ли `didUnmountProvider`. Тест `a removed provider is logged as disposed` пропускается без
+  хука, парный ему `without didUnmountProvider the other entries are still written` — наоборот, поэтому второй прогон CI
+  на `riverpod: 3.0.0` что-то проверяет, а не молча пропускает.
+- **Тест не ищет цифры во всей записи**: `isNot(contains('42'))` падал, когда `42` попадало в `timestamp` (`10:42:…`).
+  Для проверки утечки аргумента берётся уникальная строка.
+- **`riverpod: ^3.0.0`, и нижняя граница проверяется**: CI-джоба `riverpod-observer` гоняет тесты второй раз на
+  `riverpod: 3.0.0` (последним шагом, после проверки покрытия). `sdk: ^3.8.0` — нижняя граница самого `riverpod` 3.0.0.
+  Покрытие 100 % (41 из 41 строки), порог 97.
+- Мутацией проверены восемь мест: `try` вокруг `filter`/логгера, пропуск `AsyncError`, имя провайдера, обрезка значения,
+  закрепление логгера, хук удаления, `try` вокруг `describe`, ранний выход по `isEnabled`.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -1100,14 +1146,14 @@ fvm dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`fvm dart format .` перед завершением любого изменения).
 - У каждого живого пакета `emb/` в `README.md`/`README.ru.md` перед «License»/«Лицензия» есть раздел
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
   доставка на сервер, интеграции), без самого пакета. Ссылки — **абсолютные на pub.dev**, а не `../<пакет>`:
   относительную генератор сайта переписал бы правильно, но pub.dev разрешает её от корня репозитория, и в
-  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (26 файлов
-  на 13 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
+  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (28 файлов
+  на 14 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
   имена символов кода, флаги команд и т.п., которые остаются как есть, не переводятся).
@@ -1133,7 +1179,7 @@ fvm dart run example/main.dart
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
-в `master`/`develop` и на `workflow_dispatch`, шестнадцать джоб:
+в `master`/`develop` и на `workflow_dispatch`, семнадцать джоб:
 
 - `test` — для `structured_log`: `dart format --set-exit-if-changed`, `dart analyze`,
   `dart test`, `dart run example/main.dart` — на `ubuntu-latest`/`macos-latest`/`windows-latest`
@@ -1192,6 +1238,8 @@ fvm dart run example/main.dart
   — нижней границе констрейнта, где появился `QueryInterceptor`.
 - `logging-bridge` — для `emb/structured_log_logging/`, та же форма плюс второй прогон тестов на `logging: 1.2.0`
   — нижней границе констрейнта, чтобы она была проверена, а не предположена.
+- `riverpod-observer` — для `emb/structured_log_riverpod/`, та же форма плюс второй прогон тестов на `riverpod: 3.0.0`
+  — нижней границе констрейнта; без `didUnmountProvider` один тест пропускается, а парный ему идёт.
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -1306,6 +1354,7 @@ fvm dart run example/main.dart
    [emb/structured_log_go_router/](emb/structured_log_go_router/README.md),
    [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/README.md),
    [emb/structured_log_drift/](emb/structured_log_drift/README.md),
-   [emb/structured_log_logging/](emb/structured_log_logging/README.md))
+   [emb/structured_log_logging/](emb/structured_log_logging/README.md),
+   [emb/structured_log_riverpod/](emb/structured_log_riverpod/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

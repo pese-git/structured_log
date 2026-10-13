@@ -30,8 +30,8 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 1. **Записать** — компактная библиотека-ядро для Dart и Flutter без
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
-   приложении уже делают `bloc`, `dio`, `http`, `go_router` и `cherrypick`,
-   запросы к базе `drift`, а мост передаёт записи всех библиотек, логирующих
+   приложении уже делают `bloc`, `riverpod`, `dio`, `http`, `go_router` и
+   `cherrypick`, запросы к базе `drift`, а мост передаёт записи всех библиотек, логирующих
    через `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
    Material, Fluent или Cupertino.
@@ -158,6 +158,7 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 | Библиотека | Что пишется в лог | Категория |
 |---|---|---|
 | `bloc` / `flutter_bloc` | создание, события, переходы, ошибки, закрытие каждого блока и кубита | `bloc` |
+| `riverpod` / `flutter_riverpod` | создание, обновления, сбои, удаление каждого провайдера; сбой пишется один раз | `riverpod` |
 | `dio` | каждый запрос и его итог, уровень по статусу ответа | `http` |
 | `package:http` | то же самое через обёртку над `http.Client`; тела не буферизуются | `http` |
 | `go_router` | навигация с шаблоном маршрута, перенаправления, ошибки маршрутизации | `navigation` |
@@ -194,7 +195,7 @@ HTTP- и навигационные адаптеры по умолчанию м�
 
 <pre class="mermaid">{`flowchart LR
   subgraph app["Ваше приложение на Dart / Flutter"]
-    A["Адаптеры<br/>bloc · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Адаптеры<br/>bloc · riverpod · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Ваш код"] --> C
     C --> O["Консоль / файл"]
     C --> V["Просмотрщик логов в приложении"]
@@ -236,6 +237,11 @@ HTTP- и навигационные адаптеры по умолчанию м�
 		`BlocObserver`, который пишет события, смену состояния и ошибки
 		каждого блока и кубита; подключается одной строкой, работает с `flutter_bloc` как
 		есть. [Использование и API](/ru/packages/structured_log_bloc/). Пре-релиз на pub.dev.
+	</Card>
+	<Card title="structured_log_riverpod" icon="list-format">
+		`ProviderObserver`, который пишет создание, обновления, сбои и удаление
+		каждого провайдера Riverpod; подключается одной строкой, работает с
+		`flutter_riverpod` как есть. [Использование и API](/ru/packages/structured_log_riverpod/). На pub.dev пока нет.
 	</Card>
 	<Card title="structured_log_dio, structured_log_http_client" icon="random">
 		Пишут каждый HTTP-вызов и его итог с уровнем по статусу ответа и
