@@ -112,23 +112,23 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   drift, пишущий каждый запрос (`db_query`: вид, SQL, дробный `duration_ms`, `rows`/`affected_rows`/`insert_id`),
   пакет (`db_batch`), сбой (`db_query_failed` со стеком) и завершение транзакции с `category: 'db'`; медленный
   запрос (от 500 мс) — `warning` с `slow: true`. Значения аргументов по умолчанию не пишутся — ни в записи, ни
-  в тексте ошибки. Чистый Dart, `drift: >=2.14.0 <3.0.0`, опубликован как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
-  [openspec/changes/add-structured-log-drift/](openspec/changes/add-structured-log-drift/).
+  в тексте ошибки. Чистый Dart, `drift: >=2.14.0 <3.0.0`, опубликован как пре-релиз (серия `0.1.0-dev.N`),
+  [openspec/changes/archive/2026-10-14-add-structured-log-drift/](openspec/changes/archive/2026-10-14-add-structured-log-drift/), основная спека — [openspec/specs/drift-query-logging/](openspec/specs/drift-query-logging/spec.md).
 - [emb/structured_log_logging/](emb/structured_log_logging/) — `StructuredLogLoggingBridge`: мост,
   передающий каждую запись `package:logging` (`LogRecord`) в `structured_log` — сообщение становится
   `event`, имя логгера — `logger`, уровень сопоставляется по `Level.value`, `error`/`stackTrace` — поля
   ядра, `category: 'logging'`. Нужен потому, что через `package:logging` пишет большая часть экосистемы
   (в зависимостях сервера — SMTP-клиент `mailer`), а сами по себе эти записи никуда не попадают. Чистый
-  Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
-  [openspec/changes/add-structured-log-logging/](openspec/changes/add-structured-log-logging/).
+  Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`),
+  [openspec/changes/archive/2026-10-14-add-structured-log-logging/](openspec/changes/archive/2026-10-14-add-structured-log-logging/), основная спека — [openspec/specs/logging-bridge/](openspec/specs/logging-bridge/spec.md).
 - [emb/structured_log_riverpod/](emb/structured_log_riverpod/) — `StructuredLogRiverpodObserver`:
   `ProviderObserver` Riverpod, пишущий создание (`provider_added`), обновление (`provider_updated`), сбой
   (`provider_failed` со стеком) и удаление из памяти (`provider_disposed`) каждого провайдера с
   `category: 'riverpod'`. Провайдер называется своим `name`, а без имени — типом; аргумент семейства лежит в
   `provider_argument`. Зависит от `package:riverpod`, **не** от `flutter_riverpod` — как `structured_log_bloc`
   от `bloc`. **Только Riverpod 3** (`riverpod: ^3.0.0`): сигнатуры хуков 2.x другие. Чистый Dart, опубликован
-  как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
-  [openspec/changes/add-structured-log-riverpod/](openspec/changes/add-structured-log-riverpod/).
+  как пре-релиз (серия `0.1.0-dev.N`),
+  [openspec/changes/archive/2026-10-14-add-structured-log-riverpod/](openspec/changes/archive/2026-10-14-add-structured-log-riverpod/), основная спека — [openspec/specs/riverpod-log-observer/](openspec/specs/riverpod-log-observer/spec.md).
 
 Плюс один пакет в `backend/`:
 
@@ -198,15 +198,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас четыре — `add-structured-log-server`,
-  `add-structured-log-drift` (перехватчик запросов `drift`, пакет `emb/structured_log_drift/`; заявка заведена
-  06.10.2026, пакет реализован, не архивирована);
-  `add-structured-log-logging` (мост `package:logging` → `structured_log`, будущий пакет
-  `emb/structured_log_logging/`; заявка заведена 05.10.2026, пакет реализован, не архивирована);
-  `add-structured-log-riverpod` (наблюдатель провайдеров Riverpod 3, пакет `emb/structured_log_riverpod/`; заявка
-  заведена 06.10.2026, пакет реализован, не архивирована);
-  `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
-  записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
+  дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
+  кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
+  (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
+  (`riverpod-log-observer`) — 14.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
