@@ -1,3 +1,7 @@
+## 0.1.3+1
+
+ - **DOCS**(structured_log_riverpod): document the package and list it in the family.
+
 ## 0.1.3
 
  - **FIX**(structured_log_material): keep the detail sheet below the status bar (#114).

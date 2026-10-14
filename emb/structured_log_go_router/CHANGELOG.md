@@ -1,3 +1,7 @@
+## 0.1.0-dev.7
+
+ - **DOCS**(structured_log_riverpod): document the package and list it in the family.
+
 ## 0.1.0-dev.6
 
  - **FEAT**(structured_log_logging): add a bridge from package:logging (#108).
