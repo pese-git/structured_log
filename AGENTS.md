@@ -119,8 +119,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   `event`, имя логгера — `logger`, уровень сопоставляется по `Level.value`, `error`/`stackTrace` — поля
   ядра, `category: 'logging'`. Нужен потому, что через `package:logging` пишет большая часть экосистемы
   (в зависимостях сервера — SMTP-клиент `mailer`), а сами по себе эти записи никуда не попадают. Чистый
-  Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
-  [openspec/changes/add-structured-log-logging/](openspec/changes/add-structured-log-logging/).
+  Dart, опубликован как пре-релиз (серия `0.1.0-dev.N`),
+  [openspec/changes/archive/2026-10-14-add-structured-log-logging/](openspec/changes/archive/2026-10-14-add-structured-log-logging/), основная спека — [openspec/specs/logging-bridge/](openspec/specs/logging-bridge/spec.md).
 - [emb/structured_log_riverpod/](emb/structured_log_riverpod/) — `StructuredLogRiverpodObserver`:
   `ProviderObserver` Riverpod, пишущий создание (`provider_added`), обновление (`provider_updated`), сбой
   (`provider_failed` со стеком) и удаление из памяти (`provider_disposed`) каждого провайдера с
