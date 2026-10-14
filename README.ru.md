@@ -185,7 +185,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_cupertino`](emb/structured_log_cupertino/) | Просмотрщик на Cupertino | [![pub](https://img.shields.io/pub/v/structured_log_cupertino.svg)](https://pub.dev/packages/structured_log_cupertino) |
 | [`structured_log_remote_sync`](emb/structured_log_remote_sync/) | Отправка логов на сервер | [![pub](https://img.shields.io/pub/v/structured_log_remote_sync.svg)](https://pub.dev/packages/structured_log_remote_sync) |
 | [`structured_log_bloc`](emb/structured_log_bloc/) | Наблюдатель `bloc` / `flutter_bloc` | [![pub](https://img.shields.io/pub/v/structured_log_bloc.svg?include_prereleases)](https://pub.dev/packages/structured_log_bloc) |
-| [`structured_log_riverpod`](emb/structured_log_riverpod/) | Наблюдатель провайдеров `riverpod` | ещё не опубликован |
+| [`structured_log_riverpod`](emb/structured_log_riverpod/) | Наблюдатель провайдеров `riverpod` | [![pub](https://img.shields.io/pub/v/structured_log_riverpod.svg?include_prereleases)](https://pub.dev/packages/structured_log_riverpod) |
 | [`structured_log_dio`](emb/structured_log_dio/) | Перехватчик `dio` | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | Обёртка клиента `package:http` | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | Логирование навигации `go_router` | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |

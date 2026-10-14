@@ -79,17 +79,13 @@ the whole project is at
 **Riverpod 3 only.** The observer hooks of Riverpod 2.x have other signatures,
 and one class cannot override both; for 2.x this package does not work.
 
-Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it from git for
-now:
+Published on pub.dev as a pre-release:
 
 ```yaml
 dependencies:
   flutter_riverpod: ^3.0.0 # or riverpod: ^3.0.0
   structured_log: ^0.3.0
-  structured_log_riverpod:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_riverpod
+  structured_log_riverpod: ^0.1.0-dev.1
 ```
 
 ## Quick Start
