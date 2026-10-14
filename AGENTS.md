@@ -112,8 +112,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   drift, пишущий каждый запрос (`db_query`: вид, SQL, дробный `duration_ms`, `rows`/`affected_rows`/`insert_id`),
   пакет (`db_batch`), сбой (`db_query_failed` со стеком) и завершение транзакции с `category: 'db'`; медленный
   запрос (от 500 мс) — `warning` с `slow: true`. Значения аргументов по умолчанию не пишутся — ни в записи, ни
-  в тексте ошибки. Чистый Dart, `drift: >=2.14.0 <3.0.0`, опубликован как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
-  [openspec/changes/add-structured-log-drift/](openspec/changes/add-structured-log-drift/).
+  в тексте ошибки. Чистый Dart, `drift: >=2.14.0 <3.0.0`, опубликован как пре-релиз (серия `0.1.0-dev.N`),
+  [openspec/changes/archive/2026-10-14-add-structured-log-drift/](openspec/changes/archive/2026-10-14-add-structured-log-drift/), основная спека — [openspec/specs/drift-query-logging/](openspec/specs/drift-query-logging/spec.md).
 - [emb/structured_log_logging/](emb/structured_log_logging/) — `StructuredLogLoggingBridge`: мост,
   передающий каждую запись `package:logging` (`LogRecord`) в `structured_log` — сообщение становится
   `event`, имя логгера — `logger`, уровень сопоставляется по `Level.value`, `error`/`stackTrace` — поля
