@@ -283,10 +283,7 @@ Bloc.observer = StructuredLogBlocObserver();
 ```yaml
 dependencies:
   structured_log: ^0.3.0
-  structured_log_riverpod:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_riverpod # на pub.dev пока нет
+  structured_log_riverpod: ^0.1.0-dev.1
 ```
 
 ```dart

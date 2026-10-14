@@ -126,8 +126,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (`provider_failed` со стеком) и удаление из памяти (`provider_disposed`) каждого провайдера с
   `category: 'riverpod'`. Провайдер называется своим `name`, а без имени — типом; аргумент семейства лежит в
   `provider_argument`. Зависит от `package:riverpod`, **не** от `flutter_riverpod` — как `structured_log_bloc`
-  от `bloc`. **Только Riverpod 3** (`riverpod: ^3.0.0`): сигнатуры хуков 2.x другие. Чистый Dart, не опубликован
-  (`0.1.0-dev.0`), заявка открыта —
+  от `bloc`. **Только Riverpod 3** (`riverpod: ^3.0.0`): сигнатуры хуков 2.x другие. Чистый Dart, опубликован
+  как пре-релиз (серия `0.1.0-dev.N`), заявка открыта —
   [openspec/changes/add-structured-log-riverpod/](openspec/changes/add-structured-log-riverpod/).
 
 Плюс один пакет в `backend/`:

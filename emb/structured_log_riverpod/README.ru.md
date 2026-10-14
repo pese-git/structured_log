@@ -83,17 +83,13 @@
 один класс не может переопределить оба варианта; с 2.x этот пакет не
 работает.
 
-Пока не опубликован на pub.dev (`0.1.0-dev.0`), поэтому подключайте его из
-git:
+Опубликован на pub.dev как пре-релиз:
 
 ```yaml
 dependencies:
   flutter_riverpod: ^3.0.0 # или riverpod: ^3.0.0
   structured_log: ^0.3.0
-  structured_log_riverpod:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_riverpod
+  structured_log_riverpod: ^0.1.0-dev.1
 ```
 
 ## Быстрый старт

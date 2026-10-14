@@ -176,7 +176,7 @@ the admin client.
 | [`structured_log_cupertino`](emb/structured_log_cupertino/) | Cupertino log viewer | [![pub](https://img.shields.io/pub/v/structured_log_cupertino.svg)](https://pub.dev/packages/structured_log_cupertino) |
 | [`structured_log_remote_sync`](emb/structured_log_remote_sync/) | Ships logs to the server | [![pub](https://img.shields.io/pub/v/structured_log_remote_sync.svg)](https://pub.dev/packages/structured_log_remote_sync) |
 | [`structured_log_bloc`](emb/structured_log_bloc/) | `bloc` / `flutter_bloc` observer | [![pub](https://img.shields.io/pub/v/structured_log_bloc.svg?include_prereleases)](https://pub.dev/packages/structured_log_bloc) |
-| [`structured_log_riverpod`](emb/structured_log_riverpod/) | `riverpod` provider observer | not yet published |
+| [`structured_log_riverpod`](emb/structured_log_riverpod/) | `riverpod` provider observer | [![pub](https://img.shields.io/pub/v/structured_log_riverpod.svg?include_prereleases)](https://pub.dev/packages/structured_log_riverpod) |
 | [`structured_log_dio`](emb/structured_log_dio/) | `dio` interceptor | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | `package:http` client wrapper | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | `go_router` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
