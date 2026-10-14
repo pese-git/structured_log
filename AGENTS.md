@@ -198,15 +198,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас четыре — `add-structured-log-server`,
-  `add-structured-log-drift` (перехватчик запросов `drift`, пакет `emb/structured_log_drift/`; заявка заведена
-  06.10.2026, пакет реализован, не архивирована);
-  `add-structured-log-logging` (мост `package:logging` → `structured_log`, будущий пакет
-  `emb/structured_log_logging/`; заявка заведена 05.10.2026, пакет реализован, не архивирована);
-  `add-structured-log-riverpod` (наблюдатель провайдеров Riverpod 3, пакет `emb/structured_log_riverpod/`; заявка
-  заведена 06.10.2026, пакет реализован, не архивирована);
-  `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`, кодирование
-  записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026.
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
+  дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
+  кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
+  (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
+  (`riverpod-log-observer`) — 14.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
