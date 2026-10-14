@@ -12,7 +12,7 @@
 - [x] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе `test:dart`
 - [x] 2.2 CI-джоба `riverpod-observer` по форме `bloc-observer` (свой `pubspec_overrides.yaml` на `emb/structured_log`, format/analyze, прогон примера, тесты с покрытием и порогом) плюс второй прогон тестов на `riverpod: 3.0.0` последним шагом (decision 10)
 - [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью-обоснованием по образцу `_added_2026_10_01`
-- [ ] 2.4 CI зелёный на GitHub Actions, включая новую джобу
+- [x] 2.4 CI зелёный на GitHub Actions, включая новую джобу
 
 ## 3. Документация
 
