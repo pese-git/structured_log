@@ -190,7 +190,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_dio`](emb/structured_log_dio/) | Перехватчик `dio` | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | Обёртка клиента `package:http` | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | Логирование навигации `go_router` | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
-| [`structured_log_auto_route`](emb/structured_log_auto_route/) | Логирование навигации `auto_route` | ещё не опубликован |
+| [`structured_log_auto_route`](emb/structured_log_auto_route/) | Логирование навигации `auto_route` | [![pub](https://img.shields.io/pub/v/structured_log_auto_route.svg?include_prereleases)](https://pub.dev/packages/structured_log_auto_route) |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | Наблюдатель DI `cherrypick` | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
 | [`structured_log_drift`](emb/structured_log_drift/) | Логирование запросов `drift` | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_logging`](emb/structured_log_logging/) | Мост `package:logging` | [![pub](https://img.shields.io/pub/v/structured_log_logging.svg?include_prereleases)](https://pub.dev/packages/structured_log_logging) |

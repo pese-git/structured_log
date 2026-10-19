@@ -181,7 +181,7 @@ the admin client.
 | [`structured_log_dio`](emb/structured_log_dio/) | `dio` interceptor | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | `package:http` client wrapper | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | `go_router` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
-| [`structured_log_auto_route`](emb/structured_log_auto_route/) | `auto_route` navigation logging | not yet published |
+| [`structured_log_auto_route`](emb/structured_log_auto_route/) | `auto_route` navigation logging | [![pub](https://img.shields.io/pub/v/structured_log_auto_route.svg?include_prereleases)](https://pub.dev/packages/structured_log_auto_route) |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | `cherrypick` DI observer | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
 | [`structured_log_drift`](emb/structured_log_drift/) | `drift` query logging | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_logging`](emb/structured_log_logging/) | `package:logging` bridge | [![pub](https://img.shields.io/pub/v/structured_log_logging.svg?include_prereleases)](https://pub.dev/packages/structured_log_logging) |
