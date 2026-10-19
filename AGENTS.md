@@ -52,7 +52,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   пакеты перешли на `structured_log: ^0.3.0` тем же релизом.
 - [emb/structured_log_flutter/](emb/structured_log_flutter/) — headless-ядро для in-app просмотра логов
   во Flutter (`LogBuffer`, `LogViewerController`, `logLevelColor()`, однострочный выход
-  `debugPrintOutput`); не зависит ни от какой конкретной дизайн-системы. Опубликован на pub.dev.
+  `debugPrintOutput`, подписи скинов `LogViewerLabels` и необязательный делегат `LogViewerLocalizations`
+  с en/ru); не зависит ни от какой конкретной дизайн-системы. Опубликован на pub.dev.
 - [emb/structured_log_material/](emb/structured_log_material/) — Material 3 виджет просмотрщика логов
   поверх `structured_log_flutter`. Разрешена публикация на pub.dev (`publish_to: none` снят).
 - [emb/structured_log_fluent/](emb/structured_log_fluent/) — Fluent UI (WinUI-style) виджет просмотрщика
@@ -207,7 +208,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
+  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и `add-log-viewer-labels` (подписи и локализация скинов просмотрщика, Electro #188). Закрытые лежат в `changes/archive/`, а их
   дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
   кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
   (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
@@ -294,7 +295,9 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_flutter/lib/src/debug_print_output.dart](emb/structured_log_flutter/lib/src/debug_print_output.dart) — `debugPrintOutput`: одна строка через `debugPrint`, без ANSI — `HH:mm:ss.SSS LEVEL event key=value…` (местное время из `timestamp`), значения экранирует `formatLogfmt` ядра. `debugPrint` выбран ради троттлинга (Android не теряет строки при всплеске); длинную строку он не переносит, а logcat режет её после ~4 КБ. Выход по умолчанию ядра не меняется — ядро не знает про Flutter.
 - [emb/structured_log_flutter/lib/src/log_viewer_controller.dart](emb/structured_log_flutter/lib/src/log_viewer_controller.dart) — `LogViewerController` (`ChangeNotifier`): фильтры по уровню/категории/поиску, пауза, `clear()`; плюс публичная `logLevelOf()`.
 - [emb/structured_log_flutter/lib/src/log_level_colors.dart](emb/structured_log_flutter/lib/src/log_level_colors.dart) — `logLevelColor()`: единственный источник цветов `LogLevel`, общий для всех скинов (Material/Fluent/Cupertino); живёт здесь, а не в конкретном скине, т.к. `Color`/`Brightness` не привязаны ни к одной дизайн-системе — извлечено из `structured_log_material`, когда появился третий скин (`structured_log_cupertino`), см. `design.md` соответствующей change.
-- [emb/structured_log_flutter/test/](emb/structured_log_flutter/test/) — тесты (`flutter test`) на `LogBuffer`, `LogViewerController` и `logLevelColor()`.
+- [emb/structured_log_flutter/lib/src/log_viewer_labels.dart](emb/structured_log_flutter/lib/src/log_viewer_labels.dart) — `LogViewerLabels`: все подписи трёх скинов одним объектом (заявка `add-log-viewer-labels`, по Electro #188). **Все поля nullable, `null` — умолчание скина**, и умолчания у скинов намеренно разные (`Debug+` у Material/Cupertino, `Debug and above` у Fluent): общий английский поменял бы видимые тексты двух скинов. Новая подпись в скине = новое поле здесь; тест «все поля маркерами — ни одного английского умолчания» в каждом скине краснеет, если забыть.
+- [emb/structured_log_flutter/lib/src/log_viewer_localizations.dart](emb/structured_log_flutter/lib/src/log_viewer_localizations.dart) — `LogViewerLocalizations`: необязательный делегат с en (пустой набор — умолчания скинов) и ru (полный набор, одна формулировка на все скины). **Рукописный, без `flutter_localizations`/`intl`/`gen-l10n`** — `LocalizationsDelegate` есть в `flutter/widgets`, а `intl` в опубликованной библиотеке ссорил бы версии у потребителей. `resolve(context, labels)` — поле за полем: явный `labels` → делегат → умолчание скина; его зовёт **каждый** публичный виджет скина, рисующий подписи (одна пропущенная точка — и делегат туда не доходит: так было с `_content` пустого состояния Fluent). `Localizations` стоит над `Navigator`, поэтому шторка Material и пушнутый экран Cupertino его видят. `flutter_localizations` у скинов — только dev-зависимость тестов.
+- [emb/structured_log_flutter/test/](emb/structured_log_flutter/test/) — тесты (`flutter test`) на `LogBuffer`, `LogViewerController`, `logLevelColor()`, `LogViewerLabels` и `LogViewerLocalizations`.
 
 Внутри [emb/structured_log_material/](emb/structured_log_material/):
 
@@ -336,6 +339,21 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cupertino/test/](emb/structured_log_cupertino/test/) — виджет-тесты (`flutter test`), структура и приёмы тестирования как у `structured_log_fluent`/`structured_log_material` (поведенческие тесты на явно заданной узкой ширине, брейкпоинты — на явно заданной широкой, отдельный тест для page-обёртки).
 - [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `fvm flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
 - `cupertino_icons` — обычная зависимость (иконки `CupertinoIcons` не бандлятся во Flutter SDK сами по себе); `uses-material-design: false` — пакет не тянет Material-иконки/шрифты.
+
+Общее для трёх скинов (`add-log-viewer-labels`):
+
+- **`labels` и `onContextCopied`** принимают `*LogViewer`, `*LogViewerPage` и публичные составные виджеты; баррели скинов
+  реэкспортируют `LogViewerLabels`/`LogViewerLocalizations`. Явный `allLabel` фильтра категорий важнее `labels.allCategories`.
+- **Копирование — `lib/src/copy_entry_context.dart`, по копии в каждом скине**: `onContextCopied` зовётся только после
+  успешного `Clipboard.setData` и только пока виджет смонтирован; ошибка — в `FlutterError.reportError`, а не
+  необработанным `Future`. Своего подтверждения скины не показывают — решение пользователя (шторка Material модальная,
+  снэкбар корневого `Scaffold` лёг бы под затемнение).
+- **Русские подписи длиннее, и раскладка это уже раз не выдержала**: шапка детального вида всех трёх скинов и строка
+  кнопок шторки Material переполнялись на 360/700. Теперь строка «уровень + время» — `Wrap`, кнопка копирования —
+  `Flexible` с многоточием, кнопки шторки — `Wrap`. Тесты на русской локали на узкой ширине это стерегут; новая строка
+  с подписью рядом с фиксированным элементом требует такого же теста.
+- Имена уровней (`INFO`, `INF`, `Debug+`) — идентификаторы `LogLevel`, не подписи; русский набор делегата их не переводит
+  (кроме «Все»).
 
 Внутри [emb/structured_log_remote_sync/](emb/structured_log_remote_sync/):
 

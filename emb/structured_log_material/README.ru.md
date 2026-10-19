@@ -165,6 +165,58 @@ Row(
 )
 ```
 
+## Локализация
+
+Любую подпись, которую рисует просмотрщик, можно заменить: подсказку поиска,
+паузу и очистку, фильтры уровня и категории, заголовок страницы, оба пустых
+состояния, заголовок и действие копирования в деталях. Способов два, и их
+можно сочетать.
+
+**Готовые английский и русский.** Зарегистрируйте делегат из
+`structured_log_flutter` (он реэкспортируется этим пакетом), и просмотрщик
+будет следовать локали приложения. Английский — прежние формулировки пакета.
+
+```dart
+MaterialApp(
+  localizationsDelegates: const [
+    LogViewerLocalizations.delegate,
+    // ...остальные делегаты приложения
+  ],
+  supportedLocales: const [Locale('en'), Locale('ru')],
+  // ...
+)
+```
+
+**Свои подписи** — для любого языка или чтобы поменять одну фразу. Заданное
+поле важнее делегата; поле, оставленное `null`, берётся из делегата, а без
+него — английское по умолчанию.
+
+```dart
+MaterialLogViewer(
+  controller: controller,
+  labels: LogViewerLabels(
+    searchHint: context.l10n.logsSearchHint,
+    levelFilterLabel: (level) =>
+        level == null ? context.l10n.allLevels : '${level.name}+',
+  ),
+)
+```
+
+Ни `flutter_localizations`, ни `intl` для этого не нужны.
+
+**Подтверждение копирования.** Просмотрщик копирует контекст записи молча;
+чтобы показать своё подтверждение, передайте `onContextCopied`. Он вызывается
+после успешной записи в буфер обмена и никогда — при ошибке:
+
+```dart
+MaterialLogViewer(
+  controller: controller,
+  onContextCopied: (_) => ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Контекст скопирован')),
+  ),
+)
+```
+
 ## Скриншоты
 
 `MaterialLogViewerPage` на весь экран — на такой ширине включается
@@ -187,13 +239,13 @@ sheet вместо боковой панели:
 
 | Виджет | Описание |
 |---|---|
-| `MaterialLogViewer({required LogViewerController controller})` | Просмотрщик логов как встраиваемый виджет (без каркаса страницы) |
-| `MaterialLogViewerPage({required LogViewerController controller})` | Полный экран |
-| `LogCategoryChips({required LogViewerController controller, String allLabel = 'All'})` | Ряд чипов фильтра по категории |
+| `MaterialLogViewer({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | Просмотрщик логов как встраиваемый виджет (без каркаса страницы) |
+| `MaterialLogViewerPage({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | Полный экран |
+| `LogCategoryChips({required LogViewerController controller, String? allLabel, LogViewerLabels labels})` | Ряд чипов фильтра по категории |
 | `LogEntryTile({required entry, required onTap, bool selected = false})` | Одна строка списка |
-| `LogEntryDetailSheet({required entry})` | Содержимое bottom sheet развёрнутой записи (узкие экраны) |
-| `LogEntryDetailPanel({required entry})` | Содержимое немодальной панели развёрнутой записи (широкие экраны) |
-| `LogViewerEmptyState({required hasLogs, required onClearFilters})` | Пустое состояние в двух вариантах |
+| `LogEntryDetailSheet({required entry, labels, onContextCopied})` | Содержимое bottom sheet развёрнутой записи (узкие экраны) |
+| `LogEntryDetailPanel({required entry, labels, onContextCopied})` | Содержимое немодальной панели развёрнутой записи (широкие экраны) |
+| `LogViewerEmptyState({required hasLogs, required onClearFilters, LogViewerLabels labels})` | Пустое состояние в двух вариантах |
 | `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня — определён один раз в `structured_log_flutter`, общий для всех скинов |
 
 `entry` везде — это `Map<String, dynamic>` в том же виде, в котором его

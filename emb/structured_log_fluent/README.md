@@ -163,6 +163,58 @@ Row(
 )
 ```
 
+## Localization
+
+Every label the viewer draws — search placeholder, pause/clear, the level and
+category filters, the page title, both empty states, the detail view's
+heading and copy action — can be replaced. Two ways, which combine:
+
+**Ready-made English and Russian.** Register the delegate from
+`structured_log_flutter` (re-exported here); the viewer then follows the app's
+locale. English keeps this package's own wording.
+
+```dart
+FluentApp(
+  localizationsDelegates: const [
+    LogViewerLocalizations.delegate,
+    // ...the app's other delegates
+  ],
+  supportedLocales: const [Locale('en'), Locale('ru')],
+  // ...
+)
+```
+
+**Your own labels**, for any language or to change one phrase. A field you
+set wins over the delegate; a field you leave `null` falls back to the
+delegate, then to the English default.
+
+```dart
+FluentLogViewer(
+  controller: controller,
+  labels: LogViewerLabels(
+    searchHint: context.l10n.logsSearchHint,
+    levelFilterLabel: (level) =>
+        level == null ? context.l10n.allLevels : '${level.name}+',
+  ),
+)
+```
+
+No `flutter_localizations` or `intl` is needed for either.
+
+**Confirming a copy.** The viewer copies an entry's context silently; pass
+`onContextCopied` to show your own confirmation. It is called after the
+clipboard write succeeds, never on failure:
+
+```dart
+FluentLogViewer(
+  controller: controller,
+  onContextCopied: (_) => displayInfoBar(
+    context,
+    builder: (context, close) => const InfoBar(title: Text('Context copied')),
+  ),
+)
+```
+
 ## Screenshots
 
 `FluentLogViewerPage` as the full screen — master-detail split view,
@@ -186,12 +238,12 @@ with `LogEntryDetailPane`, with its own back link:
 
 | Widget | Description |
 |---|---|
-| `FluentLogViewer({required LogViewerController controller})` | The log viewer as an embeddable widget (no page chrome) |
-| `FluentLogViewerPage({required LogViewerController controller})` | The full screen |
-| `LogCategoryComboBox({required LogViewerController controller, String allLabel = 'All types'})` | The category-filter dropdown |
+| `FluentLogViewer({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | The log viewer as an embeddable widget (no page chrome) |
+| `FluentLogViewerPage({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | The full screen |
+| `LogCategoryComboBox({required LogViewerController controller, String? allLabel, LogViewerLabels labels})` | The category-filter dropdown |
 | `LogEntryTile({required entry, required selected, required onTap})` | One list row |
-| `LogEntryDetailPane({required entry})` | The detail-pane content |
-| `LogViewerEmptyState({required hasLogs, required onClearFilters})` | The two-variant empty state |
+| `LogEntryDetailPane({required entry, labels, onContextCopied})` | The detail-pane content |
+| `LogViewerEmptyState({required hasLogs, required onClearFilters, LogViewerLabels labels})` | The two-variant empty state |
 | `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color — defined once in `structured_log_flutter`, shared by every skin |
 | `logLevelAbbreviation(LogLevel level)` | A short uppercase label (`INF`, `WRN`, ...) for the level badge |
 

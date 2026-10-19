@@ -232,6 +232,14 @@ README covers the full widget API:
 [`structured_log_fluent`](../../emb/structured_log_fluent/README.md),
 [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.md).
 
+The viewer speaks English by default. For Russian, add
+`LogViewerLocalizations.delegate` to your app's `localizationsDelegates`;
+for any other language, or to change a single phrase, pass
+`labels: LogViewerLabels(...)` to the viewer. Neither needs
+`flutter_localizations` or `intl`. To confirm a copied entry (a snack bar,
+an info bar), pass `onContextCopied`. Each skin's README has a
+"Localization" section with examples.
+
 ## 4. Optional: log your blocs: `structured_log_bloc`
 
 If the app keeps its logic in blocs and cubits
