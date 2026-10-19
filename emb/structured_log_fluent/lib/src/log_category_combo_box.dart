@@ -6,8 +6,9 @@ import 'package:structured_log_flutter/structured_log_flutter.dart';
 /// `category` values currently present in [controller]'s
 /// [LogViewerController.buffer] — the package has no way to know domain
 /// category names (e.g. `application`/`protocol` are consumer-specific), so
-/// raw category strings are used as display labels, plus [allLabel] for
-/// "no filter" (`categoryFilter == null`).
+/// raw category strings are used as display labels, plus a "no filter"
+/// (`categoryFilter == null`) option labelled [allLabel], else
+/// [LogViewerLabels.allCategories] of [labels], else `All types`.
 ///
 /// Renders nothing ([SizedBox.shrink]) while fewer than two distinct
 /// categories are present — a single option wouldn't filter anything.
@@ -23,7 +24,8 @@ import 'package:structured_log_flutter/structured_log_flutter.dart';
 class LogCategoryComboBox extends StatelessWidget {
   const LogCategoryComboBox({
     required this.controller,
-    this.allLabel = 'All types',
+    this.allLabel,
+    this.labels = const LogViewerLabels(),
     super.key,
   });
 
@@ -32,11 +34,19 @@ class LogCategoryComboBox extends StatelessWidget {
   final LogViewerController controller;
 
   /// The label shown for "no filter" (`categoryFilter == null`), and used
-  /// as the ComboBox's placeholder.
-  final String allLabel;
+  /// as the ComboBox's placeholder; wins over [LogViewerLabels.allCategories]
+  /// when given.
+  final String? allLabel;
+
+  /// The labels to take [LogViewerLabels.allCategories] from when [allLabel]
+  /// isn't given.
+  final LogViewerLabels labels;
 
   @override
   Widget build(BuildContext context) {
+    final allLabel = this.allLabel ??
+        LogViewerLocalizations.resolve(context, labels).allCategories ??
+        'All types';
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {

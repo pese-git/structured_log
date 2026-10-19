@@ -30,11 +30,23 @@ import 'fluent_log_viewer.dart';
 /// ));
 /// ```
 class FluentLogViewerPage extends StatelessWidget {
-  const FluentLogViewerPage({required this.controller, super.key});
+  const FluentLogViewerPage({
+    required this.controller,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The controller this screen reads from and mutates in response to user
   /// input (search, level filter, pause, clear, selection).
   final LogViewerController controller;
+
+  /// The labels to show instead of the English defaults — the title
+  /// ([LogViewerLabels.pageTitle]) here, the rest in [FluentLogViewer].
+  final LogViewerLabels labels;
+
+  /// See [FluentLogViewer.onContextCopied].
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +63,19 @@ class FluentLogViewerPage extends StatelessWidget {
               ),
               const SizedBox(width: 8),
             ],
-            Text('Logs', style: theme.typography.title),
+            Text(
+              LogViewerLocalizations.resolve(context, labels).pageTitle ??
+                  'Logs',
+              style: theme.typography.title,
+            ),
           ],
         ),
       ),
-      content: FluentLogViewer(controller: controller),
+      content: FluentLogViewer(
+        controller: controller,
+        labels: labels,
+        onContextCopied: onContextCopied,
+      ),
     );
   }
 }

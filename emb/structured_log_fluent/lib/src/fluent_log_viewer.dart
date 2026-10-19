@@ -58,11 +58,28 @@ import 'log_viewer_empty_state.dart';
 /// )
 /// ```
 class FluentLogViewer extends StatefulWidget {
-  const FluentLogViewer({required this.controller, super.key});
+  const FluentLogViewer({
+    required this.controller,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The controller this widget reads from and mutates in response to user
   /// input (search, level/category filter, pause, clear, selection).
   final LogViewerController controller;
+
+  /// The labels to show instead of the English defaults, passed on to every
+  /// part of the viewer, the detail pane included. A `null` field falls back
+  /// to [LogViewerLocalizations] when its delegate is registered, then to
+  /// the English default.
+  final LogViewerLabels labels;
+
+  /// Called with the entry once the detail pane's copy action has put its
+  /// context on the clipboard — the place to confirm the copy, e.g. with an
+  /// `InfoBar`. Not called when the clipboard write fails or the pane has
+  /// gone away by then; the viewer shows no confirmation of its own.
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
 
   @override
   State<FluentLogViewer> createState() => _FluentLogViewerState();
@@ -91,13 +108,29 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
   static const _categoryBoxWidth = 190.0;
   static const _toolbarGap = 10.0;
 
-  static const _levelOptions = <String, LogLevel?>{
-    'All levels': null,
-    'Debug and above': LogLevel.debug,
-    'Info and above': LogLevel.info,
-    'Warning and above': LogLevel.warning,
-    'Error and above': LogLevel.error,
-  };
+  static const _levelOptions = <LogLevel?>[
+    null,
+    LogLevel.debug,
+    LogLevel.info,
+    LogLevel.warning,
+    LogLevel.error,
+  ];
+
+  static String _defaultLevelLabel(LogLevel? minLevel) => switch (minLevel) {
+        null => 'All levels',
+        LogLevel.debug => 'Debug and above',
+        LogLevel.info => 'Info and above',
+        LogLevel.warning => 'Warning and above',
+        LogLevel.error => 'Error and above',
+        final level => '${level.name} and above',
+      };
+
+  /// [FluentLogViewer.labels] resolved against [LogViewerLocalizations] for
+  /// the current build.
+  LogViewerLabels _labels = const LogViewerLabels();
+
+  String _levelLabel(LogLevel? minLevel) =>
+      (_labels.levelFilterLabel ?? _defaultLevelLabel)(minLevel);
 
   @override
   void initState() {
@@ -127,6 +160,7 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    _labels = LogViewerLocalizations.resolve(context, widget.labels);
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -156,7 +190,7 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
   Widget _searchBox(LogViewerController controller) {
     return TextBox(
       controller: _searchController,
-      placeholder: 'Search',
+      placeholder: _labels.searchHint ?? 'Search',
       prefix: const Padding(
         padding: EdgeInsetsDirectional.only(start: 8),
         child: Icon(FluentIcons.search, size: 14),
@@ -173,10 +207,10 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
       // to this placeholder rather than matching it against the "All
       // levels" item (whose value is also null) — set explicitly so "no
       // filter" isn't blank.
-      placeholder: const Text('All levels'),
+      placeholder: Text(_levelLabel(null)),
       items: [
-        for (final option in _levelOptions.entries)
-          ComboBoxItem(value: option.value, child: Text(option.key)),
+        for (final option in _levelOptions)
+          ComboBoxItem(value: option, child: Text(_levelLabel(option))),
       ],
       onChanged: (value) => controller.levelFilter = value,
     );
@@ -184,7 +218,9 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
 
   Widget _pauseButton(LogViewerController controller) {
     return Tooltip(
-      message: controller.paused ? 'Resume' : 'Pause',
+      message: controller.paused
+          ? _labels.resume ?? 'Resume'
+          : _labels.pause ?? 'Pause',
       child: IconButton(
         icon: Icon(controller.paused ? FluentIcons.play : FluentIcons.pause),
         onPressed: () => controller.paused = !controller.paused,
@@ -194,7 +230,7 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
 
   Widget _clearButton(LogViewerController controller) {
     return Tooltip(
-      message: 'Clear all',
+      message: _labels.clear ?? 'Clear all',
       child: IconButton(
         icon: const Icon(FluentIcons.delete),
         onPressed: () {
@@ -215,7 +251,10 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
         const SizedBox(width: _toolbarGap),
         SizedBox(
           width: _categoryBoxWidth,
-          child: LogCategoryComboBox(controller: controller),
+          child: LogCategoryComboBox(
+            controller: controller,
+            labels: _labels,
+          ),
         ),
         const SizedBox(width: _toolbarGap),
         SizedBox(width: 190, child: _levelComboBox(controller)),
@@ -257,7 +296,10 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
               children: [
                 SizedBox(
                   width: categoryWidth,
-                  child: LogCategoryComboBox(controller: controller),
+                  child: LogCategoryComboBox(
+                    controller: controller,
+                    labels: _labels,
+                  ),
                 ),
                 const SizedBox(width: _toolbarGap),
                 Expanded(child: _levelComboBox(controller)),
@@ -275,6 +317,7 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
       return LogViewerEmptyState(
         hasLogs: controller.buffer.entries.value.isNotEmpty,
         onClearFilters: _resetFilters,
+        labels: _labels,
       );
     }
 
@@ -291,7 +334,7 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
             child: _buildList(entries, selected, narrow: false),
           ),
           const Divider(direction: Axis.vertical),
-          Expanded(child: LogEntryDetailPane(entry: selected)),
+          Expanded(child: _detailPane(selected)),
         ],
       );
     }
@@ -303,7 +346,7 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Tooltip(
-              message: 'Back to list',
+              message: _labels.backToList ?? 'Back to list',
               child: IconButton(
                 icon: const Icon(FluentIcons.back),
                 onPressed: () => setState(() => _detailOpenNarrow = false),
@@ -311,13 +354,19 @@ class _FluentLogViewerState extends State<FluentLogViewer> {
             ),
           ),
           const Divider(),
-          Expanded(child: LogEntryDetailPane(entry: selected)),
+          Expanded(child: _detailPane(selected)),
         ],
       );
     }
 
     return _buildList(entries, selected, narrow: true);
   }
+
+  Widget _detailPane(Map<String, dynamic> entry) => LogEntryDetailPane(
+        entry: entry,
+        labels: _labels,
+        onContextCopied: widget.onContextCopied,
+      );
 
   Widget _buildList(
     List<Map<String, dynamic>> entries,

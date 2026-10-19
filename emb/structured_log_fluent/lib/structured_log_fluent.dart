@@ -1,5 +1,5 @@
 export 'package:structured_log_flutter/structured_log_flutter.dart'
-    show logLevelColor;
+    show LogViewerLabels, LogViewerLocalizations, logLevelColor;
 
 export 'src/fluent_log_viewer.dart';
 export 'src/fluent_log_viewer_page.dart';
