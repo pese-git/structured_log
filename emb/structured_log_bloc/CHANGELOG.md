@@ -1,3 +1,7 @@
+## 0.1.0-dev.8
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
 ## 0.1.0-dev.7
 
  - **DOCS**(structured_log_riverpod): document the package and list it in the family.

@@ -3,6 +3,105 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-10-19
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.3.2+2`](#structured_log---v0322)
+ - [`structured_log_auto_route` - `v0.1.0-dev.1`](#structured_log_auto_route---v010-dev1)
+ - [`structured_log_bloc` - `v0.1.0-dev.8`](#structured_log_bloc---v010-dev8)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.8`](#structured_log_cherrypick---v010-dev8)
+ - [`structured_log_cupertino` - `v0.1.3+2`](#structured_log_cupertino---v0132)
+ - [`structured_log_dio` - `v0.1.0-dev.8`](#structured_log_dio---v010-dev8)
+ - [`structured_log_drift` - `v0.1.0-dev.5`](#structured_log_drift---v010-dev5)
+ - [`structured_log_fluent` - `v0.1.3+2`](#structured_log_fluent---v0132)
+ - [`structured_log_flutter` - `v0.1.4+2`](#structured_log_flutter---v0142)
+ - [`structured_log_go_router` - `v0.1.0-dev.8`](#structured_log_go_router---v010-dev8)
+ - [`structured_log_http_client` - `v0.1.0-dev.8`](#structured_log_http_client---v010-dev8)
+ - [`structured_log_logging` - `v0.1.0-dev.3`](#structured_log_logging---v010-dev3)
+ - [`structured_log_material` - `v0.1.3+2`](#structured_log_material---v0132)
+ - [`structured_log_remote_sync` - `v0.2.2+2`](#structured_log_remote_sync---v0222)
+ - [`structured_log_riverpod` - `v0.1.0-dev.2`](#structured_log_riverpod---v010-dev2)
+ - [`structured_log_http` - `v0.2.0+8`](#structured_log_http---v0208)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_http` - `v0.2.0+8`
+
+---
+
+#### `structured_log` - `v0.3.2+2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_auto_route` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_auto_route): log auto_route navigation as structured_log entries.
+
+#### `structured_log_bloc` - `v0.1.0-dev.8`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.8`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_cupertino` - `v0.1.3+2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_dio` - `v0.1.0-dev.8`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_drift` - `v0.1.0-dev.5`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_fluent` - `v0.1.3+2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_flutter` - `v0.1.4+2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_go_router` - `v0.1.0-dev.8`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_http_client` - `v0.1.0-dev.8`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_logging` - `v0.1.0-dev.3`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_material` - `v0.1.3+2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_remote_sync` - `v0.2.2+2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+
+#### `structured_log_riverpod` - `v0.1.0-dev.2`
+
+ - **DOCS**(structured_log_auto_route): document the package and list it in the family.
+ - **DOCS**: pin structured_log_riverpod to its published pre-release (#116).
+
+
 ## 2026-10-14
 
 ### Changes
