@@ -15,6 +15,46 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`structured_log_cupertino` - `v0.1.4`](#structured_log_cupertino---v014)
+ - [`structured_log_fluent` - `v0.1.4`](#structured_log_fluent---v014)
+ - [`structured_log_flutter` - `v0.1.5`](#structured_log_flutter---v015)
+ - [`structured_log_material` - `v0.1.4`](#structured_log_material---v014)
+
+---
+
+#### `structured_log_cupertino` - `v0.1.4`
+
+ - **FEAT**(structured_log_cupertino): take labels from LogViewerLabels and report copies.
+ - **DOCS**: document viewer labels, the en/ru delegate and onContextCopied.
+
+#### `structured_log_fluent` - `v0.1.4`
+
+ - **FEAT**(structured_log_fluent): take labels from LogViewerLabels and report copies.
+ - **DOCS**: document viewer labels, the en/ru delegate and onContextCopied.
+
+#### `structured_log_flutter` - `v0.1.5`
+
+ - **FEAT**(structured_log_flutter): add LogViewerLabels and an optional en/ru delegate.
+ - **DOCS**: document viewer labels, the en/ru delegate and onContextCopied.
+
+#### `structured_log_material` - `v0.1.4`
+
+ - **FEAT**(structured_log_material): take labels from LogViewerLabels and report copies.
+ - **DOCS**: document viewer labels, the en/ru delegate and onContextCopied.
+
+
+## 2026-10-19
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`structured_log` - `v0.3.2+2`](#structured_log---v0322)
  - [`structured_log_auto_route` - `v0.1.0-dev.1`](#structured_log_auto_route---v010-dev1)
  - [`structured_log_bloc` - `v0.1.0-dev.8`](#structured_log_bloc---v010-dev8)

@@ -1,3 +1,8 @@
+## 0.1.5
+
+ - **FEAT**(structured_log_flutter): add LogViewerLabels and an optional en/ru delegate.
+ - **DOCS**: document viewer labels, the en/ru delegate and onContextCopied.
+
 ## 0.1.4+2
 
  - **DOCS**(structured_log_auto_route): document the package and list it in the family.

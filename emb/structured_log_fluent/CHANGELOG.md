@@ -1,3 +1,8 @@
+## 0.1.4
+
+ - **FEAT**(structured_log_fluent): take labels from LogViewerLabels and report copies.
+ - **DOCS**: document viewer labels, the en/ru delegate and onContextCopied.
+
 ## 0.1.3+2
 
  - **DOCS**(structured_log_auto_route): document the package and list it in the family.
