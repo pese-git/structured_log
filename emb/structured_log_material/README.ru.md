@@ -97,8 +97,8 @@ Material-оболочка поверх, рядом с
 ```yaml
 dependencies:
   structured_log: ^0.3.0
-  structured_log_flutter: ^0.1.2
-  structured_log_material: ^0.1.1
+  structured_log_flutter: ^0.1.5
+  structured_log_material: ^0.1.4
 ```
 
 Внутри этого monorepo `melos bootstrap` подставляет вместо обоих

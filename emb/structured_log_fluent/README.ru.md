@@ -106,8 +106,8 @@ Fluent-оболочка поверх, рядом с
 dependencies:
   fluent_ui: ^4.16.1
   structured_log: ^0.3.0
-  structured_log_flutter: ^0.1.2
-  structured_log_fluent: ^0.1.1
+  structured_log_flutter: ^0.1.5
+  structured_log_fluent: ^0.1.4
 ```
 
 `fluent_ui` требует Flutter `3.44.0+`. Это проверяет собственное
