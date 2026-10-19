@@ -10,9 +10,9 @@
 ## 2. Workspace и CI
 
 - [x] 2.1 `melos.yaml`: пакет в `packages:` и в скоупе Flutter-тестов
-- [ ] 2.2 CI: строка во Flutter-матрице (`flutter test`) по образцу `structured_log_go_router` плюс второй прогон на нижней границе `auto_route` (decision 9)
+- [x] 2.2 CI: строка во Flutter-матрице (`flutter test`) по образцу `structured_log_go_router` плюс второй прогон на нижней границе `auto_route` (decision 9)
 - [x] 2.3 Порог покрытия в `tool/coverage_floors.json` — чуть ниже измеренного, с записью-обоснованием
-- [ ] 2.4 CI зелёный на GitHub Actions
+- [x] 2.4 CI зелёный на GitHub Actions
 
 ## 3. Документация
 
