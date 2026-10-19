@@ -165,7 +165,7 @@ system:
 
 ```yaml
 dependencies:
-  structured_log_flutter: ^0.1.0
+  structured_log_flutter: ^0.1.5
 ```
 
 ```dart
@@ -208,8 +208,8 @@ wide the surrounding app is.
 
 ```yaml
 dependencies:
-  structured_log_flutter: ^0.1.0
-  structured_log_material: ^0.1.0   # or _fluent / _cupertino
+  structured_log_flutter: ^0.1.5
+  structured_log_material: ^0.1.4   # or _fluent / _cupertino
 ```
 
 ```dart

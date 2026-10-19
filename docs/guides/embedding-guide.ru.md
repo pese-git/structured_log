@@ -168,7 +168,7 @@ StructlogConfiguration.configure(sinks: [
 
 ```yaml
 dependencies:
-  structured_log_flutter: ^0.1.0
+  structured_log_flutter: ^0.1.5
 ```
 
 ```dart
@@ -213,8 +213,8 @@ master-detail split (список и панель деталей рядом), а
 
 ```yaml
 dependencies:
-  structured_log_flutter: ^0.1.0
-  structured_log_material: ^0.1.0   # или _fluent / _cupertino
+  structured_log_flutter: ^0.1.5
+  structured_log_material: ^0.1.4   # или _fluent / _cupertino
 ```
 
 ```dart

@@ -96,7 +96,7 @@ logcat среди системного шума. Выход — держать �
 ```yaml
 dependencies:
   structured_log: ^0.3.0
-  structured_log_flutter: ^0.1.2
+  structured_log_flutter: ^0.1.5
 ```
 
 Внутри этого monorepo `melos bootstrap` подставляет вместо неё
