@@ -15,6 +15,7 @@ packages:
   - emb/structured_log_dio
   - emb/structured_log_http_client
   - emb/structured_log_go_router
+  - emb/structured_log_auto_route
   - emb/structured_log_cherrypick
   - emb/structured_log_drift
   - emb/structured_log_logging
@@ -70,6 +71,7 @@ scripts:
         "structured_log_cupertino",
         "structured_log_cupertino_example",
         "structured_log_go_router",
+        "structured_log_auto_route",
         "structured_log_admin_ui",
         "structured_log_admin_ui_example",
         "structured_log_admin_client",

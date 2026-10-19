@@ -1104,6 +1104,8 @@ jobs:
           - package: emb/structured_log_cupertino/example
           - package: emb/structured_log_go_router
             name: structured_log_go_router
+          - package: emb/structured_log_auto_route
+            name: structured_log_auto_route
           - package: frontend/structured_log_admin_ui
             name: structured_log_admin_ui
           - package: frontend/structured_log_admin_ui/example
@@ -1178,3 +1180,15 @@ jobs:
         run: |
           dart tool/coverage_floor.dart --package ${{ matrix.name }} \
             --lcov ${{ matrix.package }}/coverage/lcov.info
+
+      # The lower bound of the constraint is checked, not assumed: the
+      # observer reads RouteData and the tab hooks, and auto_route changed
+      # both between majors. Last, after the coverage gate, which needs the
+      # package_config.json the first run wrote.
+      - name: Run tests on the lowest auto_route
+        if: matrix.name == 'structured_log_auto_route'
+        run: |
+          printf '  auto_route: 10.0.0\n' >> pubspec_overrides.yaml
+          cat pubspec_overrides.yaml
+          flutter pub get
+          flutter test
