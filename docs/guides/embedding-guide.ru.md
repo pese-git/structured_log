@@ -237,6 +237,14 @@ MaterialLogViewer(controller: controller)
 [`structured_log_fluent`](../../emb/structured_log_fluent/README.md),
 [`structured_log_cupertino`](../../emb/structured_log_cupertino/README.md).
 
+По умолчанию просмотрщик говорит по-английски. Для русского добавьте
+`LogViewerLocalizations.delegate` в `localizationsDelegates` приложения; для
+любого другого языка или чтобы поменять одну фразу передайте просмотрщику
+`labels: LogViewerLabels(...)`. Ни то, ни другое не требует
+`flutter_localizations` или `intl`. Чтобы подтвердить копирование записи
+(снэкбар, info bar), передайте `onContextCopied`. Примеры — в разделе
+«Локализация» README каждого скина.
+
 ## 4. Опционально: логировать блоки: `structured_log_bloc`
 
 Если логика приложения построена на блоках и кубитах

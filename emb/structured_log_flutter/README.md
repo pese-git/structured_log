@@ -203,6 +203,38 @@ because `Color`/`Brightness` aren't tied to Material, Cupertino, or Fluent
 — this table is genuinely design-system-neutral, unlike the widgets built
 on top of it.
 
+### `LogViewerLabels`
+
+The user-visible strings of a viewer skin, so an app can show the viewer in
+its own language. Every field is optional — `null` means "the skin's
+default", and the defaults deliberately differ between skins (Fluent's level
+filter reads `Debug and above` where Material's reads `Debug+`), so one
+object fits all three skins and leaves each skin's wording alone where it
+isn't set. Fields: `searchHint`, `pause`, `resume`, `clear`,
+`levelFilterLabel` (a function of the option's minimum `LogLevel?`, `null`
+for "all"), `allCategories`, `pageTitle`, `emptyTitle`, `emptyMessage`,
+`noMatchesTitle`, `noMatchesMessage`, `clearFilters`, `contextHeading`,
+`copyContext`, `close` (Material only), `backToList` (Fluent only). Each
+field's dartdoc lists every skin's default. `copyWith` replaces single
+fields.
+
+Level names themselves (`INFO`, `Debug+`) are `LogLevel` identifiers and are
+not labels; translating them is up to `levelFilterLabel`.
+
+### `LogViewerLocalizations`
+
+Optional ready-made labels for English and Russian, delivered through
+Flutter's `Localizations`: add `LogViewerLocalizations.delegate` to the
+app's `localizationsDelegates` and every skin follows the app's locale.
+English is an empty `LogViewerLabels` (each skin keeps its wording); Russian
+sets every field, one wording for all skins. The delegate is hand-written
+and loads synchronously — no `flutter_localizations` or `intl` dependency.
+
+`LogViewerLocalizations.resolve(context, labels)` is what skins call: each
+field comes from `labels` when set, else from the registered delegate, else
+stays `null` for the skin's default. A skin you build yourself should call it
+too.
+
 ## Building a UI Skin
 
 `structured_log_flutter` intentionally renders nothing — wire a

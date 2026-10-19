@@ -209,6 +209,37 @@ StructlogConfiguration.configure(sinks: [
 Material, ни к Cupertino, ни к Fluent — эта таблица действительно
 не зависит от дизайн-системы, в отличие от виджетов, построенных поверх неё.
 
+### `LogViewerLabels`
+
+Видимые пользователю строки скина просмотрщика — чтобы приложение показывало
+его на своём языке. Все поля необязательны: `null` значит «по умолчанию
+скина», а умолчания у скинов намеренно разные (у Fluent фильтр уровня —
+`Debug and above`, у Material — `Debug+`), поэтому один объект подходит всем
+трём скинам и не трогает формулировки скина там, где поле не задано. Поля:
+`searchHint`, `pause`, `resume`, `clear`, `levelFilterLabel` (функция от
+минимального `LogLevel?` пункта, `null` — «все»), `allCategories`,
+`pageTitle`, `emptyTitle`, `emptyMessage`, `noMatchesTitle`,
+`noMatchesMessage`, `clearFilters`, `contextHeading`, `copyContext`, `close`
+(только Material), `backToList` (только Fluent). В dartdoc каждого поля
+перечислены умолчания всех скинов. `copyWith` меняет отдельные поля.
+
+Сами имена уровней (`INFO`, `Debug+`) — идентификаторы `LogLevel`, а не
+подписи; переводить ли их, решает `levelFilterLabel`.
+
+### `LogViewerLocalizations`
+
+Необязательные готовые подписи на английском и русском через `Localizations`
+Flutter: добавьте `LogViewerLocalizations.delegate` в `localizationsDelegates`
+приложения, и все скины будут следовать его локали. Английский — пустой
+`LogViewerLabels` (каждый скин остаётся при своих формулировках); русский
+задаёт все поля, одна формулировка на все скины. Делегат написан вручную и
+грузится синхронно — без зависимости от `flutter_localizations` и `intl`.
+
+`LogViewerLocalizations.resolve(context, labels)` — то, что зовут скины:
+каждое поле берётся из `labels`, если задано, иначе из зарегистрированного
+делегата, иначе остаётся `null` для умолчания скина. Собственный скин тоже
+должен её звать.
+
 ## Построение UI-скина
 
 `structured_log_flutter` намеренно ничего не рисует — подключайте

@@ -166,6 +166,57 @@ Row(
 по умолчанию она такая) оберните его в `SafeArea`, как это делает
 `CupertinoLogViewerPage`, иначе тулбар окажется под панелью.
 
+## Локализация
+
+Любую подпись, которую рисует просмотрщик, можно заменить: подсказку поиска,
+паузу и очистку, фильтры уровня и категории, заголовок страницы, оба пустых
+состояния, заголовок и действие копирования в деталях. Способов два, и их
+можно сочетать.
+
+**Готовые английский и русский.** Зарегистрируйте делегат из
+`structured_log_flutter` (он реэкспортируется этим пакетом), и просмотрщик
+будет следовать локали приложения. Английский — прежние формулировки пакета.
+
+```dart
+CupertinoApp(
+  localizationsDelegates: const [
+    LogViewerLocalizations.delegate,
+    // ...остальные делегаты приложения
+  ],
+  supportedLocales: const [Locale('en'), Locale('ru')],
+  // ...
+)
+```
+
+**Свои подписи** — для любого языка или чтобы поменять одну фразу. Заданное
+поле важнее делегата; поле, оставленное `null`, берётся из делегата, а без
+него — английское по умолчанию.
+
+```dart
+CupertinoLogViewer(
+  controller: controller,
+  labels: LogViewerLabels(
+    searchHint: context.l10n.logsSearchHint,
+    levelFilterLabel: (level) =>
+        level == null ? context.l10n.allLevels : '${level.name}+',
+  ),
+)
+```
+
+Ни `flutter_localizations`, ни `intl` для этого не нужны.
+
+**Подтверждение копирования.** Просмотрщик копирует контекст записи молча;
+чтобы показать своё подтверждение, передайте `onContextCopied`. Он вызывается
+после успешной записи в буфер обмена и никогда — при ошибке:
+
+```dart
+CupertinoLogViewer(
+  controller: controller,
+  // В iOS нет снэкбара: подтвердите так же, как в остальном приложении.
+  onContextCopied: (entry) => showCopiedToast(context),
+)
+```
+
 ## Скриншоты
 
 `CupertinoLogViewerPage` на весь экран, на широком экране размером с
@@ -189,12 +240,12 @@ iPad — список и немодальная панель деталей ря
 
 | Виджет | Описание |
 |---|---|
-| `CupertinoLogViewer({required LogViewerController controller})` | Просмотрщик логов как встраиваемый виджет (без каркаса страницы) |
-| `CupertinoLogViewerPage({required LogViewerController controller})` | Полный экран |
-| `LogCategoryFilterBar({required LogViewerController controller, String allLabel = 'All'})` | Ряд pill-кнопок фильтра по категории |
+| `CupertinoLogViewer({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | Просмотрщик логов как встраиваемый виджет (без каркаса страницы) |
+| `CupertinoLogViewerPage({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | Полный экран |
+| `LogCategoryFilterBar({required LogViewerController controller, String? allLabel, LogViewerLabels labels})` | Ряд pill-кнопок фильтра по категории |
 | `LogEntryTile({required entry, required onTap, bool selected = false, bool showsDisclosureIndicator = true})` | Одна строка списка |
-| `LogEntryDetailPanel({required entry})` | Содержимое деталей записи с полным контекстом (открывается отдельным экраном или показывается рядом) |
-| `LogViewerEmptyState({required hasLogs, required onClearFilters})` | Пустое состояние в двух вариантах |
+| `LogEntryDetailPanel({required entry, labels, onContextCopied})` | Содержимое деталей записи с полным контекстом (открывается отдельным экраном или показывается рядом) |
+| `LogViewerEmptyState({required hasLogs, required onClearFilters, LogViewerLabels labels})` | Пустое состояние в двух вариантах |
 | `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня — определён один раз в `structured_log_flutter`, общий для всех скинов |
 
 `entry` везде — это `Map<String, dynamic>` в том же виде, в котором его

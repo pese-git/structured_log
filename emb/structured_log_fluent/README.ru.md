@@ -168,6 +168,60 @@ Row(
 )
 ```
 
+## Локализация
+
+Любую подпись, которую рисует просмотрщик, можно заменить: подсказку поиска,
+паузу и очистку, фильтры уровня и категории, заголовок страницы, оба пустых
+состояния, заголовок и действие копирования в деталях. Способов два, и их
+можно сочетать.
+
+**Готовые английский и русский.** Зарегистрируйте делегат из
+`structured_log_flutter` (он реэкспортируется этим пакетом), и просмотрщик
+будет следовать локали приложения. Английский — прежние формулировки пакета.
+
+```dart
+FluentApp(
+  localizationsDelegates: const [
+    LogViewerLocalizations.delegate,
+    // ...остальные делегаты приложения
+  ],
+  supportedLocales: const [Locale('en'), Locale('ru')],
+  // ...
+)
+```
+
+**Свои подписи** — для любого языка или чтобы поменять одну фразу. Заданное
+поле важнее делегата; поле, оставленное `null`, берётся из делегата, а без
+него — английское по умолчанию.
+
+```dart
+FluentLogViewer(
+  controller: controller,
+  labels: LogViewerLabels(
+    searchHint: context.l10n.logsSearchHint,
+    levelFilterLabel: (level) =>
+        level == null ? context.l10n.allLevels : '${level.name}+',
+  ),
+)
+```
+
+Ни `flutter_localizations`, ни `intl` для этого не нужны.
+
+**Подтверждение копирования.** Просмотрщик копирует контекст записи молча;
+чтобы показать своё подтверждение, передайте `onContextCopied`. Он вызывается
+после успешной записи в буфер обмена и никогда — при ошибке:
+
+```dart
+FluentLogViewer(
+  controller: controller,
+  onContextCopied: (_) => displayInfoBar(
+    context,
+    builder: (context, close) =>
+        const InfoBar(title: Text('Контекст скопирован')),
+  ),
+)
+```
+
 ## Скриншоты
 
 `FluentLogViewerPage` на весь экран в раскладке master-detail: список
@@ -191,12 +245,12 @@ Row(
 
 | Виджет | Описание |
 |---|---|
-| `FluentLogViewer({required LogViewerController controller})` | Просмотрщик логов как встраиваемый виджет (без каркаса страницы) |
-| `FluentLogViewerPage({required LogViewerController controller})` | Полный экран |
-| `LogCategoryComboBox({required LogViewerController controller, String allLabel = 'All types'})` | Выпадающий список фильтра по категории |
+| `FluentLogViewer({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | Просмотрщик логов как встраиваемый виджет (без каркаса страницы) |
+| `FluentLogViewerPage({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | Полный экран |
+| `LogCategoryComboBox({required LogViewerController controller, String? allLabel, LogViewerLabels labels})` | Выпадающий список фильтра по категории |
 | `LogEntryTile({required entry, required selected, required onTap})` | Одна строка списка |
-| `LogEntryDetailPane({required entry})` | Содержимое панели деталей |
-| `LogViewerEmptyState({required hasLogs, required onClearFilters})` | Пустое состояние в двух вариантах |
+| `LogEntryDetailPane({required entry, labels, onContextCopied})` | Содержимое панели деталей |
+| `LogViewerEmptyState({required hasLogs, required onClearFilters, LogViewerLabels labels})` | Пустое состояние в двух вариантах |
 | `logLevelColor(LogLevel level, Brightness brightness)` | Канонический цвет индикатора уровня — определён один раз в `structured_log_flutter`, общий для всех скинов |
 | `logLevelAbbreviation(LogLevel level)` | Короткая аббревиатура заглавными (`INF`, `WRN`, ...) для бейджа уровня |
 

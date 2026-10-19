@@ -163,6 +163,57 @@ Row(
 )
 ```
 
+## Localization
+
+Every label the viewer draws — search placeholder, pause/clear, the level and
+category filters, the page title, both empty states, the detail view's
+heading and copy action — can be replaced. Two ways, which combine:
+
+**Ready-made English and Russian.** Register the delegate from
+`structured_log_flutter` (re-exported here); the viewer then follows the app's
+locale. English keeps this package's own wording.
+
+```dart
+MaterialApp(
+  localizationsDelegates: const [
+    LogViewerLocalizations.delegate,
+    // ...the app's other delegates
+  ],
+  supportedLocales: const [Locale('en'), Locale('ru')],
+  // ...
+)
+```
+
+**Your own labels**, for any language or to change one phrase. A field you
+set wins over the delegate; a field you leave `null` falls back to the
+delegate, then to the English default.
+
+```dart
+MaterialLogViewer(
+  controller: controller,
+  labels: LogViewerLabels(
+    searchHint: context.l10n.logsSearchHint,
+    levelFilterLabel: (level) =>
+        level == null ? context.l10n.allLevels : '${level.name}+',
+  ),
+)
+```
+
+No `flutter_localizations` or `intl` is needed for either.
+
+**Confirming a copy.** The viewer copies an entry's context silently; pass
+`onContextCopied` to show your own confirmation. It is called after the
+clipboard write succeeds, never on failure:
+
+```dart
+MaterialLogViewer(
+  controller: controller,
+  onContextCopied: (_) => ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Context copied')),
+  ),
+)
+```
+
 ## Screenshots
 
 `MaterialLogViewerPage` as the full screen — master-detail split at this
@@ -186,13 +237,13 @@ a side panel:
 
 | Widget | Description |
 |---|---|
-| `MaterialLogViewer({required LogViewerController controller})` | The log viewer as an embeddable widget (no page chrome) |
-| `MaterialLogViewerPage({required LogViewerController controller})` | The full screen |
-| `LogCategoryChips({required LogViewerController controller, String allLabel = 'All'})` | The category-filter chip row |
+| `MaterialLogViewer({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | The log viewer as an embeddable widget (no page chrome) |
+| `MaterialLogViewerPage({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | The full screen |
+| `LogCategoryChips({required LogViewerController controller, String? allLabel, LogViewerLabels labels})` | The category-filter chip row |
 | `LogEntryTile({required entry, required onTap, bool selected = false})` | One list row |
-| `LogEntryDetailSheet({required entry})` | The expanded-entry bottom sheet content (narrow screens) |
-| `LogEntryDetailPanel({required entry})` | The expanded-entry non-modal panel content (wide screens) |
-| `LogViewerEmptyState({required hasLogs, required onClearFilters})` | The two-variant empty state |
+| `LogEntryDetailSheet({required entry, labels, onContextCopied})` | The expanded-entry bottom sheet content (narrow screens) |
+| `LogEntryDetailPanel({required entry, labels, onContextCopied})` | The expanded-entry non-modal panel content (wide screens) |
+| `LogViewerEmptyState({required hasLogs, required onClearFilters, LogViewerLabels labels})` | The two-variant empty state |
 | `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color — defined once in `structured_log_flutter`, shared by every skin |
 
 `entry` throughout is the `Map<String, dynamic>` shape `structured_log`

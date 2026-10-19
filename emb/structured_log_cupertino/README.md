@@ -165,6 +165,56 @@ area of its own. Under a translucent `CupertinoNavigationBar` — the
 default — wrap it in a `SafeArea`, as `CupertinoLogViewerPage` does, or
 its toolbar sits under the bar.
 
+## Localization
+
+Every label the viewer draws — search placeholder, pause/clear, the level and
+category filters, the page title, both empty states, the detail view's
+heading and copy action — can be replaced. Two ways, which combine:
+
+**Ready-made English and Russian.** Register the delegate from
+`structured_log_flutter` (re-exported here); the viewer then follows the app's
+locale. English keeps this package's own wording.
+
+```dart
+CupertinoApp(
+  localizationsDelegates: const [
+    LogViewerLocalizations.delegate,
+    // ...the app's other delegates
+  ],
+  supportedLocales: const [Locale('en'), Locale('ru')],
+  // ...
+)
+```
+
+**Your own labels**, for any language or to change one phrase. A field you
+set wins over the delegate; a field you leave `null` falls back to the
+delegate, then to the English default.
+
+```dart
+CupertinoLogViewer(
+  controller: controller,
+  labels: LogViewerLabels(
+    searchHint: context.l10n.logsSearchHint,
+    levelFilterLabel: (level) =>
+        level == null ? context.l10n.allLevels : '${level.name}+',
+  ),
+)
+```
+
+No `flutter_localizations` or `intl` is needed for either.
+
+**Confirming a copy.** The viewer copies an entry's context silently; pass
+`onContextCopied` to show your own confirmation. It is called after the
+clipboard write succeeds, never on failure:
+
+```dart
+CupertinoLogViewer(
+  controller: controller,
+  // iOS has no snack bar: confirm the way the rest of your app does.
+  onContextCopied: (entry) => showCopiedToast(context),
+)
+```
+
 ## Screenshots
 
 `CupertinoLogViewerPage` as the full screen, on a wide/iPad-size
@@ -188,12 +238,12 @@ detail" pattern:
 
 | Widget | Description |
 |---|---|
-| `CupertinoLogViewer({required LogViewerController controller})` | The log viewer as an embeddable widget (no page chrome) |
-| `CupertinoLogViewerPage({required LogViewerController controller})` | The full screen |
-| `LogCategoryFilterBar({required LogViewerController controller, String allLabel = 'All'})` | The category-filter pill row |
+| `CupertinoLogViewer({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | The log viewer as an embeddable widget (no page chrome) |
+| `CupertinoLogViewerPage({required LogViewerController controller, LogViewerLabels labels, onContextCopied})` | The full screen |
+| `LogCategoryFilterBar({required LogViewerController controller, String? allLabel, LogViewerLabels labels})` | The category-filter pill row |
 | `LogEntryTile({required entry, required onTap, bool selected = false, bool showsDisclosureIndicator = true})` | One list row |
-| `LogEntryDetailPanel({required entry})` | The full-context detail content (pushed or side-by-side) |
-| `LogViewerEmptyState({required hasLogs, required onClearFilters})` | The two-variant empty state |
+| `LogEntryDetailPanel({required entry, labels, onContextCopied})` | The full-context detail content (pushed or side-by-side) |
+| `LogViewerEmptyState({required hasLogs, required onClearFilters, LogViewerLabels labels})` | The two-variant empty state |
 | `logLevelColor(LogLevel level, Brightness brightness)` | The canonical level-indicator color — defined once in `structured_log_flutter`, shared by every skin |
 
 `entry` throughout is the `Map<String, dynamic>` shape `structured_log`
