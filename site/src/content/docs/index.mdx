@@ -29,8 +29,8 @@ The project covers the whole path such an entry travels:
 
 1. **Write it** — a small, dependency-free core library for Dart and Flutter.
 2. **Get it for free** — adapters that log what `bloc`, `riverpod`, `dio`,
-   `http`, `go_router` and `cherrypick` already do in your app, the queries of
-   a `drift` database, and a bridge for every library that logs through
+   `http`, `go_router`, `auto_route` and `cherrypick` already do in your app,
+   the queries of a `drift` database, and a bridge for every library that logs through
    `package:logging`.
 3. **See it on the device** — a drop-in log viewer screen in Material,
    Fluent or Cupertino style.
@@ -156,6 +156,7 @@ optional, and adding it doesn't change a single logging call.
 | `dio` | every request and its outcome, level by status code | `http` |
 | `package:http` | the same, as a wrapping `http.Client`, without buffering bodies | `http` |
 | `go_router` | navigation with route pattern, redirects, routing errors | `navigation` |
+| `auto_route` | navigation with route name and pattern, tab switches; tokens redacted | `navigation` |
 | `cherrypick` | DI scopes, modules, cycles, resolve errors — never an instance | `di` |
 | `drift` | every query with its SQL, duration and rows, slow ones flagged, failures with their stack — argument values off | `db` |
 | `package:logging` | every record of every library that logs through it, with its level, error and stack trace | `logging` |
@@ -186,7 +187,7 @@ field name when they are.
 
 <pre class="mermaid">{`flowchart LR
   subgraph app["Your Dart / Flutter app"]
-    A["Adapters<br/>bloc · riverpod · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Adapters<br/>bloc · riverpod · dio · http · go_router · auto_route · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Your code"] --> C
     C --> O["Console / file"]
     C --> V["In-app log viewer"]
@@ -243,6 +244,11 @@ when you want logs collected centrally.
 		Logs every `go_router` navigation, redirect and routing error — which
 		screen the user was on, and where they came from.
 		[Usage & API](/packages/structured_log_go_router/). Pre-release on pub.dev.
+	</Card>
+	<Card title="structured_log_auto_route" icon="right-caret">
+		Logs every `auto_route` screen opened, closed or switched to — name,
+		pattern and location, with tokens redacted.
+		[Usage & API](/packages/structured_log_auto_route/). Not yet on pub.dev.
 	</Card>
 	<Card title="structured_log_cherrypick" icon="puzzle">
 		Logs what the `cherrypick` DI container does — scopes, modules,

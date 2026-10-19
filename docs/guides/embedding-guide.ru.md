@@ -35,8 +35,8 @@ Dart- или Flutter-приложение. Ничто из описанного 
    [`structured_log_dio` или `structured_log_http_client`](#6-опционально-логировать-http-вызовы),
    для приложений, которые ходят на свой бэкенд через `dio` или `package:http`.
 6. **Писать в лог навигацию** —
-   [`structured_log_go_router`](#7-опционально-логировать-навигацию-structured_log_go_router),
-   для Flutter-приложений с маршрутизацией на `go_router`.
+   [`structured_log_go_router` или `structured_log_auto_route`](#7-опционально-логировать-навигацию),
+   для Flutter-приложений с маршрутизацией на `go_router` или `auto_route`.
 7. **Писать в лог работу DI-контейнера** —
    [`structured_log_cherrypick`](#8-опционально-логировать-di-контейнер-structured_log_cherrypick),
    для приложений, собранных на `cherrypick`.
@@ -378,7 +378,11 @@ await client.get(Uri.parse('https://api.example.com/items'));
 JSON или формы читается целиком до 64 КиБ, чтобы его можно было разобрать
 (более длинное пишется как `<unparseable body>`).
 
-## 7. Опционально: логировать навигацию: `structured_log_go_router`
+## 7. Опционально: логировать навигацию
+
+Выберите пакет под роутер, который использует приложение.
+
+### `go_router`: `structured_log_go_router`
 
 Если маршрутизация приложения построена на
 [`go_router`](https://pub.dev/packages/go_router),
@@ -408,6 +412,36 @@ Query-параметры с токенами — включая `code` из call
 в пути маршрута есть что-то чувствительное, см.
 [README](../../emb/structured_log_go_router/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
+
+### `auto_route`: `structured_log_auto_route`
+
+Если маршрутизация приложения построена на
+[`auto_route`](https://pub.dev/packages/auto_route) (10 или 11),
+[`structured_log_auto_route`](../../emb/structured_log_auto_route/) пишет
+каждый открытый, закрытый или выбранный экран — имя, шаблон пути
+(`/user/:id`) и расположение — через штатный `NavigatorObserver` роутера:
+
+```yaml
+dependencies:
+  structured_log: ^0.3.0
+  structured_log_auto_route: ^0.1.0-dev.1
+```
+
+```dart
+MaterialApp.router(
+  routerConfig: appRouter.config(
+    navigatorObservers: () => [StructuredLogAutoRouteObserver()],
+  ),
+);
+```
+
+У записей та же `category: 'navigation'`, что и у `go_router`, поэтому в
+просмотрщике они читаются одинаково. В отличие от `go_router`, наблюдатель
+маскирует значения чувствительных имён и в **параметрах пути**, а не только в
+query. Слепые зоны — это то, чего не видит `Navigator`: маршрут, обновлённый
+на месте (`navigatePath` на уже открытый экран), путь, не подошедший ни
+одному маршруту, и решение защитника не пишутся; их перечисляет
+[README](../../emb/structured_log_auto_route/README.ru.md#что-не-пишется).
 
 ## 8. Опционально: логировать DI-контейнер: `structured_log_cherrypick`
 
@@ -544,6 +578,7 @@ StructlogConfiguration.configure(sinks: [
   [`structured_log_dio`](../../emb/structured_log_dio/README.ru.md),
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.ru.md),
   [`structured_log_go_router`](../../emb/structured_log_go_router/README.ru.md),
+  [`structured_log_auto_route`](../../emb/structured_log_auto_route/README.ru.md),
   [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/README.ru.md),
   [`structured_log_remote_sync`](../../emb/structured_log_remote_sync/README.ru.md).
 - [Руководство разработчика](developer-guide.ru.md) — когда к делу
