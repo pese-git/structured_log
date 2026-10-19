@@ -52,11 +52,28 @@ import 'log_viewer_empty_state.dart';
 /// )
 /// ```
 class MaterialLogViewer extends StatefulWidget {
-  const MaterialLogViewer({required this.controller, super.key});
+  const MaterialLogViewer({
+    required this.controller,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The controller this widget reads from and mutates in response to user
   /// input (search, level/category filter, pause, clear, selection).
   final LogViewerController controller;
+
+  /// The labels to show instead of the English defaults, passed on to every
+  /// part of the viewer, the detail sheet included. A `null` field falls back
+  /// to [LogViewerLocalizations] when its delegate is registered, then to
+  /// the English default.
+  final LogViewerLabels labels;
+
+  /// Called with the entry once the detail view's copy action has put its
+  /// context on the clipboard — the place to confirm the copy, e.g. with a
+  /// [SnackBar]. Not called when the clipboard write fails or the detail
+  /// view has gone away by then; the viewer shows no confirmation of its own.
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
 
   @override
   State<MaterialLogViewer> createState() => _MaterialLogViewerState();
@@ -98,6 +115,7 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    final labels = LogViewerLocalizations.resolve(context, widget.labels);
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -112,7 +130,8 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
                       controller: _searchController,
                       onChanged: (value) => controller.searchQuery = value,
                       decoration: InputDecoration(
-                        hintText: 'Search events, categories…',
+                        hintText:
+                            labels.searchHint ?? 'Search events, categories…',
                         prefixIcon: const Icon(Icons.search_rounded),
                         isDense: true,
                         filled: true,
@@ -124,7 +143,9 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
                     ),
                   ),
                   IconButton(
-                    tooltip: controller.paused ? 'Resume' : 'Pause',
+                    tooltip: controller.paused
+                        ? labels.resume ?? 'Resume'
+                        : labels.pause ?? 'Pause',
                     icon: Icon(
                       controller.paused
                           ? Icons.play_arrow_rounded
@@ -133,7 +154,7 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
                     onPressed: () => controller.paused = !controller.paused,
                   ),
                   IconButton(
-                    tooltip: 'Clear all',
+                    tooltip: labels.clear ?? 'Clear all',
                     icon: const Icon(Icons.delete_outline_rounded),
                     onPressed: () {
                       setState(() => _selected = null);
@@ -143,8 +164,8 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
                 ],
               ),
             ),
-            LogCategoryChips(controller: controller),
-            _LevelFilterChips(controller: controller),
+            LogCategoryChips(controller: controller, labels: labels),
+            _LevelFilterChips(controller: controller, labels: labels),
             const Divider(height: 1),
             Expanded(
               child: LayoutBuilder(
@@ -164,6 +185,7 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
       return LogViewerEmptyState(
         hasLogs: controller.buffer.entries.value.isNotEmpty,
         onClearFilters: _resetFilters,
+        labels: widget.labels,
       );
     }
 
@@ -183,7 +205,13 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
             ),
           ),
           const VerticalDivider(width: 1),
-          Expanded(child: LogEntryDetailPanel(entry: selected)),
+          Expanded(
+            child: LogEntryDetailPanel(
+              entry: selected,
+              labels: widget.labels,
+              onContextCopied: widget.onContextCopied,
+            ),
+          ),
         ],
       );
     }
@@ -197,7 +225,11 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
         // inset away from the sheet's own SafeArea, so without this the
         // header ends up under the clock.
         useSafeArea: true,
-        builder: (_) => LogEntryDetailSheet(entry: entry),
+        builder: (_) => LogEntryDetailSheet(
+          entry: entry,
+          labels: widget.labels,
+          onContextCopied: widget.onContextCopied,
+        ),
       ),
     );
   }
@@ -223,17 +255,27 @@ class _MaterialLogViewerState extends State<MaterialLogViewer> {
 }
 
 class _LevelFilterChips extends StatelessWidget {
-  const _LevelFilterChips({required this.controller});
+  const _LevelFilterChips({required this.controller, required this.labels});
 
   final LogViewerController controller;
+  final LogViewerLabels labels;
 
-  static const _options = <String, LogLevel?>{
-    'All': null,
-    'Debug+': LogLevel.debug,
-    'Info+': LogLevel.info,
-    'Warning+': LogLevel.warning,
-    'Error+': LogLevel.error,
-  };
+  static const _options = <LogLevel?>[
+    null,
+    LogLevel.debug,
+    LogLevel.info,
+    LogLevel.warning,
+    LogLevel.error,
+  ];
+
+  static String _defaultLabel(LogLevel? minLevel) => switch (minLevel) {
+        null => 'All',
+        LogLevel.debug => 'Debug+',
+        LogLevel.info => 'Info+',
+        LogLevel.warning => 'Warning+',
+        LogLevel.error => 'Error+',
+        final level => '${level.name}+',
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -245,13 +287,15 @@ class _LevelFilterChips extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           children: [
-            for (final option in _options.entries)
+            for (final option in _options)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: ChoiceChip(
-                  label: Text(option.key),
-                  selected: controller.levelFilter == option.value,
-                  onSelected: (_) => controller.levelFilter = option.value,
+                  label: Text(
+                    (labels.levelFilterLabel ?? _defaultLabel)(option),
+                  ),
+                  selected: controller.levelFilter == option,
+                  onSelected: (_) => controller.levelFilter = option,
                 ),
               ),
           ],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
+import 'copy_entry_context.dart';
 import 'log_entry_tile.dart';
 
 /// Keys that identify a log entry's own bookkeeping fields rather than
@@ -18,14 +18,28 @@ const _bookkeepingKeys = {'event', 'level', 'timestamp'};
 /// list — no drag handle or "Close" button, since there's nothing to
 /// dismiss back to.
 class LogEntryDetailPanel extends StatelessWidget {
-  const LogEntryDetailPanel({required this.entry, super.key});
+  const LogEntryDetailPanel({
+    required this.entry,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The log entry being displayed in full.
   final Map<String, dynamic> entry;
 
+  /// The labels to show instead of the English defaults; see
+  /// [LogViewerLabels.copyContext], [LogViewerLabels.contextHeading].
+  final LogViewerLabels labels;
+
+  /// Called with [entry] once its context has been copied to the clipboard
+  /// successfully — see [MaterialLogViewer.onContextCopied].
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final labels = LogViewerLocalizations.resolve(context, this.labels);
     final level = logLevelOf(entry);
     final levelColor = level != null
         ? logLevelColor(level, theme.brightness)
@@ -48,7 +62,10 @@ class LogEntryDetailPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    // A Wrap, not a Row: a translated copy label can take
+                    // most of the panel's width next to this.
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Container(
                           width: 7,
@@ -80,10 +97,22 @@ class LogEntryDetailPanel extends StatelessWidget {
                   ],
                 ),
               ),
-              FilledButton.tonalIcon(
-                onPressed: () => _copyContext(context, contextEntries),
-                icon: const Icon(Icons.copy_rounded, size: 16),
-                label: const Text('Copy context'),
+              const SizedBox(width: 8),
+              Flexible(
+                child: FilledButton.tonalIcon(
+                  onPressed: () => copyEntryContext(
+                    context,
+                    entry,
+                    contextEntries,
+                    onContextCopied,
+                  ),
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  label: Text(
+                    labels.copyContext ?? 'Copy context',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ),
             ],
           ),
@@ -91,7 +120,7 @@ class LogEntryDetailPanel extends StatelessWidget {
           const Divider(height: 1),
           const SizedBox(height: 16),
           Text(
-            'CONTEXT',
+            labels.contextHeading ?? 'CONTEXT',
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               letterSpacing: 0.5,
@@ -131,13 +160,5 @@ class LogEntryDetailPanel extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _copyContext(
-    BuildContext context,
-    List<MapEntry<String, dynamic>> contextEntries,
-  ) {
-    final text = contextEntries.map((e) => '${e.key}: ${e.value}').join('\n');
-    return Clipboard.setData(ClipboardData(text: text));
   }
 }

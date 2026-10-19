@@ -30,17 +30,36 @@ import 'material_log_viewer.dart';
 /// ));
 /// ```
 class MaterialLogViewerPage extends StatelessWidget {
-  const MaterialLogViewerPage({required this.controller, super.key});
+  const MaterialLogViewerPage({
+    required this.controller,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The controller this screen reads from and mutates in response to user
   /// input (search, level/category filter, pause, clear, selection).
   final LogViewerController controller;
 
+  /// The labels to show instead of the English defaults — the title
+  /// ([LogViewerLabels.pageTitle]) here, the rest in [MaterialLogViewer].
+  final LogViewerLabels labels;
+
+  /// See [MaterialLogViewer.onContextCopied].
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Logs')),
-      body: MaterialLogViewer(controller: controller),
+      appBar: AppBar(
+          title: Text(
+              LogViewerLocalizations.resolve(context, labels).pageTitle ??
+                  'Logs')),
+      body: MaterialLogViewer(
+        controller: controller,
+        labels: labels,
+        onContextCopied: onContextCopied,
+      ),
     );
   }
 }
