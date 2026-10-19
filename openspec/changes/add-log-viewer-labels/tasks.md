@@ -42,4 +42,4 @@
 - [x] 5.2 `docs/guides/embedding-guide.md`/`.ru.md`: короткий абзац «локализация просмотрщика» со ссылкой на README; перегенерировать сайт не нужно (генерируется в CI), но `python3 site/scripts/migrate_docs.py` прогнать локально, чтобы убедиться, что генератор не падает
 - [x] 5.3 `AGENTS.md`: упомянуть `LogViewerLabels` в описании `structured_log_flutter` и `onContextCopied`/`labels` у скинов
 - [x] 5.4 В каждом из четырёх пакетов: `fvm flutter analyze`, `fvm flutter test --coverage` (покрытие не ниже порогов `tool/coverage_floors.json`), `fvm dart format --set-exit-if-changed .`; примеры (`example/`) анализируются без замечаний
-- [ ] 5.5 CI зелёный на PR (джоба `flutter`, строки четырёх пакетов и их примеров)
+- [x] 5.5 CI зелёный на PR (джоба `flutter`, строки четырёх пакетов и их примеров)
