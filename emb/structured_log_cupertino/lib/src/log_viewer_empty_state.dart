@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:structured_log_flutter/structured_log_flutter.dart';
 
 /// The state [CupertinoLogViewer] shows in place of the list when there is
 /// nothing to display, distinguishing two cases:
@@ -13,6 +14,7 @@ class LogViewerEmptyState extends StatelessWidget {
   const LogViewerEmptyState({
     required this.hasLogs,
     required this.onClearFilters,
+    this.labels = const LogViewerLabels(),
     super.key,
   });
 
@@ -24,8 +26,15 @@ class LogViewerEmptyState extends StatelessWidget {
   /// [hasLogs] is `true`.
   final VoidCallback onClearFilters;
 
+  /// The labels to show instead of the English defaults; see
+  /// [LogViewerLabels.emptyTitle], [LogViewerLabels.emptyMessage],
+  /// [LogViewerLabels.noMatchesTitle], [LogViewerLabels.noMatchesMessage] and
+  /// [LogViewerLabels.clearFilters].
+  final LogViewerLabels labels;
+
   @override
   Widget build(BuildContext context) {
+    final labels = LogViewerLocalizations.resolve(context, this.labels);
     final secondaryLabel = CupertinoColors.secondaryLabel.resolveFrom(
       context,
     );
@@ -50,7 +59,9 @@ class LogViewerEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              hasLogs ? 'No logs match the current filter' : 'No logs yet',
+              hasLogs
+                  ? labels.noMatchesTitle ?? 'No logs match the current filter'
+                  : labels.emptyTitle ?? 'No logs yet',
               style: CupertinoTheme.of(
                 context,
               ).textTheme.navTitleTextStyle.copyWith(fontSize: 17),
@@ -59,10 +70,12 @@ class LogViewerEmptyState extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               hasLogs
-                  ? 'Try a different search term, or clear the active '
-                      'filters to see everything.'
-                  : 'Logs will appear here as soon as your app emits its '
-                      'first event.',
+                  ? labels.noMatchesMessage ??
+                      'Try a different search term, or clear the active '
+                          'filters to see everything.'
+                  : labels.emptyMessage ??
+                      'Logs will appear here as soon as your app emits its '
+                          'first event.',
               style: TextStyle(color: secondaryLabel, fontSize: 14),
               textAlign: TextAlign.center,
             ),
@@ -71,7 +84,7 @@ class LogViewerEmptyState extends StatelessWidget {
               CupertinoButton(
                 padding: EdgeInsets.zero,
                 onPressed: onClearFilters,
-                child: const Text('Clear filters'),
+                child: Text(labels.clearFilters ?? 'Clear filters'),
               ),
             ],
           ],

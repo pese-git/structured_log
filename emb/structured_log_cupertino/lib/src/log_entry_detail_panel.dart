@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
+import 'copy_entry_context.dart';
 import 'log_entry_tile.dart';
 
 /// Keys that identify a log entry's own bookkeeping fields rather than
@@ -20,14 +20,28 @@ const _bookkeepingKeys = {'event', 'level', 'timestamp'};
 /// alongside the list in [CupertinoLogViewer]'s master-detail split on wide
 /// ones.
 class LogEntryDetailPanel extends StatelessWidget {
-  const LogEntryDetailPanel({required this.entry, super.key});
+  const LogEntryDetailPanel({
+    required this.entry,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The log entry being displayed in full.
   final Map<String, dynamic> entry;
 
+  /// The labels to show instead of the English defaults; see
+  /// [LogViewerLabels.copyContext] and [LogViewerLabels.contextHeading].
+  final LogViewerLabels labels;
+
+  /// Called with [entry] once its context has been copied to the clipboard
+  /// successfully — see [CupertinoLogViewer.onContextCopied].
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
+
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
+    final labels = LogViewerLocalizations.resolve(context, this.labels);
     final resolvedBrightness = CupertinoTheme.brightnessOf(context);
     final level = logLevelOf(entry);
     final levelColor = level != null
@@ -55,7 +69,10 @@ class LogEntryDetailPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      // A Wrap, not a Row: a translated copy label can
+                      // take most of a phone's width next to this.
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Container(
                             width: 7,
@@ -89,31 +106,43 @@ class LogEntryDetailPanel extends StatelessWidget {
                     ],
                   ),
                 ),
-                CupertinoButton(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  minimumSize: Size.zero,
-                  color: CupertinoColors.systemGrey5.resolveFrom(context),
-                  borderRadius: BorderRadius.circular(8),
-                  onPressed: () => _copyContext(contextEntries),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        CupertinoIcons.doc_on_doc,
-                        size: 14,
-                        color: CupertinoColors.label.resolveFrom(context),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Copy',
-                        style: TextStyle(
+                const SizedBox(width: 8),
+                Flexible(
+                  child: CupertinoButton(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    minimumSize: Size.zero,
+                    color: CupertinoColors.systemGrey5.resolveFrom(context),
+                    borderRadius: BorderRadius.circular(8),
+                    onPressed: () => copyEntryContext(
+                      context,
+                      entry,
+                      contextEntries,
+                      onContextCopied,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          CupertinoIcons.doc_on_doc,
+                          size: 14,
                           color: CupertinoColors.label.resolveFrom(context),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            labels.copyContext ?? 'Copy',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: CupertinoColors.label.resolveFrom(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -125,7 +154,7 @@ class LogEntryDetailPanel extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'CONTEXT',
+              labels.contextHeading ?? 'CONTEXT',
               style: theme.textTheme.tabLabelTextStyle.copyWith(
                 color: secondaryLabel,
                 letterSpacing: 0.5,
@@ -166,10 +195,5 @@ class LogEntryDetailPanel extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _copyContext(List<MapEntry<String, dynamic>> contextEntries) {
-    final text = contextEntries.map((e) => '${e.key}: ${e.value}').join('\n');
-    return Clipboard.setData(ClipboardData(text: text));
   }
 }
