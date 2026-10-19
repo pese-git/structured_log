@@ -25,7 +25,7 @@
 1. **Записать** — компактная библиотека-ядро для Dart и Flutter без
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
-   приложении уже делают `bloc`, `riverpod`, `dio`, `http`, `go_router` и
+   приложении уже делают `bloc`, `riverpod`, `dio`, `http`, `go_router`, `auto_route` и
    `cherrypick`, запросы к базе `drift`, а мост передаёт записи всех
    библиотек, логирующих через `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
@@ -78,6 +78,7 @@
 | `dio` | каждый запрос и его итог, уровень по статусу ответа | `http` |
 | `package:http` | то же самое через обёртку над `http.Client`; тела не буферизуются | `http` |
 | `go_router` | навигация с шаблоном маршрута, перенаправления, ошибки маршрутизации | `navigation` |
+| `auto_route` | навигация с именем и шаблоном маршрута, переключение вкладок; токены скрыты | `navigation` |
 | `cherrypick` | скоупы DI, модули, циклы, ошибки разрешения; сами экземпляры в лог не попадают | `di` |
 | `drift` | каждый запрос с SQL, длительностью и числом строк, медленные выделены, сбои со стеком; значения аргументов выключены | `db` |
 | `package:logging` | каждая запись каждой библиотеки, которая через него логирует, с уровнем, ошибкой и стеком | `logging` |
@@ -112,7 +113,7 @@ HTTP- и навигационные адаптеры по умолчанию м�
 ```mermaid
 flowchart LR
   subgraph app["Ваше приложение на Dart / Flutter"]
-    A["Адаптеры<br/>bloc · riverpod · dio · http · go_router · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Адаптеры<br/>bloc · riverpod · dio · http · go_router · auto_route · cherrypick · drift · logging"] --> C["structured_log"]
     Y["Ваш код"] --> C
     C --> O["Консоль / файл"]
     C --> V["Просмотрщик логов в приложении"]
@@ -189,6 +190,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_dio`](emb/structured_log_dio/) | Перехватчик `dio` | [![pub](https://img.shields.io/pub/v/structured_log_dio.svg?include_prereleases)](https://pub.dev/packages/structured_log_dio) |
 | [`structured_log_http_client`](emb/structured_log_http_client/) | Обёртка клиента `package:http` | [![pub](https://img.shields.io/pub/v/structured_log_http_client.svg?include_prereleases)](https://pub.dev/packages/structured_log_http_client) |
 | [`structured_log_go_router`](emb/structured_log_go_router/) | Логирование навигации `go_router` | [![pub](https://img.shields.io/pub/v/structured_log_go_router.svg?include_prereleases)](https://pub.dev/packages/structured_log_go_router) |
+| [`structured_log_auto_route`](emb/structured_log_auto_route/) | Логирование навигации `auto_route` | ещё не опубликован |
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | Наблюдатель DI `cherrypick` | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
 | [`structured_log_drift`](emb/structured_log_drift/) | Логирование запросов `drift` | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_logging`](emb/structured_log_logging/) | Мост `package:logging` | [![pub](https://img.shields.io/pub/v/structured_log_logging.svg?include_prereleases)](https://pub.dev/packages/structured_log_logging) |

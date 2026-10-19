@@ -37,7 +37,7 @@
 
 3. **События и имена.** `route_pushed` (`didPush`), `route_popped` (`didPop`), `route_removed` (`didRemove`), `route_tab_changed` (`didInitTabRoute` и `didChangeTabRoute`, поле `tab_event: 'init' | 'change'`). `didReplace` переопределяется на случай другой версии `auto_route` и пишется как `route_replaced`. Замена из пробы — `route_pushed` и `route_removed`, README говорит об этом прямо. Префикс `route_` — как у `route_changed` в `structured_log_go_router`.
 
-4. **Поля записи.** `route` — имя (`RouteData.name`); `route_path` — шаблон; `location` — `match` с замаскированными параметрами пути, плюс `?query` и `#fragment` после маскирования; `previous_route` и `previous_location` — то же для соседа. Для `route_tab_changed` — `tab_index`, `previous_tab`. Маршрут без `RouteData` (диалог, bottom sheet мимо роутера) — `route` из `RouteSettings.name` или тип маршрута, `location` не пишется.
+4. **Поля записи.** `route` — имя (`RouteData.name`); `route_path` — шаблон; `location` — `match` с замаскированными параметрами пути, плюс `?query` и `#fragment` после маскирования; `previous_route` и `previous_location` — то же для соседа, **но `previous_location` только путём, без query и фрагмента**: проба показала, что query лежит на роутере, а не на маршруте, и у соседа читается query движущегося маршрута. Для `route_tab_changed` — `tab_index`, `previous_tab`. Маршрут без `RouteData` (диалог, bottom sheet мимо роутера) — `route` из `RouteSettings.name` или тип маршрута, `location` не пишется.
 
 5. **Маскирование — по именам, до записи.** Набор по умолчанию — как у `structured_log_go_router` (`defaultSensitiveKeys` ядра плюс `code`), без учёта регистра. Применяется к значениям `params`, `queryParams` и к фрагменту вида `a=b`. **Это четвёртая копия правил маскирования URL**: общего пакета у `_dio`/`_http_client`/`_go_router` по-прежнему нет. Шаблон `route_path` не содержит значений и пишется как есть. `queryParams` читаются в момент хука и нигде не хранятся (проба: это общее состояние).
 
@@ -45,7 +45,7 @@
 
 7. **Уровни по умолчанию:** `pushed`, `popped`, `removed`, `tabChanged` — `info`; `null` выключает событие. `RouteLogLevels` по образцу `structured_log_go_router`.
 
-8. **Логгер берётся на каждом хуке** (`getLogger(loggerName)`, по умолчанию `navigation`), если `BoundLogger` не передан: наблюдатель создают один раз и он переживает `StructlogConfiguration.configure`.
+8. **Логгер берётся на каждом хуке** (`getLogger(loggerName)`, по умолчанию `router` — как у `structured_log_go_router`, чтобы обе навигации шли одним логгером), если `BoundLogger` не передан: наблюдатель создают один раз и он переживает `StructlogConfiguration.configure`.
 
 9. **Диапазон версий — по прогону, а не по надежде.** Проба прогнана на 10.0.0, 11.0.0 и 11.2.0, наблюдатель ведёт себя одинаково, кроме разбора вкладок (Context). Диапазон — `auto_route: ">=10.0.0 <12.0.0"`. CI-джоба гоняет тесты вторым прогоном на нижней границе, как у `go_router`/`riverpod`. `auto_route` 11.x требует `material_ui`/`cupertino_ui` — они приезжают транзитивно и в `pubspec` пакета не попадают.
 

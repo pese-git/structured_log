@@ -8,7 +8,7 @@
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
 (`structured_log`, скины просмотрщика логов, `structured_log_remote_sync` и адаптеры к чужим библиотекам —
-`bloc`/`riverpod`/`dio`/`http`/`go_router`/`cherrypick`/`drift`/`logging`), [backend/](backend/) —
+`bloc`/`riverpod`/`dio`/`http`/`go_router`/`auto_route`/`cherrypick`/`drift`/`logging`), [backend/](backend/) —
 самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
 самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
 пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (сейчас там один
@@ -39,7 +39,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Пятнадцать пакетов в `emb/` — четырнадцать живых и прослойка `structured_log_http`:
+Шестнадцать пакетов в `emb/` — пятнадцать живых и прослойка `structured_log_http`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -129,6 +129,14 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   от `bloc`. **Только Riverpod 3** (`riverpod: ^3.0.0`): сигнатуры хуков 2.x другие. Чистый Dart, опубликован
   как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-14-add-structured-log-riverpod/](openspec/changes/archive/2026-10-14-add-structured-log-riverpod/), основная спека — [openspec/specs/riverpod-log-observer/](openspec/specs/riverpod-log-observer/spec.md).
+- [emb/structured_log_auto_route/](emb/structured_log_auto_route/) — `StructuredLogAutoRouteObserver`:
+  `AutoRouterObserver` (наследник `NavigatorObserver`) для `auto_route`, пишущий открытие (`route_pushed`), закрытие
+  (`route_popped`), удаление мимо `pop` (`route_removed`) и переключение вкладок (`route_tab_changed`) с
+  `category: 'navigation'` — той же, что у `structured_log_go_router`. Маршрут называется `route` (имя), `route_path`
+  (шаблон `/user/:id`) и `location` (`/user/7?tab=1`); значения чувствительных имён маскируются в параметрах пути,
+  query и во фрагменте. **Flutter-пакет** (`auto_route` тянет Flutter): `flutter test` и строка во Flutter-матрице CI.
+  `auto_route: ">=10.0.0 <12.0.0"`. Опубликован как пре-релиз (серия `0.1.0-dev.N`),
+  [openspec/changes/add-structured-log-auto-route/](openspec/changes/add-structured-log-auto-route/).
 
 Плюс один пакет в `backend/`:
 
@@ -186,6 +194,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_drift/](emb/structured_log_drift/) — логирование запросов `drift` (см. ниже).
 - [emb/structured_log_logging/](emb/structured_log_logging/) — мост `package:logging` → `structured_log` (см. ниже).
 - [emb/structured_log_riverpod/](emb/structured_log_riverpod/) — наблюдатель провайдеров Riverpod (см. ниже).
+- [emb/structured_log_auto_route/](emb/structured_log_auto_route/) — наблюдатель навигации `auto_route` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -198,7 +207,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
+  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и `add-structured-log-auto-route`. Закрытые лежат в `changes/archive/`, а их
   дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
   кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
   (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
@@ -475,6 +484,49 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   минимальный SDK; тесты проходят на 17.5.0 и 18.0.2. `sdk: ^3.10.0` — нижняя граница самого `go_router` 17.
 - `example/main.dart` — одиночный файл, как у `structured_log_flutter`: платформенных папок нет, CI его
   только анализирует.
+
+Внутри [emb/structured_log_auto_route/](emb/structured_log_auto_route/):
+
+- [emb/structured_log_auto_route/lib/src/auto_route_observer.dart](emb/structured_log_auto_route/lib/src/auto_route_observer.dart) —
+  `StructuredLogAutoRouteObserver`, `RouteLogLevels`, `defaultRedactedParameters`.
+- **Поведение `auto_route` проверено пробной программой до design, а не выведено из документации** (задача 1.1, версии
+  10.0.0, 11.0.0, 11.2.0): `RootStackRouter` на настоящем `MaterialApp.router`, записывающий наблюдатель. Результаты
+  лежат в `design.md` (Context); ниже — то, что надо знать до правок.
+- **Наблюдатель Navigator, а не обёртка роутера — и у этого цена.** Стек страничный, поэтому `replace` приходит как
+  `didPush` нового и `didRemove` старого, `didReplace` не вызывается (хук оставлен на случай версии, которая его
+  вызовет, и закреплён тестом прямым вызовом). **Обновление открытого маршрута на месте** (`navigatePath('/user/9')`
+  при открытом `/user/7`) наблюдатель не видит вовсе, как и путь, не подошедший ни одному маршруту (его знает только
+  `onFailure` вызова) и решение `AutoRouteGuard`. Слушатель `RootStackRouter` эту слепую зону закрыл бы, но у него свои
+  ловушки (у вложенных маршрутов `topMatch.fullPath` — `a`, а не `/shell/a`; `urlState` отстаёт), и первая версия его
+  сознательно не берёт — решение пользователя 19.10.2026; `route_updated` — отдельной заявкой, если понадобится.
+- **`RouteData.queryParams` — общее состояние роутера, а не слепок маршрута.** У предыдущего маршрута в `didPush`
+  query уже показывает query нового, а позже у прежнего читается пустым. Поэтому query читается **в момент хука** и
+  нигде не хранится, а у соседа (`previous_location`) пишется **один путь** — иначе в запись шёл бы чужой query.
+  Мутацией проверено: вернуть query соседу — красный `a neighbour is located by its path`.
+- **`path` — шаблон, `stringMatch` — конкретное расположение.** `route_path` строится из первого, `location` — из
+  второго, и для вложенного маршрута оба склеиваются по цепочке `RouteData.parent`. Маскирование путёвых параметров идёт
+  **по значению сегмента** (значение чувствительного параметра заменяется там, где встретилось), а не по позиции шаблона:
+  у шаблона бывают регулярные выражения и звёздочки. Лишнее совпадение значения с другим сегментом даёт лишний
+  `REDACTED`, а не утечку. Это **четвёртая копия правил маскирования URL** (после `dio`/`http_client`/`go_router`);
+  в отличие от `go_router`, здесь маскируются и параметры пути.
+- **Вкладки: хуки `didInitTabRoute`/`didChangeTabRoute` меняются между версиями.** Первая вкладка при открытии оболочки
+  всегда `init`; первый заход на вторую — `init` на 11.x и `change` на 10.x. Поле `tab_event` отражает хук, а не «первый
+  раз»; тест стережёт только то, что одинаково на обеих. Расположение вкладки — её собственный путь (`/feed`), а не
+  `/shell/feed`: `TabPageRoute` оболочку не несёт.
+- **9.x не поддерживается**: нет `RouteData.params`, `PageInfo.builder`, `navigatePath`/`pushPath` — проба на нём не
+  собирается; покрывать вторую линию API ради уходящей версии не стали.
+- **`filter` получает `RouteMatch`**, а не `RouteData`: у события вкладки `RouteData` нет, а `RouteMatch` есть и там, и
+  там. Бросивший `filter` отбрасывает запись (fail-closed), а у соседа — только соседа; экран без `RouteData` (диалог)
+  не фильтруется и пишется по имени из `RouteSettings` или по типу.
+- **Нижняя граница проверяется**: строка матрицы `flutter` + последний шаг `Run tests on the lowest auto_route`
+  дописывает `auto_route: 10.0.0` в `pubspec_overrides.yaml`. `auto_route` 11.x требует `material_ui`/`cupertino_ui` —
+  они приезжают транзитивно, в `pubspec` пакета их нет.
+- Мутацией проверены девять мест: `try` вокруг `_emit` и вокруг `filter` (отдельный тест на бросающий `filter` соседа —
+  без него внутренний `try` не отличим от внешнего), маскирование query, путёвых параметров и фрагмента, query соседа,
+  `path` вместо `stringMatch`, хук `didRemove`, логгер, взятый один раз (только `BoundLogger(StructlogConfiguration.current)`
+  — `getLogger()` сам читает конфигурацию лениво).
+- Тесты — `testWidgets` на настоящем `RootStackRouter` без генератора; `example/main.dart` — одиночный файл с рукописным
+  роутером, CI его только анализирует. Покрытие 100 % (99 из 99 строк), порог 97.
 
 Внутри [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/):
 
@@ -1142,14 +1194,14 @@ fvm dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`, `structured_log_auto_route` → `auto_route`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`fvm dart format .` перед завершением любого изменения).
 - У каждого живого пакета `emb/` в `README.md`/`README.ru.md` перед «License»/«Лицензия» есть раздел
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
   доставка на сервер, интеграции), без самого пакета. Ссылки — **абсолютные на pub.dev**, а не `../<пакет>`:
   относительную генератор сайта переписал бы правильно, но pub.dev разрешает её от корня репозитория, и в
-  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (28 файлов
-  на 14 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
+  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (30 файлов
+  на 15 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
   имена символов кода, флаги команд и т.п., которые остаются как есть, не переводятся).
@@ -1275,7 +1327,8 @@ fvm dart run example/main.dart
   проходит и CI, и эту джобу молча.
 - `flutter` — для Flutter-пакетов (`structured_log_flutter`, `structured_log_material`
   (+`example/`), `structured_log_fluent` (+`example/`), `structured_log_cupertino`
-  (+`example/`), `structured_log_go_router`, `structured_log_admin_ui` (+`example/`), `structured_log_admin_client`), по одному
+  (+`example/`), `structured_log_go_router`, `structured_log_auto_route`, `structured_log_admin_ui`
+  (+`example/`), `structured_log_admin_client`), по одному
   матричному прогону на пакет: `flutter pub get`, `dart format --set-exit-if-changed`,
   `flutter analyze`, `flutter test`. Перед `pub get` джоба пишет `pubspec_overrides.yaml` на рабочие копии
   `emb/structured_log` и `emb/structured_log_flutter` — каждому пакету матрицы, который от них зависит, путь
@@ -1284,6 +1337,8 @@ fvm dart run example/main.dart
   не выпущенного ядра, против опубликованного `0.2.2+1` не компилируется вовсе. Для `structured_log_admin_client` между `pub get` и
   `format` вставлен условный (`if: matrix.package == ...`) шаг `build_runner` — кодогенерация нужна
   только ему.
+  Для `structured_log_auto_route` последним шагом идёт второй прогон тестов на `auto_route: 10.0.0` (нижняя граница
+  констрейнта; шаг дописывает override в `pubspec_overrides.yaml` и повторяет `pub get`/`flutter test`).
   Только `ubuntu-latest` — этим пакетам не нужна ОС-чувствительная проверка ротации файлов.
   Использует `subosito/flutter-action`, канал `stable`.
 - `shell` — `shellcheck` по трём скриптам развёртывания (`deploy/deploy.sh` и
@@ -1351,6 +1406,7 @@ fvm dart run example/main.dart
    [emb/structured_log_cherrypick/](emb/structured_log_cherrypick/README.md),
    [emb/structured_log_drift/](emb/structured_log_drift/README.md),
    [emb/structured_log_logging/](emb/structured_log_logging/README.md),
-   [emb/structured_log_riverpod/](emb/structured_log_riverpod/README.md))
+   [emb/structured_log_riverpod/](emb/structured_log_riverpod/README.md),
+   [emb/structured_log_auto_route/](emb/structured_log_auto_route/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

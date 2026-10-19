@@ -33,8 +33,8 @@ Several packages, and you only need as many of them as your project does:
    [`structured_log_dio` or `structured_log_http_client`](#6-optional-log-your-http-calls),
    for apps that talk to their backend through `dio` or `package:http`.
 6. **Log navigation** —
-   [`structured_log_go_router`](#7-optional-log-navigation-structured_log_go_router),
-   for Flutter apps routed with `go_router`.
+   [`structured_log_go_router` or `structured_log_auto_route`](#7-optional-log-navigation),
+   for Flutter apps routed with `go_router` or `auto_route`.
 7. **Log the DI container** —
    [`structured_log_cherrypick`](#8-optional-log-the-di-container-structured_log_cherrypick),
    for apps wired with `cherrypick`.
@@ -371,7 +371,11 @@ of an unknown type is written as its size, `<N bytes>`, and a JSON or
 form body is read whole up to 64 KiB so it can be parsed (a longer one is
 `<unparseable body>`).
 
-## 7. Optional: log navigation: `structured_log_go_router`
+## 7. Optional: log navigation
+
+Pick the package for the router the app uses.
+
+### `go_router`: `structured_log_go_router`
 
 If the app is routed with [`go_router`](https://pub.dev/packages/go_router),
 [`structured_log_go_router`](../../emb/structured_log_go_router/) logs
@@ -400,6 +404,37 @@ Token-like query parameters — including an OAuth callback's `code` and a
 see the package's
 [README](../../emb/structured_log_go_router/README.md#keeping-secrets-out-of-the-log)
 if a route carries something sensitive in its path.
+
+### `auto_route`: `structured_log_auto_route`
+
+If the app is routed with [`auto_route`](https://pub.dev/packages/auto_route)
+(10 or 11), [`structured_log_auto_route`](../../emb/structured_log_auto_route/)
+logs every screen opened, closed or switched to — its name, path pattern
+(`/user/:id`) and location — through the router's own `NavigatorObserver`
+hook:
+
+```yaml
+dependencies:
+  structured_log: ^0.3.0
+  structured_log_auto_route: ^0.1.0-dev.1
+```
+
+```dart
+MaterialApp.router(
+  routerConfig: appRouter.config(
+    navigatorObservers: () => [StructuredLogAutoRouteObserver()],
+  ),
+);
+```
+
+Entries carry the same `category: 'navigation'` as `go_router`'s, so the
+two read alike in the viewer. Unlike `go_router`'s, the observer redacts
+the values of token-like names in **path parameters** too, not only in the
+query. Its blind spots come with what a `Navigator` can see: a route
+updated in place (`navigatePath` to the screen that is already open), a path
+no route matches and a guard's decision are not logged — the
+[README](../../emb/structured_log_auto_route/README.md#what-is-not-logged)
+lists them.
 
 ## 8. Optional: log the DI container: `structured_log_cherrypick`
 
@@ -533,6 +568,7 @@ the [Administrator / DevOps Guide](admin-guide.md).
   [`structured_log_dio`](../../emb/structured_log_dio/README.md),
   [`structured_log_http_client`](../../emb/structured_log_http_client/README.md),
   [`structured_log_go_router`](../../emb/structured_log_go_router/README.md),
+  [`structured_log_auto_route`](../../emb/structured_log_auto_route/README.md),
   [`structured_log_cherrypick`](../../emb/structured_log_cherrypick/README.md),
   [`structured_log_remote_sync`](../../emb/structured_log_remote_sync/README.md).
 - [Developer Guide](developer-guide.md) — once a server is involved:

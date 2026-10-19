@@ -68,7 +68,7 @@ API-клиенты и хранилища токенов.
 [`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino))
 или на self-hosted `structured_log_server` через
 [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync).
-Это один из восьми адаптеров, которые пишут в лог то, что библиотеки
+Это один из девяти адаптеров, которые пишут в лог то, что библиотеки
 приложения и так делают, и сервер с админ-клиентом этого проекта сами им
 пользуются; проект целиком — на
 [structured-log.openidealab.com](https://structured-log.openidealab.com/ru/).
@@ -206,6 +206,7 @@ StructuredLogCherryPickObserver(
 - [`structured_log_dio`](https://pub.dev/packages/structured_log_dio) — перехватчик `dio`, логирующий HTTP-вызовы
 - [`structured_log_http_client`](https://pub.dev/packages/structured_log_http_client) — обёртка клиента `package:http`, логирующая HTTP-вызовы
 - [`structured_log_go_router`](https://pub.dev/packages/structured_log_go_router) — логирует навигацию `go_router`
+- [`structured_log_auto_route`](https://pub.dev/packages/structured_log_auto_route) — логирует навигацию `auto_route`
 - [`structured_log_drift`](https://pub.dev/packages/structured_log_drift) — `QueryInterceptor` для drift, логирующий запросы, сбои и транзакции
 - [`structured_log_logging`](https://pub.dev/packages/structured_log_logging) — мост, передающий записи `package:logging` в `structured_log`
 - [`structured_log_riverpod`](https://pub.dev/packages/structured_log_riverpod) — `ProviderObserver` для `riverpod`/`flutter_riverpod`
