@@ -1,7 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/services.dart';
 import 'package:structured_log_flutter/structured_log_flutter.dart';
 
+import 'copy_entry_context.dart';
 import 'log_entry_tile.dart';
 import 'log_level_colors.dart';
 
@@ -20,14 +20,28 @@ const _bookkeepingKeys = {'event', 'level', 'timestamp'};
 /// alongside the list rather than covering it — the master-detail pattern
 /// WinUI apps use (Mail, Settings) instead of a mobile-style sheet.
 class LogEntryDetailPane extends StatelessWidget {
-  const LogEntryDetailPane({required this.entry, super.key});
+  const LogEntryDetailPane({
+    required this.entry,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The log entry being displayed in full.
   final Map<String, dynamic> entry;
 
+  /// The labels to show instead of the English defaults; see
+  /// [LogViewerLabels.copyContext] and [LogViewerLabels.contextHeading].
+  final LogViewerLabels labels;
+
+  /// Called with [entry] once its context has been copied to the clipboard
+  /// successfully — see [FluentLogViewer.onContextCopied].
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
+
   @override
   Widget build(BuildContext context) {
     final theme = FluentTheme.of(context);
+    final labels = LogViewerLocalizations.resolve(context, this.labels);
     final level = logLevelOf(entry);
     final levelColor = level != null
         ? logLevelColor(level, theme.brightness)
@@ -50,7 +64,10 @@ class LogEntryDetailPane extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    // A Wrap, not a Row: a translated copy label can take
+                    // most of a narrow pane's width next to this.
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           level != null ? logLevelAbbreviation(level) : '',
@@ -74,15 +91,29 @@ class LogEntryDetailPane extends StatelessWidget {
                   ],
                 ),
               ),
-              Button(
-                onPressed: () => _copyContext(contextEntries),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(FluentIcons.copy, size: 14),
-                    const SizedBox(width: 6),
-                    const Text('Copy'),
-                  ],
+              const SizedBox(width: 8),
+              Flexible(
+                child: Button(
+                  onPressed: () => copyEntryContext(
+                    context,
+                    entry,
+                    contextEntries,
+                    onContextCopied,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(FluentIcons.copy, size: 14),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          labels.copyContext ?? 'Copy',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -91,7 +122,7 @@ class LogEntryDetailPane extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 20),
           Text(
-            'CONTEXT',
+            labels.contextHeading ?? 'CONTEXT',
             style: theme.typography.caption?.copyWith(
               color: theme.resources.textFillColorSecondary,
               letterSpacing: 0.5,
@@ -131,10 +162,5 @@ class LogEntryDetailPane extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  Future<void> _copyContext(List<MapEntry<String, dynamic>> contextEntries) {
-    final text = contextEntries.map((e) => '${e.key}: ${e.value}').join('\n');
-    return Clipboard.setData(ClipboardData(text: text));
   }
 }
