@@ -208,11 +208,12 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и `add-log-viewer-labels` (подписи и локализация скинов просмотрщика, Electro #188). Закрытые лежат в `changes/archive/`, а их
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
   дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
   кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
   (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
-  (`riverpod-log-observer`) — 14.10.2026; `add-structured-log-auto-route` (`auto-route-logging`) — 19.10.2026.
+  (`riverpod-log-observer`) — 14.10.2026; `add-structured-log-auto-route` (`auto-route-logging`) и `add-log-viewer-labels` (подписи и
+  локализация скинов, дельты в `flutter-log-viewer-*`) — 19.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
@@ -340,7 +341,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_cupertino/example/](emb/structured_log_cupertino/example/) — полноценное Flutter-приложение (`structured_log_cupertino_example` в `melos.yaml`), запускается через `fvm flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `CupertinoLogViewerPage`, и встроенный `CupertinoLogViewer` в боковой панели.
 - `cupertino_icons` — обычная зависимость (иконки `CupertinoIcons` не бандлятся во Flutter SDK сами по себе); `uses-material-design: false` — пакет не тянет Material-иконки/шрифты.
 
-Общее для трёх скинов (`add-log-viewer-labels`):
+Общее для трёх скинов ([openspec/changes/archive/2026-10-19-add-log-viewer-labels/](openspec/changes/archive/2026-10-19-add-log-viewer-labels/)):
 
 - **`labels` и `onContextCopied`** принимают `*LogViewer`, `*LogViewerPage` и публичные составные виджеты; баррели скинов
   реэкспортируют `LogViewerLabels`/`LogViewerLocalizations`. Явный `allLabel` фильтра категорий важнее `labels.allCategories`.
