@@ -136,7 +136,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (шаблон `/user/:id`) и `location` (`/user/7?tab=1`); значения чувствительных имён маскируются в параметрах пути,
   query и во фрагменте. **Flutter-пакет** (`auto_route` тянет Flutter): `flutter test` и строка во Flutter-матрице CI.
   `auto_route: ">=10.0.0 <12.0.0"`. Опубликован как пре-релиз (серия `0.1.0-dev.N`),
-  [openspec/changes/add-structured-log-auto-route/](openspec/changes/add-structured-log-auto-route/).
+  [openspec/changes/archive/2026-10-19-add-structured-log-auto-route/](openspec/changes/archive/2026-10-19-add-structured-log-auto-route/), основная спека — [openspec/specs/auto-route-logging/](openspec/specs/auto-route-logging/spec.md).
 
 Плюс один пакет в `backend/`:
 
@@ -207,11 +207,11 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и `add-structured-log-auto-route`. Закрытые лежат в `changes/archive/`, а их
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
   дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
   кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
   (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
-  (`riverpod-log-observer`) — 14.10.2026.
+  (`riverpod-log-observer`) — 14.10.2026; `add-structured-log-auto-route` (`auto-route-logging`) — 19.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
