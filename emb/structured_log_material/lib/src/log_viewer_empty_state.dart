@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:structured_log_flutter/structured_log_flutter.dart';
 
 /// The state [MaterialLogViewerPage] shows in place of the list when there
 /// is nothing to display, distinguishing two cases:
@@ -13,6 +14,7 @@ class LogViewerEmptyState extends StatelessWidget {
   const LogViewerEmptyState({
     required this.hasLogs,
     required this.onClearFilters,
+    this.labels = const LogViewerLabels(),
     super.key,
   });
 
@@ -24,9 +26,16 @@ class LogViewerEmptyState extends StatelessWidget {
   /// [hasLogs] is `true`.
   final VoidCallback onClearFilters;
 
+  /// The labels to show instead of the English defaults; see
+  /// [LogViewerLabels.emptyTitle], [LogViewerLabels.emptyMessage],
+  /// [LogViewerLabels.noMatchesTitle], [LogViewerLabels.noMatchesMessage] and
+  /// [LogViewerLabels.clearFilters].
+  final LogViewerLabels labels;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final labels = LogViewerLocalizations.resolve(context, this.labels);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 48),
@@ -44,17 +53,21 @@ class LogViewerEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              hasLogs ? 'No logs match the current filter' : 'No logs yet',
+              hasLogs
+                  ? labels.noMatchesTitle ?? 'No logs match the current filter'
+                  : labels.emptyTitle ?? 'No logs yet',
               style: theme.textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               hasLogs
-                  ? 'Try a different search term, or clear the active '
-                      'filters to see everything.'
-                  : 'Logs will appear here as soon as your app emits its '
-                      'first event.',
+                  ? labels.noMatchesMessage ??
+                      'Try a different search term, or clear the active '
+                          'filters to see everything.'
+                  : labels.emptyMessage ??
+                      'Logs will appear here as soon as your app emits its '
+                          'first event.',
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
@@ -63,7 +76,7 @@ class LogViewerEmptyState extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: onClearFilters,
-                child: const Text('Clear filters'),
+                child: Text(labels.clearFilters ?? 'Clear filters'),
               ),
             ],
           ],

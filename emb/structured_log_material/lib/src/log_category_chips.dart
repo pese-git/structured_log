@@ -6,15 +6,17 @@ import 'package:structured_log_flutter/structured_log_flutter.dart';
 /// dynamically from the distinct `category` values currently present in
 /// [controller]'s [LogViewerController.buffer] — the package has no way to
 /// know domain category names (they're entirely consumer-defined), so raw
-/// category strings are used as chip labels, plus [allLabel] for "no
-/// filter" (`categoryFilter == null`).
+/// category strings are used as chip labels, plus a "no filter"
+/// (`categoryFilter == null`) chip labelled [allLabel], else
+/// [LogViewerLabels.allCategories] of [labels], else `All`.
 ///
 /// Renders nothing ([SizedBox.shrink]) while fewer than two distinct
 /// categories are present — a single option wouldn't filter anything.
 class LogCategoryChips extends StatelessWidget {
   const LogCategoryChips({
     required this.controller,
-    this.allLabel = 'All',
+    this.allLabel,
+    this.labels = const LogViewerLabels(),
     super.key,
   });
 
@@ -22,8 +24,13 @@ class LogCategoryChips extends StatelessWidget {
   /// and writes [LogViewerController.categoryFilter] to.
   final LogViewerController controller;
 
-  /// The label shown for "no filter" (`categoryFilter == null`).
-  final String allLabel;
+  /// The label shown for "no filter" (`categoryFilter == null`); wins over
+  /// [LogViewerLabels.allCategories] when given.
+  final String? allLabel;
+
+  /// The labels to take [LogViewerLabels.allCategories] from when [allLabel]
+  /// isn't given.
+  final LogViewerLabels labels;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +54,12 @@ class LogCategoryChips extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: ChoiceChip(
-                  label: Text(allLabel),
+                  label: Text(
+                    allLabel ??
+                        LogViewerLocalizations.resolve(context, labels)
+                            .allCategories ??
+                        'All',
+                  ),
                   selected: controller.categoryFilter == null,
                   onSelected: (_) => controller.categoryFilter = null,
                 ),
