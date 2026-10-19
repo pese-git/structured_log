@@ -53,11 +53,30 @@ import 'log_viewer_empty_state.dart';
 /// )
 /// ```
 class CupertinoLogViewer extends StatefulWidget {
-  const CupertinoLogViewer({required this.controller, super.key});
+  const CupertinoLogViewer({
+    required this.controller,
+    this.labels = const LogViewerLabels(),
+    this.onContextCopied,
+    super.key,
+  });
 
   /// The controller this widget reads from and mutates in response to user
   /// input (search, level/category filter, pause, clear, selection).
   final LogViewerController controller;
+
+  /// The labels to show instead of the English defaults, passed on to every
+  /// part of the viewer, the pushed detail screen included. A `null` field
+  /// falls back to [LogViewerLocalizations] when its delegate is registered,
+  /// then to the English default. [LogViewerLabels.pause],
+  /// [LogViewerLabels.resume] and [LogViewerLabels.clear] become the
+  /// semantics labels of the icon-only pause and clear buttons.
+  final LogViewerLabels labels;
+
+  /// Called with the entry once the detail view's copy action has put its
+  /// context on the clipboard — the place to confirm the copy. Not called
+  /// when the clipboard write fails or the detail view has gone away by
+  /// then; the viewer shows no confirmation of its own.
+  final void Function(Map<String, dynamic> entry)? onContextCopied;
 
   @override
   State<CupertinoLogViewer> createState() => _CupertinoLogViewerState();
@@ -85,13 +104,14 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
     LogLevel.warning,
     LogLevel.error,
   ];
-  static const _levelLabels = <String>[
-    'All',
-    'Debug+',
-    'Info+',
-    'Warning+',
-    'Error+',
-  ];
+  static String _defaultLevelLabel(LogLevel? minLevel) => switch (minLevel) {
+        null => 'All',
+        LogLevel.debug => 'Debug+',
+        LogLevel.info => 'Info+',
+        LogLevel.warning => 'Warning+',
+        LogLevel.error => 'Error+',
+        final level => '${level.name}+',
+      };
 
   @override
   void initState() {
@@ -118,6 +138,8 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    final labels = LogViewerLocalizations.resolve(context, widget.labels);
+    final levelLabel = labels.levelFilterLabel ?? _defaultLevelLabel;
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -130,7 +152,8 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
                   Expanded(
                     child: CupertinoSearchTextField(
                       controller: _searchController,
-                      placeholder: 'Search events, categories…',
+                      placeholder:
+                          labels.searchHint ?? 'Search events, categories…',
                       onChanged: (value) => controller.searchQuery = value,
                     ),
                   ),
@@ -142,6 +165,9 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
                       controller.paused
                           ? CupertinoIcons.play_fill
                           : CupertinoIcons.pause_fill,
+                      semanticLabel: controller.paused
+                          ? labels.resume ?? 'Resume'
+                          : labels.pause ?? 'Pause',
                     ),
                   ),
                   CupertinoButton(
@@ -151,12 +177,15 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
                       setState(() => _selected = null);
                       controller.clear();
                     },
-                    child: const Icon(CupertinoIcons.delete),
+                    child: Icon(
+                      CupertinoIcons.delete,
+                      semanticLabel: labels.clear ?? 'Clear all',
+                    ),
                   ),
                 ],
               ),
             ),
-            LogCategoryFilterBar(controller: controller),
+            LogCategoryFilterBar(controller: controller, labels: labels),
             const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -174,7 +203,7 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
                     i: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6),
                       child: Text(
-                        _levelLabels[i],
+                        levelLabel(_levelOptions[i]),
                         style: const TextStyle(fontSize: 13),
                       ),
                     ),
@@ -209,6 +238,7 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
       return LogViewerEmptyState(
         hasLogs: controller.buffer.entries.value.isNotEmpty,
         onClearFilters: _resetFilters,
+        labels: widget.labels,
       );
     }
 
@@ -231,13 +261,19 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
             width: 0.5,
             color: CupertinoColors.separator.resolveFrom(context),
           ),
-          Expanded(child: LogEntryDetailPanel(entry: selected)),
+          Expanded(child: _detailPanel(selected)),
         ],
       );
     }
 
     return _buildList(entries, wide: false);
   }
+
+  Widget _detailPanel(Map<String, dynamic> entry) => LogEntryDetailPanel(
+        entry: entry,
+        labels: widget.labels,
+        onContextCopied: widget.onContextCopied,
+      );
 
   Widget _buildList(
     List<Map<String, dynamic>> entries, {
@@ -267,7 +303,7 @@ class _CupertinoLogViewerState extends State<CupertinoLogViewer> {
                     navigationBar: CupertinoNavigationBar(
                       middle: Text(entry['event']?.toString() ?? ''),
                     ),
-                    child: LogEntryDetailPanel(entry: entry),
+                    child: _detailPanel(entry),
                   ),
                 ),
               );
