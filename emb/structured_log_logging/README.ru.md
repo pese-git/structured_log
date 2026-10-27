@@ -71,7 +71,7 @@
 где категория `logging` становится фильтром, или на self-hosted
 `structured_log_server` через
 [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync).
-Это один из девяти адаптеров, которые пишут в лог то, что библиотеки
+Это один из десяти адаптеров, которые пишут в лог то, что библиотеки
 приложения и так делают; проект целиком — на
 [structured-log.openidealab.com](https://structured-log.openidealab.com/ru/).
 
@@ -249,6 +249,7 @@ StructuredLogLoggingBridge(
 - [`structured_log_cherrypick`](https://pub.dev/packages/structured_log_cherrypick) — наблюдатель DI-контейнера `cherrypick`
 - [`structured_log_drift`](https://pub.dev/packages/structured_log_drift) — `QueryInterceptor` для drift, логирующий запросы, сбои и транзакции
 - [`structured_log_riverpod`](https://pub.dev/packages/structured_log_riverpod) — `ProviderObserver` для `riverpod`/`flutter_riverpod`
+- [`structured_log_shelf`](https://pub.dev/packages/structured_log_shelf) — middleware для `shelf`, логирующий запросы сервера и дающий обработчикам логгер с `request_id`
 
 ## Лицензия
 

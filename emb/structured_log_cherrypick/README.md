@@ -69,7 +69,7 @@ console, a file, an in-app log viewer
 [`structured_log_cupertino`](https://pub.dev/packages/structured_log_cupertino)),
 or a self-hosted `structured_log_server` through
 [`structured_log_remote_sync`](https://pub.dev/packages/structured_log_remote_sync).
-It is one of nine adapters that log what your app's libraries already do,
+It is one of ten adapters that log what your app's libraries already do,
 and the server and admin client of this project use it themselves; the
 whole project is at
 [structured-log.openidealab.com](https://structured-log.openidealab.com).
@@ -213,6 +213,7 @@ The rest of the `structured_log` family:
 - [`structured_log_drift`](https://pub.dev/packages/structured_log_drift) — drift `QueryInterceptor` that logs queries, failures and transactions
 - [`structured_log_logging`](https://pub.dev/packages/structured_log_logging) — bridge that routes `package:logging` records into `structured_log`
 - [`structured_log_riverpod`](https://pub.dev/packages/structured_log_riverpod) — `ProviderObserver` for `riverpod`/`flutter_riverpod`
+- [`structured_log_shelf`](https://pub.dev/packages/structured_log_shelf) — `shelf` middleware that logs server requests and gives handlers a logger bound to the `request_id`
 
 ## License
 

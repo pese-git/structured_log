@@ -161,6 +161,31 @@ void main() {
     });
   });
 
+  test('an error middleware inside turns a throw into a 500 with the id',
+      () async {
+    // The arrangement the README recommends: without it shelf_io answers the
+    // throw itself, outside this middleware, and the 500 has no id.
+    Middleware errorsToResponses() => (inner) => (request) async {
+          try {
+            return await inner(request);
+          } on StateError {
+            return Response.internalServerError();
+          }
+        };
+    final handler = const Pipeline()
+        .addMiddleware(structuredLogRequests())
+        .addMiddleware(errorsToResponses())
+        .addHandler((_) => throw StateError('boom'));
+
+    final response = await handler(get('/items'));
+
+    expect(response.statusCode, 500);
+    expect(response.headers['x-request-id'], entries.single['request_id']);
+    expect(eventsOf(entries), ['http_request_handled']);
+    expect(entries.single['status_code'], 500);
+    expect(entries.single['level'], 'error');
+  });
+
   group('a hijacked request', () {
     test('is handled, not failed, and the socket stays with the handler',
         () async {
