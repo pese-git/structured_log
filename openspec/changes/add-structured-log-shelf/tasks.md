@@ -67,7 +67,7 @@
 
 ## 3. Документация
 
-- [ ] 3.1 `README.md`/`README.ru.md` пакета:
+- [x] 3.1 `README.md`/`README.ru.md` пакета:
   - установка и место в `Pipeline` (первым, до middleware ошибок);
   - `request.logger` в обработчике и тест обработчика с middleware;
   - записи и их поля, уровни;
@@ -75,10 +75,10 @@
   - раздел о секретах: тела не пишутся, заголовки, query, сегменты пути через `filter`, текст исключений;
   - `duration_ms` без отдачи тела;
   - API и «Related packages».
-- [ ] 3.2 Строка о `structured_log_shelf` в разделе «Related packages»/«Связанные пакеты» (группа «Integrations»/«Интеграции»)
+- [x] 3.2 Строка о `structured_log_shelf` в разделе «Related packages»/«Связанные пакеты» (группа «Integrations»/«Интеграции»)
   README всех остальных живых пакетов `emb/`. Прослойка `structured_log_http` в разделе не участвует. В README адаптеров
   число во фразе «один из N адаптеров» увеличить на один.
-- [ ] 3.3 Корневые `README.md`/`README.ru.md` и `AGENTS.md`:
+- [x] 3.3 Корневые `README.md`/`README.ru.md` и `AGENTS.md`:
   - пакет в списке `emb/` и в «Структуре»;
   - раздел «Внутри `emb/structured_log_shelf/`»;
   - CI-джоба;

@@ -8,7 +8,7 @@
 верхнего уровня (каждый пакет — директория `<категория>/<name>/`, перечисленная по полному
 пути в [melos.yaml](melos.yaml)): [emb/](emb/) — встраиваемые в чужое приложение библиотеки
 (`structured_log`, скины просмотрщика логов, `structured_log_remote_sync` и адаптеры к чужим библиотекам —
-`bloc`/`riverpod`/`dio`/`http`/`go_router`/`auto_route`/`cherrypick`/`drift`/`logging`), [backend/](backend/) —
+`bloc`/`riverpod`/`dio`/`http`/`go_router`/`auto_route`/`cherrypick`/`drift`/`logging`, плюс серверный `shelf`), [backend/](backend/) —
 самостоятельные серверные приложения (`structured_log_server`), `frontend/` —
 самостоятельные клиентские приложения с UI (`structured_log_admin_client`), `packages/` —
 пакеты, не подпадающие однозначно ни под одну из трёх категорий выше (сейчас там один
@@ -39,7 +39,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 `analyze`/`format:check`/`test` по **всем** пакетам: обновление Flutter не раз
 ломало `fluent_ui` (см. ниже), и `flutter analyze` этого не ловит.
 
-Шестнадцать пакетов в `emb/` — пятнадцать живых и прослойка `structured_log_http`:
+Семнадцать пакетов в `emb/` — шестнадцать живых и прослойка `structured_log_http`:
 
 - [emb/structured_log/](emb/structured_log/) — структурированное логирование для Dart, вдохновлено
   Python `structlog`, без сторонних runtime-зависимостей (кроме `meta`). Опубликован на pub.dev.
@@ -138,6 +138,13 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   query и во фрагменте. **Flutter-пакет** (`auto_route` тянет Flutter): `flutter test` и строка во Flutter-матрице CI.
   `auto_route: ">=10.0.0 <12.0.0"`. Опубликован как пре-релиз (серия `0.1.0-dev.N`),
   [openspec/changes/archive/2026-10-19-add-structured-log-auto-route/](openspec/changes/archive/2026-10-19-add-structured-log-auto-route/), основная спека — [openspec/specs/auto-route-logging/](openspec/specs/auto-route-logging/spec.md).
+- [emb/structured_log_shelf/](emb/structured_log_shelf/) — `structuredLogRequests()`: `Middleware` для `shelf`, пишущий
+  каждый запрос сервера одной записью (`http_request_handled` со `status_code`/`duration_ms` или `http_request_failed`
+  со стеком; `http_request_received` — по желанию) с `category: 'http'`, и дающий обработчику `request.logger`,
+  привязанный к `request_id` запроса, который возвращается в `X-Request-Id`. **Единственный серверный адаптер** —
+  остальные стоят в приложении. Тела не пишутся никогда, входящий id — только явным доверием и после проверки. Чистый
+  Dart, `shelf: ^1.4.0`, пока не опубликован (`0.1.0-dev.0`), заявка
+  [openspec/changes/add-structured-log-shelf/](openspec/changes/add-structured-log-shelf/) открыта.
 
 Плюс один пакет в `backend/`:
 
@@ -196,6 +203,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 - [emb/structured_log_logging/](emb/structured_log_logging/) — мост `package:logging` → `structured_log` (см. ниже).
 - [emb/structured_log_riverpod/](emb/structured_log_riverpod/) — наблюдатель провайдеров Riverpod (см. ниже).
 - [emb/structured_log_auto_route/](emb/structured_log_auto_route/) — наблюдатель навигации `auto_route` (см. ниже).
+- [emb/structured_log_shelf/](emb/structured_log_shelf/) — логирование запросов сервера на `shelf` (см. ниже).
 - [backend/structured_log_server/](backend/structured_log_server/) — сервер логирования (см. ниже).
 - [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/) — библиотека UI-компонентов admin-клиента (см. ниже).
 - [frontend/structured_log_admin_client/](frontend/structured_log_admin_client/) — admin-клиент (см. ниже).
@@ -208,7 +216,7 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
+  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и `add-structured-log-shelf`. Закрытые лежат в `changes/archive/`, а их
   дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
   кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
   (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
@@ -652,6 +660,36 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   Покрытие 100 % (41 из 41 строки), порог 97.
 - Мутацией проверены восемь мест: `try` вокруг `filter`/логгера, пропуск `AsyncError`, имя провайдера, обрезка значения,
   закрепление логгера, хук удаления, `try` вокруг `describe`, ранний выход по `isEnabled`.
+
+Внутри [emb/structured_log_shelf/](emb/structured_log_shelf/):
+
+- [emb/structured_log_shelf/lib/src/shelf_middleware.dart](emb/structured_log_shelf/lib/src/shelf_middleware.dart) —
+  `structuredLogRequests()`, `ShelfLogLevels`, расширение `StructuredLogRequest` (`request.logger`/`request.requestId`),
+  наборы маскирования.
+- **Обобщает `requestLoggingMiddleware` сервера, но словарь у него — адаптеров `emb/`**: `http_request_handled`/
+  `status_code`, как у `_dio`/`_http_client`, а не `request.completed`/`status` сервера. Поэтому сервер на пакет пока
+  **не** переведён: переход переименовал бы события, которые проверяют тесты сервера
+  (`server_integration_test.dart`, `diagnostics_isolation_test.dart`), — это отдельная заявка.
+- **`request.logger` без middleware бросает `StateError`**, а не отдаёт логгер без корреляции: тихий откат и есть та
+  ошибка подключения, ради которой пакет создан. Тест обработчика ставит middleware перед ним. Логгер и id лежат в
+  `request.context` под ключами `structured_log_shelf.*` и доходят через `Router.mount` (проверено пробой).
+- **`filter` убирает записи, а не корреляцию**: отфильтрованный запрос получает id, логгер и заголовок. Бросивший
+  `filter` стоит записей (fail-closed), не ответа.
+- **`HijackException` — не сбой**: пишется `http_request_handled` с `hijacked: true`, без статуса, и пробрасывается.
+  Исключение обработчика пишется `http_request_failed` и пробрасывается `rethrow` с исходным стеком.
+- **Ответ 500 на непойманное исключение уходит без `X-Request-Id`** — его строит `shelf_io` снаружи всех middleware
+  (найдено прогоном примера). README советует middleware ошибок внутри; тест закрепляет, что тогда ответ получает
+  заголовок и пишется `http_request_handled` с 500.
+- **`path` — из `requestedUri`, а не `url`**: `url` отсчитывается от точки монтирования. `duration_ms` дробное и
+  кончается на возврате `Response`, до отправки тела. Записи обработчика идут с `logger: shelf`.
+- **Входящий `X-Request-Id` по умолчанию не принимается**; при `trustIncomingRequestId` — `^[A-Za-z0-9._:-]{1,128}$`,
+  иначе свой id и `request_id_rejected: true` без самого значения. Тела не пишутся вовсе — настройки нет.
+- Наборы маскирования — **пятая копия** правил (`_dio`/`_http_client`/`_go_router`/`_auto_route`); тест сверяет их с
+  `_dio` по литералам, без импорта.
+- Тесты зовут обработчик напрямую (`Request('GET', …)`), захват сокета — через `shelf_io.serve` на loopback.
+  Мутацией проверены девять мест (фильтр, корреляция при фильтре, `url` вместо `requestedUri`, проверка и запись
+  входящего id, захват, маскирование заголовков, логгер на сборке, тихий откат `request.logger`). Покрытие 100 %
+  (94 из 94), порог 97; второй прогон CI — на `shelf: 1.4.0`.
 
 Внутри [frontend/structured_log_admin_ui/](frontend/structured_log_admin_ui/):
 
@@ -1213,14 +1251,14 @@ fvm dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`, `structured_log_auto_route` → `auto_route`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`, `structured_log_auto_route` → `auto_route`, `structured_log_shelf` → `shelf`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`fvm dart format .` перед завершением любого изменения).
 - У каждого живого пакета `emb/` в `README.md`/`README.ru.md` перед «License»/«Лицензия» есть раздел
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
   доставка на сервер, интеграции), без самого пакета. Ссылки — **абсолютные на pub.dev**, а не `../<пакет>`:
   относительную генератор сайта переписал бы правильно, но pub.dev разрешает её от корня репозитория, и в
-  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (30 файлов
-  на 15 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
+  подкаталоге `emb/` она битая. **Новый пакет `emb/` добавляется в этот раздел всех остальных README** (32 файла
+  на 16 пакетов); прослойка `structured_log_http` в разделе не участвует — она discontinued.
 - Артефакты OpenSpec ([openspec/changes/](openspec/changes/)) пишутся на русском языке — кроме ключевых слов
   и идентификаторов (заголовки секций типа `## Why`/`## What Changes`, имена пакетов/капабилити,
   имена символов кода, флаги команд и т.п., которые остаются как есть, не переводятся).
@@ -1246,7 +1284,7 @@ fvm dart run example/main.dart
 ## CI
 
 [.github/workflows/ci.yml](.github/workflows/ci.yml) запускается на push/PR
-в `master`/`develop` и на `workflow_dispatch`, семнадцать джоб:
+в `master`/`develop` и на `workflow_dispatch`, восемнадцать джоб:
 
 - `test` — для `structured_log`: `dart format --set-exit-if-changed`, `dart analyze`,
   `dart test`, `dart run example/main.dart` — на `ubuntu-latest`/`macos-latest`/`windows-latest`
@@ -1307,6 +1345,8 @@ fvm dart run example/main.dart
   — нижней границе констрейнта, чтобы она была проверена, а не предположена.
 - `riverpod-observer` — для `emb/structured_log_riverpod/`, та же форма плюс второй прогон тестов на `riverpod: 3.0.0`
   — нижней границе констрейнта; без `didUnmountProvider` один тест пропускается, а парный ему идёт.
+- `shelf-middleware` — для `emb/structured_log_shelf/`, та же форма плюс второй прогон тестов на `shelf: 1.4.0`
+  — нижней границе констрейнта.
 - `browser-cookie` — единственная джоба, которая видит, что делает с
   refresh-cookie **браузер**: настоящий `bin/server.dart`, собранный
   `lib/main.dart` (не тестовый entry point) и крошечный прокси, ставящий
@@ -1426,6 +1466,7 @@ fvm dart run example/main.dart
    [emb/structured_log_drift/](emb/structured_log_drift/README.md),
    [emb/structured_log_logging/](emb/structured_log_logging/README.md),
    [emb/structured_log_riverpod/](emb/structured_log_riverpod/README.md),
-   [emb/structured_log_auto_route/](emb/structured_log_auto_route/README.md))
+   [emb/structured_log_auto_route/](emb/structured_log_auto_route/README.md),
+   [emb/structured_log_shelf/](emb/structured_log_shelf/README.md))
    — но не `CHANGELOG.md` (см. «Коммиты и версионирование»).
 5. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) должен быть зелёным на всех джобах.

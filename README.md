@@ -25,8 +25,8 @@ The project covers the whole path such an entry travels:
 1. **Write it** — a small, dependency-free core library for Dart and Flutter.
 2. **Get it for free** — adapters that log what `bloc`, `riverpod`, `dio`,
    `http`, `go_router`, `auto_route` and `cherrypick` already do in your app,
-   the queries of a `drift` database, and a bridge for every library that logs through
-   `package:logging`.
+   the queries of a `drift` database, every request a `shelf` server answers,
+   and a bridge for every library that logs through `package:logging`.
 3. **See it on the device** — a drop-in log viewer screen in Material,
    Fluent or Cupertino style.
 4. **Collect it** — a self-hosted server that receives logs from every
@@ -76,10 +76,12 @@ optional, and adding it doesn't change a single logging call.
 | `cherrypick` | DI scopes, modules, cycles, resolve errors — never an instance | `di` |
 | `drift` | every query with its SQL, duration and rows, slow ones flagged, failures with their stack — argument values off | `db` |
 | `package:logging` | every record of every library that logs through it, with its level, error and stack trace | `logging` |
+| `shelf` (server) | every request a server answers, level by status code; handlers get a logger bound to the `request_id`, returned in `X-Request-Id` | `http` |
 
 HTTP and navigation adapters redact auth headers, cookies, and token-like
 query parameters by default; bodies are off unless enabled, and masked by
-field name when they are.
+field name when they are — except on the server, where `structured_log_shelf`
+never writes them at all.
 
 ### Self-hosted log server and admin client
 
@@ -104,7 +106,7 @@ field name when they are.
 ```mermaid
 flowchart LR
   subgraph app["Your Dart / Flutter app"]
-    A["Adapters<br/>bloc · riverpod · dio · http · go_router · auto_route · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Adapters<br/>bloc · riverpod · dio · http · go_router · auto_route · cherrypick · drift · logging · shelf"] --> C["structured_log"]
     Y["Your code"] --> C
     C --> O["Console / file"]
     C --> V["In-app log viewer"]
@@ -185,6 +187,7 @@ the admin client.
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | `cherrypick` DI observer | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
 | [`structured_log_drift`](emb/structured_log_drift/) | `drift` query logging | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_logging`](emb/structured_log_logging/) | `package:logging` bridge | [![pub](https://img.shields.io/pub/v/structured_log_logging.svg?include_prereleases)](https://pub.dev/packages/structured_log_logging) |
+| [`structured_log_shelf`](emb/structured_log_shelf/) | `shelf` request-logging middleware | not yet published |
 | [`structured_log_server`](backend/structured_log_server/) | Self-hosted log server | service, not published |
 | [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Web admin for the server | app, not published |
 
