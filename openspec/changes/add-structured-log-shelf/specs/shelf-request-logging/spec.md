@@ -13,7 +13,7 @@ Middleware `structured_log_shelf`, поставленный в `Pipeline`, SHALL
 - **THEN** записана одна запись `http_request_handled` с `method: GET`, `path: /items`, `status_code: 200`, `duration_ms` и `request_id`, и нет записи `http_request_received`
 
 #### Scenario: Путь под точкой монтирования
-- **WHEN** middleware стоит перед `Router`, который монтирует обработчик под `/api/`, и выполнен запрос `GET /api/items`
+- **WHEN** middleware стоит внутри обработчика, смонтированного под `/api/` (для него `request.url` — `items`), и выполнен запрос `GET /api/items`
 - **THEN** `path` записи равен `/api/items`
 
 #### Scenario: Запись о получении включена
@@ -105,8 +105,8 @@ middleware SHALL сгенерировать id, записать в итогов
 (по умолчанию тот же набор, что у `structured_log_dio`) на `REDACTED`. Сравнение имён SHALL быть регистронезависимым.
 
 #### Scenario: Тело с паролем
-- **WHEN** обработчик принимает `POST /token` с телом `password=p&username=u`
-- **THEN** ни `p`, ни `username=u` не встречаются ни в одной записи middleware
+- **WHEN** обработчик читает `POST /token` с телом `password=s3cret-pw&username=body-user` и отвечает телом `token=s3cret-tok`
+- **THEN** ни `s3cret-pw`, ни `body-user`, ни `s3cret-tok` не встречаются ни в одной записи middleware
 
 #### Scenario: Заголовки по умолчанию
 - **WHEN** запрос несёт `Authorization: Bearer t0ken`, `logHeaders` не задан
