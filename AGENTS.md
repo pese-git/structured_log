@@ -143,8 +143,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   со стеком; `http_request_received` — по желанию) с `category: 'http'`, и дающий обработчику `request.logger`,
   привязанный к `request_id` запроса, который возвращается в `X-Request-Id`. **Единственный серверный адаптер** —
   остальные стоят в приложении. Тела не пишутся никогда, входящий id — только явным доверием и после проверки. Чистый
-  Dart, `shelf: ^1.4.0`, пока не опубликован (`0.1.0-dev.0`), заявка
-  [openspec/changes/add-structured-log-shelf/](openspec/changes/add-structured-log-shelf/) открыта.
+  Dart, `shelf: ^1.4.0`, пока не опубликован (`0.1.0-dev.0`),
+  [openspec/changes/archive/2026-10-27-add-structured-log-shelf/](openspec/changes/archive/2026-10-27-add-structured-log-shelf/), основная спека — [openspec/specs/shelf-request-logging/](openspec/specs/shelf-request-logging/spec.md).
 
 Плюс один пакет в `backend/`:
 
@@ -216,12 +216,13 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   (proposal/design/specs/tasks), `changes/archive/` — закрытые, `specs/` — основные спеки, куда
   архивация переносит дельты. `specs/` появился только с адаптерами `emb/` (2026-10-01); более
   ранние заявки (сервер, скины, пагинация и др.) так и лежат в `changes/`, и их контракт читается
-  оттуда, а не из `specs/`. Открыты сейчас две — `add-structured-log-server` и `add-structured-log-shelf`. Закрытые лежат в `changes/archive/`, а их
+  оттуда, а не из `specs/`. Открыта сейчас одна — `add-structured-log-server`. Закрытые лежат в `changes/archive/`, а их
   дельты — в `specs/`: `harden-structured-log-core` (надёжность ядра, маскирование тел в `_dio`/`_http_client`,
   кодирование записей в `_remote_sync`, `LogBuffer`) выпущена и заархивирована 02.10.2026; `add-structured-log-drift`
   (`drift-query-logging`), `add-structured-log-logging` (`logging-bridge`) и `add-structured-log-riverpod`
   (`riverpod-log-observer`) — 14.10.2026; `add-structured-log-auto-route` (`auto-route-logging`) и `add-log-viewer-labels` (подписи и
-  локализация скинов, дельты в `flutter-log-viewer-*`) — 19.10.2026.
+  локализация скинов, дельты в `flutter-log-viewer-*`) — 19.10.2026; `add-structured-log-shelf`
+  (`shelf-request-logging`) — 27.10.2026.
 - [docs/](docs/) — сквозная (не per-package) документация дизайна: сейчас описывает систему
   `structured_log_server`/`structured_log_remote_sync`/`structured_log_admin_client`, спроектированную в
   [openspec/changes/add-structured-log-server/](openspec/changes/add-structured-log-server/) —
