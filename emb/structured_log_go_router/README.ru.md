@@ -223,6 +223,7 @@ StructuredLogGoRouter(
 - [`structured_log_drift`](https://pub.dev/packages/structured_log_drift) — `QueryInterceptor` для drift, логирующий запросы, сбои и транзакции
 - [`structured_log_logging`](https://pub.dev/packages/structured_log_logging) — мост, передающий записи `package:logging` в `structured_log`
 - [`structured_log_riverpod`](https://pub.dev/packages/structured_log_riverpod) — `ProviderObserver` для `riverpod`/`flutter_riverpod`
+- [`structured_log_shelf`](https://pub.dev/packages/structured_log_shelf) — middleware для `shelf`, логирующий запросы сервера и дающий обработчикам логгер с `request_id`
 
 ## Лицензия
 
