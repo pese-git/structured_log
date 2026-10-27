@@ -31,8 +31,8 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
    приложении уже делают `bloc`, `riverpod`, `dio`, `http`, `go_router`, `auto_route` и
-   `cherrypick`, запросы к базе `drift`, а мост передаёт записи всех библиотек, логирующих
-   через `package:logging`.
+   `cherrypick`, запросы к базе `drift` и запросы, на которые отвечает сервер на
+   `shelf`, а мост передаёт записи всех библиотек, логирующих через `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
    Material, Fluent или Cupertino.
 4. **Собрать** — self-hosted сервер принимает логи со всех установок
@@ -166,10 +166,12 @@ import { Card, CardGrid, Steps, Tabs, TabItem } from '@astrojs/starlight/compone
 | `cherrypick` | скоупы DI, модули, циклы, ошибки разрешения; сами экземпляры в лог не попадают | `di` |
 | `drift` | каждый запрос с SQL, длительностью и числом строк, медленные выделены, сбои со стеком; значения аргументов выключены | `db` |
 | `package:logging` | каждая запись каждой библиотеки, которая через него логирует, с уровнем, ошибкой и стеком | `logging` |
+| `shelf` (сервер) | каждый запрос, на который отвечает сервер, уровень по статусу; обработчик получает логгер с `request_id`, который возвращается в `X-Request-Id` | `http` |
 
 HTTP- и навигационные адаптеры по умолчанию маскируют заголовки
 авторизации, cookie и query-параметры с токенами. Тела запросов пишутся
-только по явному разрешению и тогда маскируются по именам полей.
+только по явному разрешению и тогда маскируются по именам полей — кроме
+сервера: `structured_log_shelf` не пишет их вовсе.
 
 ### Self-hosted сервер логов и админка
 
@@ -196,7 +198,7 @@ HTTP- и навигационные адаптеры по умолчанию м�
 
 <pre class="mermaid">{`flowchart LR
   subgraph app["Ваше приложение на Dart / Flutter"]
-    A["Адаптеры<br/>bloc · riverpod · dio · http · go_router · auto_route · cherrypick · drift · logging"] --> C["structured_log"]
+    A["Адаптеры<br/>bloc · riverpod · dio · http · go_router · auto_route · cherrypick · drift · logging · shelf"] --> C["structured_log"]
     Y["Ваш код"] --> C
     C --> O["Консоль / файл"]
     C --> V["Просмотрщик логов в приложении"]
@@ -274,6 +276,11 @@ HTTP- и навигационные адаптеры по умолчанию м�
 		Передаёт каждую запись, которую библиотека пишет через `package:logging`,
 		в те же выводы, просмотрщик и на тот же сервер, что и ваши записи.
 		[Использование и API](/ru/packages/structured_log_logging/). Пре-релиз на pub.dev.
+	</Card>
+	<Card title="structured_log_shelf" icon="laptop">
+		Для Dart-сервера на `shelf`: пишет каждый запрос, на который он отвечает,
+		и даёт обработчику логгер с id запроса, который возвращается в
+		`X-Request-Id`. [Использование и API](/ru/packages/structured_log_shelf/). На pub.dev пока нет.
 	</Card>
 </CardGrid>
 

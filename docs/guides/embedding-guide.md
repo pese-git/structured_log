@@ -44,8 +44,12 @@ Several packages, and you only need as many of them as your project does:
 9. **Bring in what other libraries log** —
    [`structured_log_logging`](#10-optional-bring-in-packagelogging-records-structured_log_logging),
    for every library that writes through `package:logging`.
-10. **Also ship those logs to a server** —
-   [`structured_log_remote_sync`](#11-optional-also-ship-logs-to-a-server), a
+10. **Log what your server answers** —
+   [`structured_log_shelf`](#11-optional-log-your-servers-requests-structured_log_shelf),
+   a `Middleware` for a Dart server built on `shelf` — the one package here
+   that runs on a server rather than in an app.
+11. **Also ship those logs to a server** —
+   [`structured_log_remote_sync`](#12-optional-also-ship-logs-to-a-server), a
    thin add-on `LogSink` output; covered briefly here, in full in the
    Developer Guide.
 
@@ -530,7 +534,46 @@ Entries carry `category: 'logging'`, the library's logger name as
 for that, and for why a sink should not itself log through
 `package:logging`.
 
-## 11. Optional: also ship logs to a server
+## 11. Optional: log your server's requests: `structured_log_shelf`
+
+This one is for the other side of the wire: a Dart server built on
+[`shelf`](https://pub.dev/packages/shelf), not a Flutter app.
+[`structured_log_shelf`](../../emb/structured_log_shelf/) is a `Middleware`
+that writes every request the server answers as one entry, and gives the
+handler a logger already bound to that request's `request_id` — so what the
+handler writes can be tied to the request that caused it:
+
+```yaml
+dependencies:
+  shelf: ^1.4.0
+  structured_log: ^0.3.2
+  structured_log_shelf:
+    git: # not yet on pub.dev
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_shelf
+```
+
+```dart
+final handler = const Pipeline()
+    .addMiddleware(structuredLogRequests()) // first in the pipeline
+    .addHandler((request) {
+  request.logger.info('items_listed'); // carries the request's request_id
+  return Response.ok('[]');
+});
+```
+
+Entries are `http_request_handled` (or `http_request_failed`, with the
+stack, when the handler threw) with `category: 'http'`, `method`, `path`,
+`status_code` and `duration_ms` — the same names as the `dio` and
+`package:http` adapters, so one filter reads both sides. The id goes back to
+the client in `X-Request-Id`. Bodies are never written, headers only on
+request and redacted; an incoming `X-Request-Id` is ignored unless you trust
+it. See the package's
+[README](../../emb/structured_log_shelf/README.md#request-ids) for
+`request.logger` in tests and for why an error middleware belongs inside
+it.
+
+## 12. Optional: also ship logs to a server
 
 Everything above is entirely local — no network, no server. If you also
 want these logs collected centrally (searchable across restarts,

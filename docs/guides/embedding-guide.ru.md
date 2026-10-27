@@ -46,8 +46,12 @@ Dart- или Flutter-приложение. Ничто из описанного 
 9. **Принять то, что пишут другие библиотеки** —
    [`structured_log_logging`](#10-опционально-принимать-записи-packagelogging-structured_log_logging),
    для всех библиотек, которые логируют через `package:logging`.
-10. **Ещё и доставлять эти логи на сервер** —
-   [`structured_log_remote_sync`](#11-опционально-доставлять-логи-и-на-сервер),
+10. **Писать в лог, на что отвечает ваш сервер** —
+   [`structured_log_shelf`](#11-опционально-логировать-запросы-сервера-structured_log_shelf),
+   `Middleware` для Dart-сервера на `shelf` — единственный пакет здесь,
+   который работает на сервере, а не в приложении.
+11. **Ещё и доставлять эти логи на сервер** —
+   [`structured_log_remote_sync`](#12-опционально-доставлять-логи-и-на-сервер),
    тонкая надстройка над `LogSink`; кратко описан здесь, подробно — в
    Руководстве разработчика.
 
@@ -539,7 +543,46 @@ StructuredLogLoggingBridge().attach();
 [README](../../emb/structured_log_logging/README.ru.md#как-не-пустить-секреты-в-лог)
 пакета.
 
-## 11. Опционально: доставлять логи и на сервер
+## 11. Опционально: логировать запросы сервера: `structured_log_shelf`
+
+Этот раздел — о другой стороне провода: о Dart-сервере на
+[`shelf`](https://pub.dev/packages/shelf), а не о Flutter-приложении.
+[`structured_log_shelf`](../../emb/structured_log_shelf/) — `Middleware`,
+который пишет каждый запрос, на который отвечает сервер, одной записью и даёт
+обработчику логгер, уже привязанный к `request_id` этого запроса, — так что
+записанное обработчиком можно связать с вызвавшим его запросом:
+
+```yaml
+dependencies:
+  shelf: ^1.4.0
+  structured_log: ^0.3.2
+  structured_log_shelf:
+    git: # на pub.dev пока нет
+      url: https://github.com/pese-git/structured_log.git
+      path: emb/structured_log_shelf
+```
+
+```dart
+final handler = const Pipeline()
+    .addMiddleware(structuredLogRequests()) // первым в pipeline
+    .addHandler((request) {
+  request.logger.info('items_listed'); // несёт request_id запроса
+  return Response.ok('[]');
+});
+```
+
+Записи — `http_request_handled` (или `http_request_failed` со стеком, если
+обработчик бросил) с `category: 'http'`, `method`, `path`, `status_code` и
+`duration_ms` — те же имена, что у адаптеров `dio` и `package:http`, так что
+один фильтр читает обе стороны. Id возвращается клиенту в `X-Request-Id`.
+Тела не пишутся никогда, заголовки — только по запросу и с маскированием;
+входящий `X-Request-Id` не используется, пока вы ему не доверите. Как
+пользоваться `request.logger` в тестах и почему middleware ошибок должен
+стоять внутри него — в
+[README](../../emb/structured_log_shelf/README.ru.md#идентификаторы-запросов)
+пакета.
+
+## 12. Опционально: доставлять логи и на сервер
 
 Всё описанное выше работает полностью локально: без сети и без сервера.
 Если нужно ещё и собирать эти логи в одном месте (искать по ним после

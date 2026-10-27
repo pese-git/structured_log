@@ -2,8 +2,9 @@
 title: "Packages"
 ---
 
-Eleven libraries you embed directly in your own Dart or Flutter app —
-install one, import it, and go. (For the self-hosted server and its
+Sixteen libraries you embed directly in your own Dart or Flutter app —
+or, for `structured_log_shelf`, your Dart server — install one, import it,
+and go. (For the self-hosted server and its
 admin client, see the [guides](/guides/) instead.)
 
 | Package | What it is |
@@ -23,6 +24,7 @@ admin client, see the [guides](/guides/) instead.)
 | [structured_log_cherrypick](/packages/structured_log_cherrypick/) | A `CherryPickObserver` that logs what the `cherrypick` DI container does — scopes, modules, cycles, resolve errors — without ever printing an instance. |
 | [structured_log_drift](/packages/structured_log_drift/) | A drift `QueryInterceptor` that writes every query — SQL, duration, rows — plus batches, failures and transaction ends, flags slow queries and keeps argument values out by default. |
 | [structured_log_logging](/packages/structured_log_logging/) | A bridge that writes every `package:logging` record as a `structured_log` entry — message, logger, level by value, error and stack trace — so the logs of libraries that write through `package:logging` reach the same sinks as your own. |
+| [structured_log_shelf](/packages/structured_log_shelf/) | A `shelf` middleware for a Dart server: one entry per request — method, path, status, duration — and a logger for each handler bound to the request's `request_id`, returned in `X-Request-Id`. Bodies are never written. |
 
 Looking for `structured_log_http`? It was renamed to
 `structured_log_remote_sync` (`HttpLogOutput` → `RemoteSyncLogOutput`) and is
