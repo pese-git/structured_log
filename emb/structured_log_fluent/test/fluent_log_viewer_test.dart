@@ -138,7 +138,10 @@ void main() {
 
       await tester.tap(find.byType(ComboBox<String?>));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('protocol').last);
+      // The popup's item, not the list row or detail pane behind it: since
+      // fluent_ui 4.17 the popup sits in an OverlayPortal, which is no
+      // longer last in the tree, so `.last` picked the detail pane.
+      await tester.tap(find.text('protocol').hitTestable().first);
       await tester.pumpAndSettle();
 
       expect(controller.categoryFilter, 'protocol');
