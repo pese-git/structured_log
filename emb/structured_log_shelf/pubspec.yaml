@@ -1,0 +1,26 @@
+name: structured_log_shelf
+description: >-
+  A shelf Middleware that logs every request as a structured_log entry and
+  hands each handler a logger bound to the request's request_id, with
+  sensitive headers and query parameters redacted.
+version: 0.1.0-dev.0
+homepage: https://structured-log.openidealab.com
+documentation: https://structured-log.openidealab.com/packages/structured_log_shelf/
+repository: https://github.com/pese-git/structured_log.git
+topics:
+  - logging
+  - shelf
+  - http
+  - middleware
+  - server
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  shelf: ^1.4.0
+  structured_log: ^0.3.2+2
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.24.0
