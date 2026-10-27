@@ -92,7 +92,9 @@ void main() {
 
     await tester.tap(find.byType(ComboBox<String?>));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('protocol').last);
+    // The popup's item: since fluent_ui 4.17 the popup is an OverlayPortal,
+    // not last in the tree, so `.last` no longer means "the popup".
+    await tester.tap(find.text('protocol').hitTestable().first);
     await tester.pumpAndSettle();
 
     expect(controller.categoryFilter, 'protocol');
@@ -108,7 +110,7 @@ void main() {
 
     await tester.tap(find.byType(ComboBox<String?>));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('All types').last);
+    await tester.tap(find.text('All types').hitTestable().first);
     await tester.pumpAndSettle();
 
     expect(controller.categoryFilter, isNull);
