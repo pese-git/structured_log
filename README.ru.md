@@ -26,8 +26,8 @@
    сторонних зависимостей.
 2. **Получить без лишнего кода** — адаптеры сами пишут в лог то, что в
    приложении уже делают `bloc`, `riverpod`, `dio`, `http`, `go_router`, `auto_route` и
-   `cherrypick`, запросы к базе `drift` и запросы, на которые отвечает сервер
-   на `shelf`, а мост передаёт записи всех библиотек, логирующих через
+   `cherrypick`, а также запросы к базе `drift` и запросы к серверу на
+   `shelf`; мост передаёт в лог записи всех библиотек, которые пишут через
    `package:logging`.
 3. **Посмотреть на устройстве** — готовый экран просмотра логов в стиле
    Material, Fluent или Cupertino.
@@ -83,12 +83,13 @@
 | `cherrypick` | скоупы DI, модули, циклы, ошибки разрешения; сами экземпляры в лог не попадают | `di` |
 | `drift` | каждый запрос с SQL, длительностью и числом строк, медленные выделены, сбои со стеком; значения аргументов выключены | `db` |
 | `package:logging` | каждая запись каждой библиотеки, которая через него логирует, с уровнем, ошибкой и стеком | `logging` |
-| `shelf` (сервер) | каждый запрос, на который отвечает сервер, уровень по статусу; обработчик получает логгер с `request_id`, который возвращается в `X-Request-Id` | `http` |
+| `shelf` (сервер) | каждый запрос к серверу с уровнем по статусу ответа; обработчик получает логгер, привязанный к `request_id`, а клиент — этот идентификатор в `X-Request-Id` | `http` |
 
 HTTP- и навигационные адаптеры по умолчанию маскируют заголовки
 авторизации, cookie и query-параметры с токенами. Тела запросов пишутся
-только по явному разрешению и тогда маскируются по именам полей — кроме
-сервера: `structured_log_shelf` не пишет их вовсе.
+только по явному разрешению и тогда маскируются по именам полей. Исключение —
+серверный `structured_log_shelf`: он не записывает тела ни при каких
+настройках.
 
 ### Self-hosted сервер логов и админка
 
@@ -197,7 +198,7 @@ cd deploy && ./deploy.sh
 | [`structured_log_cherrypick`](emb/structured_log_cherrypick/) | Наблюдатель DI `cherrypick` | [![pub](https://img.shields.io/pub/v/structured_log_cherrypick.svg?include_prereleases)](https://pub.dev/packages/structured_log_cherrypick) |
 | [`structured_log_drift`](emb/structured_log_drift/) | Логирование запросов `drift` | [![pub](https://img.shields.io/pub/v/structured_log_drift.svg?include_prereleases)](https://pub.dev/packages/structured_log_drift) |
 | [`structured_log_logging`](emb/structured_log_logging/) | Мост `package:logging` | [![pub](https://img.shields.io/pub/v/structured_log_logging.svg?include_prereleases)](https://pub.dev/packages/structured_log_logging) |
-| [`structured_log_shelf`](emb/structured_log_shelf/) | Middleware `shelf`, логирующий запросы | пока не опубликован |
+| [`structured_log_shelf`](emb/structured_log_shelf/) | Логирование запросов к серверу на `shelf` | пока не опубликован |
 | [`structured_log_server`](backend/structured_log_server/) | Self-hosted сервер логов | сервис, не публикуется |
 | [`structured_log_admin_client`](frontend/structured_log_admin_client/) | Веб-админка сервера | приложение, не публикуется |
 

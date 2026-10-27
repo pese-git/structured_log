@@ -2,9 +2,9 @@
 title: "Пакеты"
 ---
 
-Шестнадцать библиотек, встраиваемых напрямую в собственное Dart- или
-Flutter-приложение — а `structured_log_shelf` в Dart-сервер, —
-устанавливаете, импортируете и пользуетесь. (Про
+Шестнадцать библиотек, которые встраиваются прямо в ваше Dart- или
+Flutter-приложение (а `structured_log_shelf` — в Dart-сервер): достаточно
+установить пакет, импортировать его и начать пользоваться. (Про
 self-hosted сервер и его admin-клиент — см. [руководства](/ru/guides/).)
 
 | Пакет | Что это |
@@ -24,7 +24,7 @@ self-hosted сервер и его admin-клиент — см. [руковод�
 | [structured_log_cherrypick](/ru/packages/structured_log_cherrypick/) | `CherryPickObserver`, который пишет, что делает DI-контейнер `cherrypick`, — скоупы, модули, циклы, ошибки разрешения — и никогда не печатает экземпляр. |
 | [structured_log_drift](/ru/packages/structured_log_drift/) | `QueryInterceptor` для drift, который пишет каждый запрос — SQL, длительность, строки, — а также пакеты, сбои и завершение транзакций, выделяет медленные запросы и по умолчанию не пишет значения аргументов. |
 | [structured_log_logging](/ru/packages/structured_log_logging/) | Мост, который пишет каждую запись `package:logging` записью `structured_log` — сообщение, логгер, уровень по значению, ошибку и стек, — так что логи библиотек, пишущих через `package:logging`, попадают в те же выводы, что и ваши. |
-| [structured_log_shelf](/ru/packages/structured_log_shelf/) | Middleware `shelf` для Dart-сервера: одна запись на запрос — метод, путь, статус, длительность — и логгер для каждого обработчика, привязанный к `request_id` запроса, который возвращается в `X-Request-Id`. Тела не пишутся никогда. |
+| [structured_log_shelf](/ru/packages/structured_log_shelf/) | Middleware для Dart-сервера на `shelf`: записывает каждый запрос — метод, путь, статус ответа и время обработки — и даёт обработчику логгер, привязанный к `request_id` запроса. Идентификатор возвращается клиенту в `X-Request-Id`, тела запросов и ответов не записываются никогда. |
 
 Ищете `structured_log_http`? Он переименован в `structured_log_remote_sync`
 (`HttpLogOutput` → `RemoteSyncLogOutput`) и больше не развивается;
