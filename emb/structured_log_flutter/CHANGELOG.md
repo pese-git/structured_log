@@ -1,3 +1,8 @@
+## 0.1.5+1
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+ - **DOCS**: pin the log viewer packages to the releases with LogViewerLabels (#123).
+
 ## 0.1.5
 
  - **FEAT**(structured_log_flutter): add LogViewerLabels and an optional en/ru delegate.

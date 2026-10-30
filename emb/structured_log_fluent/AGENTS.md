@@ -1,0 +1,35 @@
+# emb/structured_log_fluent — заметки для агентов
+
+Дополняет корневой [AGENTS.md](../../AGENTS.md) (проект, команды, соглашения, версионирование, CI). Подгружается, когда работа идёт в этом каталоге; `CLAUDE.md` рядом — симлинк на этот файл.
+- [lib/structured_log_fluent.dart](lib/structured_log_fluent.dart) — barrel-файл экспорта; реэкспортирует `logLevelColor()` из `structured_log_flutter`.
+- [lib/src/fluent_log_viewer.dart](lib/src/fluent_log_viewer.dart) — `FluentLogViewer`: встраиваемый
+  виджет без своей хромы — master-detail split view (список слева, панель деталей справа), тулбар с
+  поиском/`LogCategoryComboBox`/уровнем/паузой/очисткой. Адаптивен под собственную ширину (не окна):
+  ниже брейкпоинта тулбар переносится на вторую строку, а master-detail сворачивается в список с
+  открытием деталей по тапу и кнопкой «назад».
+- [lib/src/fluent_log_viewer_page.dart](lib/src/fluent_log_viewer_page.dart) — `FluentLogViewerPage`: тонкая обёртка `ScaffoldPage` (заголовок «Logs», back-кнопка при пуше) вокруг `FluentLogViewer` для полноэкранного сценария.
+- [lib/src/log_category_combo_box.dart](lib/src/log_category_combo_box.dart) — `LogCategoryComboBox`: `ComboBox`-фильтр по `category`, скрывается при <2 категориях.
+- [lib/src/log_entry_tile.dart](lib/src/log_entry_tile.dart) — `LogEntryTile`: строка списка (бейдж уровня/время/event/category), hover- и accent-подсветка выбора через `HoverButton`.
+- [lib/src/log_entry_detail_pane.dart](lib/src/log_entry_detail_pane.dart) — `LogEntryDetailPane`: панель деталей (не модальная) с полным контекстом записи и копированием.
+- [lib/src/log_viewer_empty_state.dart](lib/src/log_viewer_empty_state.dart) — `LogViewerEmptyState`: «No logs yet» / «No results found».
+- [lib/src/log_level_colors.dart](lib/src/log_level_colors.dart) — только `logLevelAbbreviation()` (короткий бейдж уровня); `logLevelColor()` теперь общий, приезжает из `structured_log_flutter`.
+- [test/](test/) — виджет-тесты (`flutter test`); поведенческие тесты
+  (`fluent_log_viewer_test.dart`) пампят `FluentLogViewer` напрямую без `ScaffoldPage`/`Navigator`
+  на широком вьюпорте (1200×800 — дефолтный 800×600 слишком узкий),
+  `fluent_log_viewer_responsive_test.dart` — брейкпоинты на явно заданной ширине через `SizedBox`,
+  `fluent_log_viewer_page_test.dart` — только специфика страницы (заголовок/back-кнопка);
+  скоуп-хелперы `_inList`/`_inDetailPane` (список и панель деталей видны одновременно,
+  `find.text(event)` иначе находит дубликаты).
+- [example/](example/) — полноценное Flutter-приложение (`structured_log_fluent_example` в `melos.yaml`), запускается через `fvm flutter run -d chrome` из этой директории; поддерживает web; демонстрирует и `FluentLogViewerPage`, и встроенный `FluentLogViewer` в боковой панели (`Expanded`, не фиксированная ширина — иначе при сужении окна `Row` переполняется).
+- `fluent_ui: ^4.16.1` — обычный диапазон, не точный пин. До 2026-09 было зафиксировано точной
+  версией `4.15.1`, т.к. `4.16.1` не компилировалась с Flutter SDK, который тогда был в проекте
+  (`3.41.7`) — рассинхрон API `fluent_ui`/Flutter framework (`RawTooltip.ignorePointer`,
+  `ReorderableListView.builder.onReorderItem`, тип `ScrollCacheExtent`; `flutter analyze` это не
+  ловит, только `flutter test`/`flutter build`). Причина оказалась не в `fluent_ui`, а в устаревшем
+  локальном `stable`-снепшоте FVM в этом репозитории: `fluent_ui 4.16.0` уже требовал Flutter
+  `3.44.0+` («refactor: Flutter 3.44.0 support» в его CHANGELOG), но его собственный
+  `environment.flutter` констрейнт (`>=3.32.0`) этого не отражал. После поднятия пина Flutter в
+  `.fvmrc` до `3.44.9` (сейчас там `3.47.4`, о пине — в корневом `AGENTS.md`) пакет компилируется и
+  все тесты проходят — диапазон снят.
+
+Общее для трёх скинов (подписи, копирование, русская раскладка) — в [emb/structured_log_flutter/AGENTS.md](../structured_log_flutter/AGENTS.md#общее-для-трёх-скинов).

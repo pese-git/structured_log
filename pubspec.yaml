@@ -11,3 +11,6 @@ dev_dependencies:
   # root package holds: `tool/coverage_floor.dart`, the coverage gate CI
   # runs for every package.
   test: ^1.25.0
+  # For `test/repo_consistency_test.dart`, which reads `melos.yaml`, `ci.yml`
+  # and the pubspecs of the packages and checks them against each other.
+  yaml: ^3.1.0

@@ -556,10 +556,7 @@ StructuredLogLoggingBridge().attach();
 dependencies:
   shelf: ^1.4.0
   structured_log: ^0.3.2
-  structured_log_shelf:
-    git: # на pub.dev пока нет
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_shelf
+  structured_log_shelf: ^0.1.0-dev.1
 ```
 
 ```dart

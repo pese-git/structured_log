@@ -3,6 +3,122 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-10-30
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`structured_log` - `v0.3.2+3`](#structured_log---v0323)
+ - [`structured_log_auto_route` - `v0.1.0-dev.2`](#structured_log_auto_route---v010-dev2)
+ - [`structured_log_bloc` - `v0.1.0-dev.9`](#structured_log_bloc---v010-dev9)
+ - [`structured_log_cherrypick` - `v0.1.0-dev.9`](#structured_log_cherrypick---v010-dev9)
+ - [`structured_log_cupertino` - `v0.1.4+1`](#structured_log_cupertino---v0141)
+ - [`structured_log_dio` - `v0.1.0-dev.9`](#structured_log_dio---v010-dev9)
+ - [`structured_log_drift` - `v0.1.0-dev.6`](#structured_log_drift---v010-dev6)
+ - [`structured_log_fluent` - `v0.1.4+1`](#structured_log_fluent---v0141)
+ - [`structured_log_flutter` - `v0.1.5+1`](#structured_log_flutter---v0151)
+ - [`structured_log_go_router` - `v0.1.0-dev.9`](#structured_log_go_router---v010-dev9)
+ - [`structured_log_http_client` - `v0.1.0-dev.9`](#structured_log_http_client---v010-dev9)
+ - [`structured_log_logging` - `v0.1.0-dev.4`](#structured_log_logging---v010-dev4)
+ - [`structured_log_material` - `v0.1.4+1`](#structured_log_material---v0141)
+ - [`structured_log_remote_sync` - `v0.2.2+3`](#structured_log_remote_sync---v0223)
+ - [`structured_log_riverpod` - `v0.1.0-dev.3`](#structured_log_riverpod---v010-dev3)
+ - [`structured_log_shelf` - `v0.1.0-dev.1`](#structured_log_shelf---v010-dev1)
+ - [`structured_log_http` - `v0.2.0+9`](#structured_log_http---v0209)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `structured_log_http` - `v0.2.0+9`
+
+---
+
+#### `structured_log` - `v0.3.2+3`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_auto_route` - `v0.1.0-dev.2`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_bloc` - `v0.1.0-dev.9`
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_cherrypick` - `v0.1.0-dev.9`
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_cupertino` - `v0.1.4+1`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+ - **DOCS**: pin the log viewer packages to the releases with LogViewerLabels (#123).
+
+#### `structured_log_dio` - `v0.1.0-dev.9`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_drift` - `v0.1.0-dev.6`
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_fluent` - `v0.1.4+1`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+ - **DOCS**: pin the log viewer packages to the releases with LogViewerLabels (#123).
+
+#### `structured_log_flutter` - `v0.1.5+1`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+ - **DOCS**: pin the log viewer packages to the releases with LogViewerLabels (#123).
+
+#### `structured_log_go_router` - `v0.1.0-dev.9`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_http_client` - `v0.1.0-dev.9`
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_logging` - `v0.1.0-dev.4`
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_material` - `v0.1.4+1`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+ - **DOCS**: pin the log viewer packages to the releases with LogViewerLabels (#123).
+
+#### `structured_log_remote_sync` - `v0.2.2+3`
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_riverpod` - `v0.1.0-dev.3`
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+#### `structured_log_shelf` - `v0.1.0-dev.1`
+
+ - **FEAT**(structured_log_shelf): add a shelf request-logging middleware.
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): rewrite the Russian README in plain Russian.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
+
 ## 2026-10-19
 
 ### Changes
