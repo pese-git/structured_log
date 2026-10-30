@@ -528,8 +528,8 @@ void main() {
 
     test('AGENTS.md counts the packages and points to their notes', () {
       final agents = read('AGENTS.md');
-      final count =
-          RegExp(r'(\S+) пакетов в `emb/` — (\S+) живых').firstMatch(agents);
+      final count = RegExp(r'(\S+)\s+пакетов\s+в\s+`emb/`\s+—\s+(\S+)\s+живых')
+          .firstMatch(agents);
       expect(
         count,
         isNotNull,
@@ -549,7 +549,7 @@ void main() {
       );
 
       final rule =
-          RegExp(r'\((\d+) файл\S*\s+на (\d+) пакет').firstMatch(agents);
+          RegExp(r'\((\d+)\s+файл\S*\s+на\s+(\d+)\s+пакет').firstMatch(agents);
       expect(
         rule,
         isNotNull,
