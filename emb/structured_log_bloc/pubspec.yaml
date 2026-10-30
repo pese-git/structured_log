@@ -1,8 +1,8 @@
 name: structured_log_bloc
 description: >-
-  StructuredLogBlocObserver — a BlocObserver that turns the lifecycle, events,
-  state changes and errors of every bloc and cubit into structured_log entries.
-  Works with flutter_bloc as is.
+  StructuredLogBlocObserver — a BlocObserver that logs the lifecycle, events,
+  state changes and errors of every bloc and cubit as structured_log entries.
+  Works with flutter_bloc.
 version: 0.1.0-dev.8
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_bloc/

@@ -1,8 +1,8 @@
 name: structured_log_http_client
 description: >-
-  StructuredLogHttpClient — a package:http Client wrapper that logs every
-  request, response and failure as structured_log entries, with sensitive
-  headers and query parameters redacted.
+  StructuredLogHttpClient — a package:http Client wrapper that logs each
+  request, response and failure as structured_log entries, redacting sensitive
+  headers and query parameters.
 version: 0.1.0-dev.8
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_http_client/
