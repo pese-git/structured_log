@@ -275,7 +275,14 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
 
 Подробности о каждом пакете и приложении лежат в `AGENTS.md` его каталога (`CLAUDE.md` рядом — симлинк на него). Файл каталога подгружается, когда работа идёт внутри него, поэтому в корневом файле остаются только правила, общие для всего репозитория. Ссылки на файлы каталогов — в списке «Верхний уровень репозитория» выше.
 
-**Новый каталог с собственным `AGENTS.md` — это и `CLAUDE.md` рядом (симлинк на него: `ln -s AGENTS.md CLAUDE.md`), и, для пакета `emb/`, файл `.pubignore` с двумя строками `AGENTS.md` и `CLAUDE.md`.** Без `.pubignore` заметки уедут в архив на pub.dev: `dart pub publish` берёт всё, что не в `.gitignore`, а симлинк раскрывает в обычный файл. `.pubignore` в каталоге заменяет только `.gitignore` этого же каталога, а правила из корневого (lock-файлы, `pubspec_overrides.yaml`, `coverage/`) остаются в силе; это проверено листингом `dart pub publish --dry-run` для всех пакетов `emb/`. Заметки каталога дополняют этот файл, а не повторяют его: общее (команды, соглашения, версионирование, CI) живёт здесь.
+**Новый каталог с собственным `AGENTS.md` — это и `CLAUDE.md` рядом (симлинк на него: `ln -s
+AGENTS.md CLAUDE.md`), и, для пакета `emb/`, файл `.pubignore` с двумя строками `AGENTS.md` и
+`CLAUDE.md`.** Без `.pubignore` заметки уедут в архив на pub.dev: `dart pub publish` берёт всё, что
+не в `.gitignore`, а симлинк раскрывает в обычный файл. `.pubignore` в каталоге заменяет только
+`.gitignore` этого же каталога, а правила из корневого (lock-файлы, `pubspec_overrides.yaml`,
+`coverage/`) остаются в силе; это проверено листингом `dart pub publish --dry-run` для всех пакетов
+`emb/`. Заметки каталога дополняют этот файл, а не повторяют его: общее (команды, соглашения,
+версионирование, CI) живёт здесь.
 
 ## Команды
 
@@ -317,7 +324,17 @@ fvm dart run example/main.dart
 - `BoundLogger.bind()` / `unbind()` иммутабельны — всегда возвращают новый экземпляр, никогда не мутируют `_context` на месте.
 - Процессоры имеют тип `Map<String, dynamic>? Function(Map<String, dynamic> entry)`; возврат `null` отбрасывает запись. Новые процессоры должны быть чистыми функциями и не зависеть от порядка выполнения, если это не документировано отдельно.
 - `StructlogConfiguration` — глобальное изменяемое состояние (`_current`); тесты, вызывающие `configure()`, обязаны делать `reset()` в `tearDown`, чтобы не влиять на другие тесты.
-- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`) и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`, `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` → `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`, `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`, `structured_log_auto_route` → `auto_route`, `structured_log_shelf` → `shelf`; ровно одна такая зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
+- Никаких сторонних runtime-зависимостей у `structured_log` — сохранять это, если явно не попросили
+  иначе. Остальные пакеты `emb/` этому ограничению не подчиняются: Flutter-пакеты
+  (`structured_log_flutter`/`structured_log_material`/`structured_log_fluent`/`structured_log_cupertino`)
+  и адаптеры, для которых чужая библиотека и есть смысл пакета (`structured_log_bloc` → `bloc`,
+  `structured_log_dio` → `dio`, `structured_log_http_client` → `http`, `structured_log_go_router` →
+  `go_router`, `structured_log_cherrypick` → `cherrypick`, `structured_log_drift` → `drift`,
+  `structured_log_logging` → `logging`, `structured_log_riverpod` → `riverpod`,
+  `structured_log_auto_route` → `auto_route`, `structured_log_shelf` → `shelf`; ровно одна такая
+  зависимость плюс `structured_log`), но `structured_log_flutter` сам не должен зависеть от
+  конкретной дизайн-системы (Material/Cupertino/Fluent) — см. design.md в
+  [openspec/changes/archive/2026-10-01-add-structured-log-flutter/](openspec/changes/archive/2026-10-01-add-structured-log-flutter/).
 - Форматирование должно строго соответствовать существующему (`fvm dart format .` перед завершением любого изменения).
 - У каждого живого пакета `emb/` в `README.md`/`README.ru.md` перед «License»/«Лицензия» есть раздел
   «Related packages»/«Связанные пакеты»: остальные пакеты семейства, сгруппированные (ядро, просмотрщик,
@@ -333,21 +350,49 @@ fvm dart run example/main.dart
 
 Нужен постоянно, а правки разбросаны по ~20 местам и три из них с ручными счётчиками. Образец — последние адаптеры (`structured_log_auto_route` — Flutter, `structured_log_shelf` — чистый Dart): их коммиты показывают состав. Порядок важен: сначала проба, потом код, документация — после API.
 
-Часть шагов сторожит тест `test/repo_consistency_test.dart` (джоба `tools`; локально — `fvm dart test` в корне): пакеты на диске против `melos.yaml`, скоупов тестов, порогов покрытия, `ci.yml`, метаданных `pubspec`, заметок каталога (`AGENTS.md`/`CLAUDE.md`/`.pubignore`), «Related packages», счётчика адаптеров, корневых README, руководства, страниц сайта и чисел в этом файле. Он видит наличие, а не смысл: что пакет упомянут, а не что описан верно. Не сторожатся проба и заявка (шаг 1), нижняя граница в CI, содержание документов, публикация и выкатка (шаги 12–13).
+Часть шагов сторожит тест `test/repo_consistency_test.dart` (джоба `tools`; локально — `fvm dart
+test` в корне): пакеты на диске против `melos.yaml`, скоупов тестов, порогов покрытия, `ci.yml`,
+метаданных `pubspec`, заметок каталога (`AGENTS.md`/`CLAUDE.md`/`.pubignore`), «Related packages»,
+счётчика адаптеров, корневых README, руководства, страниц сайта и чисел в этом файле. Он видит
+наличие, а не смысл: что пакет упомянут, а не что описан верно. Не сторожатся проба и заявка (шаг
+1), нижняя граница в CI, содержание документов, публикация и выкатка (шаги 12–13).
 
-1. **Проба и заявка.** Для адаптера к чужой библиотеке — пробная программа на нижней и верхней границе констрейнта до `design.md`: что библиотека сообщает на самом деле, а не что написано в документации (так найдены `didUnmountProvider`, `RouteData.queryParams`, `parameters:` в `SqliteException`). Заявка `openspec/changes/add-structured-log-<lib>/` на русском (`proposal`/`design`/`specs`/`tasks`), `openspec validate <имя> --strict`; реализация — по `tasks.md`, задачи отмечаются по ходу.
-2. **Каталог `emb/structured_log_<lib>/`.** `lib/` (barrel + `src/`), `test/`, `example/main.dart`, `LICENSE` (копия из `emb/structured_log/`), `README.md` + `README.ru.md`, `pubspec.yaml`: версия `0.1.0-dev.0`, `homepage`/`documentation`/`repository` как у соседей, `topics` (до пяти, строчные, через дефис), `description` 60–180 символов, ровно одна чужая зависимость плюс `structured_log`, **без** `resolution:` и `publish_to`. Не создавать `CHANGELOG.md`.
+1. **Проба и заявка.** Для адаптера к чужой библиотеке — пробная программа на нижней и верхней
+   границе констрейнта до `design.md`: что библиотека сообщает на самом деле, а не что написано в
+   документации (так найдены `didUnmountProvider`, `RouteData.queryParams`, `parameters:` в
+   `SqliteException`). Заявка `openspec/changes/add-structured-log-<lib>/` на русском
+   (`proposal`/`design`/`specs`/`tasks`), `openspec validate <имя> --strict`; реализация — по
+   `tasks.md`, задачи отмечаются по ходу.
+2. **Каталог `emb/structured_log_<lib>/`.** `lib/` (barrel + `src/`), `test/`, `example/main.dart`,
+   `LICENSE` (копия из `emb/structured_log/`), `README.md` + `README.ru.md`, `pubspec.yaml`: версия
+   `0.1.0-dev.0`, `homepage`/`documentation`/`repository` как у соседей, `topics` (до пяти,
+   строчные, через дефис), `description` 60–180 символов, ровно одна чужая зависимость плюс
+   `structured_log`, **без** `resolution:` и `publish_to`. Не создавать `CHANGELOG.md`.
 3. **Заметки каталога.** `AGENTS.md` пакета (что библиотека делает на самом деле, ловушки, чем проверено мутацией), симлинк `CLAUDE.md` (`ln -s AGENTS.md CLAUDE.md`) и `.pubignore` с строками `AGENTS.md` и `CLAUDE.md` — иначе заметки уедут на pub.dev.
 4. **Workspace.** `melos.yaml`: путь в `packages:` **и** имя пакета в скоупе `test:dart` или `test:flutter` (Flutter-пакет — только второй).
-5. **CI.** Чистый Dart — отдельная джоба по образцу ближайшей (`bloc-observer`, `drift-interceptor`, `shelf-middleware`); Flutter — строка матрицы `flutter` (`package` + `name`). Прогон на нижней границе констрейнта — последним шагом, после проверки покрытия (ей нужен `package_config.json` первого прогона). Порог в `tool/coverage_floors.json`: чуть ниже измеренного, плюс запись `_added_<дата>`. Для отдельной джобы — пересчитать «N джоб» в разделе «CI» этого файла и добавить пункт; для строки матрицы — дописать пакет в перечисление джобы `flutter`.
-6. **README семейства.** Строка нового пакета в «Related packages»/«Связанные пакеты» **всех остальных** живых пакетов, обе языковые версии (группа «Integrations»/«Интеграции»). Фраза «one of N adapters»/«один из N адаптеров» есть в README адаптеров — увеличить во всех. Сверка, которую делает и тест: `grep -L structured_log_<lib> emb/*/README.md emb/*/README.ru.md` должна назвать только два README прослойки `structured_log_http` (README самого пакета своё имя содержит).
+5. **CI.** Чистый Dart — отдельная джоба по образцу ближайшей (`bloc-observer`, `drift-interceptor`,
+   `shelf-middleware`); Flutter — строка матрицы `flutter` (`package` + `name`). Прогон на нижней
+   границе констрейнта — последним шагом, после проверки покрытия (ей нужен `package_config.json`
+   первого прогона). Порог в `tool/coverage_floors.json`: чуть ниже измеренного, плюс запись
+   `_added_<дата>`. Для отдельной джобы — пересчитать «N джоб» в разделе «CI» этого файла и добавить
+   пункт; для строки матрицы — дописать пакет в перечисление джобы `flutter`.
+6. **README семейства.** Строка нового пакета в «Related packages»/«Связанные пакеты» **всех
+   остальных** живых пакетов, обе языковые версии (группа «Integrations»/«Интеграции»). Фраза «one
+   of N adapters»/«один из N адаптеров» есть в README адаптеров — увеличить во всех. Сверка, которую
+   делает и тест: `grep -L structured_log_<lib> emb/*/README.md emb/*/README.ru.md` должна назвать
+   только два README прослойки `structured_log_http` (README самого пакета своё имя содержит).
 7. **Корневые README** (`README.md` + `README.ru.md`): вступительный абзац со списком адаптеров, таблица «библиотека → что пишется → категория», диаграмма (`mermaid`), таблица пакетов (бейдж pub.dev; пока не опубликован — «not yet published»/«ещё не опубликован»).
 8. **Руководство** `docs/guides/embedding-guide(.ru).md`: новый раздел (для навигации у `go_router`/`auto_route` — подраздел общего раздела), перенумерация следующих разделов и якорей, строка в оглавлении вверху и в «Where to go next».
 9. **Сайт.** Вручную: `site/src/content/docs/index.mdx` и `ru/index.mdx` (абзац, таблица, диаграмма, `<Card>`), `packages/index.md` и `ru/packages/index.md` (строка). Страница `/packages/<пакет>/` генерируется из README сама. Проверка: `cd site && npm ci && npm run build`.
 10. **Этот файл.** Вступительный абзац («адаптеры к чужим…»), «Проект» (число пакетов словами и пункт с описанием), «Структура» (пункт со ссылкой на `AGENTS.md` каталога), «Соглашения» (соответствие пакет → чужая библиотека; число README-файлов в правиле про «Related packages»), «CI», «Перед завершением» (список README).
 11. **Перед PR.** `fvm dart test` в корне репозитория (сверка файлов между собой), форматирование, анализ, тесты пакета, прогон на нижней границе, покрытие против порога, мутации (в `AGENTS.md` пакета — какие места проверены); `dart pub publish --dry-run` в каталоге пакета: в списке нет `AGENTS.md`/`CLAUDE.md`, из замечаний — только про `pubspec_overrides.yaml`.
 12. **Коммиты и слияние.** Отдельные коммиты `feat(<пакет>)`, `ci(<пакет>)`, `docs(<пакет>)`, затем `docs:` на общие файлы. **Вливать rebase'ом, не squash'ем**: правка README у всех пакетов в одном squash-коммите даёт каждому `feat`, и `melos version` поднимет минорную у всех.
-13. **После слияния.** Архив заявки (`openspec archive <имя> --yes`, затем заполнить `Purpose`, поправить ссылки и абзац об открытых заявках в этом файле) → `melos version` (у нового пакета нет тега, он считает всю историю каталога: `0.1.0-dev.0` → `0.1.0-dev.1`) → push с тегами → `melos publish --dry-run` → публикация по уровням (ядро → пакеты на ядре → скины и прослойка) → «not yet published» заменить на бейдж в корневых README и на карточке сайта → пересобрать и выкатить сайт: страница пакета появляется только после выкатки.
+13. **После слияния.** Архив заявки (`openspec archive <имя> --yes`, затем заполнить `Purpose`,
+    поправить ссылки и абзац об открытых заявках в этом файле) → `melos version` (у нового пакета
+    нет тега, он считает всю историю каталога: `0.1.0-dev.0` → `0.1.0-dev.1`) → push с тегами →
+    `melos publish --dry-run` → публикация по уровням (ядро → пакеты на ядре → скины и прослойка) →
+    «not yet published» заменить на бейдж в корневых README и на карточке сайта → пересобрать и
+    выкатить сайт: страница пакета появляется только после выкатки.
 
 ## Коммиты и версионирование
 
