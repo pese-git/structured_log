@@ -1,3 +1,8 @@
+## 0.1.4+1
+
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+ - **DOCS**: pin the log viewer packages to the releases with LogViewerLabels (#123).
+
 ## 0.1.4
 
  - **FEAT**(structured_log_material): take labels from LogViewerLabels and report copies.

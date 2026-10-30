@@ -1,3 +1,8 @@
+## 0.1.0-dev.9
+
+ - **DOCS**: shorten the pubspec descriptions to the 180 characters pub.dev allows.
+ - **DOCS**(structured_log_shelf): document the package and list it in the family.
+
 ## 0.1.0-dev.8
 
  - **DOCS**(structured_log_auto_route): document the package and list it in the family.

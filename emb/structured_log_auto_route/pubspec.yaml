@@ -3,7 +3,7 @@ description: >-
   StructuredLogAutoRouteObserver — logs every auto_route navigation (push,
   pop, remove, tab change) as structured_log entries, with token-like
   parameters in the location redacted.
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_auto_route/
 repository: https://github.com/pese-git/structured_log.git
@@ -22,7 +22,7 @@ dependencies:
   auto_route: ">=10.0.0 <12.0.0"
   flutter:
     sdk: flutter
-  structured_log: ^0.3.2+2
+  structured_log: ^0.3.2+3
 
 dev_dependencies:
   flutter_test:
