@@ -80,17 +80,13 @@ libraries already do; the whole project is at
 
 ## Installation
 
-Not yet published to pub.dev (`0.1.0-dev.0`) — depend on it from git for
-now:
+Published on pub.dev as a pre-release:
 
 ```yaml
 dependencies:
   shelf: ^1.4.0
   structured_log: ^0.3.2
-  structured_log_shelf:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_shelf
+  structured_log_shelf: ^0.1.0-dev.1
 ```
 
 ## Quick Start

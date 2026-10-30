@@ -88,17 +88,13 @@
 
 ## Установка
 
-Пакет пока не опубликован на pub.dev (`0.1.0-dev.0`), поэтому подключайте его
-из git:
+Опубликован на pub.dev как пре-релиз:
 
 ```yaml
 dependencies:
   shelf: ^1.4.0
   structured_log: ^0.3.2
-  structured_log_shelf:
-    git:
-      url: https://github.com/pese-git/structured_log.git
-      path: emb/structured_log_shelf
+  structured_log_shelf: ^0.1.0-dev.1
 ```
 
 ## Быстрый старт
