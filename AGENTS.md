@@ -143,7 +143,8 @@ Dart, и `--set-exit-if-changed` тогда валит CI на коде, кот�
   со стеком; `http_request_received` — по желанию) с `category: 'http'`, и дающий обработчику `request.logger`,
   привязанный к `request_id` запроса, который возвращается в `X-Request-Id`. **Единственный серверный адаптер** —
   остальные стоят в приложении. Тела не пишутся никогда, входящий id — только явным доверием и после проверки. Чистый
-  Dart, `shelf: ^1.4.0`, пока не опубликован (`0.1.0-dev.0`), заявка
+  Dart, `shelf: ^1.4.0`, опубликован как пре-релиз
+  (серия `0.1.0-dev.N`), заявка
   [openspec/changes/add-structured-log-shelf/](openspec/changes/add-structured-log-shelf/) открыта.
 
 Плюс один пакет в `backend/`:
