@@ -1,8 +1,8 @@
 name: structured_log_drift
 description: >-
-  StructuredLogDriftInterceptor — a drift QueryInterceptor that logs every
-  query, batch, failure and transaction end as a structured_log entry, with
-  its duration and slow queries flagged; argument values stay out by default.
+  StructuredLogDriftInterceptor — a drift QueryInterceptor that logs queries,
+  batches, failures and transactions with durations, flags slow queries, keeps
+  arguments out by default.
 version: 0.1.0-dev.5
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_drift/

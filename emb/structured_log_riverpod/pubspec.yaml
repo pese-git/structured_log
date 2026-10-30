@@ -1,8 +1,8 @@
 name: structured_log_riverpod
 description: >-
-  StructuredLogRiverpodObserver — a ProviderObserver that turns the lifecycle
-  of every Riverpod provider (created, updated, failed, removed) into
-  structured_log entries. Works with flutter_riverpod as is.
+  StructuredLogRiverpodObserver — a ProviderObserver that logs created,
+  updated, failed and removed Riverpod providers as structured_log entries.
+  Works with flutter_riverpod.
 version: 0.1.0-dev.2
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_riverpod/

@@ -1,8 +1,8 @@
 name: structured_log_cherrypick
 description: >-
-  StructuredLogCherryPickObserver — a CherryPickObserver that logs what the
-  cherrypick DI container does (scopes, modules, cycles, errors) as
-  structured_log entries, without ever printing an instance.
+  StructuredLogCherryPickObserver — a CherryPickObserver that logs the scopes,
+  modules, cycles and errors of a cherrypick container as structured_log
+  entries, never an instance.
 version: 0.1.0-dev.8
 homepage: https://structured-log.openidealab.com
 documentation: https://structured-log.openidealab.com/packages/structured_log_cherrypick/
